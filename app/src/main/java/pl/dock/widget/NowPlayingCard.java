@@ -10,6 +10,7 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.Shader;
+import android.graphics.RadialGradient;
 import android.graphics.Typeface;
 import android.os.Handler;
 import android.os.Looper;
@@ -41,6 +42,28 @@ public class NowPlayingCard extends View implements MediaHub.Listener, NightAwar
         }
     };
     private int pressed = -1;   // 0 prev, 1 play, 2 next
+    // efekt CarPlay: rozswietlenie przycisku przy dotknieciu (glow 0..1)
+    private int glowBtn = -1;
+    private float glow;
+    private android.animation.ObjectAnimator glowAnim;
+
+    public float getGlow() {
+        return glow;
+    }
+
+    public void setGlow(float v) {
+        glow = v;
+        if (glow <= 0.01f) glowBtn = -1;
+        invalidate();
+    }
+
+    private void glowTo(int btn, float target, long ms) {
+        glowBtn = btn;
+        if (glowAnim != null) glowAnim.cancel();
+        glowAnim = android.animation.ObjectAnimator.ofFloat(this, "glow", glow, target);
+        glowAnim.setDuration(ms);
+        glowAnim.start();
+    }
     private boolean scanning;
     private long scanStart;
     private final Runnable scan = new Runnable() {
@@ -184,6 +207,7 @@ public class NowPlayingCard extends View implements MediaHub.Listener, NightAwar
         MediaHub hub = MediaHub.get();
         float cy = hgt - 34f * d;
         float step = w / 4f;
+        float[] xs = {w / 2f - step, w / 2f, w / 2f + step};
         if (!on) {
             paint.setColor(fg);
             paint.setAlpha(70);
@@ -193,19 +217,31 @@ public class NowPlayingCard extends View implements MediaHub.Listener, NightAwar
             paint.setAlpha(255);
             return;
         }
+        // efekt CarPlay: dotkniety przycisk rozswietla sie pod spodem
+        if (glow > 0.01f && glowBtn >= 0 && glowBtn <= 2) {
+            float gx = xs[glowBtn];
+            float rad = 40f * d;
+            int col = night ? 0x99FFFFFF : 0x990A84FF;
+            int a = Math.round((col >>> 24) * glow);
+            paint.setStyle(Paint.Style.FILL);
+            paint.setShader(new RadialGradient(gx, cy, rad,
+                    (a << 24) | (col & 0x00FFFFFF), col & 0x00FFFFFF, Shader.TileMode.CLAMP));
+            cv.drawCircle(gx, cy, rad, paint);
+            paint.setShader(null);
+        }
         if (hub.canPrev()) {
             paint.setColor(fg);
-            paint.setAlpha(pressed == 0 ? 140 : 255);
+            paint.setAlpha(255);
             PlayGlyphs.skip(cv, w / 2f - step, cy, 30f * d, false, paint);
         }
         if (hub.canNext()) {
             paint.setColor(fg);
-            paint.setAlpha(pressed == 2 ? 140 : 255);
+            paint.setAlpha(255);
             PlayGlyphs.skip(cv, w / 2f + step, cy, 30f * d, true, paint);
         }
         if (hub.canToggle()) {
             paint.setColor(fg);
-            paint.setAlpha(pressed == 1 ? 140 : 255);
+            paint.setAlpha(255);
             if (t.playing()) {
                 PlayGlyphs.pause(cv, w / 2f, cy, 34f * d, paint);
             } else {
@@ -236,6 +272,7 @@ public class NowPlayingCard extends View implements MediaHub.Listener, NightAwar
                     scanStart = System.currentTimeMillis();
                     h.postDelayed(scan, ViewConfiguration.getLongPressTimeout());
                 }
+                if (pressed >= 0 && pressed <= 2) glowTo(pressed, 1f, 110);
                 invalidate();
                 return true;
             case MotionEvent.ACTION_UP:
@@ -244,6 +281,7 @@ public class NowPlayingCard extends View implements MediaHub.Listener, NightAwar
                 boolean wasScan = scanning;
                 pressed = -1;
                 scanning = false;
+                if (glow > 0.01f && glowBtn >= 0) glowTo(glowBtn, 0f, 320);
                 invalidate();
                 if (!wasScan && p >= 0 && p == region(e.getX(), e.getY())) act(p);
                 return true;
@@ -251,6 +289,7 @@ public class NowPlayingCard extends View implements MediaHub.Listener, NightAwar
                 h.removeCallbacks(scan);
                 pressed = -1;
                 scanning = false;
+                if (glow > 0.01f && glowBtn >= 0) glowTo(glowBtn, 0f, 320);
                 invalidate();
                 return true;
             default:

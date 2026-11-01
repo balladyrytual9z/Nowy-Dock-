@@ -7,6 +7,8 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.graphics.RadialGradient;
+import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
@@ -182,6 +184,14 @@ public class MediaCenterActivity extends Activity implements MediaHub.Listener {
         }
 
         private void drawCtrl(Canvas c, float cx, float cy, float size, int id, String glyph, boolean night) {
+            // efekt CarPlay: dotkniety przycisk rozswietla sie pod spodem
+            if (pressed == id) {
+                float rad = size * 0.95f;
+                Paint gp = new Paint(Paint.ANTI_ALIAS_FLAG);
+                gp.setShader(new RadialGradient(cx, cy, rad, 0x660A84FF, 0x000A84FF,
+                        Shader.TileMode.CLAMP));
+                c.drawCircle(cx, cy, rad, gp);
+            }
             paint.setColor(pressed == id ? DockColors.accent(night) : DockColors.raised(night));
             c.drawCircle(cx, cy, size / 2f, paint);
             text.setTextAlign(Paint.Align.CENTER);

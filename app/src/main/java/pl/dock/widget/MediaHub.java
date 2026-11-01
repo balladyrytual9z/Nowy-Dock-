@@ -86,6 +86,32 @@ public class MediaHub {
                 }
             };
 
+    // --- Retry okladki: gdy sesja zywa, ale okladki/metadanych brak (np. powrot
+    // do auta po przerwie), co 3 s dopytujemy metadane az aplikacja je wypchnie.
+    private int artTries;
+    private final Runnable artPoll = new Runnable() {
+        @Override
+        public void run() {
+            if (ctl == null || refs <= 0) {
+                artTries = 0;
+                return;
+            }
+            if (++artTries > 20) {   // max ~60 s, potem czekamy na zdarzenie sesji
+                artTries = 0;
+                return;
+            }
+            readFrom(ctl);
+            scheduleArtPoll(3000L);
+        }
+    };
+
+    private void scheduleArtPoll(long delay) {
+        main.removeCallbacks(artPoll);
+        if (ctl != null && refs > 0 && (!track.hasData() || track.art == null)) {
+            main.postDelayed(artPoll, delay);
+        }
+    }
+
     private final MediaController.Callback ctlCallback = new MediaController.Callback() {
         @Override
         public void onMetadataChanged(MediaMetadata m) {
@@ -192,6 +218,8 @@ public class MediaHub {
     }
 
     private void stop() {
+        main.removeCallbacks(artPoll);
+        artTries = 0;
         try {
             if (msm != null) msm.removeOnActiveSessionsChangedListener(sessionsListener);
         } catch (Throwable ignored) {
@@ -381,6 +409,11 @@ public class MediaHub {
 
     private void fire() {
         final Track t = track;
+        // brak okladki/metadanych przy zywej sesji -> dopytuj w tle
+        try {
+            scheduleArtPoll(2000L);
+        } catch (Throwable ignored) {
+        }
         if (app != null) {
             try {
                 StatusCenter.refreshCp(app);
