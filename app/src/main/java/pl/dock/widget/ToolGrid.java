@@ -567,18 +567,17 @@ public class ToolGrid extends ViewGroup {
         protected void onDraw(Canvas cv) {
             float w = getWidth();
             float h = getHeight();
-            float labelH = 28f * d;
-            float dia = Math.min(w - 6f * d, h - labelH);
+            float dia = Math.min(w - 6f * d, h - 6f * d);
             if (dia < 24f * d) dia = Math.min(w, h) * 0.7f;
             float cx = w / 2f;
-            float cy = 2f * d + dia / 2f;
+            float cy = h / 2f;
             // styl iOS 18 Control Center: aktywne = bialy kafelek + kolorowy glyph,
             // nieaktywne = polprzezroczyste tlo + bialy glyph
             int fill = def.kind == PanelTool.K_APP ? 0x00000000
-                    : on ? (night ? 0xFFF2F2F7 : 0xFFFFFFFF)
-                    : (night ? 0x26FFFFFF : 0xFFE4E4EA);
+                    : on ? PanelTool.onColor(def)
+                    : (night ? 0x33FFFFFF : 0xFFE4E4EA);
             int ink = def.kind == PanelTool.K_APP ? 0xFFFFFFFF
-                    : (on ? PanelTool.onColor(def) : (night ? 0xFFFFFFFF : 0xFF3C3C43));
+                    : (on ? 0xFFFFFFFF : (night ? 0xFFFFFFFF : 0xFF3C3C43));
             // iOS 18: kafelek to squircle (zaokraglony prostokat), nie kolo
             float rad = dia * 0.32f;
             android.graphics.RectF body = new android.graphics.RectF(
@@ -609,17 +608,6 @@ public class ToolGrid extends ViewGroup {
                 PanelTool.glyph(cv, def.glyph, cx, cy, dia / 2f, ink);
             }
 
-            p.reset();
-            p.setAntiAlias(true);
-            p.setStyle(Paint.Style.FILL);
-            p.setTextAlign(Paint.Align.CENTER);
-            p.setTextSize(textSize());
-            p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
-            if (lines == null) lines = split(def.label, w - 4 * d);
-            float base = 2f * d + dia + (lines.length == 1 ? 15f * d : 11f * d);
-            for (int i = 0; i < lines.length; i++) {
-                cv.drawText(lines[i], cx, base + i * 12f * d, p);
-            }
         }
 
         @Override

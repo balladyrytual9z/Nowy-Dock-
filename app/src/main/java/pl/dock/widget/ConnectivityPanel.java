@@ -95,8 +95,8 @@ public class ConnectivityPanel extends LinearLayout {
         LinearLayout head = new LinearLayout(act);
         head.setOrientation(HORIZONTAL);
         head.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title = Popups.text(act, "Centrum łączności", 16, Popups.txt(night), true);
-        head.addView(title, new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        View titleSpacer = new View(act);
+        head.addView(titleSpacer, new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         btnEdit = pill("Edytuj");
         btnEdit.setOnClickListener(new OnClickListener() {
             @Override
@@ -809,6 +809,7 @@ public class ConnectivityPanel extends LinearLayout {
         private Runnable longPress;
         private final boolean sun;
         private final boolean night;
+        private final int tint;
         private Listener l;
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final RectF r = new RectF();
@@ -819,6 +820,7 @@ public class ConnectivityPanel extends LinearLayout {
             this.sun = sun;
             this.value = Math.max(0f, Math.min(1f, v));
             this.night = Look.night(c);
+            this.tint = sun ? 0xFFFFFFFF : 0xFF0A84FF;
             setContentDescription(sun ? "Jasność ekranu" : "Głośność");
         }
 
@@ -854,7 +856,7 @@ public class ConnectivityPanel extends LinearLayout {
             Path clip = new Path();
             clip.addRoundRect(r, rad, rad, Path.Direction.CW);
             cv.clipPath(clip);
-            p.setColor(0xFFFFFFFF);
+            p.setColor(tint);
             cv.drawRect(0, h * (1f - value), w, h, p);
             cv.restoreToCount(save);
 
@@ -862,7 +864,7 @@ public class ConnectivityPanel extends LinearLayout {
             float cx = w / 2f;
             float cy = h - 28f * d;
             boolean dim = value < 0.05f;
-            int ink = dim ? 0xFF8E8E93 : 0xFF1C1C1E;
+            int ink = dim ? 0xFF8E8E93 : (sun ? 0xFF1C1C1E : 0xFFFFFFFF);
             p.setStrokeCap(Paint.Cap.ROUND);
             p.setStrokeWidth(2.6f * d);
             if (sun) {
