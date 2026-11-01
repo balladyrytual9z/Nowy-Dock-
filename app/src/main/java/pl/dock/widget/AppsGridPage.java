@@ -1,21 +1,27 @@
 package pl.dock.widget;
 
 import android.app.Activity;
-import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Handler;
 import android.provider.Settings;
 import android.text.TextPaint;
 import android.text.TextUtils;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.Window;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.view.ViewConfiguration;
 
 import java.util.ArrayList;
@@ -57,6 +63,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
     private final Paint bmp = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final Paint badgePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF r = new RectF();
+    private final Path clipPath = new Path();
     private float sc = 1f, iconSz, colPitch, rowPitch, left, top, pillH, labelMax;
     private int pressed = -1;
     private float downX, downY;
@@ -136,6 +143,8 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         if (editMode) return;
         editMode = true;
         EditModeController.get().setEditing(true);
+        // sprzetowa warstwa na czas drzenia: ostre, gladkie krawedzie ikon (jak w iOS)
+        setLayerType(View.LAYER_TYPE_HARDWARE, null);
         h.post(wobbleTick);
         invalidate();
     }
@@ -144,6 +153,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         if (!editMode) return;
         editMode = false;
         h.removeCallbacks(wobbleTick);
+        setLayerType(View.LAYER_TYPE_NONE, null);
         invalidate();
     }
 
@@ -242,7 +252,14 @@ public class AppsGridPage extends View implements EditModeController.Listener {
 
             bmp.setAlpha(pressed == i && !dragActive ? 190 : 255);
             r.set(x + inset, y + inset, x + iconSz - inset, y + iconSz - inset);
+            // squircle jak w iOS: kazda ikona przycieta do rogow 22.5% szerokosci
+            float rad = r.width() * 0.225f;
+            clipPath.reset();
+            clipPath.addRoundRect(r, rad, rad, Path.Direction.CW);
+            cv.save();
+            cv.clipPath(clipPath);
             cv.drawBitmap(b, null, r, bmp);
+            cv.restore();
 
             float pw = it.textW + 24f * d * sc;
             float px = x + iconSz / 2f - pw / 2f;
@@ -272,7 +289,13 @@ public class AppsGridPage extends View implements EditModeController.Listener {
             float y = dragY - iconSz / 2f;
             bmp.setAlpha(230);
             r.set(x, y, x + iconSz, y + iconSz);
+            float radF = iconSz * 0.225f;
+            clipPath.reset();
+            clipPath.addRoundRect(r, radF, radF, Path.Direction.CW);
+            cv.save();
+            cv.clipPath(clipPath);
             cv.drawBitmap(b, null, r, bmp);
+            cv.restore();
             // highlight target slot
             int target = hit(dragX, dragY);
             if (target >= 0 && target != dragIndex) {
