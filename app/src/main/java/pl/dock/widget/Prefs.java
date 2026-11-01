@@ -15,11 +15,11 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-// Wszystkie ustawienia. Zapisy zwiÄkszajÄ `version`, dziÄki temu widÅ¼et i launcher
-// mogÄ pominÄÄ odÅwieÅ¼enie, gdy nic siÄ nie zmieniÅo.
+// Wszystkie ustawienia. Zapisy zwiększają `version`, dzięki temu widżet i launcher
+// mogą pominąć odświeżenie, gdy nic się nie zmieniło.
 public class Prefs {
 
-    // zwiÄkszane przy kaÅ¼dym zapisie
+    // zwiększane przy każdym zapisie
     public static volatile int version = 0;
 
     private static List<AppEntry> appsCache;
@@ -96,7 +96,7 @@ public class Prefs {
         saveApps(c, l);
     }
 
-    // przesuwa wpis o jednÄ pozycjÄ (-1 w gÃ³rÄ, +1 w dÃ³Å)
+    // przesuwa wpis o jedną pozycję (-1 w górę, +1 w dół)
     public static void move(Context c, long id, int delta) {
         List<AppEntry> l = apps(c);
         for (int i = 0; i < l.size(); i++) {
@@ -112,7 +112,7 @@ public class Prefs {
         }
     }
 
-    // zapis zmienionego wpisu (zwykÅego albo CarPlay)
+    // zapis zmienionego wpisu (zwykłego albo CarPlay)
     public static void persist(Context c, AppEntry e) {
         if (e.id == 0) {
             saveCarplay(c, e);
@@ -153,8 +153,8 @@ public class Prefs {
         ed(c).putString("cp", e.toJson().toString()).apply();
     }
 
-    // ---------- ustawienia domyÅlne (wg nazw aplikacji z listy tabletu) ----------
-    // Nie zgadujÄ nazw pakietÃ³w: aplikacje sÄ szukane po etykiecie widocznej na liÅcie aplikacji.
+    // ---------- ustawienia domyślne (wg nazw aplikacji z listy tabletu) ----------
+    // Nie zgaduję nazw pakietów: aplikacje są szukane po etykiecie widocznej na liście aplikacji.
     static String pkgByLabel(Context c, String want) {
         try {
             PackageManager pm = c.getPackageManager();
@@ -204,7 +204,7 @@ public class Prefs {
         ed(c).putString("sort", "last").apply();
     }
 
-    // ---------- uÅ¼ycie ----------
+    // ---------- użycie ----------
     public static void recordUse(Context c, long id) {
         List<AppEntry> l = apps(c);
         for (AppEntry e : l) {
@@ -226,7 +226,7 @@ public class Prefs {
         saveApps(c, l);
     }
 
-    // 3 gÃ³rne aplikacje wg uÅ¼ycia w caÅym launcherze (ostatnio / najczÄÅciej)
+    // 3 górne aplikacje wg użycia w całym launcherze (ostatnio / najczęściej)
     public static List<AppEntry> top(Context c, int n) {
         PackageManager pm = c.getPackageManager();
         String cp = diplayPkg(c);
@@ -254,7 +254,7 @@ public class Prefs {
         return ok.size() > n ? new ArrayList<AppEntry>(ok.subList(0, n)) : ok;
     }
 
-    // ostatnio uÅ¼yte aplikacje (do przeÅÄcznika po dÅugim dotkniÄciu siatki)
+    // ostatnio użyte aplikacje (do przełącznika po długim dotknięciu siatki)
     public static List<AppEntry> recents(Context c, int n) {
         PackageManager pm = c.getPackageManager();
         String me = c.getPackageName();
@@ -272,7 +272,7 @@ public class Prefs {
         return ok.size() > n ? new ArrayList<AppEntry>(ok.subList(0, n)) : ok;
     }
 
-    // kaÅ¼de uruchomienie aplikacji z launchera trafia do statystyk (wpis powstaje sam)
+    // każde uruchomienie aplikacji z launchera trafia do statystyk (wpis powstaje sam)
     public static synchronized void recordPkg(Context c, String pkg) {
         if (pkg == null || pkg.length() == 0) return;
         List<AppEntry> l = apps(c);
@@ -304,7 +304,7 @@ public class Prefs {
         saveApps(c, l);
     }
 
-    // ---------- widÅ¼ety launchera ----------
+    // ---------- widżety launchera ----------
     public static synchronized List<WidgetEntry> widgets(Context c) {
         if (widgetsCache == null) {
             widgetsCache = new ArrayList<WidgetEntry>();
@@ -373,7 +373,7 @@ public class Prefs {
         ed(c).putBoolean("voltage", v).apply();
     }
 
-    // ---------- przycisk siatki (tylko widÅ¼et) ----------
+    // ---------- przycisk siatki (tylko widżet) ----------
     public static String gridMode(Context c) {
         return sp(c).getString("grid", "dock");   // dock | system
     }
@@ -382,7 +382,7 @@ public class Prefs {
         ed(c).putString("grid", v).apply();
     }
 
-    // ---------- ÅºrÃ³dÅo napiÄcia ----------
+    // ---------- źródło napięcia ----------
     public static String voltSource(Context c) {
         return sp(c).getString("vsrc", "battery");   // battery | file | bcast | setting
     }
@@ -416,11 +416,11 @@ public class Prefs {
     }
 
     public static void setBcastVal(Context c, float v) {
-        // wartoÅÄ z broadcastu zmienia siÄ czÄsto: nie zwiÄkszamy `version`
+        // wartość z broadcastu zmienia się często: nie zwiększamy `version`
         sp(c).edit().putFloat("bval", v).putLong("bts", System.currentTimeMillis()).apply();
     }
 
-    // kiedy ostatnio przyszedÅ broadcast z napiÄciem (ms)
+    // kiedy ostatnio przyszedł broadcast z napięciem (ms)
     public static long bcastTs(Context c) {
         return sp(c).getLong("bts", 0L);
     }
@@ -530,8 +530,8 @@ public class Prefs {
         ed(c).putBoolean("gridsel", v).apply();
     }
 
-    // ---------- Bluetooth w panelu ÅÄcznoÅci ----------
-    // auto (przeÅÄcz, a jeÅli siÄ nie da â aplikacja) | app | toggle
+    // ---------- Bluetooth w panelu łączności ----------
+    // auto (przełącz, a jeśli się nie da – aplikacja) | app | toggle
     public static String btAction(Context c) {
         return sp(c).getString("btaction", "auto");
     }
@@ -557,7 +557,7 @@ public class Prefs {
         ed(c).putBoolean("cpshow", v).apply();
     }
 
-    // pakiet aplikacji CarPlay: ustawiony rÄcznie, albo znaleziony po etykiecie "DiPlay",
+    // pakiet aplikacji CarPlay: ustawiony ręcznie, albo znaleziony po etykiecie "DiPlay",
     // albo pakiet z dokumentacji projektu DiPlay
     public static String diplayPkg(Context c) {
         String s = sp(c).getString("cppkg", "");
@@ -594,7 +594,7 @@ public class Prefs {
         ed(c).putBoolean("cpusb", v).apply();
     }
 
-    // opcjonalny broadcast ze stanem CarPlay (jeÅli DiPlay go wysyÅa)
+    // opcjonalny broadcast ze stanem CarPlay (jeśli DiPlay go wysyła)
     public static String cpAction(Context c) {
         return sp(c).getString("cpact", "");
     }
@@ -615,8 +615,8 @@ public class Prefs {
         sp(c).edit().putString("cpbval", v).apply();
     }
 
-    // ---------- ÅºrÃ³dÅo odtwarzania (widÅ¼et muzyki) ----------
-    // pusty = aplikacja CarPlay (DiPlay), a gdy jej sesji nie ma â dowolna aktywna
+    // ---------- źródło odtwarzania (widżet muzyki) ----------
+    // pusty = aplikacja CarPlay (DiPlay), a gdy jej sesji nie ma – dowolna aktywna
     public static String mediaPkg(Context c) {
         return sp(c).getString("mediapkg", "");
     }
@@ -633,7 +633,7 @@ public class Prefs {
         ed(c).putBoolean("wseeded", true).apply();
     }
 
-    // ---------- skala interfejsu (niezaleÅ¼na od ustawieÅ Androida) ----------
+    // ---------- skala interfejsu (niezależna od ustawień Androida) ----------
     public static float uiScale(Context c) {
         return sp(c).getFloat("uiscale", 1f);
     }
@@ -642,7 +642,7 @@ public class Prefs {
         ed(c).putFloat("uiscale", v).apply();
     }
 
-    // wÅasne paski gÅoÅnoÅci i jasnoÅci oraz skrÃ³ty trybu w panelu ÅÄcznoÅci
+    // własne paski głośności i jasności oraz skróty trybu w panelu łączności
     public static boolean customBars(Context c) {
         return sp(c).getBoolean("custombars", true);
     }
@@ -667,7 +667,7 @@ public class Prefs {
         ed(c).putBoolean("nightshift", v).apply();
     }
 
-    // aktywnoÅÄ DiPlay wyÅwietlajÄca CarPlay ("" = automatycznie, "-" = domyÅlne uruchomienie)
+    // aktywność DiPlay wyświetlająca CarPlay ("" = automatycznie, "-" = domyślne uruchomienie)
     public static String cpActivity(Context c) {
         return sp(c).getString("cpact2", "");
     }
@@ -678,14 +678,14 @@ public class Prefs {
 
     // miasto do pogody (Open-Meteo)
     public static String weatherCity(Context c) {
-        return sp(c).getString("wcity", "KrakÃ³w");
+        return sp(c).getString("wcity", "Kraków");
     }
 
     public static void setWeatherCity(Context c, String v) {
         ed(c).putString("wcity", v).apply();
     }
 
-    // ---------- wskaÅºnik Bluetooth: konkretny telefon ----------
+    // ---------- wskaźnik Bluetooth: konkretny telefon ----------
     public static String btDevice(Context c) {
         return sp(c).getString("btdev", "");
     }
@@ -715,7 +715,7 @@ public class Prefs {
         ed(c).putInt("nsval", v).apply();
     }
 
-    // filtr wÅÄcza siÄ sam razem z trybem nocnym
+    // filtr włącza się sam razem z trybem nocnym
     public static boolean nightShiftAuto(Context c) {
         return sp(c).getBoolean("nsauto", false);
     }
@@ -742,7 +742,7 @@ public class Prefs {
                 .apply();
     }
 
-    // Centrum sterowania â gest od doÅu i pozycja panelu
+    // Centrum sterowania – gest od dołu i pozycja panelu
     public static boolean overlayEnabled(Context c) {
         return sp(c).getBoolean("cc_overlay", true);
     }
@@ -764,7 +764,7 @@ public class Prefs {
         ed(c).putBoolean("wake_bounce", v).apply();
     }
 
-    // ---------- przycisk Home na ekranie gÅÃ³wnym launchera ----------
+    // ---------- przycisk Home na ekranie głównym launchera ----------
     // carplay | app | none
     public static String homeAction(Context c) {
         return sp(c).getString("homeact", "carplay");
@@ -784,7 +784,7 @@ public class Prefs {
 
 
     // ---------- WYBRANE aplikacje do siatki ----------
-    // Format: JSON array pakietÃ³w. Pusta lista = wszystkie widoczne.
+    // Format: JSON array pakietów. Pusta lista = wszystkie widoczne.
     private static List<String> selectedCache;
 
     public static synchronized List<String> selectedPkgs(Context c) {
@@ -903,8 +903,8 @@ public class Prefs {
         ed(c).putBoolean("lib_hidden_" + pkg, hidden).apply();
     }
 
-    // ---------- narzÄdzia w panelu ÅÄcznoÅci ----------
-    // identyfikatory oddzielone przecinkami; null = ukÅad domyÅlny, "" = pusty panel
+    // ---------- narzędzia w panelu łączności ----------
+    // identyfikatory oddzielone przecinkami; null = układ domyślny, "" = pusty panel
     public static String panelTools(Context c) {
         return sp(c).getString("paneltools", null);
     }

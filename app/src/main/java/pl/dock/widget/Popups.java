@@ -12,7 +12,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
-// Okna podrÄczne w stylu Apple (nie na caÅy ekran, obok docka)
+// Okna podręczne w stylu Apple (nie na cały ekran, obok docka)
 public class Popups {
 
     public interface OnSel {
@@ -136,7 +136,7 @@ public class Popups {
         ref[0].show();
     }
 
-    // potwierdzenie czynnoÅci nieodwracalnej
+    // potwierdzenie czynności nieodwracalnej
     public static void confirm(final Activity a, String title, String msg, String okLabel,
                                final Runnable ok) {
         boolean night = Look.night(a);

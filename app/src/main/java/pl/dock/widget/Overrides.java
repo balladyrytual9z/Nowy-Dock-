@@ -25,16 +25,16 @@ public class Overrides {
 
         if (l.equals("material files") || l.equals("pliki") || l.equals("x-plore")
                 || l.equals("mi explorer") || l.contains("file manager")
-                || l.contains("menedÅ¼er plikÃ³w") || l.contains("menedzer plikow"))
+                || l.contains("menedżer plików") || l.contains("menedzer plikow"))
             return new O("Pliki", "files");
 
         if (l.equals("obd") || l.contains("obd2") || l.contains("torque")
                 || l.contains("car scanner") || l.contains("carinfo"))
             return new O(label, "obdgear");
 
-        if (l.equals("chrome") || l.equals("brave") || l.contains("przeglÄdark")
+        if (l.equals("chrome") || l.equals("brave") || l.contains("przeglądark")
                 || l.contains("przegladark") || l.equals("browser") || l.equals("firefox"))
-            return new O("PrzeglÄdarka", "browser");
+            return new O("Przeglądarka", "browser");
 
         if (l.contains("organic") || l.contains("waze") || l.contains("maps")
                 || l.contains("mapy") || l.contains("here wego") || l.contains("sygic"))

@@ -8,9 +8,9 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
 
-// Poziom baterii iPhone'a (jeÅli radio / Bluetooth go przekazuje).
-// NasÅuchujemy dwÃ³ch typowych ÅºrÃ³deÅ: zdarzenia baterii urzÄdzenia Bluetooth
-// oraz komendy HFP "+IPHONEACCEV" (tak iPhone raportuje bateriÄ zestawom gÅoÅnomÃ³wiÄcym).
+// Poziom baterii iPhone'a (jeśli radio / Bluetooth go przekazuje).
+// Nasłuchujemy dwóch typowych źródeł: zdarzenia baterii urządzenia Bluetooth
+// oraz komendy HFP "+IPHONEACCEV" (tak iPhone raportuje baterię zestawom głośnomówiącym).
 public class PhoneBattery {
 
     public static final String ACTION_DEV = "android.bluetooth.device.action.BATTERY_LEVEL_CHANGED";
@@ -38,7 +38,7 @@ public class PhoneBattery {
         return f;
     }
 
-    // zwraca true, jeÅli poziom siÄ zmieniÅ
+    // zwraca true, jeśli poziom się zmienił
     public static boolean handle(Intent i) {
         String a = i.getAction();
         int old = level;
@@ -47,7 +47,7 @@ public class PhoneBattery {
                 int v = i.getIntExtra(EXTRA_DEV, -1);
                 if (v >= 0 && v <= 100) {
                     level = v;
-                    lastSource = "bateria urzÄdzenia BT";
+                    lastSource = "bateria urządzenia BT";
                 }
             } else if (ACTION_VENDOR.equals(a)) {
                 String cmd = i.getStringExtra(EXTRA_CMD);

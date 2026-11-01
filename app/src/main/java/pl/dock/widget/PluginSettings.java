@@ -24,9 +24,9 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-// Ustawienia udostÄpniane przez inne aplikacje (np. OBD2 Dashboard, mapy, DiPlay).
-// Aplikacja deklaruje ContentProvider z akcjÄ pl.dock.widget.SETTINGS_PROVIDER i opisuje
-// swoje ustawienia w JSON; Dock rysuje je wÅasnym interfejsem. SzczegÃ³Åy: docs/PLUGIN_SETTINGS.md
+// Ustawienia udostępniane przez inne aplikacje (np. OBD2 Dashboard, mapy, DiPlay).
+// Aplikacja deklaruje ContentProvider z akcją pl.dock.widget.SETTINGS_PROVIDER i opisuje
+// swoje ustawienia w JSON; Dock rysuje je własnym interfejsem. Szczegóły: docs/PLUGIN_SETTINGS.md
 public class PluginSettings {
 
     public static final String ACTION = "pl.dock.widget.SETTINGS_PROVIDER";
@@ -64,7 +64,7 @@ public class PluginSettings {
         }
     }
 
-    // rysuje wiersze do karty g; po zmianie wartoÅci wywoÅuje changed
+    // rysuje wiersze do karty g; po zmianie wartości wywołuje changed
     public static void render(final Activity a, final Plugin pl, LinearLayout g, final Look.Pal pal,
                               final Runnable changed) {
         Bundle res = call(a, pl, "schema", null, null);
@@ -138,7 +138,7 @@ public class PluginSettings {
                 }
             }
         } catch (Throwable t) {
-            g.addView(label(a, pal, "NieprawidÅowy opis ustawieÅ", "", false));
+            g.addView(label(a, pal, "Nieprawidłowy opis ustawień", "", false));
         }
     }
 
@@ -169,7 +169,7 @@ public class PluginSettings {
 
     private static View clickable(Activity a, Look.Pal pal, String title, String value,
                                   View.OnClickListener l) {
-        View row = label(a, pal, title, value.length() > 0 ? value + "  âº" : "âº", true);
+        View row = label(a, pal, title, value.length() > 0 ? value + "  ›" : "›", true);
         row.setOnClickListener(l);
         return row;
     }

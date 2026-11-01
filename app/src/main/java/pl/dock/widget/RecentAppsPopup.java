@@ -27,7 +27,7 @@ import java.util.List;
 /**
  * iOS-style App Switcher lite: horizontal cards with large icons,
  * springy scale-up from bottom, frosted glass backdrop.
- * Long-press Home / bottom gesture â this panel.
+ * Long-press Home / bottom gesture → this panel.
  */
 public final class RecentAppsPopup {
 
@@ -55,7 +55,7 @@ public final class RecentAppsPopup {
         });
 
         TextView title = new TextView(a);
-        title.setText("Ostatnio uÅ¼ywane");
+        title.setText("Ostatnio używane");
         title.setTextSize(15);
         title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         title.setTextColor(0xFFFFFFFF);
@@ -85,7 +85,7 @@ public final class RecentAppsPopup {
 
         if (recents.isEmpty()) {
             TextView empty = new TextView(a);
-            empty.setText("Brak ostatnio uÅ¼ywanych aplikacji");
+            empty.setText("Brak ostatnio używanych aplikacji");
             empty.setTextColor(0xCCFFFFFF);
             empty.setTextSize(16);
             empty.setGravity(Gravity.CENTER);

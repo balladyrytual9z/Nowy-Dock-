@@ -8,7 +8,7 @@ import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Shader;
 
-// Symbole sterowania odtwarzaniem rysowane kodem (bez plikÃ³w graficznych)
+// Symbole sterowania odtwarzaniem rysowane kodem (bez plików graficznych)
 public class PlayGlyphs {
 
     public static void play(Canvas c, float cx, float cy, float s, Paint p) {
@@ -37,7 +37,7 @@ public class PlayGlyphs {
         c.drawRoundRect(r, w / 3f, w / 3f, p);
     }
 
-    // dwa trÃ³jkÄty: forward = â¶â¶, w przeciwnym razie ââ
+    // dwa trójkąty: forward = ▶▶, w przeciwnym razie ◀◀
     public static void skip(Canvas c, float cx, float cy, float s, boolean forward, Paint p) {
         float dir = forward ? 1f : -1f;
         for (int i = 0; i < 2; i++) {
@@ -58,7 +58,7 @@ public class PlayGlyphs {
         }
     }
 
-    // zastÄpcza okÅadka: kolorowe sÅupki jak w ikonie "Odtwarzane"
+    // zastępcza okładka: kolorowe słupki jak w ikonie "Odtwarzane"
     public static void artPlaceholder(Canvas c, RectF r, float radius, boolean night) {
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setColor(night ? 0xFF232326 : 0xFFE6E6EB);
