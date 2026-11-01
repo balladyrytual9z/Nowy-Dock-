@@ -22,9 +22,9 @@ import android.view.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
 
-// Dane odtwarzania z aplikacji CarPlay (DiPlay publikuje sesjÄ multimedialnÄ z metadanymi
-// i okÅadkÄ). KolejnoÅÄ ÅºrÃ³deÅ: sesja multimedialna > klasyczne broadcasty odtwarzacza.
-// DziaÅa tylko, gdy ktoÅ jest podÅÄczony (widÅ¼et / ekran odtwarzania), wiÄc nie kosztuje w tle.
+// Dane odtwarzania z aplikacji CarPlay (DiPlay publikuje sesję multimedialną z metadanymi
+// i okładką). Kolejność źródeł: sesja multimedialna > klasyczne broadcasty odtwarzacza.
+// Działa tylko, gdy ktoś jest podłączony (widżet / ekran odtwarzania), więc nie kosztuje w tle.
 public class MediaHub {
 
     public static class Track {
@@ -126,7 +126,7 @@ public class MediaHub {
         @Override
         public void onSessionDestroyed() {
             ctl = null;
-            // Zmiana: Podtrzymujemy dane o utworze i okÅadce,
+            // Zmiana: Podtrzymujemy dane o utworze i okładce,
             // jedynie oznaczamy brak sesji i zatrzymujemy status odtwarzania.
             if (track != null) {
                 track.state = PlaybackState.STATE_NONE;
@@ -138,10 +138,10 @@ public class MediaHub {
         }
     };
 
-    // klasyczne broadcasty odtwarzaczy (czÄÅÄ aplikacji w radiach wysyÅa tylko je)
+    // klasyczne broadcasty odtwarzaczy (część aplikacji w radiach wysyła tylko je)
     private BroadcastReceiver classic;
 
-    // ---------------------------------------------------------------- dostÄp
+    // ---------------------------------------------------------------- dostęp
 
     public static boolean accessGranted(Context c) {
         try {
@@ -157,7 +157,7 @@ public class MediaHub {
         return accessOk;
     }
 
-    // czy dana aplikacja ma teraz aktywnÄ sesjÄ multimedialnÄ
+    // czy dana aplikacja ma teraz aktywną sesję multimedialną
     public static boolean hasSession(Context c, String pkg) {
         try {
             MediaSessionManager m = (MediaSessionManager)
@@ -173,7 +173,7 @@ public class MediaHub {
         return false;
     }
 
-    // ---------------------------------------------------------------- cykl Å¼ycia
+    // ---------------------------------------------------------------- cykl życia
 
     public synchronized void attach(Context c, Listener l) {
         app = c.getApplicationContext();
@@ -240,7 +240,7 @@ public class MediaHub {
         }
     }
 
-    // woÅane z NotificationListenerService
+    // wołane z NotificationListenerService
     public void onListenerEvent() {
         if (refs > 0) {
             main.post(new Runnable() {
@@ -302,8 +302,8 @@ public class MediaHub {
             if (ctl != null) ctl.registerCallback(ctlCallback, main);
         }
         if (ctl == null) {
-            // Zmiana: JeÅli kontroler zniknÄÅ (np. po wybudzeniu tabletu, przed peÅnym
-            // poÅÄczeniem CarPlay), podtrzymujemy ostatnio znane metadane i okÅadkÄ.
+            // Zmiana: Jeśli kontroler zniknął (np. po wybudzeniu tabletu, przed pełnym
+            // połączeniem CarPlay), podtrzymujemy ostatnio znane metadane i okładkę.
             if (track != null) {
                 track.state = PlaybackState.STATE_NONE;
                 track.hasSession = false;
@@ -347,16 +347,16 @@ public class MediaHub {
 
         // --- NOWY KOD: Podtrzymywanie danych z poprzedniej sesji (Wake-up fix) ---
         if (track != null && track.hasData()) {
-            // JeÅli nowa sesja po wybudzeniu zaraportowaÅa puste metadane,
-            // przywracamy zapisany tytuÅ, wykonawcÄ i album.
+            // Jeśli nowa sesja po wybudzeniu zaraportowała puste metadane,
+            // przywracamy zapisany tytuł, wykonawcę i album.
             if (t.title.length() == 0) {
                 t.title = track.title;
                 t.artist = track.artist;
                 t.album = track.album;
                 t.duration = track.duration;
             }
-            // JeÅli tytuÅ jest zgodny, ale aplikacja w tle jeszcze nie wypchnÄÅa
-            // nowej okÅadki (t.art == null), wstrzykujemy okÅadkÄ zachowanÄ w pamiÄci.
+            // Jeśli tytuł jest zgodny, ale aplikacja w tle jeszcze nie wypchnęła
+            // nowej okładki (t.art == null), wstrzykujemy okładkę zachowaną w pamięci.
             if (t.art == null && t.title.equals(track.title) && track.art != null) {
                 t.art = track.art;
             }
@@ -376,7 +376,7 @@ public class MediaHub {
         fire();
     }
 
-    // okÅadka moÅ¼e byÄ duÅ¼a; trzymamy kopiÄ do 512 px (oszczÄdnoÅÄ pamiÄci)
+    // okładka może być duża; trzymamy kopię do 512 px (oszczędność pamięci)
     private static Bitmap shrink(Bitmap b) {
         if (b == null) return null;
         int max = Math.max(b.getWidth(), b.getHeight());
@@ -391,7 +391,7 @@ public class MediaHub {
     }
 
     private void onClassic(Intent i) {
-        if (ctl != null) return;   // sesja ma pierwszeÅstwo
+        if (ctl != null) return;   // sesja ma pierwszeństwo
         String a = i.getAction();
         Track t = track.source.equals("broadcast") ? track : new Track();
         t.source = "broadcast";
@@ -477,7 +477,7 @@ public class MediaHub {
     }
 
     private boolean has(long flag) {
-        return track.actions == 0 || (track.actions & flag) != 0;   // 0 = odtwarzacz nie podaÅ listy
+        return track.actions == 0 || (track.actions & flag) != 0;   // 0 = odtwarzacz nie podał listy
     }
 
     public boolean canPrev() {
@@ -495,7 +495,7 @@ public class MediaHub {
                 | PlaybackState.ACTION_PLAY_PAUSE)) != 0;
     }
 
-    // przewijanie przy przytrzymaniu (do przodu / do tyÅu o delta ms)
+    // przewijanie przy przytrzymaniu (do przodu / do tyłu o delta ms)
     public void seekBy(long delta) {
         if (ctl == null) return;
         try {
@@ -529,7 +529,7 @@ public class MediaHub {
         }
     }
 
-    // wÅasna akcja odtwarzacza, ktÃ³rej nazwa zawiera sÅowo (np. "shuffle", "repeat", "like")
+    // własna akcja odtwarzacza, której nazwa zawiera słowo (np. "shuffle", "repeat", "like")
     public PlaybackState.CustomAction findCustom(String word) {
         for (PlaybackState.CustomAction a : track.custom) {
             String id = a.getAction() == null ? "" : a.getAction().toLowerCase();
@@ -550,8 +550,8 @@ public class MediaHub {
     // opis do diagnostyki
     public static String describe(Context c) {
         StringBuilder b = new StringBuilder();
-        b.append("DostÄp do powiadomieÅ: ").append(accessGranted(c) ? "wÅÄczony" : "WYÅÄCZONY").append("\n");
-        b.append("UsÅuga nasÅuchu poÅÄczona: ").append(DockNotificationListener.connected()).append("\n");
+        b.append("Dostęp do powiadomień: ").append(accessGranted(c) ? "włączony" : "WYŁĄCZONY").append("\n");
+        b.append("Usługa nasłuchu połączona: ").append(DockNotificationListener.connected()).append("\n");
         b.append("Pakiet DiPlay: ").append(Prefs.diplayPkg(c)).append("\n");
         try {
             MediaSessionManager m = (MediaSessionManager) c.getSystemService(Context.MEDIA_SESSION_SERVICE);
@@ -563,12 +563,12 @@ public class MediaHub {
                     MediaMetadata md = mc.getMetadata();
                     b.append(" - ").append(mc.getPackageName())
                             .append(" stan=").append(ps == null ? "?" : String.valueOf(ps.getState()))
-                            .append(" tytuÅ=").append(md == null ? "-" : str(md, MediaMetadata.METADATA_KEY_TITLE))
+                            .append(" tytuł=").append(md == null ? "-" : str(md, MediaMetadata.METADATA_KEY_TITLE))
                             .append("\n");
                 }
             }
         } catch (Throwable t) {
-            b.append("Sesje: brak dostÄpu (").append(t.getClass().getSimpleName()).append(")\n");
+            b.append("Sesje: brak dostępu (").append(t.getClass().getSimpleName()).append(")\n");
         }
         String[] n = DockNotificationListener.notificationText(Prefs.diplayPkg(c));
         b.append("Powiadomienie DiPlay: ")

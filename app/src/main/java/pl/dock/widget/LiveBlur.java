@@ -6,14 +6,14 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.view.ViewGroup;
 
-/** Wysokowydajny blur dla Androida 9 (bez RenderScript â brak w API 28 na czÄÅci OEM). */
+/** Wysokowydajny blur dla Androida 9 (bez RenderScript – brak w API 28 na części OEM). */
 public class LiveBlur {
 
     private static final int SCALE = 6;     // downsampling 1/6
     private static final int RADIUS = 4;    // box blur pass
     private static final int PASSES = 3;
 
-    /** Zrzuca widok (root) do bitmapy i rozmywa. Zwraca bitmapÄ do narysowania. */
+    /** Zrzuca widok (root) do bitmapy i rozmywa. Zwraca bitmapę do narysowania. */
     public static Bitmap captureAndBlur(ViewGroup root, int srcW, int srcH) {
         try {
             int w = Math.max(1, srcW / SCALE);
@@ -29,7 +29,7 @@ public class LiveBlur {
         }
     }
 
-    /** Rysuje rozmyte tÅo z lekkim przyciemnieniem/rozjaÅnieniem w zaleÅ¼noÅci od motywu. */
+    /** Rysuje rozmyte tło z lekkim przyciemnieniem/rozjaśnieniem w zależności od motywu. */
     public static void draw(Canvas cv, Bitmap b, int left, int top, int right, int bottom,
                             boolean night) {
         if (b == null) return;

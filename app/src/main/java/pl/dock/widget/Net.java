@@ -56,7 +56,7 @@ public class Net {
         }
     }
 
-    // 0 = Wi-Fi wyÅÄczone, 1 = wÅÄczone, brak sieci, 2 = poÅÄczone bez internetu, 3 = poÅÄczone z internetem
+    // 0 = Wi-Fi wyłączone, 1 = włączone, brak sieci, 2 = połączone bez internetu, 3 = połączone z internetem
     public static int wifiState(Context c) {
         if (!wifiEnabled(c)) return 0;
         if (!wifiConnected(c)) return 1;
@@ -73,7 +73,7 @@ public class Net {
         return 3;
     }
 
-    // hotspot WiFi (ukryte API przez refleksjÄ); null = brak odczytu
+    // hotspot WiFi (ukryte API przez refleksję); null = brak odczytu
     public static Boolean apEnabled(Context c) {
         try {
             Method m = WifiManager.class.getDeclaredMethod("isWifiApEnabled");
@@ -96,7 +96,7 @@ public class Net {
         }
     }
 
-    // czy dziaÅa interfejs typowy dla tetheringu (hotspot, USB, BT)
+    // czy działa interfejs typowy dla tetheringu (hotspot, USB, BT)
     public static boolean tetherInterfaceUp() {
         try {
             Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces();
@@ -150,7 +150,7 @@ public class Net {
         return b.toString();
     }
 
-    // ---------------------------------------------------------------- przeÅÄczanie
+    // ---------------------------------------------------------------- przełączanie
 
     public static boolean setWifi(Context c, boolean on) {
         try {
@@ -171,8 +171,8 @@ public class Net {
         }
     }
 
-    // Zwraca: "ok" (przeÅÄczono), "settings" (otwarto ustawienia systemu), "fail".
-    // ZwykÅa aplikacja na Androidzie 9 zwykle nie moÅ¼e wÅÄczyÄ hotspotu sama.
+    // Zwraca: "ok" (przełączono), "settings" (otwarto ustawienia systemu), "fail".
+    // Zwykła aplikacja na Androidzie 9 zwykle nie może włączyć hotspotu sama.
     public static String setTethering(Context c, boolean on) {
         try {
             Class<?> cfg = Class.forName("android.net.wifi.WifiConfiguration");
@@ -230,7 +230,7 @@ public class Net {
         return false;
     }
 
-    // ---------------------------------------------------------------- skrÃ³ty do ustawieÅ / aplikacji
+    // ---------------------------------------------------------------- skróty do ustawień / aplikacji
 
     public static boolean openWifiSettings(Context c) {
         return startFirst(c, new Intent(Settings.ACTION_WIFI_SETTINGS));
@@ -240,7 +240,7 @@ public class Net {
         return startFirst(c, new Intent(Settings.ACTION_BLUETOOTH_SETTINGS));
     }
 
-    // aplikacja Bluetooth radia (pakiet z ustawieÅ); gdy jej nie ma â ustawienia systemowe
+    // aplikacja Bluetooth radia (pakiet z ustawień); gdy jej nie ma – ustawienia systemowe
     public static boolean openBluetoothApp(Context c) {
         try {
             Intent i = c.getPackageManager().getLaunchIntentForPackage(Prefs.btPkg(c));

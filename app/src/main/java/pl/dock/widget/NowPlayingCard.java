@@ -21,8 +21,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
 
-// WidÅ¼et "Odtwarzane" jak w CarPlay: okÅadka, tytuÅ, wykonawca, pasek postÄpu i sterowanie.
-// DotkniÄcie okÅadki lub tytuÅu otwiera peÅny ekran odtwarzania; przytrzymanie ââ / â¶â¶ przewija.
+// Widżet "Odtwarzane" jak w CarPlay: okładka, tytuł, wykonawca, pasek postępu i sterowanie.
+// Dotknięcie okładki lub tytułu otwiera pełny ekran odtwarzania; przytrzymanie ◀◀ / ▶▶ przewija.
 public class NowPlayingCard extends View implements MediaHub.Listener, NightAware {
 
     private final float d;
@@ -84,7 +84,7 @@ public class NowPlayingCard extends View implements MediaHub.Listener, NightAwar
         setContentDescription("Odtwarzane");
     }
 
-    // karta w kolorze docka; ring = ramka jaÅniejsza od lewego gÃ³rnego rogu (ekran gÅÃ³wny)
+    // karta w kolorze docka; ring = ramka jaśniejsza od lewego górnego rogu (ekran główny)
     public void setFrame(boolean card, boolean ring) {
         cardBg = card;
         this.ring = ring;
@@ -141,14 +141,14 @@ public class NowPlayingCard extends View implements MediaHub.Listener, NightAwar
         float y = pad;
         text.setTextAlign(Paint.Align.CENTER);
         if (!data) {
-            // stan wyÅÄczony: ikona i napis jak w CarPlay
+            // stan wyłączony: ikona i napis jak w CarPlay
             float s = Math.min(w * 0.42f, hgt * 0.38f);
             r.set(w / 2f - s / 2f, hgt * 0.14f, w / 2f + s / 2f, hgt * 0.14f + s);
             PlayGlyphs.artPlaceholder(cv, r, s * 0.22f, true);
             text.setTypeface(Typeface.DEFAULT_BOLD);
             text.setTextSize(scaledSp(access ? 20 : 17));
             text.setColor(fg);
-            String msg = access ? "Odtwarzanie wyÅÄczone" : "WÅÄcz dostÄp do powiadomieÅ";
+            String msg = access ? "Odtwarzanie wyłączone" : "Włącz dostęp do powiadomień";
             cv.drawText(TextUtils.ellipsize(msg, text, w - 2 * pad, TextUtils.TruncateAt.END).toString(),
                     w / 2f, hgt * 0.14f + s + 34f * d, text);
             drawControls(cv, w, hgt, fg, false);
@@ -202,7 +202,7 @@ public class NowPlayingCard extends View implements MediaHub.Listener, NightAwar
         drawControls(cv, w, hgt, fg, true);
     }
 
-    // rysuje tylko dziaÅajÄce przyciski (gdy odtwarzacz je udostÄpnia)
+    // rysuje tylko działające przyciski (gdy odtwarzacz je udostępnia)
     private void drawControls(Canvas cv, float w, float hgt, int fg, boolean on) {
         MediaHub hub = MediaHub.get();
         float cy = hgt - 34f * d;

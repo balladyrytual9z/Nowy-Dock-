@@ -26,8 +26,8 @@ import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
-// PeÅnoekranowe "Odtwarzane" w obszarze obok docka (dock zostaje widoczny i dziaÅa).
-// Pokazuje wyÅÄcznie przyciski, ktÃ³re odtwarzacz faktycznie obsÅuguje.
+// Pełnoekranowe "Odtwarzane" w obszarze obok docka (dock zostaje widoczny i działa).
+// Pokazuje wyłącznie przyciski, które odtwarzacz faktycznie obsługuje.
 public class NowPlayingActivity extends BaseActivity implements MediaHub.Listener {
 
     private PlayerView pv;
@@ -161,7 +161,7 @@ public class NowPlayingActivity extends BaseActivity implements MediaHub.Listene
             int fg = 0xFFFFFFFF;
             int sub = 0xCCFFFFFF;
 
-            // przyciski gÃ³rne: wstecz i JEDNA ikona ÅºrÃ³dÅa dÅºwiÄku
+            // przyciski górne: wstecz i JEDNA ikona źródła dźwięku
             circle(cv, 14 * d + 26 * d, 12 * d + 26 * d, 26 * d, pressed == BACK);
             box(BACK, 40 * d, 38 * d, 30 * d);
             p.setColor(fg);
@@ -196,13 +196,13 @@ public class NowPlayingActivity extends BaseActivity implements MediaHub.Listene
                 float s = Math.min(hh * 0.30f, 150 * d);
                 r.set(w / 2f - s / 2f, hh * 0.28f, w / 2f + s / 2f, hh * 0.28f + s);
                 PlayGlyphs.artPlaceholder(cv, r, s * 0.22f, true);
-                cv.drawText(access ? "Odtwarzanie wyÅÄczone" : "WÅÄcz dostÄp do powiadomieÅ",
+                cv.drawText(access ? "Odtwarzanie wyłączone" : "Włącz dostęp do powiadomień",
                         w / 2f, hh * 0.28f + s + 48 * d, tx);
                 if (!access) addTap(99, w / 2f, hh * 0.5f, 300 * d);
                 return;
             }
 
-            // okÅadka po prawej
+            // okładka po prawej
             float artSide = Math.min(hh * 0.66f, w * 0.40f);
             float artL = w - pad - artSide;
             float artT = (hh - artSide) / 2f;
@@ -222,7 +222,7 @@ public class NowPlayingActivity extends BaseActivity implements MediaHub.Listene
                 PlayGlyphs.artPlaceholder(cv, r, 22 * d, true);
             }
 
-            // lewa kolumna wyÅrodkowana pionowo
+            // lewa kolumna wyśrodkowana pionowo
             float leftW = artL - 2 * pad;
             boolean sh1 = hub.findCustom("shuffle") != null;
             boolean rp1 = hub.findCustom("repeat") != null;
@@ -247,7 +247,7 @@ public class NowPlayingActivity extends BaseActivity implements MediaHub.Listene
             cv.drawText(TextUtils.ellipsize(t.album, tx, leftW, TextUtils.TruncateAt.END).toString(),
                     pad, y0 + 92 * d, tx);
 
-            // sterowanie: tylko obsÅugiwane
+            // sterowanie: tylko obsługiwane
             float cxCtl = pad + leftW / 2f;
             float ctlY = y0 + (40 + 34 + 28 + 30) * d + 38 * d;
             if (hub.canPrev()) {
@@ -274,7 +274,7 @@ public class NowPlayingActivity extends BaseActivity implements MediaHub.Listene
             }
             p.setAlpha(255);
 
-            // postÄp z czasem
+            // postęp z czasem
             float barY = ctlY + 38 * d + 38 * d;
             barL = pad + 56 * d;
             barR = pad + leftW - 64 * d;
@@ -297,7 +297,7 @@ public class NowPlayingActivity extends BaseActivity implements MediaHub.Listene
                 hit[BAR].set(barL - 10 * d, barY - 22 * d, barR + 10 * d, barY + 22 * d);
             }
 
-            // dodatkowe przyciski tylko, jeÅli odtwarzacz je udostÄpnia
+            // dodatkowe przyciski tylko, jeśli odtwarzacz je udostępnia
             if (pills) {
                 float py = barY + 54 * d;
                 float x = cxCtl - ((sh1 ? 1 : 0) + (rp1 ? 1 : 0) + (st1 ? 1 : 0)) * 60 * d / 2f;

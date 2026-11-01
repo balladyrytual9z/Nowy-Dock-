@@ -23,7 +23,7 @@ import pl.dock.widget.ui.DockColors;
 import pl.dock.widget.ui.DockTheme;
 
 /**
- * Media Center â full-screen Now Playing for Dock 2.0.
+ * Media Center – full-screen Now Playing for Dock 2.0.
  * Uses the same MediaHub as the home widget (single source of truth).
  * Installed in the same APK for now; architecture allows split to pl.dock.media later.
  */
@@ -114,7 +114,7 @@ public class MediaCenterActivity extends Activity implements MediaHub.Listener {
                 text.setColor(DockColors.textSecondary(night));
                 text.setTextSize(theme.sp(18));
                 text.setTextAlign(Paint.Align.CENTER);
-                c.drawText("âª", artX + artSize / 2f, artY + artSize / 2f + theme.sp(6), text);
+                c.drawText("♪", artX + artSize / 2f, artY + artSize / 2f + theme.sp(6), text);
             }
 
             float ty = artY + artSize + theme.dp(28);
@@ -132,10 +132,10 @@ public class MediaCenterActivity extends Activity implements MediaHub.Listener {
             text.setColor(DockColors.textSecondary(night));
             String sub = track.artist;
             if (track.album.length() > 0) {
-                if (sub.length() > 0) sub += " Â· ";
+                if (sub.length() > 0) sub += " · ";
                 sub += track.album;
             }
-            if (sub.length() == 0) sub = track.pkg.length() > 0 ? track.pkg : "â";
+            if (sub.length() == 0) sub = track.pkg.length() > 0 ? track.pkg : "—";
             c.drawText(TextUtils.ellipsize(sub, text, w * 0.85f, TextUtils.TruncateAt.END).toString(),
                     w / 2f, ty, text);
 
@@ -166,15 +166,15 @@ public class MediaCenterActivity extends Activity implements MediaHub.Listener {
             float cy = hgt * 0.84f;
             float btn = theme.dp(56);
             float gap = theme.dp(72);
-            drawCtrl(c, w / 2f - gap, cy, btn, 0, "ââ", night);
-            drawCtrl(c, w / 2f, cy, btn * 1.15f, 1, track.playing() ? "ââ" : "â¶", night);
-            drawCtrl(c, w / 2f + gap, cy, btn, 2, "â¶â¶", night);
+            drawCtrl(c, w / 2f - gap, cy, btn, 0, "◀◀", night);
+            drawCtrl(c, w / 2f, cy, btn * 1.15f, 1, track.playing() ? "❚❚" : "▶", night);
+            drawCtrl(c, w / 2f + gap, cy, btn, 2, "▶▶", night);
 
             // back
             text.setTextAlign(Paint.Align.LEFT);
             text.setTextSize(theme.sp(14));
             text.setColor(DockColors.accent(night));
-            c.drawText("â Dock", theme.dp(20), theme.dp(36), text);
+            c.drawText("← Dock", theme.dp(20), theme.dp(36), text);
 
             if (track.source.length() > 0) {
                 text.setTextAlign(Paint.Align.RIGHT);

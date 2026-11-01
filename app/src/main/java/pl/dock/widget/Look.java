@@ -9,7 +9,7 @@ public class Look {
 
     public static volatile Boolean wasNight;
 
-    // Czy teraz jest tryb nocny (rÄcznie, wg godzin albo wg systemu)
+    // Czy teraz jest tryb nocny (ręcznie, wg godzin albo wg systemu)
     public static boolean night(Context c) {
         boolean result;
         if (Prefs.followSystem(c)) {
@@ -38,7 +38,7 @@ public class Look {
         return night ? R.drawable.bg_classic_night : R.drawable.bg_classic_day;
     }
 
-    // Kolory ekranÃ³w Docka (tryb nocny: czerÅ jak w CarPlay)
+    // Kolory ekranów Docka (tryb nocny: czerń jak w CarPlay)
     public static class Pal {
         public int bg, card, text, sub, accent, sep;
     }

@@ -48,7 +48,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-// Launcher: dock po lewej lub prawej; strony: widÅ¼ety | ekran gÅÃ³wny | aplikacje (jak CarPlay).
+// Launcher: dock po lewej lub prawej; strony: widżety | ekran główny | aplikacje (jak CarPlay).
 public class LauncherActivity extends BaseActivity {
 
     public static volatile boolean visible = false;
@@ -105,7 +105,7 @@ public class LauncherActivity extends BaseActivity {
             scheduleMinute();
         }
     };
-    // "na Å¼ywo": napiÄcie, Åadowanie i bateria telefonu odÅwieÅ¼ane co ~2 s, gdy launcher jest widoczny
+    // "na żywo": napięcie, ładowanie i bateria telefonu odświeżane co ~2 s, gdy launcher jest widoczny
     private final Runnable statusTick = new Runnable() {
         @Override
         public void run() {
@@ -131,7 +131,7 @@ public class LauncherActivity extends BaseActivity {
         }
     };
 
-    // ---------------------------------------------------------------- cykl Å¼ycia
+    // ---------------------------------------------------------------- cykl życia
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -241,8 +241,8 @@ public class LauncherActivity extends BaseActivity {
         }
     }
 
-    // Przycisk Home: z innej aplikacji wraca na stronÄ, z ktÃ³rej jÄ otwarto;
-    // na ekranie gÅÃ³wnym wykonuje skonfigurowanÄ akcjÄ (domyÅlnie otwiera CarPlay).
+    // Przycisk Home: z innej aplikacji wraca na stronę, z której ją otwarto;
+    // na ekranie głównym wykonuje skonfigurowaną akcję (domyślnie otwiera CarPlay).
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
@@ -302,7 +302,7 @@ public class LauncherActivity extends BaseActivity {
         }
     }
 
-    // wÅasny pasek gÅoÅnoÅci zamiast systemowego (moÅ¼na wyÅÄczyÄ w ustawieniach)
+    // własny pasek głośności zamiast systemowego (można wyłączyć w ustawieniach)
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if ((keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)
@@ -340,7 +340,7 @@ public class LauncherActivity extends BaseActivity {
         boolean left = builtLeft;
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
         root = new FrameLayout(this);
-        // zaokrÄglone rogi ekranu jak w CarPlay
+        // zaokrąglone rogi ekranu jak w CarPlay
         root.setClipToOutline(true);
         root.setOutlineProvider(new ViewOutlineProvider() {
             @Override
@@ -427,7 +427,7 @@ public class LauncherActivity extends BaseActivity {
                 bg.setParallax(Prefs.parallax(LauncherActivity.this) ? pos / total : 0f);
                 float t = Math.max(0f, Math.min(1f, pos - homeIdx));
                 dock.setBottomProgress(t);
-                // Nie ciemniej strony widÅ¼etÃ³w w trybie dziennym
+                // Nie ciemniej strony widżetów w trybie dziennym
                 bg.setNightBlend(0f);
                 dock.setNightBlend(0f);
                 // Live liquid glass blur (throttled)
@@ -466,7 +466,7 @@ public class LauncherActivity extends BaseActivity {
         dotsApps.setAlpha(0f);
         lastDockSig = "";
 
-        // Gest swipe UP od doÅu â centrum ÅÄcznoÅci (Årodek panelu nad palcem)
+        // Gest swipe UP od dołu → centrum łączności (środek panelu nad palcem)
         if (Prefs.overlayEnabled(this)) {
             root.setOnTouchListener(new View.OnTouchListener() {
                 private float downY, downX;
@@ -507,7 +507,7 @@ public class LauncherActivity extends BaseActivity {
         }
     }
 
-    /** KrÃ³tka animacja jak w iOS: elementy lekko wjeÅ¼dÅ¼ajÄ i odbijajÄ siÄ. */
+    /** Krótka animacja jak w iOS: elementy lekko wjeżdżają i odbijają się. */
     private void playWakeBounce() {
         if (pager == null) return;
         View page = null;
@@ -569,7 +569,7 @@ public class LauncherActivity extends BaseActivity {
         loadWidgets();
     }
 
-    // zbiera strony do pagera: [widÅ¼ety] [ekran gÅÃ³wny] [aplikacje...]
+    // zbiera strony do pagera: [widżety] [ekran główny] [aplikacje...]
     private void assemblePages() {
         pager.removeAllViews();
         homeIdx = 0;
@@ -586,7 +586,7 @@ public class LauncherActivity extends BaseActivity {
             pager.addView(p, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT));
         }
-        // App Library (Biblioteka aplikacji) â last page, iOS style
+        // App Library (Biblioteka aplikacji) – last page, iOS style
         ensureAppLibrary();
         if (appLibraryPage != null) {
             if (appLibraryPage.getParent() instanceof ViewGroup) {
@@ -883,7 +883,7 @@ public class LauncherActivity extends BaseActivity {
         h.postDelayed(minuteTick, 60000L - (now % 60000L) + 30L);
     }
 
-    // odÅwieÅ¼a dock tylko wtedy, gdy zmieniÅy siÄ dane
+    // odświeża dock tylko wtedy, gdy zmieniły się dane
     private void refreshDock() {
         updateClockText();
         StatusCenter.Snap s = StatusCenter.get(this);
@@ -920,7 +920,7 @@ public class LauncherActivity extends BaseActivity {
                 BtDevice.handle(intent);
                 PhoneBattery.handle(intent);
                 if (Intent.ACTION_BATTERY_CHANGED.equals(a)) {
-                    StatusCenter.refreshIfStale(context, 1000L);   // bateria zgÅasza siÄ bardzo czÄsto
+                    StatusCenter.refreshIfStale(context, 1000L);   // bateria zgłasza się bardzo często
                 } else {
                     StatusCenter.refresh(context);
                 }
@@ -949,7 +949,7 @@ public class LauncherActivity extends BaseActivity {
             @Override
             public void onReceive(Context context, Intent intent) {
                 Icons.invalidate();
-                loadApps();   // nowo zainstalowane aplikacje trafiajÄ do listy automatycznie
+                loadApps();   // nowo zainstalowane aplikacje trafiają do listy automatycznie
             }
         };
         IntentFilter p = new IntentFilter();
@@ -959,7 +959,7 @@ public class LauncherActivity extends BaseActivity {
         p.addDataScheme("package");
         registerReceiver(pkgReceiver, p);
 
-        // Circadian Display â Dock: natychmiastowa aktualizacja tapety / ikon
+        // Circadian Display ↔ Dock: natychmiastowa aktualizacja tapety / ikon
         nightModeReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -979,9 +979,9 @@ public class LauncherActivity extends BaseActivity {
                 if (isNight == night && !fromCircadian) return;
                 night = isNight;
                 Look.wasNight = isNight;
-                // from Circadian: nie wywoÅuj setNightMode ponownie (pÄtla)
+                // from Circadian: nie wywołuj setNightMode ponownie (pętla)
                 applyTheme(!fromCircadian);
-                // odÅwieÅ¼ panel ÅÄcznoÅci (przyciski day/night / Night Shift), jeÅli otwarty
+                // odśwież panel łączności (przyciski day/night / Night Shift), jeśli otwarty
                 if (panel != null) {
                     try {
                         panel.update();
@@ -1027,7 +1027,7 @@ public class LauncherActivity extends BaseActivity {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                if (gen != loadGen.get()) return;   // przyszÅo nowsze Å¼Ädanie
+                if (gen != loadGen.get()) return;   // przyszło nowsze żądanie
                 final List<AppsGridPage.Item> list = buildItems(app);
                 for (AppsGridPage.Item it : list) {
                     if (it.builtinId.length() > 0) {
@@ -1145,7 +1145,7 @@ public class LauncherActivity extends BaseActivity {
     private void appMenu(final AppsGridPage.Item it) {
         if (it.settings || it.action.length() > 0) return;
         final String[] options = {
-                "Dodaj do ekranu gÅÃ³wnego",
+                "Dodaj do ekranu głównego",
                 "Informacje o aplikacji",
                 "Odinstaluj"
         };
@@ -1179,13 +1179,13 @@ public class LauncherActivity extends BaseActivity {
         });
     }
 
-    // kaÅ¼de uruchomienie z launchera trafia do statystyk; po Home wracamy na tÄ samÄ stronÄ
+    // każde uruchomienie z launchera trafia do statystyk; po Home wracamy na tę samą stronę
     private void openApp(String pkg, int fromPage) {
         try {
             Intent i = pkg == null || pkg.length() == 0 ? null
                     : getPackageManager().getLaunchIntentForPackage(pkg);
             if (i == null) {
-                Toast.makeText(this, "Nie moÅ¼na otworzyÄ tej aplikacji", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Nie można otworzyć tej aplikacji", Toast.LENGTH_SHORT).show();
                 return;
             }
             Prefs.recordPkg(this, pkg);
@@ -1195,7 +1195,7 @@ public class LauncherActivity extends BaseActivity {
             overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);
             lastDockSig = "";
         } catch (Throwable t) {
-            Toast.makeText(this, "Nie moÅ¼na otworzyÄ tej aplikacji", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Nie można otworzyć tej aplikacji", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -1204,7 +1204,7 @@ public class LauncherActivity extends BaseActivity {
         overridePendingTransition(R.anim.cp_slide_in, R.anim.cp_fade_out);
     }
 
-    // ---------------------------------------------------------------- centrum ÅÄcznoÅci (szkÅo)
+    // ---------------------------------------------------------------- centrum łączności (szkło)
     private void toggleOverlay() {
         if (overlay != null) {
             hideOverlay(true);
@@ -1328,12 +1328,12 @@ public class LauncherActivity extends BaseActivity {
                 }).start();
     }
 
-    // ---------------------------------------------------------------- widÅ¼ety
+    // ---------------------------------------------------------------- widżety
     private void loadWidgets() {
         if (stacksPage != null) stacksPage.clearWidgets();
         List<WidgetEntry> list = Prefs.widgets(this);
         if (!Prefs.widgetsSeeded(this)) {
-            // domyÅlnie jak w CarPlay: zegar, pogoda, zachÃ³d sÅoÅca
+            // domyślnie jak w CarPlay: zegar, pogoda, zachód słońca
             int[] ids = {-1, -3, -4};
             String[] wh = {"s1", "s2", "s3"};
             for (int i = 0; i < 3; i++) {
@@ -1440,8 +1440,8 @@ public class LauncherActivity extends BaseActivity {
         PackageManager pm = getPackageManager();
         final List<String> labels = new ArrayList<String>();
         final int[] builtIns = {-1, -2, -3, -4, -5, -6, -7};
-        String[] bn = {"Zegar analogowy", "Odtwarzane", "Pogoda", "ZachÃ³d sÅoÅca", "Data",
-                "Kalendarz", "Zegary Åwiata"};
+        String[] bn = {"Zegar analogowy", "Odtwarzane", "Pogoda", "Zachód słońca", "Data",
+                "Kalendarz", "Zegary świata"};
         for (String s : bn) labels.add(s);
         final PackageManager pmf = pm;
         final List<AppWidgetProviderInfo> sorted =
@@ -1453,9 +1453,9 @@ public class LauncherActivity extends BaseActivity {
             }
         });
         for (AppWidgetProviderInfo i : sorted) {
-            labels.add(i.loadLabel(pm) + "  Â·  " + i.provider.getPackageName());
+            labels.add(i.loadLabel(pm) + "  ·  " + i.provider.getPackageName());
         }
-        Popups.menu(this, "Dodaj widÅ¼et", labels.toArray(new String[0]), new Popups.OnSel() {
+        Popups.menu(this, "Dodaj widżet", labels.toArray(new String[0]), new Popups.OnSel() {
             @Override
             public void on(int idx) {
                 if (idx < builtIns.length) {
@@ -1471,7 +1471,7 @@ public class LauncherActivity extends BaseActivity {
         List<WidgetEntry> list = Prefs.widgets(this);
         for (WidgetEntry e : list) {
             if (e.id == id) {
-                Toast.makeText(this, "Ten widÅ¼et jest juÅ¼ dodany", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Ten widżet jest już dodany", Toast.LENGTH_SHORT).show();
                 return;
             }
         }
@@ -1511,7 +1511,7 @@ public class LauncherActivity extends BaseActivity {
                 i.putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, info.provider);
                 startActivityForResult(i, REQ_BIND);
             } catch (Throwable t) {
-                Toast.makeText(this, "System nie pozwala dodaÄ tego widÅ¼etu", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "System nie pozwala dodać tego widżetu", Toast.LENGTH_LONG).show();
                 cancelPending();
             }
         }
@@ -1576,15 +1576,15 @@ public class LauncherActivity extends BaseActivity {
         final boolean stack = e.where.startsWith("s") && stacksPage != null;
         final boolean multi = stack && stacksPage.count(e.where) > 1;
         List<String> labels = new ArrayList<String>();
-        if (multi) labels.add("PokaÅ¼ nastÄpny widÅ¼et w kolumnie");
-        labels.add("UsuÅ widÅ¼et");
-        Popups.menu(this, "WidÅ¼et", labels.toArray(new String[0]), new Popups.OnSel() {
+        if (multi) labels.add("Pokaż następny widżet w kolumnie");
+        labels.add("Usuń widżet");
+        Popups.menu(this, "Widżet", labels.toArray(new String[0]), new Popups.OnSel() {
             @Override
             public void on(int i) {
                 if (multi && i == 0) {
                     stacksPage.cycle(e.where);
                 } else {
-                    Popups.confirm(LauncherActivity.this, "UsunÄÄ widÅ¼et?", "", "UsuÅ",
+                    Popups.confirm(LauncherActivity.this, "Usunąć widżet?", "", "Usuń",
                             new Runnable() {
                                 @Override
                                 public void run() {
@@ -1618,7 +1618,7 @@ public class LauncherActivity extends BaseActivity {
         }
     }
 
-    // ---------------------------------------------------------------- pasek gÅoÅnoÅci
+    // ---------------------------------------------------------------- pasek głośności
     private static class VolumeHud extends View {
         private float value;
         private String title = "";
@@ -1682,7 +1682,7 @@ public class LauncherActivity extends BaseActivity {
         }
     }
 
-    // ---------- stan stron / integracja zewnÄtrzna ----------
+    // ---------- stan stron / integracja zewnętrzna ----------
     public static final String ACTION_NAVIGATE = "pl.dock.widget.NAVIGATE";
     public static final String ACTION_STATE_QUERY = "pl.dock.widget.STATE_QUERY";
     public static final String ACTION_STATE = "pl.dock.widget.STATE";
