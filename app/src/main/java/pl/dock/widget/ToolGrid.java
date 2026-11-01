@@ -70,8 +70,8 @@ public class ToolGrid extends ViewGroup {
         this.host = host;
         this.d = c.getResources().getDisplayMetrics().density;
         this.slop = ViewConfiguration.get(c).getScaledTouchSlop();
-        setClipChildren(false);
-        setClipToPadding(false);
+        setClipChildren(true);
+        setClipToPadding(true);
     }
 
     private int dp(float v) {
@@ -143,12 +143,16 @@ public class ToolGrid extends ViewGroup {
         if (editing == on) return;
         editing = on;
         if (on) {
+            setClipChildren(false);
+            setClipToPadding(false);
             startAllWobbles();
         } else {
             for (Item it : items) {
                 stopWobble(it.view);
             }
             dragItem = null;
+            setClipChildren(true);
+            setClipToPadding(true);
             downItem = null;
         }
         invalidate();
@@ -164,6 +168,26 @@ public class ToolGrid extends ViewGroup {
 
     private void startWobble(View v) {
         stopWobble(v);
+        // pivot na srodku kafelka - bez tego obrot wokol rogu (0,0) psul siatke
+        if (v.getWidth() > 0 && v.getHeight() > 0) {
+            v.setPivotX(v.getWidth() / 2f);
+            v.setPivotY(v.getHeight() / 2f);
+            startWobbleAnim(v);
+        } else {
+            final View fv = v;
+            fv.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (!editing || fv.getWidth() <= 0) return;
+                    fv.setPivotX(fv.getWidth() / 2f);
+                    fv.setPivotY(fv.getHeight() / 2f);
+                    startWobbleAnim(fv);
+                }
+            });
+        }
+    }
+
+    private void startWobbleAnim(View v) {
         ObjectAnimator oa = ObjectAnimator.ofFloat(v, View.ROTATION, -1.7f, 1.7f);
         oa.setDuration(110 + rnd.nextInt(60));
         oa.setRepeatMode(ValueAnimator.REVERSE);
