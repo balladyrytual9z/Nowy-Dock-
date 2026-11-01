@@ -9,11 +9,11 @@ import android.content.Intent
 import android.widget.RemoteViews
 
 /**
- * OBD widget (1 cell, 25 dp height).
+ * OBD widget (1 cell, 25 dp).
  *
- * Because the system throttles background widget updates, the widget
- * displays data as "STALE" (last known values greyed out) whenever the
- * cached telemetry is older than [STALE_MS].
+ * The system throttles background widget updates, so the widget marks
+ * displayed data as STALE whenever the cached telemetry is older than
+ * [STALE_MS].
  */
 class ObdWidgetProvider : AppWidgetProvider() {
 
@@ -26,6 +26,7 @@ class ObdWidgetProvider : AppWidgetProvider() {
         @Volatile var cachedVoltage: Float = Float.NaN
         @Volatile var cachedConnected: Boolean = false
         @Volatile var cachedUpdateMs: Long = 0L
+        @Volatile private var lastWidgetPushMs = 0L
 
         /** Called by ObdCoreService whenever a fresh state arrives. */
         fun push(context: Context, rpm: Int, speedKmh: Int, voltage: Float, connected: Boolean) {
@@ -34,19 +35,17 @@ class ObdWidgetProvider : AppWidgetProvider() {
             cachedVoltage = voltage
             cachedConnected = connected
             cachedUpdateMs = System.currentTimeMillis()
-            // RemoteViews pushes are expensive – throttle to one per 2 s
+            // RemoteViews pushes are expensive - throttle to one per 2 s
             if (cachedUpdateMs - lastWidgetPushMs >= 2_000L) {
                 lastWidgetPushMs = cachedUpdateMs
                 updateAll(context)
             }
         }
 
-        @Volatile private var lastWidgetPushMs = 0L
-
         private fun updateAll(context: Context) {
             val m = AppWidgetManager.getInstance(context)
             val ids = m.getAppWidgetIds(ComponentName(context, ObdWidgetProvider::class.java))
-            if (ids.isNullOrEmpty()) return
+            if (ids == null || ids.isEmpty()) return
             m.updateAppWidget(ids, build(context))
         }
 
@@ -62,7 +61,7 @@ class ObdWidgetProvider : AppWidgetProvider() {
             rv.setTextViewText(
                 R.id.obd_stale,
                 when {
-                    !cachedConnected -> "OBD ✕"
+                    !cachedConnected -> "OBD X"
                     stale -> "stale"
                     else -> ""
                 }
@@ -72,7 +71,6 @@ class ObdWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
-        manager.updateAppWidget(appWidgetIds, build(context))
         // open the OBD discovery screen on tap
         val i = Intent(context, ObdDiscoveryActivity::class.java)
         val pi = PendingIntent.getActivity(
