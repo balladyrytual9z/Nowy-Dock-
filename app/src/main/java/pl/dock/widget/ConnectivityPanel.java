@@ -289,7 +289,7 @@ public class ConnectivityPanel extends LinearLayout {
     }
 
     private void unavailable() {
-        Toast.makeText(act, "Ta funkcja jest niedostępna na tym tablecie", Toast.LENGTH_SHORT).show();
+        Toast.makeText(act, "Ta funkcja jest niedostępna na tym radiu", Toast.LENGTH_SHORT).show();
     }
 
     private void openShortcut(PanelTool.Def d) {
@@ -328,6 +328,9 @@ public class ConnectivityPanel extends LinearLayout {
             return;
         }
         String id = d.id;
+        if (!longPress) {
+            performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
+        }
         if ("air".equals(id)) {
             if (longPress) openAndClose("android.settings.AIRPLANE_MODE_SETTINGS");
             else toggleAirplane();
@@ -707,6 +710,10 @@ public class ConnectivityPanel extends LinearLayout {
                             : selected == 2 ? (night ? 0xFF48484A : 0xFFC7C7CC)
                             : (night ? 0xFF3A3A3C : 0xFFFFFFFF));
             cv.drawRoundRect(pill, rad - 2f, rad - 2f, p);
+            if (pressed) {
+                p.setColor(0x22000000);
+                cv.drawRoundRect(pill, rad - 2f, rad - 2f, p);
+            }
 
             // subtelna ramka
             p.setStyle(Paint.Style.STROKE);
@@ -739,12 +746,15 @@ public class ConnectivityPanel extends LinearLayout {
             int a = e.getActionMasked();
             if (a == MotionEvent.ACTION_DOWN) {
                 pressed = true;
+                invalidate();
                 animate().scaleX(0.95f).scaleY(0.95f).setDuration(80).start();
                 return true;
             }
             if (a == MotionEvent.ACTION_UP) {
                 animate().scaleX(1f).scaleY(1f).setDuration(120).start();
                 pressed = false;
+                invalidate();
+                performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
                 // cykl stanow: Jasny -> Ciemny -> Auto -> Jasny
                 int next = (selected + 1) % 3;
                 if (next == 0) {
@@ -764,6 +774,7 @@ public class ConnectivityPanel extends LinearLayout {
             if (a == MotionEvent.ACTION_CANCEL) {
                 animate().scaleX(1f).scaleY(1f).setDuration(120).start();
                 pressed = false;
+                invalidate();
             }
             return true;
         }
