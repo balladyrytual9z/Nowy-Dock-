@@ -100,6 +100,26 @@
             android:label="Dock - aplikacje"
             android:exported="false" />
 
+        <!-- DTC Manager (Mode 03/07 odczyt, Mode 04 kasowanie) -->
+        <activity
+            android:name=".diagnostics.DtcManagerActivity"
+            android:label="DTC Manager"
+            android:exported="false" />
+
+        <!-- Osobna ikona startowa: natychmiastowe kasowanie DTC bez potwierdzen -->
+        <activity
+            android:name=".diagnostics.KasujDtcActivity"
+            android:label="Kasuj DTC"
+            android:icon="@drawable/ic_bt"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <receiver
             android:name=".DockWidget"
             android:exported="true">
