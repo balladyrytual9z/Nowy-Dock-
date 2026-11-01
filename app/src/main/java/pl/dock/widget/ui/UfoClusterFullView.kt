@@ -202,7 +202,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         val now = System.currentTimeMillis()
         val dt = if (lastFrameMs == 0L) 16f else (now - lastFrameMs).coerceAtMost(100).toFloat()
         lastFrameMs = now
-        val alpha = 1f - Math.pow(0.001, dt / 1000f * 6f).toFloat()
+        val alpha = 1f - Math.pow(0.001, (dt / 1000f * 6f).toDouble()).toFloat()
         rpm += alpha * (rpmTarget - rpm)
 
         c.drawColor(BG)
@@ -424,7 +424,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         pText.color = BLUE_GLOW
         c.drawText(if (mx == null) "MAX: N/A" else "MAX: " + fmtVal(mx), 734f, 442f, pText)
         pText.color = if (have) Color.BLACK else LCD_OFF
-        c.drawText(if (avgSum == null || avgCnt == 0f) "AVG: N/A"
+        c.drawText(if (avgSum == null || avgCnt == null || avgCnt <= 0f) "AVG: N/A"
             else "AVG: " + fmtVal(avgSum / avgCnt), 734f, 478f, pText)
     }
 
