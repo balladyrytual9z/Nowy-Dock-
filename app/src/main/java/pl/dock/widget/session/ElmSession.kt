@@ -12,17 +12,27 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * ELM327 session: init sequence + request/response only (AT MA blocked).
  *
- * Init: ATZ â ATE0 â ATSP6 â ATH1 â ATAT1
- * Waits for prompt '>' (0x3E) via coroutine flow â no Thread.sleep.
+ * Init: ATZ -> ATE0 -> ATSP6 -> ATH1 -> ATAT1 -> ATSTFF
+ * (AT ST FF = maksymalny timeout na odpowiedz ECU Keihin)
+ * Waits for prompt '>' (0x3E) via coroutine flow - no Thread.sleep.
+ *
+ * Read-Only Safety Lock: komendy modyfikujace ECU (2E WriteData,
+ * 10 xx Session Control, 27 SecurityAccess, 30/31 aktywne testy)
+ * sa zablokowane domyslnie; dostepne tylko w trybie serwisowym
+ * (serviceMode = prefs "obd_settings" -> "service_mode").
  */
 class ElmSession(
     private val transport: ElmTransport,
+    private val serviceMode: Boolean = false,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 ) {
     companion object {
         private const val TAG = "ElmSession"
         private const val PROMPT_TIMEOUT_MS = 8_000L
         private val FORBIDDEN = setOf("ATMA", "AT MA", "ATMA\r", "AT MA\r")
+
+        /** Prefiksy komend modyfikujacych ECU (Read-Only Safety Lock). */
+        private val MUTATING = setOf("2E", "27", "10", "30", "31")
     }
 
     private val _responses = MutableSharedFlow<String>(extraBufferCapacity = 32)
@@ -51,23 +61,32 @@ class ElmSession(
     suspend fun initialize() = withContext(Dispatchers.IO) {
         startCollecting()
         sendAndWaitPrompt("ATZ")
-        delay(300) // ATZ soft reset â brief settle only (not busy-wait on bus)
+        delay(300) // ATZ soft reset - brief settle only (not busy-wait on bus)
         sendAndWaitPrompt("ATE0")
         sendAndWaitPrompt("ATSP6")   // ISO 15765-4 CAN 11-bit 500 kbaud
         sendAndWaitPrompt("ATH1")    // headers on
         sendAndWaitPrompt("ATAT1")   // adaptive timing
+        sendAndWaitPrompt("ATSTFF")  // max timeout odpowiedzi ECU (spec Honda Keihin)
         initialized.set(true)
-        Log.i(TAG, "ELM327 initialized (SP6 / CAN 11-bit 500k)")
+        Log.i(TAG, "ELM327 initialized (SP6 / CAN 11-bit 500k / STFF)")
     }
 
     /**
      * Send a single command and collect response until prompt.
-     * Blocks AT MA (Monitor All) â forced request/response only.
+     * Blocks AT MA (Monitor All) - forced request/response only.
+     * Blocks mutating ECU commands unless serviceMode is enabled.
      */
     suspend fun request(command: String): String = withContext(Dispatchers.IO) {
         val cmd = command.trim().uppercase()
         if (FORBIDDEN.any { cmd.startsWith(it.replace(" ", "")) || cmd == it }) {
-            throw SecurityException("AT MA (Monitor All) is blocked â request/response only")
+            throw SecurityException("AT MA (Monitor All) is blocked - request/response only")
+        }
+        val noSpace = cmd.replace(" ", "")
+        if (!serviceMode && MUTATING.any { noSpace.startsWith(it) }) {
+            throw SecurityException(
+                "Read-Only Safety Lock: komenda '" + cmd +
+                "' modyfikuje ECU - odblokuj ja tylko w trybie serwisowym"
+            )
         }
         if (!transport.isConnected()) throw IllegalStateException("Transport not connected")
         sendAndWaitPrompt(command)
@@ -103,4 +122,3 @@ class ElmSession(
         try { transport.disconnect() } catch (_: Exception) {}
     }
 }
-

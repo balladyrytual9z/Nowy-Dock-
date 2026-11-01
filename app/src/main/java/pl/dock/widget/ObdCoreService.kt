@@ -38,7 +38,11 @@ import pl.dock.widget.repository.EngineStateLabel
  *
  * Odometr (akumulacja dystansu dla modulu Serwis) liczony jest TUTAJ,
  * w strumieniu telemetrii - przebieg rosnie takze przy zamknietym
- * ekranie Serwis (wczesniej liczyl sie tylko przy otwartym ekranie).
+ * ekranie Serwis.
+ *
+ * ACC State Watchdog: gdy silnik stoi (RPM == 0 / OFF) a napiecie spada
+ * ponizej 12.0 V na dluziej niz 3 minuty, Bluetooth jest rozlaczany -
+ * zabezpieczenie akumulatora przed drena w Deep Sleep radia ESSGOO.
  */
 class ObdCoreService : Service() {
 
@@ -55,6 +59,10 @@ class ObdCoreService : Service() {
         private const val FRAME_MS = 1_000L
         /** Mode 06 poll interval [ms] */
         private const val MODE06_MS = 30_000L
+        /** ACC watchdog: zaplon OFF z niskim napieciem [ms] do rozlaczenia */
+        private const val ACC_TIMEOUT_MS = 180_000L
+        /** ACC watchdog: prog napiecia [V] */
+        private const val ACC_LOW_V = 12.0f
 
         @Volatile var running = false
             private set
@@ -88,6 +96,7 @@ class ObdCoreService : Service() {
 
     private var lastFrameMs = 0L
     private var lastMode06Ms = 0L
+    private var accOffMs = 0L
     @Volatile private var lastAlert: String? = null
 
     override fun onCreate() {
@@ -120,6 +129,22 @@ class ObdCoreService : Service() {
 
                 // --- odometr (Serwis): akumulacja dystansu z VSS, w tle ---
                 accumulateOdometer(s.speedKmh, now)
+
+                // --- ACC State Watchdog: rozlacz BT po dlugim staniu na zaplonie ---
+                if (s.engineState == EngineStateLabel.OFF &&
+                    !s.voltage.isNaN() && s.voltage < ACC_LOW_V) {
+                    if (accOffMs == 0L) {
+                        accOffMs = now
+                    } else if (now - accOffMs > ACC_TIMEOUT_MS && s.connected) {
+                        raiseAlert("ACC",
+                            "Zaplon OFF (V " + "%.1f".format(s.voltage) +
+                            ") - rozlaczam Bluetooth, oszczedzam akumulator")
+                        manager.disconnect()
+                        accOffMs = 0L
+                    }
+                } else {
+                    accOffMs = 0L
+                }
 
                 // --- Black Box feed (~1 Hz), bramkowane ustawieniem ---
                 if (blackboxOn && now - lastFrameMs >= FRAME_MS) {

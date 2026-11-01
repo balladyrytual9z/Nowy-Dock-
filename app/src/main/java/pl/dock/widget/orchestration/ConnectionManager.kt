@@ -17,6 +17,10 @@ import pl.dock.widget.transport.*
  * Orchestrates transport selection, session init, PID scheduler and
  * publishes a single [VehicleUiState] StateFlow for the UI layer.
  * UI never talks to Bluetooth directly.
+ *
+ * Nowe PID-y (spec Honda Keihin): 0101 (MIL + liczba DTC),
+ * 0133 (BARO), 0134 (Lambda -> AFR). Tryb serwisowy (odblokowanie
+ * komend modyfikujacych) = prefs "obd_settings" -> "service_mode".
  */
 class ConnectionManager(
     private val appContext: Context,
@@ -27,7 +31,7 @@ class ConnectionManager(
 
         @Volatile private var instance: ConnectionManager? = null
 
-        /** Process-wide singleton – UI, widget and ObdCoreService share it. */
+        /** Process-wide singleton - UI, widget and ObdCoreService share it. */
         fun get(appContext: Context): ConnectionManager =
             instance ?: synchronized(this) {
                 instance ?: ConnectionManager(appContext.applicationContext).also { instance = it }
@@ -36,7 +40,7 @@ class ConnectionManager(
 
     /**
      * Raw ELM request (request/response only, AT MA blocked inside the session).
-     * Used by Mode $06 misfire polling.
+     * Used by Mode $06 misfire polling, DTC read/clear, freeze frame, VIN.
      */
     suspend fun rawRequest(command: String): String? = try {
         session?.request(command)
@@ -58,7 +62,7 @@ class ConnectionManager(
 
     /**
      * @param address MAC address
-     * @param preferBle true â BleTransport, false â SppTransport
+     * @param preferBle true -> BleTransport, false -> SppTransport
      */
     fun connect(address: String, preferBle: Boolean = false) {
         scope.launch {
@@ -76,7 +80,12 @@ class ConnectionManager(
                 transport = t
                 t.connect(address)
 
-                val s = ElmSession(t)
+                // Read-Only Safety Lock: komendy modyfikujace ECU sa zablokowane
+                // dopoki nie wlaczony jest tryb serwisowy (zakladka DIAG).
+                val serviceMode = appContext
+                    .getSharedPreferences("obd_settings", Context.MODE_PRIVATE)
+                    .getBoolean("service_mode", false)
+                val s = ElmSession(t, serviceMode = serviceMode)
                 session = s
                 s.initialize()
 
@@ -155,6 +164,16 @@ class ConnectionManager(
             "010F" -> cur.copy(iatC = parseTemp(raw, "410F") ?: cur.iatC)
             "0106" -> cur.copy(stftPct = parseFuelTrim(raw, "4106") ?: cur.stftPct)
             "0107" -> cur.copy(ltftPct = parseFuelTrim(raw, "4107") ?: cur.ltftPct)
+            "0101" -> { // MIL + liczba kodow DTC
+                val r = parseMilStatus(raw)
+                if (r != null) cur.copy(milOn = r.first, dtcCount = r.second)
+                else cur
+            }
+            "0133" -> cur.copy(baroKpa = parseByte(raw, "4133")?.toFloat() ?: cur.baroKpa)
+            "0134" -> { // Lambda (SAE): ((A*256)+B)/32768 -> AFR przy 14.7
+                val afr = parseLambdaAfr(raw)
+                if (afr != null) cur.copy(lambdaAfr = afr) else cur
+            }
             else -> cur
         }
         _uiState.value = next.copy(
@@ -220,5 +239,25 @@ class ConnectionManager(
         val b = parseByte(raw, header) ?: return null
         return (b - 128) * 100f / 128f
     }
-}
 
+    /** PID 0101: bajt A = MIL(bit 0) + liczba DTC (bity 1-7). */
+    private fun parseMilStatus(raw: String): Pair<Boolean, Int>? {
+        val b = parseByte(raw, "4101") ?: return null
+        val mil = (b and 0x01) != 0
+        val count = b shr 1
+        return Pair(mil, count)
+    }
+
+    /** PID 0134: lambda = ((A*256)+B)/32768; AFR = lambda * 14.7 (benzyna). */
+    private fun parseLambdaAfr(raw: String): Float? {
+        val hex = raw.replace(" ", "").uppercase()
+        val i = hex.indexOf("4134")
+        if (i < 0 || hex.length < i + 8) return null
+        return try {
+            val a = hex.substring(i + 4, i + 6).toInt(16)
+            val b = hex.substring(i + 6, i + 8).toInt(16)
+            val lambda = ((a * 256) + b) / 32768f
+            lambda * 14.7f
+        } catch (_: Exception) { null }
+    }
+}

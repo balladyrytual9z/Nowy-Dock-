@@ -13,13 +13,17 @@ import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Adaptive polling scheduler with three tiers:
- *  Fast   100 ms  â PID 010C (RPM), 010D (VSS)
- *  Medium 500 ms  â Engine Load, TPS, MAP
- *  Slow  2000 ms  â ECT, IAT, STFT, LTFT
+ *  Fast   100 ms  - PID 010C (RPM), 010D (VSS)
+ *  Medium 500 ms  - Engine Load, TPS, MAP
+ *  Slow   2000 ms  - ECT, IAT, STFT, LTFT + 0101 (MIL/readiness),
+ *                    0133 (BARO), 0134 (Lambda/AFR)
  *
  * Stale-data marking if no response > 3 s.
  * Keep-alive in background: only AT RV (voltage), no PID traffic.
  * Cranking protection via [EngineState].
+ *
+ * Rate Limiting: minimum 80 ms przerwy miedzy ukonczeniem ramki (prompt '>')
+ * a wyslaniem kolejnej komendy - tanie klony ELM327 sie dlawia bez tego.
  */
 class PidScheduler(
     private val session: ElmSession,
@@ -31,9 +35,11 @@ class PidScheduler(
     companion object {
         private const val TAG = "PidScheduler"
         private const val STALE_MS = 3_000L
+        private const val MIN_GAP_MS = 80L
         val FAST_PIDS = listOf("010C", "010D")          // RPM, VSS
         val MEDIUM_PIDS = listOf("0104", "0111", "010B") // Load, TPS, MAP
-        val SLOW_PIDS = listOf("0105", "010F", "0106", "0107") // ECT, IAT, STFT, LTFT
+        val SLOW_PIDS = listOf("0105", "010F", "0106", "0107",
+            "0101", "0133", "0134") // ECT, IAT, STFT, LTFT, MIL, BARO, LAMBDA
     }
 
     private val executor: ScheduledExecutorService =
@@ -46,6 +52,8 @@ class PidScheduler(
     private val backgroundMode = AtomicBoolean(false)
 
     private val lastResponse = mutableMapOf<String, AtomicLong>()
+    /** Czas ukonczenia poprzedniej komendy (odebrania promptu '>'). */
+    private val lastDoneMs = AtomicLong(0L)
     private var fastFuture: ScheduledFuture<*>? = null
     private var mediumFuture: ScheduledFuture<*>? = null
     private var slowFuture: ScheduledFuture<*>? = null
@@ -111,7 +119,7 @@ class PidScheduler(
         keepAliveFuture?.cancel(false)
         keepAliveFuture = null
         if (running.get()) scheduleTiers()
-        Log.i(TAG, "Foreground â full PID tiers restored")
+        Log.i(TAG, "Foreground - full PID tiers restored")
     }
 
     private fun scheduleTiers() {
@@ -135,7 +143,12 @@ class PidScheduler(
             for (pid in pids) {
                 if (engineState.protected || backgroundMode.get()) break
                 try {
+                    // Rate limiting: wymuszenie min. 80 ms od ukonczenia
+                    // poprzedniej ramki (odbior promptu '>') do nowej komendy
+                    val gap = MIN_GAP_MS - (System.currentTimeMillis() - lastDoneMs.get())
+                    if (gap > 0) delay(gap)
                     val raw = session.request(pid)
+                    lastDoneMs.set(System.currentTimeMillis())
                     val now = System.currentTimeMillis()
                     lastResponse[pid]?.set(now)
                     onPidResult(pid, raw, now)
@@ -151,7 +164,7 @@ class PidScheduler(
     }
 
     private fun parseRpm(raw: String): Int? {
-        // typical: 41 0C A B  â RPM = ((A*256)+B)/4
+        // typical: 41 0C A B  -> RPM = ((A*256)+B)/4
         val hex = raw.replace(" ", "").uppercase()
         val idx = hex.indexOf("410C")
         if (idx < 0 || hex.length < idx + 8) return null
@@ -163,7 +176,7 @@ class PidScheduler(
     }
 
     private fun parseVoltage(raw: String): Float? {
-        // ATRV â "12.6V" or similar
+        // ATRV -> "12.6V" or similar
         val cleaned = raw.replace("V", "", ignoreCase = true).trim()
         return cleaned.toFloatOrNull()
     }
@@ -191,4 +204,3 @@ class PidScheduler(
         scope.cancel()
     }
 }
-

@@ -1,26 +1,29 @@
 package pl.dock.widget.diagnostics
 
 /**
- * Mode $06 (On-Board Monitoring Test Results) – Misfire Lab
+ * Mode $06 (On-Board Monitoring Test Results) - Misfire Lab
  * for Honda Civic VIII 1.4 i-VTEC (L13Z1, Keihin ECU).
+ *
+ * Odpytywanie wg specyfikacji Keihin - per cylinder (MIDs):
+ *   06 A2 -> cylinder 1, 06 A3 -> cylinder 2,
+ *   06 A4 -> cylinder 3, 06 A5 -> cylinder 4.
+ * Gdy adapter/ECU nie wspiera MIDow A2-A5, wykonywany jest
+ * zapytanie zbiorcze "06" (MIDs $01..$0A).
  *
  * Raw frames come from ELM327 with headers ON (ATH1), so each line
  * contains an ISO 15765-4 (ISO-TP single frame) header before the payload:
  *
- *   7E8 06 46 01 00 00 00 06 00 00 00 06
- *   │   │  │  │
- *   │   │  │  └── MID ($01..$0A = misfire counters per cylinder)
- *   │   │  └───── Mode $06 response service byte ($46)
- *   │   └──────── optional service echo
- *   └──────────── CAN header (11-bit: 7E8 = engine ECU)
- *
- * The parser strips the header, keeps only the payload and extracts
- * MID / TID / UASID / test-value / min / max for misfire MIDs.
+ *   7E8 06 46 A2 00 00 00 06 00 00 00 06
+ *   |   |  |  |
+ *   |   |  |  +-- TID / UASID / test value / min / max
+ *   |   |  +----- MID ($A2 = cylinder 1 misfire counter)
+ *   |   +-------- Mode $06 response service byte ($46)
+ *   +------------ CAN header (11-bit: 7E8 = engine ECU)
  */
 class MisfireAnalyzer {
 
     data class MisfireResult(
-        val mid: Int,          // MID == cylinder index (01..0A) on Keihin ECU
+        val mid: Int,          // cylinder index (1..10; A2..A5 -> 1..4)
         val tid: Int,
         val value: Int,        // misfire count reported by the monitor
         val min: Int,
@@ -42,8 +45,17 @@ class MisfireAnalyzer {
      * (headers included). Returns parsed misfire counters.
      */
     suspend fun poll(request: suspend (String) -> String?): List<MisfireResult> {
-        val raw = request("06") ?: return lastResults
-        val parsed = parseMode06(raw)
+        var parsed: List<MisfireResult> = emptyList()
+        // spec Keihin: per-cylinder MIDs $A2..$A5
+        for (cmd in listOf("06A2", "06A3", "06A4", "06A5")) {
+            val raw = request(cmd) ?: continue
+            parsed += parseMode06(raw)
+        }
+        // fallback: zapytanie zbiorcze "06" (MIDs $01..$0A)
+        if (parsed.isEmpty()) {
+            val raw = request("06") ?: return lastResults
+            parsed = parseMode06(raw)
+        }
         if (parsed.isNotEmpty()) {
             lastResults = parsed
             lastPollMs = System.currentTimeMillis()
@@ -64,7 +76,7 @@ class MisfireAnalyzer {
         /**
          * Parse a raw multi-line Mode $06 answer.
          * Separates the ISO 15765-4 header from the payload and keeps only
-         * misfire MIDs ($01..$0A).
+         * misfire MIDs ($01..$0A oraz $A2..$A5 = cylindry 1..4 Keihin).
          */
         fun parseMode06(raw: String): List<MisfireResult> {
             val out = ArrayList<MisfireResult>(16)
@@ -80,16 +92,19 @@ class MisfireAnalyzer {
                 }
                 if (i >= toks.size - 4) return@forEach
 
-                val mid = toks[i + 1].toIntOrNull(16) ?: return@forEach
+                val midRaw = toks[i + 1].toIntOrNull(16) ?: return@forEach
                 val tid = toks[i + 2].toIntOrNull(16) ?: return@forEach
-                // UASID (test id) – Keihin keeps misfire tests on TID 00/01
                 val value = toks[i + 3].toIntOrNull(16) ?: return@forEach
                 val min = toks.getOrElse(i + 4) { "0" }.toIntOrNull(16) ?: 0
                 val max = toks.getOrElse(i + 5) { "0" }.toIntOrNull(16) ?: 0
 
-                if (mid in 1..0x0A) {
-                    out += MisfireResult(mid, tid, value, min, max)
+                // Keihin MIDs $A2..$A5 -> cylindry 1..4; klasyczne MIDy 01..0A
+                val mid = when (midRaw) {
+                    in 0xA2..0xA5 -> midRaw - 0xA1
+                    in 0x01..0x0A -> midRaw
+                    else -> return@forEach
                 }
+                out += MisfireResult(mid, tid, value, min, max)
             }
             return out
         }

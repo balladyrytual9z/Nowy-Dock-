@@ -18,6 +18,14 @@ data class VehicleUiState(
     val iatC: Float = Float.NaN,
     val stftPct: Float = Float.NaN,
     val ltftPct: Float = Float.NaN,
+    /** PID 0101: kontrolka MIL (Check Engine) zapalona. */
+    val milOn: Boolean = false,
+    /** PID 0101: liczba potwierdzonych kodow DTC zgloszona przez ECU (-1 = brak danych). */
+    val dtcCount: Int = -1,
+    /** PID 0133: cisnienie barometryczne [kPa]. */
+    val baroKpa: Float = Float.NaN,
+    /** PID 0134: stosunek lambda przeliczony na AFR (x14.7) [-1 = brak]. */
+    val lambdaAfr: Float = Float.NaN,
     /** True when last response for a PID is older than stale threshold (UI greys out). */
     val staleFlags: StaleFlags = StaleFlags(),
     val engineState: EngineStateLabel = EngineStateLabel.UNKNOWN,
@@ -42,6 +50,5 @@ enum class EngineStateLabel {
     OFF,
     CRANKING,
     RUNNING,
-    PROTECTED   // voltage/RPM guard active â PIDs blocked
+    PROTECTED   // voltage/RPM guard active - PIDs blocked
 }
-

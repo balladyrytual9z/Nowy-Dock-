@@ -1,6 +1,7 @@
 package pl.dock.widget
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -32,7 +33,9 @@ import pl.dock.widget.ui.UfoClusterActivity
  * Zakaz fabryzacji: brak danych = wyswietlone "-", nigdy zmyslone wartosci.
  *
  * Dopracowanie: korutyna telemetrii anulowana w onDestroy (brak wycieku),
- * przycisk WSTECZ zamyka ekran i wraca do launchera.
+ * przycisk WSTECZ zamyka ekran, przewodnik UFO Dash Self-Diag
+ * (fabryczny test zegarow Civic VIII krok po kroku), nowe dane:
+ * MIL, liczba kodow DTC, BARO, Lambda/AFR.
  */
 class ObdDiscoveryActivity : Activity() {
 
@@ -92,6 +95,7 @@ class ObdDiscoveryActivity : Activity() {
         nav.addView(navBtn("E-RAPORT") {
             startActivity(Intent(this, EReportActivity::class.java))
         })
+        nav.addView(navBtn("SELF-DIAG ZEGAROW (UFO)") { showSelfDiagGuide() })
         nav.addView(navBtn("USTAWIENIA OBD") {
             startActivity(Intent(this, ObdSettingsActivity::class.java))
         })
@@ -108,6 +112,33 @@ class ObdDiscoveryActivity : Activity() {
         scope.launch {
             manager.uiState.collectLatest { state -> render(state) }
         }
+    }
+
+    /**
+     * Przewodnik po ukrytym menu zegarow (UFO Dash Self-Diag) -
+     * fabryczny test cyfrowy deski rozdzielczej Civic VIII.
+     * Wersje wyposazenia moga sie nieznacznie roznic.
+     */
+    private fun showSelfDiagGuide() {
+        AlertDialog.Builder(this)
+            .setTitle("UFO Dash Self-Diag (test zegarow)")
+            .setMessage(
+                "Fabryczny test deski rozdzielczej Honda Civic VIII:\n\n" +
+                "1. Zaplon OFF (kluczyk w pozycji 0).\n" +
+                "2. Wcisnij i PRZYTRZYMAJ przycisk RESET\n" +
+                "   licznika (przycisk na kolumnie/zegarach).\n" +
+                "3. Trzymajac RESET, przekrec zaplon na II (ON).\n" +
+                "4. Trzymaj RESET ok. 5-10 s.\n" +
+                "5. Zegary wykonaja pelny sweep - wskazowki\n" +
+                "   obrotomierza i predkosciomierza przejada\n" +
+                "   od min do max i spowrotem; wyswietlacz\n" +
+                "   pokaze kod diagnostyczny klastra (jesli jest).\n" +
+                "6. Zwolnij przycisk / wylacz zaplon, aby zakonczyc.\n\n" +
+                "Uwaga: to procedura fabryczna Hondy - wersje\n" +
+                "wyposazenia moga nieznacznie roznic sie w krokach."
+            )
+            .setPositiveButton("OK", null)
+            .show()
     }
 
     private fun navBtn(label: String, onClick: () -> Unit): Button =
@@ -145,6 +176,10 @@ class ObdDiscoveryActivity : Activity() {
             appendLine("IAT: " + fmt(s.iatC) + " C" + stale(s.staleFlags.iat))
             appendLine("STFT: " + fmt(s.stftPct) + " %" + stale(s.staleFlags.stft))
             appendLine("LTFT: " + fmt(s.ltftPct) + " %" + stale(s.staleFlags.ltft))
+            appendLine("MIL (Check Engine): " + (if (s.milOn) "ZAPALONA" else "wylaczona"))
+            appendLine("Kody DTC w ECU: " + (if (s.dtcCount >= 0) s.dtcCount else "-"))
+            appendLine("BARO: " + fmt(s.baroKpa) + " kPa")
+            appendLine("AFR (lambda x14.7): " + fmt(s.lambdaAfr))
         }
         ObdWidgetProvider.push(this, s.rpm, s.speedKmh, s.voltage, s.connected)
     }

@@ -24,24 +24,68 @@ import kotlin.coroutines.resumeWithException
  *
  * - Single-operation mutex (only one async GATT op at a time)
  * - Pairing timeout 12 s, transfer timeout 6 s
- * - MTU forced to max 185; writes chunked â¤ 20 bytes, WRITE_TYPE_NO_RESPONSE
+ * - MTU forced to max 185; writes chunked <= 20 bytes, WRITE_TYPE_NO_RESPONSE
  * - CCCD (0x2902) subscription; missing descriptor is ignored, notify continues
  * - GATT cache clear via reflection on allocation errors
+ * - Multi-profile UUID detection (klon FFF0, vGate/vLinker 18F0 i e7810a71,
+ *   HM-10 FFE0, Nordic UART, Microchip UART) + genericzny fallback
+ * - Czyste zamykanie: disconnect() -> pauza na callback (max 1 s) -> close()
  */
 @SuppressLint("MissingPermission")
 class BleTransport(private val appContext: Context) : ElmTransport {
 
+    /** Para (service, write, notify) znanych profilow UART ELM327. */
+    data class GattProfile(val service: UUID, val write: UUID, val notify: UUID)
+
     companion object {
         private const val TAG = "BleTransport"
-        // Common ELM BLE service / characteristic UUIDs (vGate / similar)
+
+        // Standardowy klon ELM327 (FFF0/FFF1/FFF2) - podstawowy profil
         val SERVICE_UUID: UUID = UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb")
         val WRITE_UUID: UUID = UUID.fromString("0000fff2-0000-1000-8000-00805f9b34fb")
         val NOTIFY_UUID: UUID = UUID.fromString("0000fff1-0000-1000-8000-00805f9b34fb")
         val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+
+        /** Pozostale znane profile UART (wg listy heurystyk adapterow ELM). */
+        val PROFILES: List<GattProfile> = listOf(
+            GattProfile(SERVICE_UUID, WRITE_UUID, NOTIFY_UUID),
+            // vGate / vLinker
+            GattProfile(
+                UUID.fromString("000018f0-0000-1000-8000-00805f9b34fb"),
+                UUID.fromString("00002af1-0000-1000-8000-00805f9b34fb"),
+                UUID.fromString("00002af0-0000-1000-8000-00805f9b34fb")
+            ),
+            // vLinker Transparent UART (wspolna charakterystyka)
+            GattProfile(
+                UUID.fromString("e7810a71-73ae-499d-8c15-faa9aef0c3f2"),
+                UUID.fromString("bef8d6c9-9c21-4c9e-b632-bd58c1009f9f"),
+                UUID.fromString("bef8d6c9-9c21-4c9e-b632-bd58c1009f9f")
+            ),
+            // HM-10 (dual role, ta sama charakterystyka)
+            GattProfile(
+                UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb"),
+                UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb"),
+                UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb")
+            ),
+            // Nordic UART Service
+            GattProfile(
+                UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9f"),
+                UUID.fromString("6e400002-b5a3-f393-e0a9-e50e24dcca9f"),
+                UUID.fromString("6e400003-b5a3-f393-e0a9-e50e24dcca9f")
+            ),
+            // Microchip UART
+            GattProfile(
+                UUID.fromString("49535343-fe7d-4ae5-8fa9-9fafd205e455"),
+                UUID.fromString("49535343-8841-43f4-a8d4-ecbe34929179"),
+                UUID.fromString("49535343-1e4d-4bd9-ba61-23c647249616")
+            )
+        )
+
         private const val PAIR_TIMEOUT_MS = 12_000L
         private const val TX_TIMEOUT_MS = 6_000L
         private const val MAX_CHUNK = 20
         private const val TARGET_MTU = 185
+        private const val CLOSE_SETTLE_MS = 1_000L
     }
 
     private val _state = MutableStateFlow(TransportState.DISCONNECTED)
@@ -89,12 +133,27 @@ class BleTransport(private val appContext: Context) : ElmTransport {
                             if (cont.isActive) cont.resumeWithException(Exception("Service discovery failed: $status"))
                             return
                         }
-                        val service = g.getService(SERVICE_UUID)
-                        if (service == null) {
-                            // try first available service with write+notify
+                        // 1) znane profile UART ELM327 (FFF0, 18F0, e7810a71, FFE0, Nordic, Microchip)
+                        var matched: BluetoothGattCharacteristic? = null
+                        for (p in PROFILES) {
+                            val svc = g.getService(p.service) ?: continue
+                            val w = svc.getCharacteristic(p.write)
+                            val n = svc.getCharacteristic(p.notify)
+                            if (w != null && n != null) {
+                                writeChar = w
+                                notifyChar = n
+                                matched = w
+                                Log.i(TAG, "GATT profile matched: " + p.service)
+                                break
+                            }
+                        }
+                        if (matched == null) {
+                            // 2) fallback: dowolny serwis z charakterystyka WRITE (i opcjonalnie NOTIFY)
                             val fallback = g.services.firstOrNull { svc ->
-                                svc.characteristics.any { it.properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0 ||
-                                        it.properties and BluetoothGattCharacteristic.PROPERTY_WRITE != 0 }
+                                svc.characteristics.any {
+                                    it.properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0 ||
+                                            it.properties and BluetoothGattCharacteristic.PROPERTY_WRITE != 0
+                                }
                             }
                             if (fallback == null) {
                                 if (cont.isActive) cont.resumeWithException(Exception("No suitable GATT service"))
@@ -107,9 +166,7 @@ class BleTransport(private val appContext: Context) : ElmTransport {
                             notifyChar = fallback.characteristics.firstOrNull {
                                 it.properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0
                             }
-                        } else {
-                            writeChar = service.getCharacteristic(WRITE_UUID)
-                            notifyChar = service.getCharacteristic(NOTIFY_UUID)
+                            Log.i(TAG, "GATT generic fallback profile: " + fallback.uuid)
                         }
                         // Request larger MTU
                         if (Build.VERSION.SDK_INT >= 21) {
@@ -173,8 +230,8 @@ class BleTransport(private val appContext: Context) : ElmTransport {
                 cccd.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                 g.writeDescriptor(cccd)
             } else {
-                // Missing CCCD â ignore and continue listening (some clones omit it)
-                Log.w(TAG, "CCCD 0x2902 missing â continuing without descriptor write")
+                // Missing CCCD - ignore and continue listening (some clones omit it)
+                Log.w(TAG, "CCCD 0x2902 missing - continuing without descriptor write")
             }
         }
         if (cont.isActive) cont.resume(Unit)
@@ -203,7 +260,16 @@ class BleTransport(private val appContext: Context) : ElmTransport {
         }
     }
 
+    /**
+     * Czyste zamykanie GATT: disconnect(), pauza (settle na callback,
+     * max 1 s), dopiero potem close(). Zapobiega GATT 133 przy
+     * kolejnym polaczeniu.
+     */
     override suspend fun disconnect() = withContext(Dispatchers.Main) {
+        try {
+            gatt?.disconnect()
+            delay(CLOSE_SETTLE_MS)
+        } catch (_: Exception) {}
         disconnectInternal()
         _state.value = TransportState.DISCONNECTED
     }
@@ -221,7 +287,7 @@ class BleTransport(private val appContext: Context) : ElmTransport {
     }
 
     /**
-     * Clear GATT cache via reflection â useful after allocation / status 133 errors.
+     * Clear GATT cache via reflection - useful after allocation / status 133 errors.
      */
     fun clearGattCache() {
         val g = gatt ?: return
@@ -234,4 +300,3 @@ class BleTransport(private val appContext: Context) : ElmTransport {
         }
     }
 }
-
