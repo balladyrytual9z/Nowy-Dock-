@@ -28,7 +28,7 @@ data class VehicleUiState(
     val readinessReady: Int = -1,
     /** PID 0133: cisnienie barometryczne [kPa]. */
     val baroKpa: Float = Float.NaN,
-    /** PID 0134: stosunek lambda przeliczony na AFR (x14.7) [-1 = brak]. */
+    /** PID 0134: stosunek lambda przeliczony na AFR (x14.7); wartosc -1 = brak. */
     val lambdaAfr: Float = Float.NaN,
     /** Mode 21 (KWP2000 ReadDataByIdentifier, "2101"): czas wtrysku [ms] (skala x0.001, do kalibracji). */
     val injectionMs: Float = Float.NaN,

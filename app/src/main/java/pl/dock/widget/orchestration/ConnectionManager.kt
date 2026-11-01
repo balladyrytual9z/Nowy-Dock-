@@ -316,7 +316,7 @@ class ConnectionManager(
 
     /**
      * Mode 21 (KWP2000 ReadDataByIdentifier), zapytanie "2101":
-     * odpowiedz 61 01 [dane...]. Czas wtrysku = pierwsze 2 bajty danych
+     * odpowiedz 61 01 XX XX. Czas wtrysku = pierwsze 2 bajty danych
      * (16-bit Big Endian) x 0.001 [ms] - skala wg raportu wymaga kalibracji
      * wzgledem HDS (mnoznik 0.001 / 0.01).
      */
