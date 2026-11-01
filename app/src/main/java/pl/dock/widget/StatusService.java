@@ -179,14 +179,8 @@ public class StatusService extends Service {
         registerReceiver(modeReceiver, modeFilter);
     }
 
-    /** Synchronizuje UI z tad (launcher widoczny) lub tylko widzet, gdy launcher ukryty. */
+    /** Synchronizacja zmiany trybu nocnego: odswieza widzet (launcher odswieza sie sam). */
     private void applyCircadianState(Context ctx, boolean isNight) {
-        try {
-            if (LauncherActivity.visible) {
-                NightAware.notifyAll(ctx);
-            }
-        } catch (Throwable ignored) {
-        }
         DockWidget.updateAll(ctx);
     }
 
