@@ -23,6 +23,12 @@ class EngineState {
     @Volatile var protected: Boolean = false
         private set
 
+    /**
+     * Ustawienie "cranking_protect": true = blokada PID w trakcie rozruchu
+     * (odczyt z prefs "obd_settings" przy polaczeniu).
+     */
+    @Volatile var crankingProtect: Boolean = true
+
     fun updateVoltage(v: Float) {
         voltage = v
         recompute()
@@ -39,9 +45,13 @@ class EngineState {
         val running = rpm > 600 && !voltage.isNaN() && voltage > 13.2f
 
         when {
-            lowVolt || cranking -> {
+            cranking -> {
+                protected = crankingProtect
+                label = EngineStateLabel.CRANKING
+            }
+            lowVolt -> {
                 protected = true
-                label = if (cranking) EngineStateLabel.CRANKING else EngineStateLabel.PROTECTED
+                label = EngineStateLabel.PROTECTED
             }
             running -> {
                 protected = false

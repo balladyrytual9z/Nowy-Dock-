@@ -40,6 +40,7 @@ class EReportActivity : Activity() {
             setTextColor(Color.WHITE)
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         })
+        root.addView(backBtn())
         val body = TextView(this).apply {
             textSize = 13f
             setTextColor(Color.parseColor("#E5E5EA"))
@@ -110,6 +111,19 @@ class EReportActivity : Activity() {
             body.text = sb.toString()
         }
     }
+
+    private fun backBtn(): Button =
+        Button(this).apply {
+            text = "WSTECZ (ZAMKNIJ)"
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            background = GradientDrawable().apply {
+                cornerRadius = 20f
+                setColor(Color.parseColor("#2C2C2E"))
+            }
+            setOnClickListener { finish() }
+        }
 
     private fun f(v: Float): String = if (v.isNaN()) "-" else String.format("%.1f", v)
 }

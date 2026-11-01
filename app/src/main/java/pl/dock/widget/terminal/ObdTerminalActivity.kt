@@ -65,6 +65,8 @@ class ObdTerminalActivity : Activity() {
             setPadding(0, 0, 0, 12)
         })
 
+        root.addView(backBtn())
+
         // TRYB SERWISOWY ON/OFF
         serviceBtn = Button(this).apply {
             isAllCaps = false
@@ -147,6 +149,19 @@ class ObdTerminalActivity : Activity() {
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(root)
     }
+
+    private fun backBtn(): Button =
+        Button(this).apply {
+            text = "WSTECZ (ZAMKNIJ)"
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            background = GradientDrawable().apply {
+                cornerRadius = 20f
+                setColor(Color.parseColor("#2C2C2E"))
+            }
+            setOnClickListener { finish() }
+        }
 
     private fun mkCmdBtn(label: String, onClick: () -> Unit): Button =
         Button(this).apply {

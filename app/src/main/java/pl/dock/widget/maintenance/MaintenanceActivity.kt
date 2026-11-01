@@ -50,6 +50,7 @@ class MaintenanceActivity : Activity() {
             setTextColor(Color.WHITE)
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         })
+        root.addView(backBtn())
         body = TextView(this@MaintenanceActivity).apply {
             textSize = 15f
             setTextColor(Color.parseColor("#E5E5EA"))
@@ -72,6 +73,19 @@ class MaintenanceActivity : Activity() {
     }
 
     /** Wiersz: ostatni serwis (km) + interwal; zapis przy utracie fokusu. */
+    private fun backBtn(): Button =
+        Button(this@MaintenanceActivity).apply {
+            text = "WSTECZ (ZAMKNIJ)"
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            background = GradientDrawable().apply {
+                cornerRadius = 20f
+                setColor(Color.parseColor("#2C2C2E"))
+            }
+            setOnClickListener { finish() }
+        }
+
     private fun itemRow(key: String, label: String): View =
         LinearLayout(this@MaintenanceActivity).apply {
             orientation = LinearLayout.VERTICAL

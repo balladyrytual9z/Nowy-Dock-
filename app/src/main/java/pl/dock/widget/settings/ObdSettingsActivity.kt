@@ -31,6 +31,19 @@ class ObdSettingsActivity : Activity() {
 
     private fun sp() = getSharedPreferences("obd_settings", MODE_PRIVATE)
 
+    private fun backBtn(): Button =
+        Button(this@ObdSettingsActivity).apply {
+            text = "WSTECZ (ZAMKNIJ)"
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            background = GradientDrawable().apply {
+                cornerRadius = 20f
+                setColor(Color.parseColor("#2C2C2E"))
+            }
+            setOnClickListener { finish() }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -61,6 +74,7 @@ class ObdSettingsActivity : Activity() {
             }.also { tabBar.addView(it) }
         }
         root.addView(tabBar)
+        root.addView(backBtn())
 
         pages = arrayOf(
             buildConnPage(), buildGaugesPage(), buildDiagPage(),

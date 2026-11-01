@@ -26,6 +26,7 @@ import pl.dock.widget.settings.ObdSettingsActivity
 import pl.dock.widget.terminal.ObdTerminalActivity
 import pl.dock.widget.trip.TripActivity
 import pl.dock.widget.ui.UfoClusterActivity
+import pl.dock.widget.util.SolarTimes
 
 /**
  * Honda OBD Discovery - centrum dowodzenia modulami OBD.
@@ -49,9 +50,16 @@ class ObdDiscoveryActivity : Activity() {
         super.onCreate(savedInstanceState)
         manager = ConnectionManager.get(applicationContext)
 
+        // Tryb nocny wg slonca (ustawienie night_auto + lat/lon):
+        // po zachodzie ekran Discovery przechodzi na czarne tlo.
+        val prefs = getSharedPreferences("obd_settings", MODE_PRIVATE)
+        val night = prefs.getBoolean("night_auto", false) && SolarTimes.isNight(
+            prefs.getString("lat", "52.23")?.toDoubleOrNull() ?: 52.23,
+            prefs.getString("lon", "21.01")?.toDoubleOrNull() ?: 21.01)
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#121212"))
+            setBackgroundColor(if (night) Color.BLACK else Color.parseColor("#121212"))
             setPadding(32, 40, 32, 24)
         }
         statusTv = TextView(this).apply {
@@ -195,6 +203,8 @@ class ObdDiscoveryActivity : Activity() {
             appendLine("Monitory gotowosci: " + (if (s.readinessReady >= 0) s.readinessReady.toString() + "/" + s.readinessTotal else "-"))
             appendLine("BARO: " + fmt(s.baroKpa) + " kPa")
             appendLine("AFR (lambda x14.7): " + fmt(s.lambdaAfr))
+            appendLine("MAF (0110): " + fmt(s.mafGs) + " g/s")
+            appendLine("Zaplon (010E): " + fmt(s.sparkAdvDeg) + " deg")
             appendLine("Wtrysk (2101): " + fmt(s.injectionMs) + " ms")
         }
         ObdWidgetProvider.push(this, s.rpm, s.speedKmh, s.voltage, s.connected)

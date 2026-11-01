@@ -67,6 +67,7 @@ class DtcManagerActivity : Activity() {
         val scroll = ScrollView(this).apply { addView(list) }
 
         root.addView(title)
+        root.addView(backBtn())
         root.addView(statusTv)
         root.addView(readBtn)
         root.addView(clearBtn)
@@ -79,6 +80,8 @@ class DtcManagerActivity : Activity() {
             "OBD: polaczono" else "OBD: rozlaczono - najpierw polacz adapter"
         read()
     }
+
+    private fun backBtn(): Button = button("WSTECZ (ZAMKNIJ)") { finish() }
 
     private fun button(label: String, onClick: () -> Unit): Button =
         Button(this).apply {

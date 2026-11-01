@@ -40,7 +40,7 @@ class PidScheduler(
         val FAST_PIDS = listOf("010C", "010D")          // RPM, VSS
         val MEDIUM_PIDS = listOf("0104", "0111", "010B") // Load, TPS, MAP
         val SLOW_PIDS = listOf("0105", "010F", "0106", "0107",
-            "0101", "0133", "0134", "2101") // ECT, IAT, STFT, LTFT, MIL, BARO, LAMBDA, INJ
+            "0101", "0133", "0134", "2101", "0110", "010E") // ECT, IAT, STFT, LTFT, MIL, BARO, LAMBDA, INJ, MAF, IGN
     }
 
     private val executor: ScheduledExecutorService =

@@ -65,6 +65,7 @@ class TripActivity : Activity() {
             setTextColor(Color.WHITE)
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         })
+        root.addView(backBtn())
         body = TextView(this).apply {
             textSize = 15f
             setTextColor(Color.parseColor("#E5E5EA"))
@@ -93,6 +94,19 @@ class TripActivity : Activity() {
             manager.uiState.collectLatest { s -> onSample(s) }
         }
     }
+
+    private fun backBtn(): Button =
+        Button(this).apply {
+            text = "WSTECZ (ZAMKNIJ)"
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            background = GradientDrawable().apply {
+                cornerRadius = 20f
+                setColor(Color.parseColor("#2C2C2E"))
+            }
+            setOnClickListener { finish() }
+        }
 
     private fun onSample(s: VehicleUiState) {
         val now = System.currentTimeMillis()

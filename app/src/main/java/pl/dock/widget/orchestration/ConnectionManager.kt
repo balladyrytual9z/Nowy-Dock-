@@ -107,6 +107,10 @@ class ConnectionManager(
                 val serviceMode = appContext
                     .getSharedPreferences("obd_settings", Context.MODE_PRIVATE)
                     .getBoolean("service_mode", false)
+                // Ochrona rozruchu wg ustawien (domyslnie wlaczona)
+                engineState.crankingProtect = appContext
+                    .getSharedPreferences("obd_settings", Context.MODE_PRIVATE)
+                    .getBoolean("cranking_protect", true)
                 val s = ElmSession(t, serviceMode = serviceMode)
                 session = s
                 s.initialize()
@@ -186,6 +190,8 @@ class ConnectionManager(
             "010F" -> cur.copy(iatC = parseTemp(raw, "410F") ?: cur.iatC)
             "0106" -> cur.copy(stftPct = parseFuelTrim(raw, "4106") ?: cur.stftPct)
             "0107" -> cur.copy(ltftPct = parseFuelTrim(raw, "4107") ?: cur.ltftPct)
+            "0110" -> cur.copy(mafGs = parseMaf(raw) ?: cur.mafGs)
+            "010E" -> cur.copy(sparkAdvDeg = parseSpark(raw) ?: cur.sparkAdvDeg)
             "0101" -> { // MIL + DTC count + readiness (A/B/C/D)
                 val r = parseReadiness(raw)
                 if (r != null) cur.copy(milOn = r.milOn, dtcCount = r.dtcCount,
@@ -329,5 +335,27 @@ class ConnectionManager(
             val b = hex.substring(i + 6, i + 8).toInt(16)
             ((a * 256) + b) * 0.001f
         } catch (_: Exception) { null }
+    }
+
+    /**
+     * PID 0110 (MAF): przeplyw powietrza = ((A*256)+B)/100 [g/s].
+     */
+    private fun parseMaf(raw: String): Float? {
+        val hex = raw.replace(" ", "").uppercase()
+        val i = hex.indexOf("4110")
+        if (i < 0 || hex.length < i + 8) return null
+        return try {
+            val a = hex.substring(i + 4, i + 6).toInt(16)
+            val b = hex.substring(i + 6, i + 8).toInt(16)
+            ((a * 256) + b) / 100f
+        } catch (_: Exception) { null }
+    }
+
+    /**
+     * PID 010E (Spark Advance): wyprzedzenie zaplonu = A/2 - 64 [deg].
+     */
+    private fun parseSpark(raw: String): Float? {
+        val a = parseByte(raw, "410E") ?: return null
+        return a / 2f - 64f
     }
 }

@@ -50,6 +50,7 @@ class BlackBoxActivity : Activity() {
             setTextColor(Color.WHITE)
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         })
+        root.addView(backBtn())
         body = TextView(this).apply {
             textSize = 12f
             setTextColor(Color.parseColor("#30D158"))
@@ -97,6 +98,19 @@ class BlackBoxActivity : Activity() {
         setContentView(root)
         refresh()
     }
+
+    private fun backBtn(): Button =
+        Button(this).apply {
+            text = "WSTECZ (ZAMKNIJ)"
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            background = GradientDrawable().apply {
+                cornerRadius = 20f
+                setColor(Color.parseColor("#2C2C2E"))
+            }
+            setOnClickListener { finish() }
+        }
 
     private fun refresh() {
         val count = try { db.count() } catch (e: Exception) { -1L }

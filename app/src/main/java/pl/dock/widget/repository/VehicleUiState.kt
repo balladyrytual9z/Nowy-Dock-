@@ -32,6 +32,10 @@ data class VehicleUiState(
     val lambdaAfr: Float = Float.NaN,
     /** Mode 21 (KWP2000 ReadDataByIdentifier, "2101"): czas wtrysku [ms] (skala x0.001, do kalibracji). */
     val injectionMs: Float = Float.NaN,
+    /** PID 0110: przeplyw powietrza MAF w g/s (skala /100). */
+    val mafGs: Float = Float.NaN,
+    /** PID 010E: wyprzedzenie zaplonu w stopniach (A/2 - 64). */
+    val sparkAdvDeg: Float = Float.NaN,
     /** True when last response for a PID is older than stale threshold (UI greys out). */
     val staleFlags: StaleFlags = StaleFlags(),
     val engineState: EngineStateLabel = EngineStateLabel.UNKNOWN,

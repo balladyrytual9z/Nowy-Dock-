@@ -64,6 +64,7 @@ class MisfireLabActivity : Activity() {
         }
 
         root.addView(title)
+        root.addView(backBtn())
         root.addView(statusTv)
 
         val barsRow = LinearLayout(this).apply {
@@ -112,6 +113,19 @@ class MisfireLabActivity : Activity() {
         resumed = false
         handler.removeCallbacks(poller)
     }
+
+    private fun backBtn(): Button =
+        Button(this).apply {
+            text = "WSTECZ (ZAMKNIJ)"
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            background = GradientDrawable().apply {
+                cornerRadius = 20f
+                setColor(Color.parseColor("#2C2C2E"))
+            }
+            setOnClickListener { finish() }
+        }
 
     private fun cylinderColumn(cyl: Int): View {
         val col = LinearLayout(this).apply {
