@@ -8,6 +8,7 @@ import android.os.Looper
 import android.widget.TextView
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
+import pl.dock.widget.ObdCoreService
 import pl.dock.widget.orchestration.ConnectionManager
 
 /**

@@ -15,13 +15,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- pogoda (Open-Meteo) -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- jasnosc ekranu z centrum lacznosci (zgoda nadawana raz w ustawieniach Androida) -->
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
-    <!-- Night Shift (filtr barwy ekranu) -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <!-- Sensor Fusion: UsageStats for CarPlayHostActivity detection -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
@@ -31,7 +27,6 @@
         android:allowBackup="false"
         android:theme="@android:style/Theme.Material.NoActionBar">
 
-        <!-- Launcher (ekran glowny) -->
         <activity
             android:name=".LauncherActivity"
             android:label="Dock"
@@ -53,7 +48,6 @@
             android:name=".ConfigActivity"
             android:label="Dock - ustawienia"
             android:exported="true">
-            <!-- Ustawienia otwierane z docka / siatki, nie jako ikona startowa -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
             </intent-filter>
@@ -126,6 +120,13 @@
             </intent-filter>
         </activity>
 
+        <!-- CarPlay Dashboard: dock + Overview + Live Data (Multi-Select) -->
+        <activity
+            android:name=".dashboard.CarPlayDashboardActivity"
+            android:label="CarPlay Dashboard"
+            android:launchMode="singleTop"
+            android:exported="false" />
+
         <receiver
             android:name=".DockWidget"
             android:exported="true">
@@ -162,7 +163,6 @@
             android:name=".NightShiftService"
             android:exported="false" />
 
-        <!-- Dostep do sesji multimedialnych (DiPlay) i powiadomien - wlaczany recznie przez uzytkownika -->
         <service
             android:name=".DockNotificationListener"
             android:label="Dock"
@@ -177,7 +177,6 @@
             android:authorities="pl.dock.widget.state"
             android:exported="true" />
 
-        <!-- Circadian Display Dock night-mode bridge -->
         <receiver
             android:name=".circadian.NightModeReceiver"
             android:exported="true">
@@ -194,12 +193,10 @@
             android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden|density|uiMode" />
 
-        <!-- OBD core: czarna skrzynka (WAL), analityka, alerty audio, NanoServer -->
         <service
             android:name=".ObdCoreService"
             android:exported="false" />
 
-        <!-- OBD widget (25dp, stale-data aware) -->
         <receiver
             android:name=".ObdWidgetProvider"
             android:exported="true">

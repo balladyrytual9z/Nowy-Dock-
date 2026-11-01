@@ -72,7 +72,7 @@ object Dtc {
         for (line in clean.split("\r?\n".toRegex())) {
             val bytes = hexBytes(line) ?: continue
             var i = 0
-            while (i < bytes.size && bytes[i] != 0x43 && bytes[i] != 0x47) i++
+            while (i < bytes.size && (bytes[i].toInt() and 0xFF) != 0x43 && (bytes[i].toInt() and 0xFF) != 0x47) i++
             i++
             while (i + 1 < bytes.size) {
                 val b1 = bytes[i].toInt() and 0xFF
@@ -102,7 +102,7 @@ object Dtc {
             }
         }
         if (out.isEmpty()) return null
-        return out.map { it and 0xFF }.map { it.toByte() }.toByteArray()
+        return out.map { (it and 0xFF).toByte() }.toByteArray()
     }
 
     private fun decode(b1: Int, b2: Int): String {
