@@ -17,14 +17,14 @@ import android.os.Looper;
 import android.view.ViewConfiguration;
 import pl.dock.widget.ui.SpinnerView;
 
-// Dock w launcherze: te same wymiary co widÅ¼et (zegar, statusy, napiÄcie, bateria telefonu, ikony, przycisk dolny).
-// Rysowany jednym widokiem; odÅwieÅ¼any tylko przy zmianie danych.
+// Dock w launcherze: te same wymiary co widżet (zegar, statusy, napięcie, bateria telefonu, ikony, przycisk dolny).
+// Rysowany jednym widokiem; odświeżany tylko przy zmianie danych.
 public class DockView extends View {
 
     public interface Listener {
         void onHeader();
 
-        void onApp(int index);   // 0..2 gÃ³rne aplikacje, 3 = CarPlay
+        void onApp(int index);   // 0..2 górne aplikacje, 3 = CarPlay
 
         void onBottom();
 
@@ -38,7 +38,7 @@ public class DockView extends View {
     private Listener listener;
     private boolean night = true, glass, showVolt;
     private Bitmap glassBmp;
-    private float blend;            // 0..1: strona widÅ¼etÃ³w w trybie dziennym robi dock nocny
+    private float blend;            // 0..1: strona widżetów w trybie dziennym robi dock nocny
     private String clock = "--:--";
     private String volt = "";
     private boolean charging;
@@ -146,7 +146,7 @@ public class DockView extends View {
         invalidate();
     }
 
-    // strona widÅ¼etÃ³w: dock pÅynnie przechodzi w wersjÄ nocnÄ
+    // strona widżetów: dock płynnie przechodzi w wersję nocną
     public void setNightBlend(float b) {
         b = Math.max(0f, Math.min(1f, b));
         if (Math.abs(b - blend) < 0.004f) return;
@@ -181,7 +181,7 @@ public class DockView extends View {
         homePaint.setColor(fg);
     }
 
-    // 0 = siatka, 1 = symbol ekranu gÅÃ³wnego
+    // 0 = siatka, 1 = symbol ekranu głównego
     public void setBottomProgress(float t) {
         t = Math.max(0f, Math.min(1f, t));
         if (Math.abs(t - bottomT) < 0.004f) return;
@@ -234,7 +234,7 @@ public class DockView extends View {
         float rad = 22f * d;
 
         if (glass) {
-            // Prawdziwy live blur tÅa + warstwa poÅysku Liquid Glass
+            // Prawdziwy live blur tła + warstwa połysku Liquid Glass
             if (glassBmp != null) {
                 LiveBlur.draw(cv, glassBmp, (int) l, (int) t, (int) rr, (int) bt, effNight());
             } else if (bg != null) {
@@ -257,7 +257,7 @@ public class DockView extends View {
             rect.set(l + d * 0.7f, t + d * 0.7f, rr - d * 0.7f, bt - d * 0.7f);
             cv.drawRoundRect(rect, rad - d * 0.7f, rad - d * 0.7f, edge);
         } else {
-            // kolor docka w nocy: #131418; ramka jaÅniejsza od lewego gÃ³rnego rogu
+            // kolor docka w nocy: #131418; ramka jaśniejsza od lewego górnego rogu
             float nb = night ? 1f : blend;
             card.setStyle(Paint.Style.FILL);
             card.setShader(null);
@@ -291,7 +291,7 @@ public class DockView extends View {
         drawIcon(cv, bTether, x0 + 19f * d, sy - is / 2f, is, is, 255);
         drawIcon(cv, bBt, x0 + 38f * d, sy - is / 2f, is, is, 255);
 
-        // kolejne wiersze: napiÄcie / Åadowanie, bateria telefonu, status CarPlay
+        // kolejne wiersze: napięcie / ładowanie, bateria telefonu, status CarPlay
         float y = top + 76f * d;
         if (showVolt) {
             if (charging) {
@@ -318,7 +318,7 @@ public class DockView extends View {
             drawIcon(cv, bCp, cx - 10f * d, y - 10f * d, 20f * d, 20f * d, 255);
         }
 
-        // ikony: 3 gÃ³rne + CarPlay
+        // ikony: 3 górne + CarPlay
         float sz = 42f * d;
         for (int i = 0; i < 4; i++) {
             Bitmap b = icons[i];
@@ -326,7 +326,7 @@ public class DockView extends View {
             drawIcon(cv, b, cx - sz / 2f, iconTop(i), sz, sz, pressed == i ? 150 : 255);
         }
 
-        // przycisk dolny: siatka -> symbol ekranu gÅÃ³wnego
+        // przycisk dolny: siatka -> symbol ekranu głównego
         float by = bottomCy();
         int pa = pressed == BOTTOM ? 150 : 255;
         float g = 20f * d;

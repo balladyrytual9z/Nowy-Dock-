@@ -17,7 +17,7 @@ public class DockWidget extends AppWidgetProvider {
 
     private static final int[] TOP_IDS = {R.id.app1, R.id.app2, R.id.app3};
 
-    // sygnatura ostatnio wysÅanego widoku: gdy siÄ nie zmieniÅa, nie przebudowujemy widÅ¼etu
+    // sygnatura ostatnio wysłanego widoku: gdy się nie zmieniła, nie przebudowujemy widżetu
     private static String lastSig = "";
 
     @Override
@@ -27,7 +27,7 @@ public class DockWidget extends AppWidgetProvider {
 
     @Override
     public void onDisabled(Context context) {
-        // ostatni widÅ¼et usuniÄty: usÅuga pierwszoplanowa nie jest juÅ¼ potrzebna
+        // ostatni widżet usunięty: usługa pierwszoplanowa nie jest już potrzebna
         StatusService.stop(context);
     }
 
@@ -79,7 +79,7 @@ public class DockWidget extends AppWidgetProvider {
     private static RemoteViews buildInner(Context c) {
         RemoteViews rv = new RemoteViews(c.getPackageName(), R.layout.dock_widget);
 
-        // wyglÄd: styl + tryb dzienny/nocny
+        // wygląd: styl + tryb dzienny/nocny
         boolean night = Look.night(c);
         boolean glass = "glass".equals(Prefs.style(c));
         int fg = night ? 0xFFFFFFFF : 0xFF111111;
@@ -91,7 +91,7 @@ public class DockWidget extends AppWidgetProvider {
         rv.setImageViewBitmap(R.id.battery, Icons.vector(c, R.drawable.ic_battery, 96, fg));
         rv.setImageViewBitmap(R.id.grid, Icons.vector(c, R.drawable.ic_grid, 128, fg));
 
-        // statusy z jednego, wspÃ³lnego odczytu
+        // statusy z jednego, wspólnego odczytu
         StatusCenter.Snap s = StatusCenter.get(c);
         rv.setImageViewBitmap(R.id.wifi, Icons.wifi(c, s.wifi, fg));
         rv.setImageViewBitmap(R.id.tether, Icons.tether(96, s.tether ? fg : dimmer, false));
@@ -107,7 +107,7 @@ public class DockWidget extends AppWidgetProvider {
             rv.setViewVisibility(R.id.cpstat, View.GONE);
         }
 
-        // 3 gÃ³rne aplikacje (wg ostatniego / najczÄstszego uÅ¼ycia)
+        // 3 górne aplikacje (wg ostatniego / najczęstszego użycia)
         List<AppEntry> top = Prefs.top(c, 3);
         for (int i = 0; i < TOP_IDS.length; i++) {
             if (i < top.size()) {
@@ -116,7 +116,7 @@ public class DockWidget extends AppWidgetProvider {
                 rv.setImageViewBitmap(TOP_IDS[i], Icons.forEntry(c, e));
                 rv.setOnClickPendingIntent(TOP_IDS[i], launchIntent(c, e, i));
             } else {
-                // INVISIBLE, Å¼eby CarPlay zostaÅ na swoim miejscu
+                // INVISIBLE, żeby CarPlay został na swoim miejscu
                 rv.setViewVisibility(TOP_IDS[i], View.INVISIBLE);
             }
         }
@@ -143,13 +143,13 @@ public class DockWidget extends AppWidgetProvider {
         }
         rv.setOnClickPendingIntent(R.id.grid, grid);
 
-        // pojedyncze dotkniÄcie zegara/statusÃ³w = panel ÅÄcznoÅci
+        // pojedyncze dotknięcie zegara/statusów = panel łączności
         Intent hdr = new Intent(c, HeaderReceiver.class);
         hdr.setData(Uri.parse("dock://header"));
         rv.setOnClickPendingIntent(R.id.header, PendingIntent.getBroadcast(
                 c, 20, hdr, PendingIntent.FLAG_UPDATE_CURRENT));
 
-        // napiÄcie (opcjonalnie)
+        // napięcie (opcjonalnie)
         if (Prefs.showVoltage(c)) {
             rv.setViewVisibility(R.id.power_row, View.VISIBLE);
             if (s.charging) {
@@ -163,7 +163,7 @@ public class DockWidget extends AppWidgetProvider {
         } else {
             rv.setViewVisibility(R.id.power_row, View.GONE);
         }
-        // bateria iPhone'a (gdy CarPlay poÅÄczony i telefon jÄ raportuje)
+        // bateria iPhone'a (gdy CarPlay połączony i telefon ją raportuje)
         if (s.phone >= 0 && s.cp == CarplayState.CONNECTED) {
             rv.setViewVisibility(R.id.phone_row, View.VISIBLE);
             rv.setImageViewBitmap(R.id.phone_bat, Icons.phoneBattery(s.phone, fg));

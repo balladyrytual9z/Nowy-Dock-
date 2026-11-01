@@ -5,7 +5,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 
-// ObsÅuguje klikniÄcie ikony na widÅ¼ecie: zlicza uÅ¼ycie i uruchamia aplikacjÄ
+// Obsługuje kliknięcie ikony na widżecie: zlicza użycie i uruchamia aplikację
 public class LaunchReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context c, Intent i) {

@@ -5,8 +5,8 @@ import android.app.Notification;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 
-// Daje dostÄp do sesji multimedialnych innych aplikacji (np. DiPlay) i ich powiadomieÅ.
-// Wymaga jednorazowego wÅÄczenia "DostÄpu do powiadomieÅ" dla Docka w ustawieniach Androida.
+// Daje dostęp do sesji multimedialnych innych aplikacji (np. DiPlay) i ich powiadomień.
+// Wymaga jednorazowego włączenia "Dostępu do powiadomień" dla Docka w ustawieniach Androida.
 public class DockNotificationListener extends NotificationListenerService {
 
     private static volatile DockNotificationListener instance;
@@ -42,7 +42,7 @@ public class DockNotificationListener extends NotificationListenerService {
         }
     }
 
-    // tytuÅ i tekst pierwszego aktywnego powiadomienia aplikacji (null = brak)
+    // tytuł i tekst pierwszego aktywnego powiadomienia aplikacji (null = brak)
     public static String[] notificationText(String pkg) {
         DockNotificationListener l = instance;
         if (l == null || pkg == null) return null;
@@ -88,14 +88,14 @@ public class DockNotificationListener extends NotificationListenerService {
 
     @Override
     public void onNotificationRemoved(StatusBarNotification sbn) {
-        // w chwili zdarzenia lista aktywnych moÅ¼e jeszcze zawieraÄ usuwane powiadomienie
+        // w chwili zdarzenia lista aktywnych może jeszcze zawierać usuwane powiadomienie
         removedKey = sbn == null || sbn.getKey() == null ? "" : sbn.getKey();
         removedTs = System.currentTimeMillis();
         MediaHub.get().onListenerEvent();
         notifyStatus();
     }
 
-    // zmiana stanu CarPlay jest zgÅaszana od razu, bez czekania na okresowe odÅwieÅ¼enie
+    // zmiana stanu CarPlay jest zgłaszana od razu, bez czekania na okresowe odświeżenie
     private void notifyStatus() {
         final android.content.Context ctx = getApplicationContext();
         new android.os.Handler(android.os.Looper.getMainLooper()).post(new Runnable() {

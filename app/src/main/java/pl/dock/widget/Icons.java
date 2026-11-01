@@ -25,7 +25,7 @@ public class Icons {
 
     private static int ver = 0;
 
-    // Gotowe ikony trzymamy w pamiÄci (ok. 64 KB sztuka), Å¼eby nie skÅadaÄ ich przy kaÅ¼dym odÅwieÅ¼eniu.
+    // Gotowe ikony trzymamy w pamięci (ok. 64 KB sztuka), żeby nie składać ich przy każdym odświeżeniu.
     private static final LruCache<String, Bitmap> cache =
             new LruCache<String, Bitmap>(8 * 1024 * 1024) {
                 @Override
@@ -129,7 +129,7 @@ public class Icons {
         return b;
     }
 
-    // wbudowana ikona z ramkÄ (do wyboru w ustawieniach i na listach)
+    // wbudowana ikona z ramką (do wyboru w ustawieniach i na listach)
     public static Bitmap builtin(Context c, String id) {
         BuiltinIcons.init(c);
         String fm = Prefs.frame(c);
@@ -142,7 +142,7 @@ public class Icons {
         return b;
     }
 
-    // podglÄd ikony w wybranym trybie ramki
+    // podgląd ikony w wybranym trybie ramki
     public static Bitmap preview(Context c, Bitmap raw, String fm) {
         return compose(raw, false, fm);
     }
@@ -155,7 +155,7 @@ public class Icons {
         return b;
     }
 
-    // zaokrÄglona ikona bez ramki
+    // zaokrąglona ikona bez ramki
     static Bitmap rounded(Bitmap raw) {
         Bitmap out = Bitmap.createBitmap(S, S, Bitmap.Config.ARGB_8888);
         Canvas oc = new Canvas(out);
@@ -171,10 +171,10 @@ public class Icons {
         return out;
     }
 
-    // Ramka jak w CarPlay: ciemny kafelek, poÅwiata od lewego gÃ³rnego rogu
-    // i pierÅcieÅ, ktÃ³ry jest najjaÅniejszy w lewym gÃ³rnym rogu.
-    // tile = true: obraz jest juÅ¼ kafelkiem (wbudowany / wÅasny z pliku).
-    // tile = false: ikona aplikacji; w trybie "carplay" lÄduje wciÄta w ciemnym kafelku.
+    // Ramka jak w CarPlay: ciemny kafelek, poświata od lewego górnego rogu
+    // i pierścień, który jest najjaśniejszy w lewym górnym rogu.
+    // tile = true: obraz jest już kafelkiem (wbudowany / własny z pliku).
+    // tile = false: ikona aplikacji; w trybie "carplay" ląduje wcięta w ciemnym kafelku.
     static Bitmap compose(Bitmap raw, boolean tile, String fm) {
         Bitmap out = Bitmap.createBitmap(S, S, Bitmap.Config.ARGB_8888);
         Canvas cv = new Canvas(out);
@@ -212,7 +212,7 @@ public class Icons {
 
     // ---------------------------------------------------------------- ikony statusu
 
-    // Ikona wektorowa w podanym kolorze, wyÅrodkowana pod wzglÄdem widocznej zawartoÅci
+    // Ikona wektorowa w podanym kolorze, wyśrodkowana pod względem widocznej zawartości
     public static Bitmap vector(Context c, int resId, int size, int color) {
         String key = "v|" + resId + "|" + size + "|" + color;
         Bitmap cached = cache.get(key);
@@ -230,7 +230,7 @@ public class Icons {
         return out;
     }
 
-    // Akumulator z zielonym piorunem (silnik pracuje, Åadowanie z alternatora)
+    // Akumulator z zielonym piorunem (silnik pracuje, ładowanie z alternatora)
     public static Bitmap batteryCharging(Context c, int size, int color) {
         String key = "bc|" + size + "|" + color;
         Bitmap cached = cache.get(key);
@@ -261,7 +261,7 @@ public class Icons {
         return out;
     }
 
-    // Bateria telefonu: kontur z wypeÅnieniem proporcjonalnym do poziomu (jak w iOS)
+    // Bateria telefonu: kontur z wypełnieniem proporcjonalnym do poziomu (jak w iOS)
     public static Bitmap phoneBattery(int level, int color) {
         String key = "pb|" + level + "|" + color;
         Bitmap cached = cache.get(key);
@@ -286,8 +286,8 @@ public class Icons {
         return b;
     }
 
-    // Wi-Fi w czterech stanach: wyÅÄczone (przekreÅlone), wÅÄczone bez sieci (przygaszone),
-    // poÅÄczone bez internetu (z pomaraÅczowym znakiem), poÅÄczone
+    // Wi-Fi w czterech stanach: wyłączone (przekreślone), włączone bez sieci (przygaszone),
+    // połączone bez internetu (z pomarańczowym znakiem), połączone
     public static Bitmap wifi(Context c, int state, int fg) {
         int dim = (fg & 0x00FFFFFF) | 0x66000000;
         int dimmer = (fg & 0x00FFFFFF) | 0x40000000;
@@ -311,7 +311,7 @@ public class Icons {
         return out;
     }
 
-    // Znak CarPlay (Åuk i trÃ³jkÄt) do paska statusu
+    // Znak CarPlay (łuk i trójkąt) do paska statusu
     public static Bitmap carplayMark(int size, int color) {
         String key = "cm|" + size + "|" + color;
         Bitmap cached = cache.get(key);
@@ -338,7 +338,7 @@ public class Icons {
         return out;
     }
 
-    // Tethering (hotspot) jak w iPhonie: dwa splecione ogniwa ÅaÅcucha; slash = wyÅÄczony
+    // Tethering (hotspot) jak w iPhonie: dwa splecione ogniwa łańcucha; slash = wyłączony
     public static Bitmap tether(int size, int color, boolean slash) {
         String key = "t|" + size + "|" + color + "|" + slash;
         Bitmap cached = cache.get(key);
@@ -401,7 +401,7 @@ public class Icons {
         return centered(b);
     }
 
-    // Przesuwa zawartoÅÄ tak, by jej Årodek leÅ¼aÅ dokÅadnie w Årodku bitmapy
+    // Przesuwa zawartość tak, by jej środek leżał dokładnie w środku bitmapy
     static Bitmap centered(Bitmap b) {
         try {
             int w = b.getWidth();
@@ -430,7 +430,7 @@ public class Icons {
         }
     }
 
-    // ---------------------------------------------------------------- wÅasny obraz z pliku
+    // ---------------------------------------------------------------- własny obraz z pliku
 
     public static boolean saveFromStream(Context c, AppEntry e, java.io.InputStream in1,
                                          java.io.InputStream in2) {

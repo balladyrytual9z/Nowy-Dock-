@@ -10,10 +10,10 @@ import android.content.pm.PackageManager;
 import java.util.ArrayList;
 import java.util.List;
 
-// Uruchamianie aplikacji; CarPlay otwiera od razu okno z obrazem z iPhone'a (jeÅli da siÄ je wskazaÄ)
+// Uruchamianie aplikacji; CarPlay otwiera od razu okno z obrazem z iPhone'a (jeśli da się je wskazać)
 public class Launch {
 
-    // Szukamy aktywnoÅci wyÅwietlajÄcej obraz CarPlay: najpierw "CarPlayHost", potem inne "CarPlay".
+    // Szukamy aktywności wyświetlającej obraz CarPlay: najpierw "CarPlayHost", potem inne "CarPlay".
     private static String autoActivity(Context c, String pkg) {
         try {
             PackageInfo pi = c.getPackageManager().getPackageInfo(pkg, PackageManager.GET_ACTIVITIES);
@@ -68,7 +68,7 @@ public class Launch {
         }
     }
 
-    // do wyboru w ustawieniach: {nazwa klasy, "eksportowana"/"wewnÄtrzna"}
+    // do wyboru w ustawieniach: {nazwa klasy, "eksportowana"/"wewnętrzna"}
     public static List<String[]> activities(Context c) {
         List<String[]> out = new ArrayList<String[]>();
         try {
@@ -76,7 +76,7 @@ public class Launch {
                     PackageManager.GET_ACTIVITIES);
             if (pi.activities != null) {
                 for (ActivityInfo ai : pi.activities) {
-                    out.add(new String[]{ai.name, ai.exported ? "eksportowana" : "wewnÄtrzna"});
+                    out.add(new String[]{ai.name, ai.exported ? "eksportowana" : "wewnętrzna"});
                 }
             }
         } catch (Throwable ignored) {
@@ -84,7 +84,7 @@ public class Launch {
         return out;
     }
 
-    // przeniesienie do aplikacji, z ktÃ³rej idzie dÅºwiÄk (CarPlay -> okno CarPlay w DiPlay)
+    // przeniesienie do aplikacji, z której idzie dźwięk (CarPlay -> okno CarPlay w DiPlay)
     public static void openSource(Context c, String pkg) {
         if (pkg == null || pkg.length() == 0 || pkg.equals(Prefs.diplayPkg(c))) {
             carplay(c);

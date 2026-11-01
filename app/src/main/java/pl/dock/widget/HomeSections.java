@@ -9,8 +9,8 @@ import android.graphics.Typeface;
 import android.view.View;
 import android.view.ViewGroup;
 
-// Ekran gÅÃ³wny zawsze w trzech sekcjach jak w CarPlay:
-// po lewej duÅ¼y widÅ¼et (docelowo mapa), po prawej u gÃ³ry 1/3 (widÅ¼et), po prawej na dole 2/3 (odtwarzanie).
+// Ekran główny zawsze w trzech sekcjach jak w CarPlay:
+// po lewej duży widżet (docelowo mapa), po prawej u góry 1/3 (widżet), po prawej na dole 2/3 (odtwarzanie).
 public class HomeSections extends ViewGroup implements NightAware {
 
     public interface Callbacks {
@@ -82,7 +82,7 @@ public class HomeSections extends ViewGroup implements NightAware {
         place(rightBottom, rx, pad + topH + gap, w - padR, h - pad);
     }
 
-    // pusty slot (miejsce na widÅ¼et) w stylu kart CarPlay
+    // pusty slot (miejsce na widżet) w stylu kart CarPlay
     public static class Slot extends View implements NightAware {
         private final String where;
         private boolean night = true;
@@ -94,7 +94,7 @@ public class HomeSections extends ViewGroup implements NightAware {
             super(c);
             this.where = where;
             d = c.getResources().getDisplayMetrics().density;
-            setContentDescription("Miejsce na widÅ¼et");
+            setContentDescription("Miejsce na widżet");
             setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -125,7 +125,7 @@ public class HomeSections extends ViewGroup implements NightAware {
             p.setTextAlign(Paint.Align.CENTER);
             p.setTypeface(Typeface.DEFAULT);
             p.setTextSize(15f * getResources().getDisplayMetrics().scaledDensity);
-            cv.drawText("Dodaj widÅ¼et", cx, cy + 28f * d, p);
+            cv.drawText("Dodaj widżet", cx, cy + 28f * d, p);
         }
     }
 }

@@ -37,9 +37,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Skaner ÅºrÃ³deÅ napiÄcia. Bez roota, bez GMS, bez natywnego kodu.
- * KaÅ¼dy test jest osobno zabezpieczony; bÅÄdy trafiajÄ do tabeli jako wiersze.
- * Nie zakÅada Å¼adnych nazw kluczy producenta.
+ * Skaner źródeł napięcia. Bez roota, bez GMS, bez natywnego kodu.
+ * Każdy test jest osobno zabezpieczony; błędy trafiają do tabeli jako wiersze.
+ * Nie zakłada żadnych nazw kluczy producenta.
  */
 public class DiagScan {
 
@@ -49,8 +49,8 @@ public class DiagScan {
         public String value = "";
         public String unit = "";
         public String status = "";
-        public boolean probable;       // wynik 12â15 V (niepotwierdzony)
-        public String useType;         // "file" | "setting" (moÅ¼na uÅ¼yÄ w widÅ¼ecie)
+        public boolean probable;       // wynik 12–15 V (niepotwierdzony)
+        public String useType;         // "file" | "setting" (można użyć w widżecie)
         public String useRef;
 
         Row(String s, String n, String v, String u, String st) {
@@ -75,13 +75,13 @@ public class DiagScan {
     static String cut(String s, int n) {
         if (s == null) return "";
         s = s.replace('\n', ' ').replace('\r', ' ');
-        return s.length() > n ? s.substring(0, n) + "â¦" : s;
+        return s.length() > n ? s.substring(0, n) + "…" : s;
     }
 
     static Row err(String source, String name, Throwable t) {
         String m = t.getMessage();
         return new Row(source, name, "", "",
-                "BÅÄD: " + t.getClass().getSimpleName() + (m == null ? "" : ": " + cut(m, 140)));
+                "BŁĄD: " + t.getClass().getSimpleName() + (m == null ? "" : ": " + cut(m, 140)));
     }
 
     static Double num(String s) {
@@ -106,38 +106,38 @@ public class DiagScan {
         String vs = String.format(Locale.US, "%.2f V", v);
         if (inRange(v)) {
             r.probable = true;
-            r.status = "= " + vs + " â PRAWDOPODOBNE napiÄcie instalacji (niepotwierdzone)";
+            r.status = "= " + vs + " → PRAWDOPODOBNE napięcie instalacji (niepotwierdzone)";
         } else {
-            r.status = "= " + vs + " â poza 12â15 V, brak podstaw by uznaÄ za napiÄcie instalacji";
+            r.status = "= " + vs + " → poza 12–15 V, brak podstaw by uznać za napięcie instalacji";
         }
     }
 
-    // jednostka nieznana: sprawdÅº V, mV, ÂµV
+    // jednostka nieznana: sprawdź V, mV, µV
     static void assessUnknown(Row r, String value) {
         Double n = num(value);
         if (n == null) {
-            r.status = "wartoÅÄ bez liczby";
+            r.status = "wartość bez liczby";
             return;
         }
         double[] div = {1.0, 1000.0, 1000000.0};
-        String[] un = {"V", "mV", "ÂµV"};
+        String[] un = {"V", "mV", "µV"};
         StringBuilder hit = new StringBuilder();
         for (int i = 0; i < div.length; i++) {
             double v = n / div[i];
             if (inRange(v)) {
-                hit.append("jeÅli ").append(un[i]).append(" â ")
+                hit.append("jeśli ").append(un[i]).append(" → ")
                         .append(String.format(Locale.US, "%.2f V", v)).append("; ");
             }
         }
         if (hit.length() > 0) {
             r.probable = true;
-            r.status = hit + "PRAWDOPODOBNE napiÄcie instalacji (niepotwierdzone, jednostka nieznana)";
+            r.status = hit + "PRAWDOPODOBNE napięcie instalacji (niepotwierdzone, jednostka nieznana)";
         } else {
-            r.status = "Å¼adna jednostka (V/mV/ÂµV) nie daje 12â15 V";
+            r.status = "żadna jednostka (V/mV/µV) nie daje 12–15 V";
         }
     }
 
-    // ---------------------------------------------------------------- caÅoÅÄ
+    // ---------------------------------------------------------------- całość
 
     public static List<Row> run(Context c) {
         List<Row> out = new ArrayList<Row>();
@@ -198,9 +198,9 @@ public class DiagScan {
         Row r = new Row(src, "EXTRA_VOLTAGE", String.valueOf(mv), "mV", "");
         if (mv > 0) {
             assessKnown(r, mv, 1000.0);
-            r.status += " [to napiÄcie zgÅasza system jako baterii]";
+            r.status += " [to napięcie zgłasza system jako baterii]";
         } else {
-            r.status = "brak odczytu (wartoÅÄ " + mv + ")";
+            r.status = "brak odczytu (wartość " + mv + ")";
         }
         out.add(r);
         out.add(new Row(src, "EXTRA_LEVEL", String.valueOf(b.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)),
@@ -210,7 +210,7 @@ public class DiagScan {
         out.add(new Row(src, "EXTRA_STATUS", String.valueOf(b.getIntExtra(BatteryManager.EXTRA_STATUS, -1)),
                 "kod", "informacja"));
         out.add(new Row(src, "EXTRA_TEMPERATURE",
-                String.valueOf(b.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1)), "0,1 Â°C", "informacja"));
+                String.valueOf(b.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1)), "0,1 °C", "informacja"));
         out.add(new Row(src, "EXTRA_PRESENT", String.valueOf(b.getBooleanExtra(BatteryManager.EXTRA_PRESENT, false)),
                 "", "informacja"));
     }
@@ -240,7 +240,7 @@ public class DiagScan {
             try {
                 cur = cr.query(uris[i], new String[]{"name", "value"}, null, null, null);
                 if (cur == null) {
-                    out.add(new Row(names[i], "(zapytanie)", "", "", "dostawca zwrÃ³ciÅ null"));
+                    out.add(new Row(names[i], "(zapytanie)", "", "", "dostawca zwrócił null"));
                     continue;
                 }
                 List<String[]> hits = new ArrayList<String[]>();
@@ -289,11 +289,11 @@ public class DiagScan {
         }
     }
 
-    // rÄczny odczyt klucza (pkt 5)
+    // ręczny odczyt klucza (pkt 5)
     public static Row readSetting(ContentResolver cr, int scope, String key) {
         String[] names = {"Settings.System", "Settings.Global", "Settings.Secure"};
         String[] scopes = {"system", "global", "secure"};
-        Row r = new Row("RÄcznie: " + names[scope], key, "", "?", "");
+        Row r = new Row("Ręcznie: " + names[scope], key, "", "?", "");
         try {
             String v;
             if (scope == 0) {
@@ -304,7 +304,7 @@ public class DiagScan {
                 v = Settings.Secure.getString(cr, key);
             }
             if (v == null) {
-                r.status = "klucz nie istnieje albo nie ma wartoÅci";
+                r.status = "klucz nie istnieje albo nie ma wartości";
             } else {
                 r.value = cut(v, 160);
                 assessUnknown(r, v);
@@ -313,7 +313,7 @@ public class DiagScan {
             }
         } catch (Throwable t) {
             String m = t.getMessage();
-            r.status = "BÅÄD: " + t.getClass().getSimpleName() + (m == null ? "" : ": " + cut(m, 140));
+            r.status = "BŁĄD: " + t.getClass().getSimpleName() + (m == null ? "" : ": " + cut(m, 140));
         }
         return r;
     }
@@ -322,18 +322,18 @@ public class DiagScan {
 
     private static String unitFor(String kind, String ln) {
         if ("power_supply".equals(kind)) {
-            if (ln.startsWith("voltage")) return "ÂµV";
-            if (ln.startsWith("current")) return "ÂµA";
-            if (ln.startsWith("temp")) return "0,1 Â°C";
+            if (ln.startsWith("voltage")) return "µV";
+            if (ln.startsWith("current")) return "µA";
+            if (ln.startsWith("temp")) return "0,1 °C";
             if (ln.equals("capacity")) return "%";
-            if (ln.startsWith("charge")) return "ÂµAh";
-            if (ln.startsWith("energy")) return "ÂµWh";
-            if (ln.startsWith("power")) return "ÂµW";
+            if (ln.startsWith("charge")) return "µAh";
+            if (ln.startsWith("energy")) return "µWh";
+            if (ln.startsWith("power")) return "µW";
         } else {
             if (ln.matches("in\\d+_.*")) return "mV";
-            if (ln.matches("temp\\d+_.*")) return "mÂ°C";
+            if (ln.matches("temp\\d+_.*")) return "m°C";
             if (ln.matches("curr\\d+_.*")) return "mA";
-            if (ln.matches("power\\d+_.*")) return "ÂµW";
+            if (ln.matches("power\\d+_.*")) return "µW";
             if (ln.matches("fan\\d+_.*")) return "RPM";
         }
         return "";
@@ -374,7 +374,7 @@ public class DiagScan {
         File[] nodes = base.listFiles();
         if (nodes == null) {
             out.add(new Row(src, basePath, "", "",
-                    base.exists() ? "nie moÅ¼na wylistowaÄ (uprawnienia / SELinux)" : "nie istnieje"));
+                    base.exists() ? "nie można wylistować (uprawnienia / SELinux)" : "nie istnieje"));
             return;
         }
         Arrays.sort(nodes, new Comparator<File>() {
@@ -392,7 +392,7 @@ public class DiagScan {
             File[] fs = node.listFiles();
             if (fs == null) {
                 out.add(new Row(src, node.getName() + "/", "", "",
-                        "nie moÅ¼na wylistowaÄ (uprawnienia / SELinux)"));
+                        "nie można wylistować (uprawnienia / SELinux)"));
                 continue;
             }
             Arrays.sort(fs, new Comparator<File>() {
@@ -404,7 +404,7 @@ public class DiagScan {
             for (File f : fs) {
                 String label = node.getName() + "/" + f.getName();
                 if (f.isDirectory()) {
-                    out.add(new Row(src, label, "", "", "podkatalog (nie schodzÄ gÅÄbiej)"));
+                    out.add(new Row(src, label, "", "", "podkatalog (nie schodzę głębiej)"));
                 } else {
                     readOne(out, src, kind, label, f, pool, budget);
                 }
@@ -417,7 +417,7 @@ public class DiagScan {
         String ln = f.getName().toLowerCase(Locale.US);
         String unit = unitFor(kind, ln);
         if (budget[0] <= 0) {
-            out.add(new Row(src, label, "", unit, "pominiÄto (limit odczytÃ³w)"));
+            out.add(new Row(src, label, "", unit, "pominięto (limit odczytów)"));
             return;
         }
         if (!f.canRead()) {
@@ -428,7 +428,7 @@ public class DiagScan {
         String[] err = new String[1];
         String v = readFile(f, pool, err);
         if (v == null) {
-            out.add(new Row(src, label, "", unit, "BÅÄD: " + err[0]));
+            out.add(new Row(src, label, "", unit, "BŁĄD: " + err[0]));
             return;
         }
         Row r = new Row(src, label, cut(v, 160), unit, "OK");
@@ -438,7 +438,7 @@ public class DiagScan {
         if (voltName && n != null) {
             r.useType = "file";
             r.useRef = f.getAbsolutePath();
-            if ("ÂµV".equals(unit)) {
+            if ("µV".equals(unit)) {
                 assessKnown(r, n, 1000000.0);
             } else if ("mV".equals(unit)) {
                 assessKnown(r, n, 1000.0);
@@ -449,7 +449,7 @@ public class DiagScan {
         out.add(r);
     }
 
-    // ---------------------------------------------------------------- wÅaÅciwoÅci systemu
+    // ---------------------------------------------------------------- właściwości systemu
 
     private static boolean propIdent(String lk) {
         return lk.equals("ro.product.manufacturer") || lk.equals("ro.product.brand")
@@ -503,9 +503,9 @@ public class DiagScan {
         }
     }
 
-    // ---------------------------------------------------------------- 4. pakiety i usÅugi
+    // ---------------------------------------------------------------- 4. pakiety i usługi
 
-    // Odfiltrowane sÄ tylko standardowe pakiety Androida/Google; nazw producenta nie zakÅadam.
+    // Odfiltrowane są tylko standardowe pakiety Androida/Google; nazw producenta nie zakładam.
     private static boolean standardPackage(String pkg) {
         return pkg.equals("android") || pkg.startsWith("android.") || pkg.startsWith("com.android.")
                 || pkg.startsWith("com.google.") || pkg.startsWith("org.chromium.");
@@ -545,7 +545,7 @@ public class DiagScan {
             String pkg = ai.packageName;
             if (standardPackage(pkg) || pkg.equals(c.getPackageName())) continue;
             if (n >= MAX_PACKAGES) {
-                out.add(new Row("Pakiet (systemowy)", "(limit)", "", "", "pominiÄto resztÄ â limit " + MAX_PACKAGES));
+                out.add(new Row("Pakiet (systemowy)", "(limit)", "", "", "pominięto resztę – limit " + MAX_PACKAGES));
                 break;
             }
             n++;
@@ -562,7 +562,7 @@ public class DiagScan {
                 if (pi.versionName != null) label = label + " " + pi.versionName;
                 if (pi.sharedUserId != null) d.append("; uid=").append(pi.sharedUserId);
                 if (pi.services != null && pi.services.length > 0) {
-                    d.append("; usÅ.: ");
+                    d.append("; usł.: ");
                     int k = 0;
                     for (ServiceInfo si : pi.services) {
                         if (k >= 4) break;
@@ -584,12 +584,12 @@ public class DiagScan {
                     if (pi.providers.length > 3) d.append(" +").append(pi.providers.length - 3);
                 }
             } catch (Throwable t) {
-                d.append("; (brak szczegÃ³ÅÃ³w: ").append(t.getClass().getSimpleName()).append(")");
+                d.append("; (brak szczegółów: ").append(t.getClass().getSimpleName()).append(")");
             }
             out.add(new Row("Pakiet (systemowy)", pkg, cut(label, 80), "", cut(d.toString(), 320)));
         }
         out.add(new Row("Pakiet (systemowy)", "(podsumowanie)", "", "",
-                "pokazano " + n + " pakietÃ³w spoza android/com.android/com.google; * = eksportowane"));
+                "pokazano " + n + " pakietów spoza android/com.android/com.google; * = eksportowane"));
     }
 
     private static void services(List<Row> out) {
@@ -606,11 +606,11 @@ public class DiagScan {
             int n = 0;
             for (String s : names) {
                 if (n++ >= MAX_SERVICES) break;
-                out.add(new Row("ServiceManager", s, "", "", "zarejestrowana (bez moÅ¼liwoÅci zapytania)"));
+                out.add(new Row("ServiceManager", s, "", "", "zarejestrowana (bez możliwości zapytania)"));
             }
         } catch (Throwable t) {
             out.add(new Row("ServiceManager", "listServices", "", "",
-                    "niedostÄpne dla zwykÅej aplikacji na API 28 (" + t.getClass().getSimpleName() + ")"));
+                    "niedostępne dla zwykłej aplikacji na API 28 (" + t.getClass().getSimpleName() + ")"));
         }
     }
 }
