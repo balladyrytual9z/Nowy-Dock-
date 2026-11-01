@@ -29,12 +29,6 @@ import pl.dock.widget.repository.EngineStateLabel
  * Started from BOOT_COMPLETED (via [BootReceiver]) and from the OBD UI.
  * Notification channel uses IMPORTANCE_LOW so Android 9 doesn't kill it,
  * while the user is not distracted by the status entry.
- *
- * Owns:
- *  - Black Box (RAM ring + WAL persistence on harsh deceleration)
- *  - Virtual Dyno / Mechanical Health / Misfire analytics
- *  - critical alerts (shift light, ECT > 102 C) with ducked audio
- *  - NanoServer CSV export (port 8080)
  */
 class ObdCoreService : Service() {
 
@@ -55,6 +49,7 @@ class ObdCoreService : Service() {
         @Volatile var running = false
             private set
 
+        @JvmStatic
         fun start(context: Context) {
             try {
                 context.startForegroundService(Intent(context, ObdCoreService::class.java))
@@ -63,6 +58,7 @@ class ObdCoreService : Service() {
             }
         }
 
+        @JvmStatic
         fun stop(context: Context) {
             try { context.stopService(Intent(context, ObdCoreService::class.java)) } catch (ignored: Exception) {}
         }

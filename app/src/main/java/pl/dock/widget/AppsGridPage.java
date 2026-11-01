@@ -1,4 +1,3 @@
-
 package pl.dock.widget;
 
 import android.app.Activity;
@@ -22,7 +21,7 @@ import android.view.ViewConfiguration;
 import java.util.ArrayList;
 import java.util.List;
 
-// Jedna strona siatki aplikacji (5 x 3) w ukÅadzie jak w CarPlay + iOS edit mode / wobble
+// Jedna strona siatki aplikacji (5 x 3) w układzie jak w CarPlay + iOS edit mode / wobble
 public class AppsGridPage extends View implements EditModeController.Listener {
 
     public static final int COLS = 5;
@@ -33,8 +32,8 @@ public class AppsGridPage extends View implements EditModeController.Listener {
     public static class Item {
         public String label = "";
         public String pkg = "";
-        public AppEntry entry;       // aplikacja z listy Docka (ikona wg ustawieÅ)
-        public boolean settings;     // skrÃ³t do ustawieÅ Docka
+        public AppEntry entry;       // aplikacja z listy Docka (ikona wg ustawień)
+        public boolean settings;     // skrót do ustawień Docka
         public String builtinId = "";   // wbudowana ikona (CarPlay, Telefon, Ustawienia)
         public String action = "";      // carplay | phone
         String shown = "";
@@ -155,7 +154,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
     @Override
     protected void onSizeChanged(int w, int hh, int ow, int oh) {
         super.onSizeChanged(w, hh, ow, oh);
-        // Full dock inset â grid must not sit under the dock
+        // Full dock inset – grid must not sit under the dock
         float dockInset = Ui.dp(getContext(), Ui.DOCK_OFFSET_DP);
         boolean dockLeft = Ui.dockLeft(getContext());
         float usableW = Math.max(1f, w - dockInset);
@@ -329,7 +328,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         if (index < 0 || index >= items.size()) return;
         final Item it = items.get(index);
         if (it.settings || it.action.length() > 0) return;
-        final String[] options = {"UsuÅ z ekranu gÅÃ³wnego", "Odinstaluj aplikacjÄ"};
+        final String[] options = {"Usuń z ekranu głównego", "Odinstaluj aplikację"};
         new AlertDialog.Builder(getContext())
                 .setTitle(it.label)
                 .setItems(options, (d, which) -> {
@@ -385,12 +384,12 @@ public class AppsGridPage extends View implements EditModeController.Listener {
             for (Item it : items) {
                 if (it.entry != null) {
                     ordered.add(it.entry);
-                    used.add(it.entry.id);
+                    used.add((int) it.entry.id);
                 }
             }
             // Append any remaining apps not on this page
             for (AppEntry e : current) {
-                if (!used.contains(e.id)) ordered.add(e);
+                if (!used.contains((int) e.id)) ordered.add(e);
             }
             Prefs.saveApps(c, ordered);
             if (listener != null) listener.onAppsChanged();
@@ -508,5 +507,3 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         EditModeController.get().removeListener(this);
     }
 }
-
-

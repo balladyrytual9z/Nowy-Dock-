@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Dock_Night" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#1C1C1E</item>
+        <item name="android:colorBackground">#1C1C1E</item>
+    </style>
+
+    <style name="Dock_Day" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#F2F2F7</item>
+        <item name="android:colorBackground">#F2F2F7</item>
+    </style>
+</resources>
