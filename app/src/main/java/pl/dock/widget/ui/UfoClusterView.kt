@@ -21,14 +21,17 @@ class UfoClusterView(context: Context) : View(context) {
         const val REDLINE_RPM = 6800
         const val STALE_MS = 5_000L
 
-        private const val COL_ACCENT = 0x0A84FF.toInt() or 0xFF000000.toInt()
-        private const val COL_RED = 0xFF453A.toInt() or 0xFF000000.toInt()
-        private const val COL_GREEN = 0x30D158.toInt() or 0xFF000000.toInt()
-        private const val COL_AMBER = 0xFFD60A.toInt() or 0xFF000000.toInt()
-        private const val COL_WHITE = 0xFFFFFF or 0xFF000000.toInt()
-        private const val COL_DIM = 0x99FFFFFF
-        private const val COL_ARC_BG_NIGHT = 0x33FFFFFF
-        private const val COL_ARC_BG_DAY = 0x22000000
+        // ARGB colors as Int (0xAARRGGBB literals exceed Int.MAX_VALUE,
+        // so each one is narrowed explicitly with toInt())
+        private val COL_ACCENT = 0xFF0A84FF.toInt()
+        private val COL_RED = 0xFFFF453A.toInt()
+        private val COL_GREEN = 0xFF30D158.toInt()
+        private val COL_AMBER = 0xFFFFD60A.toInt()
+        private val COL_WHITE = 0xFFFFFFFF.toInt()
+        private val COL_DIM = 0x99FFFFFF.toInt()
+        private val COL_ARC_BG_NIGHT = 0x33FFFFFF.toInt()
+        private val COL_ARC_BG_DAY = 0x22000000
+        private val COL_TEXT_DAY = 0xFF111111.toInt()
     }
 
     // --- live state (written by update(), read by onDraw) ---
@@ -69,6 +72,7 @@ class UfoClusterView(context: Context) : View(context) {
     private val txtStale = "[stale]"
     private val txtNoConn = "brak polaczenia OBD"
     private val txtDash = "--"
+    private val txtZeroes = "0000"
 
     init {
         textMain.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
@@ -88,7 +92,7 @@ class UfoClusterView(context: Context) : View(context) {
 
     fun setNight(n: Boolean) {
         night = n
-        textMain.color = if (n) COL_WHITE else 0xFF111111.toInt()
+        textMain.color = if (n) COL_WHITE else COL_TEXT_DAY
         arcBg.color = if (n) COL_ARC_BG_NIGHT else COL_ARC_BG_DAY
         postInvalidate()
     }
@@ -125,7 +129,7 @@ class UfoClusterView(context: Context) : View(context) {
         // 4) RPM caption + stale marker (grey filter)
         if (rpm >= 0) drawInt(canvas, rpm, cx - textDim.measureText(txtRpm) * 0.5f, cy - radius * 0.55f, textDim)
         else canvas.drawText(txtDash, cx, cy - radius * 0.55f, textDim)
-        canvas.drawText(txtRpm, cx + textDim.measureText("0000") * 0.4f, cy - radius * 0.55f, textDim)
+        canvas.drawText(txtRpm, cx + textDim.measureText(txtZeroes) * 0.4f, cy - radius * 0.55f, textDim)
         if (stale) canvas.drawText(txtStale, cx, cy - radius * 0.72f, textDim)
         if (!connected) canvas.drawText(txtNoConn, cx, cy + radius * 0.72f, textDim)
 
