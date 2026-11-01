@@ -498,6 +498,7 @@ public class ToolGrid extends ViewGroup {
         private final boolean night;
         private final float d;
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint bmp = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
         private boolean on;
         private String[] lines;
 
@@ -572,9 +573,9 @@ public class ToolGrid extends ViewGroup {
             // nieaktywne = polprzezroczyste tlo + bialy glyph
             int fill = def.kind == PanelTool.K_APP ? 0x00000000
                     : on ? (night ? 0xFFF2F2F7 : 0xFFFFFFFF)
-                    : (night ? 0x26FFFFFF : 0x26000000);
+                    : (night ? 0x26FFFFFF : 0xFFE4E4EA);
             int ink = def.kind == PanelTool.K_APP ? 0xFFFFFFFF
-                    : (on ? PanelTool.onColor(def) : 0xFFFFFFFF);
+                    : (on ? PanelTool.onColor(def) : (night ? 0xFFFFFFFF : 0xFF3C3C43));
             p.setStyle(Paint.Style.FILL);
             p.setColor(fill);
             cv.drawCircle(cx, cy, dia / 2f, p);
@@ -587,8 +588,7 @@ public class ToolGrid extends ViewGroup {
                 if (ic != null) {
                     android.graphics.RectF dst = new android.graphics.RectF(cx - dia / 2f, cy - dia / 2f,
                             cx + dia / 2f, cy + dia / 2f);
-                    Paint bp = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
-                    cv.drawBitmap(ic, null, dst, bp);
+                    cv.drawBitmap(ic, null, dst, bmp);
                 } else {
                     PanelTool.glyph(cv, "apps", cx, cy, dia / 2f, 0xFFFFFFFF);
                 }

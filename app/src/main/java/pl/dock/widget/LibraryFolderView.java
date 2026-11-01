@@ -175,19 +175,19 @@ public class LibraryFolderView extends FrameLayout {
 
         // iOS-style glass fill with Bezier squircle
         bgPaint.setStyle(Paint.Style.FILL);
-        bgPaint.setColor(night ? 0xCC1C1C1E : 0xCCF2F2F7);
+        bgPaint.setColor(night ? 0xCC1C1C1E : 0xE6F2F2F7);
         rect.set(0, 0, w, h);
         Ui.drawSquircle(cv, rect, bgPaint, 0.42f);
 
         // soft top highlight (glassmorphism)
-        bgPaint.setColor(night ? 0x28FFFFFF : 0x40FFFFFF);
+        bgPaint.setColor(night ? 0x28FFFFFF : 0x0A000000);
         rect.set(1, 1, w - 1, h * 0.38f);
         Ui.drawSquircle(cv, rect, bgPaint, 0.42f);
 
         // subtle white border
         strokePaint.setStyle(Paint.Style.STROKE);
         strokePaint.setStrokeWidth(1.0f * d);
-        strokePaint.setColor(0x33FFFFFF);
+        strokePaint.setColor(night ? 0x33FFFFFF : 0x14000000);
         rect.set(0.5f * d, 0.5f * d, w - 0.5f * d, h - 0.5f * d);
         Ui.drawSquircle(cv, rect, strokePaint, 0.42f);
 
@@ -200,11 +200,11 @@ public class LibraryFolderView extends FrameLayout {
             float cl = w - p - miniPad - (2 * miniSz + miniGap);
             float cb = h - p - miniPad - (2 * miniSz + miniGap);
             bgPaint.setStyle(Paint.Style.FILL);
-            bgPaint.setColor(0x4DFFFFFF);
+            bgPaint.setColor(night ? 0x4DFFFFFF : 0x14000000);
             rect.set(cl, cb, cl + 2 * miniSz + miniGap, cb + 2 * miniSz + miniGap);
             Ui.drawSquircle(cv, rect, bgPaint, 0.42f);
             strokePaint.setStrokeWidth(1.0f * d);
-            strokePaint.setColor(0x33FFFFFF);
+            strokePaint.setColor(night ? 0x33FFFFFF : 0x14000000);
             rect.set(cl + 0.5f * d, cb + 0.5f * d,
                     cl + 2 * miniSz + miniGap - 0.5f * d, cb + 2 * miniSz + miniGap - 0.5f * d);
             Ui.drawSquircle(cv, rect, strokePaint, 0.42f);

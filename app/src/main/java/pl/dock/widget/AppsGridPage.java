@@ -364,17 +364,18 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         LinearLayout c = new LinearLayout(ctx);
         c.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xD91C1C1E);
+        bg.setColor(night ? 0xD91C1C1E : 0xF6F2F2F7);
         bg.setCornerRadius(20f * d);
-        bg.setStroke(Math.max(1, (int) (0.5f * d)), 0x33FFFFFF);
+        bg.setStroke(Math.max(1, (int) (0.5f * d)), night ? 0x33FFFFFF : 0x1F000000);
         c.setBackground(bg);
 
         boolean canHide = it.entry != null;
         // tytul aplikacji na gorze menu
-        addIosMenuRow(c, dlg, it.label, 0xFF9A9AA0, Typeface.DEFAULT_BOLD, new Runnable() {
+        addIosMenuRow(c, dlg, it.label, night ? 0xFF9A9AA0 : 0xFF6C6C70, Typeface.DEFAULT_BOLD, new Runnable() {
             @Override public void run() { }
         }, false);
-        addIosMenuRow(c, dlg, "Informacje o aplikacji", 0xFFFFFFFF, Typeface.DEFAULT, new Runnable() {
+        int rowInk = night ? 0xFFFFFFFF : 0xFF1C1C1E;
+        addIosMenuRow(c, dlg, "Informacje o aplikacji", rowInk, Typeface.DEFAULT, new Runnable() {
             @Override public void run() {
                 try {
                     Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
@@ -385,7 +386,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
             }
         }, true);
         if (canHide) {
-            addIosMenuRow(c, dlg, "Usuń z ekranu głównego", 0xFFFFFFFF, Typeface.DEFAULT, new Runnable() {
+            addIosMenuRow(c, dlg, "Usuń z ekranu głównego", rowInk, Typeface.DEFAULT, new Runnable() {
                 @Override public void run() {
                     Prefs.remove(getContext(), it.entry.id);
                     if (listener != null) listener.onAppsChanged();
@@ -430,7 +431,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         if (parent.getChildCount() > 1) {
             // separator jak w iOS
             android.view.View sep = new android.view.View(getContext());
-            sep.setBackgroundColor(0x33FFFFFF);
+            sep.setBackgroundColor(night ? 0x33FFFFFF : 0x1F000000);
             LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, (int) (0.5f * d)));
             sp.leftMargin = (int) (16f * d);
