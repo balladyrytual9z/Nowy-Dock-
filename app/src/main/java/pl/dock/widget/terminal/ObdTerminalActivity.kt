@@ -5,13 +5,11 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.view.Gravity
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import pl.dock.widget.orchestration.ConnectionManager
 
@@ -19,6 +17,8 @@ import pl.dock.widget.orchestration.ConnectionManager
  * Terminal AT/OBD - surowe komendy do ELM327 przez ConnectionManager.
  * Odpowiedzi sa pokazywane 1:1 (dokladnie to, co zwrocil adapter):
  * zadnej interpretacji, zadnej fabryzacji.
+ *
+ * Fix: podwójny prompt ">>" przy wysylce (append sam dopisuje "> ").
  */
 class ObdTerminalActivity : Activity() {
 
@@ -27,6 +27,7 @@ class ObdTerminalActivity : Activity() {
     private lateinit var scroll: ScrollView
     private lateinit var input: EditText
     private val log = StringBuilder()
+    private val scope = kotlinx.coroutines.MainScope()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -107,9 +108,9 @@ class ObdTerminalActivity : Activity() {
     private fun send() {
         val cmd = input.text.toString().trim()
         if (cmd.isEmpty()) return
-        append("> " + cmd, true)
+        append(cmd, true)
         input.setText("")
-        MainScope().launch {
+        scope.launch {
             val response = manager.rawRequest(cmd)
             append(if (response.isNullOrBlank()) "(brak odpowiedzi)" else response, false)
         }
@@ -123,5 +124,10 @@ class ObdTerminalActivity : Activity() {
         }
         logView.text = log
         scroll.post { scroll.fullScroll(android.view.View.FOCUS_DOWN) }
+    }
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
     }
 }

@@ -11,6 +11,11 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -19,12 +24,16 @@ import java.util.Locale
  * Black Box UI: podglad ostatnich ramek telemetrii (SQLite WAL),
  * liczba zapisanych probek, eksport CSV przez share intent.
  * Odczyt przez SELECT cursor - bezpieczny przy aktywnym WAL.
+ *
+ * Fix: eksport CSV (do 5000 ramek) wykonywany poza watkiem UI (Dispatchers.IO)
+ * - wczesniej potencjalny ANR przy duzej bazie.
  */
 class BlackBoxActivity : Activity() {
 
     private lateinit var db: AppDatabase
     private lateinit var body: TextView
     private val fmt = SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault())
+    private val scope = MainScope()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,7 +69,7 @@ class BlackBoxActivity : Activity() {
             }
             setOnClickListener { refresh() }
         })
-        root.addView(Button(this).apply {
+        val shareBtn = Button(this).apply {
             text = "UDOSTEPNIJ CSV"
             isAllCaps = false
             setTextColor(Color.WHITE)
@@ -70,14 +79,21 @@ class BlackBoxActivity : Activity() {
             }
             setOnClickListener {
                 Toast.makeText(this@BlackBoxActivity, "Eksport: http://<IP-radia>:8080/csv", Toast.LENGTH_LONG).show()
-                val csv = db.exportCsv(5000)
-                val send = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, csv.take(100_000))
+                isEnabled = false
+                scope.launch {
+                    val csv = withContext(Dispatchers.IO) {
+                        try { db.exportCsv(5000) } catch (e: Exception) { "(blad eksportu bazy)" }
+                    }
+                    isEnabled = true
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, csv.take(100_000))
+                    }
+                    startActivity(Intent.createChooser(send, "Black Box CSV"))
                 }
-                startActivity(Intent.createChooser(send, "Black Box CSV"))
             }
-        })
+        }
+        root.addView(shareBtn)
         setContentView(root)
         refresh()
     }
@@ -108,6 +124,7 @@ class BlackBoxActivity : Activity() {
     }
 
     override fun onDestroy() {
+        scope.cancel()
         super.onDestroy()
         db.close()
     }

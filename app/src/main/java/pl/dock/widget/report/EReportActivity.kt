@@ -20,6 +20,7 @@ import pl.dock.widget.orchestration.ConnectionManager
 /**
  * E-RAPORT: zrzut stanu pojazdu do udostepnienia (share intent).
  * Raport zawiera wylacznie zmierzone wartosci - brak danych oznaczany "-".
+ * Fix: instancja AppDatabase jest zamykana po odczycie (brak wycieku).
  */
 class EReportActivity : Activity() {
 
@@ -72,6 +73,7 @@ class EReportActivity : Activity() {
             val confirmed = Dtc.parse(manager.rawRequest("03"), pending = false)
             val pending = Dtc.parse(manager.rawRequest("07"), pending = true)
             val frames = try { db.count() } catch (e: Exception) { -1L }
+            try { db.close() } catch (ignored: Exception) {}
 
             val sb = StringBuilder()
             sb.append("=== E-RAPORT Dock-Launcher-OBD ===\n")

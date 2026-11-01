@@ -9,7 +9,10 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import pl.dock.widget.orchestration.ConnectionManager
@@ -21,11 +24,15 @@ import pl.dock.widget.repository.VehicleUiState
  * - Best Runs: pomiar 0-100 km/h (start przy przekroczeniu 5 km/h po postoju,
  *   stop przy 100 km/h); najlepszy czas zapisany w SharedPreferences.
  * Zero integracji z GPS - calosc z telemetrii OBD.
+ *
+ * Fix: korutyna zbierajaca telemetrie jest anulowana w onDestroy
+ * (wczesniej zbierala dane w nieskonczonosc po zamknieciu ekranu).
  */
 class TripActivity : Activity() {
 
     private lateinit var manager: ConnectionManager
     private lateinit var body: TextView
+    private val scope: CoroutineScope = MainScope()
 
     // trip
     private var tripMs = 0L
@@ -82,7 +89,7 @@ class TripActivity : Activity() {
         })
         setContentView(root)
 
-        MainScope().launch {
+        scope.launch {
             manager.uiState.collectLatest { s -> onSample(s) }
         }
     }
@@ -96,8 +103,8 @@ class TripActivity : Activity() {
             if (!s.ltftPct.isNaN()) { ltftSum += s.ltftPct; ltftCount++ }
         }
         lastTs = now
-        if (s.rpm > maxRpm) maxRpm = s.rpm
-        if (s.speedKmh > maxSpeed) maxSpeed = s.speedKmh
+        if (s.rpm > maxRpm && s.rpm >= 0) maxRpm = s.rpm
+        if (s.speedKmh > maxSpeed && s.speedKmh >= 0) maxSpeed = s.speedKmh
 
         // Best run 0-100
         if (s.speedKmh >= 0) {
@@ -141,5 +148,10 @@ class TripActivity : Activity() {
     private fun fmtTime(ms: Long): String {
         val s = ms / 1000
         return String.format("%02d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60)
+    }
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
     }
 }

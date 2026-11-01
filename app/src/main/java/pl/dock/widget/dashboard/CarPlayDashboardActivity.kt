@@ -14,6 +14,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import pl.dock.widget.LauncherActivity
@@ -28,10 +29,14 @@ import pl.dock.widget.ui.ChartView
  * CarPlay Dashboard: staly pionowy dock (~110dp) po lewej + obszar roboczy.
  * Moduly: Overview, Live Data (Multi-Select max 4 wykresy), Misfire Lab,
  * DTC Manager, E-Raport, Home. Karty #1C1C1E, radius 16dp, obramowanie #2C2C2E.
+ *
+ * Fix: korutyna renderujaca telemetrie jest anulowana w onDestroy
+ * (wczesniej MainScope() zylo po zamknieciu aktywnosci).
  */
 class CarPlayDashboardActivity : Activity() {
 
     private lateinit var manager: ConnectionManager
+    private val scope = MainScope()
 
     // Overview
     private lateinit var ovRpm: TextView
@@ -166,7 +171,7 @@ class CarPlayDashboardActivity : Activity() {
         row1.addView(cardWith(ovEct), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         col.addView(row1)
 
-        // status polaczenia + DTC
+        // status polaczenia
         val row2 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         ovConn = bigValue("OBD")
         row2.addView(cardWith(ovConn), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -214,7 +219,6 @@ class CarPlayDashboardActivity : Activity() {
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
         }
-        // lista parametrow po lewej
         val scroll = ScrollView(this).apply {
             layoutParams = LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.MATCH_PARENT, 1f)
@@ -226,7 +230,6 @@ class CarPlayDashboardActivity : Activity() {
         scroll.addView(paramList)
         for ((name, unit) in params) paramList.addView(paramRow(name, unit))
 
-        // wykresy po prawej
         chartsArea = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.MATCH_PARENT, 1.6f)
@@ -319,11 +322,6 @@ class CarPlayDashboardActivity : Activity() {
         }
     }
 
-    /**
-     * Dynamiczna matryca wykresow:
-     * 1 - pelny ekran; 2 - dwa pionowo; 3 - duzy na gorze + dwa male;
-     * 4 - siatka 2x2. Wypelnia [cells] w kolejnosci dodawania.
-     */
     private fun chartMatrix(n: Int) {
         when (n) {
             1 -> splitRow(hRow(), 1)
@@ -379,7 +377,7 @@ class CarPlayDashboardActivity : Activity() {
     // ---------- DANE ----------
 
     private fun observe() {
-        MainScope().launch {
+        scope.launch {
             manager.uiState.collectLatest { s -> render(s) }
         }
     }
@@ -412,7 +410,6 @@ class CarPlayDashboardActivity : Activity() {
         updateParam("LTFT", s.ltftPct, "%", !s.ltftPct.isNaN(), s.staleFlags.ltft)
         updateParam("VOLT", s.voltage, "V", !s.voltage.isNaN(), false)
 
-        // probki do wykresow tylko dla parametrow z wiarygodnym odczytem
         if (!s.staleFlags.rpm) pushChart("RPM", s.rpm.toFloat(), now)
         if (!s.staleFlags.speed) pushChart("SPEED", s.speedKmh.toFloat(), now)
         if (!s.ectC.isNaN() && !s.staleFlags.ect) pushChart("ECT", s.ectC, now)
@@ -437,7 +434,6 @@ class CarPlayDashboardActivity : Activity() {
         }
     }
 
-    /** Zakresy referencyjne (konfigurowalne docelowo w Ustawieniach). */
     private fun inNormalRange(name: String, v: Float): Boolean = when (name) {
         "ECT" -> v in 70f..102f
         "IAT" -> v in 5f..65f
@@ -457,7 +453,6 @@ class CarPlayDashboardActivity : Activity() {
 
     private fun pushChart(name: String, v: Float, t: Long) {
         val ch = charts[name] ?: return
-        // ogranicz czestotliwosc przerysowania (wykres sam interpoluje w czasie)
         if (ch.sampleCount == 0 || t - lastPushMs.getOrPut(name) { 0L } >= 500) {
             lastPushMs[name] = t
             ch.push(v, t)
@@ -473,4 +468,5 @@ class CarPlayDashboardActivity : Activity() {
 
     override fun onStart() { super.onStart(); manager.onAppForeground() }
     override fun onStop() { super.onStop(); manager.onAppBackground() }
+    override fun onDestroy() { scope.cancel(); super.onDestroy() }
 }
