@@ -74,6 +74,26 @@ public final class EditModeController {
         if (v == null) return;
         stopWobble(v);
         if (!editing) return;
+        // pivot na srodku (inaczej obrot wokol rogu psul siatke - "pompowanie" ikon)
+        if (v.getWidth() > 0 && v.getHeight() > 0) {
+            v.setPivotX(v.getWidth() / 2f);
+            v.setPivotY(v.getHeight() / 2f);
+            startWobbleAnim(v, phase);
+        } else {
+            final float ph = phase;
+            v.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (!editing || v == null || v.getWidth() <= 0) return;
+                    v.setPivotX(v.getWidth() / 2f);
+                    v.setPivotY(v.getHeight() / 2f);
+                    startWobbleAnim(v, ph);
+                }
+            });
+        }
+    }
+
+    private void startWobbleAnim(final View v, float phase) {
         final float amp = 3.5f; // degrees
         ValueAnimator anim = ValueAnimator.ofFloat(0f, (float) (Math.PI * 2));
         anim.setDuration(320 + (long) (phase * 40));
