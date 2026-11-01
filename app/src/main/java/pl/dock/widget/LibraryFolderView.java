@@ -79,6 +79,7 @@ public class LibraryFolderView extends FrameLayout {
             iconViews.add(iv);
             iv.setOnClickListener(new OnClickListener() {
                 @Override public void onClick(View v) {
+                    if (editing) return;
                     if (listener != null) listener.onAppTap(app);
                 }
             });

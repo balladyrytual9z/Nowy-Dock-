@@ -1,4 +1,3 @@
-
 package pl.dock.widget;
 
 import android.animation.Animator;
@@ -90,6 +89,8 @@ public class LauncherActivity extends BaseActivity {
     private boolean receiversOn;
     private FrameLayout overlay;
     private ConnectivityPanel panel;
+    private FrameLayout libraryOverlay;
+    private Bitmap libraryBlurBmp;
     private VolumeHud hud;
 
     private final Handler h = new Handler(Looper.getMainLooper());
@@ -206,6 +207,7 @@ public class LauncherActivity extends BaseActivity {
         h.removeCallbacks(minuteTick);
         h.removeCallbacks(statusTick);
         hideOverlay(false);
+        closeLibraryFolder();
     }
 
     @Override
@@ -256,6 +258,10 @@ public class LauncherActivity extends BaseActivity {
         }
 
         if (pager == null) return;
+        if (libraryOverlay != null) {
+            closeLibraryFolder();
+            return;
+        }
         if (overlay != null) {
             hideOverlay(true);
             return;
@@ -286,7 +292,9 @@ public class LauncherActivity extends BaseActivity {
 
     @Override
     public void onBackPressed() {
-        if (overlay != null) {
+        if (libraryOverlay != null) {
+            closeLibraryFolder();
+        } else if (overlay != null) {
             hideOverlay(true);
         } else if (pager != null && pager.position() > homeIdx + 0.5f) {
             pager.goTo(homeIdx, true);
@@ -474,7 +482,7 @@ public class LauncherActivity extends BaseActivity {
                 private long downT;
                 @Override
                 public boolean onTouch(View v, android.view.MotionEvent e) {
-                    if (overlay != null) return false;
+                    if (overlay != null || libraryOverlay != null) return false;
                     switch (e.getActionMasked()) {
                         case android.view.MotionEvent.ACTION_DOWN:
                             downY = e.getY();
@@ -640,6 +648,8 @@ public class LauncherActivity extends BaseActivity {
             blurred = LiveBlur.captureAndBlur(root, root.getWidth(), root.getHeight());
         } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);}
         final Bitmap blurBmp = blurred;
+        libraryOverlay = overlay;
+        libraryBlurBmp = blurBmp;
 
         View bg = new View(this) {
             private final android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG | android.graphics.Paint.FILTER_BITMAP_FLAG);
@@ -662,19 +672,42 @@ public class LauncherActivity extends BaseActivity {
         col.setPadding(Ui.dp(this, 24), Ui.dp(this, 48), Ui.dp(this, 24), Ui.dp(this, 24));
         col.setClickable(true);
 
-        // Large title (iOS style)
+        // Large title (iOS style) + przycisk X (fix: brakowalo sposobu zamkniecia)
+        LinearLayout headerRow = new LinearLayout(this);
+        headerRow.setOrientation(LinearLayout.HORIZONTAL);
+        headerRow.setGravity(Gravity.CENTER_VERTICAL);
         TextView title = new TextView(this);
         title.setText(category);
         title.setTextSize(34);
         title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         title.setTextColor(n ? 0xFFFFFFFF : 0xFF1C1C1E);
-        title.setPadding(0, 0, 0, Ui.dp(this, 20));
-        col.addView(title);
+        headerRow.addView(title, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView closeBtn = new TextView(this);
+        closeBtn.setText("X");
+        closeBtn.setTextSize(20);
+        closeBtn.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        closeBtn.setTextColor(n ? 0x99FFFFFF : 0x991C1C1E);
+        closeBtn.setPadding(Ui.dp(this, 18), Ui.dp(this, 8), Ui.dp(this, 18), Ui.dp(this, 8));
+        closeBtn.setGravity(Gravity.CENTER);
+        closeBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                closeLibraryFolder();
+            }
+        });
+        headerRow.addView(closeBtn);
+        headerRow.setPadding(0, 0, 0, Ui.dp(this, 20));
+        col.addView(headerRow);
 
         // 4-column grid of apps
         android.widget.ScrollView sc = new android.widget.ScrollView(this);
         sc.setVerticalScrollBarEnabled(false);
         sc.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
+        sc.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                closeLibraryFolder();
+            }
+        });
         LinearLayout grid = new LinearLayout(this);
         grid.setOrientation(LinearLayout.VERTICAL);
         sc.addView(grid, new ViewGroup.LayoutParams(
@@ -772,6 +805,14 @@ public class LauncherActivity extends BaseActivity {
                 .setDuration(280)
                 .setInterpolator(pl.dock.widget.ui.DockMotion.IOS_SPRING)
                 .start();
+    }
+
+    private void closeLibraryFolder() {
+        FrameLayout ov = libraryOverlay;
+        Bitmap bmp = libraryBlurBmp;
+        libraryOverlay = null;
+        libraryBlurBmp = null;
+        if (ov != null) dismissLibraryOverlay(ov, bmp);
     }
 
     private void dismissLibraryOverlay(final FrameLayout overlay, final Bitmap blurBmp) {
