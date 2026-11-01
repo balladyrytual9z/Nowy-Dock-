@@ -129,10 +129,10 @@ class CarPlayDashboardActivity : Activity() {
 
     private fun buildOverviewPage(): View {
         overviewPage = ScrollView(this).apply {
-            addView(LinearLayout(this).apply {
+            addView(LinearLayout(this@CarPlayDashboardActivity).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(28, 36, 28, 28)
-                addView(TextView(this).apply {
+                addView(TextView(this@CarPlayDashboardActivity).apply {
                     text = "OVERVIEW"
                     textSize = 24f
                     setTextColor(Color.WHITE)

@@ -127,6 +127,14 @@
             android:launchMode="singleTop"
             android:exported="false" />
 
+        <!-- Honda OEM UFO Cluster: pelne zegary 1280x720 -->
+        <activity
+            android:name=".ui.UfoClusterActivity"
+            android:label="Honda UFO Cluster"
+            android:launchMode="singleTop"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden|density|uiMode" />
+
         <receiver
             android:name=".DockWidget"
             android:exported="true">
