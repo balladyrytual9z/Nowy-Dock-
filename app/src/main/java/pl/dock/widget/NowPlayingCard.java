@@ -141,17 +141,19 @@ public class NowPlayingCard extends View implements MediaHub.Listener, NightAwar
         float y = pad;
         text.setTextAlign(Paint.Align.CENTER);
         if (!data) {
-            // stan wyłączony: ikona i napis jak w CarPlay
+            // stan wylaczony jak w CarPlay: ikona aplikacji i napis wysrodkowane w pionie,
+            // przyciski sterowania ukryte (sesja martwa -> brak asymetrycznej pustki po prawej)
             float s = Math.min(w * 0.42f, hgt * 0.38f);
-            r.set(w / 2f - s / 2f, hgt * 0.14f, w / 2f + s / 2f, hgt * 0.14f + s);
+            float block = s + 34f * d;
+            float top = (hgt - block) / 2f;
+            r.set(w / 2f - s / 2f, top, w / 2f + s / 2f, top + s);
             PlayGlyphs.artPlaceholder(cv, r, s * 0.22f, true);
             text.setTypeface(Typeface.DEFAULT_BOLD);
             text.setTextSize(scaledSp(access ? 20 : 17));
             text.setColor(fg);
             String msg = access ? "Odtwarzanie wyłączone" : "Włącz dostęp do powiadomień";
             cv.drawText(TextUtils.ellipsize(msg, text, w - 2 * pad, TextUtils.TruncateAt.END).toString(),
-                    w / 2f, hgt * 0.14f + s + 34f * d, text);
-            drawControls(cv, w, hgt, fg, false);
+                    w / 2f, top + block, text);
             return;
         }
 
