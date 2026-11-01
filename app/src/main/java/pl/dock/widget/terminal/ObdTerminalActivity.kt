@@ -10,6 +10,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import pl.dock.widget.orchestration.ConnectionManager
 
