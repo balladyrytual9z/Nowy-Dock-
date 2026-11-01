@@ -185,6 +185,11 @@ public class ConnectivityPanel extends LinearLayout {
                 public void on(float v) {
                     setVolume(v);
                 }
+
+                @Override
+                public void onLong() {
+                    openAndClose("android.settings.SOUND_SETTINGS");
+                }
             });
             volSlider = s;
             return s;
@@ -195,6 +200,11 @@ public class ConnectivityPanel extends LinearLayout {
                 @Override
                 public void on(float v) {
                     setBrightness(v);
+                }
+
+                @Override
+                public void onLong() {
+                    showWarmthSlider();   // jak w iOS: przytrzymanie jasnosci = cieplo ekranu
                 }
             });
             briSlider = s;
@@ -766,10 +776,16 @@ public class ConnectivityPanel extends LinearLayout {
     public static class PillSlider extends View {
         public interface Listener {
             void on(float v);
+
+            /** iOS: dlugie przytrzymanie suwaka = dodatkowe opcje. */
+            void onLong();
         }
 
         private float value;
         private boolean dragging;
+        private float downY;
+        private boolean longFired;
+        private Runnable longPress;
         private final boolean sun;
         private final boolean night;
         private Listener l;
@@ -865,10 +881,35 @@ public class ConnectivityPanel extends LinearLayout {
             int a = e.getActionMasked();
             if (a == MotionEvent.ACTION_DOWN) {
                 dragging = true;
+                longFired = false;
+                downY = e.getY();
                 getParent().requestDisallowInterceptTouchEvent(true);
+                if (longPress != null) removeCallbacks(longPress);
+                // iOS: dlugie przytrzymanie suwaka otwiera opcje (cisza / cieplo ekranu)
+                longPress = new Runnable() {
+                    @Override public void run() {
+                        longFired = true;
+                        dragging = false;
+                        performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+                        if (l != null) l.onLong();
+                    }
+                };
+                postDelayed(longPress, 550);
+            }
+            if (a == MotionEvent.ACTION_MOVE && longPress != null
+                    && Math.abs(e.getY() - downY) > 8f * d) {
+                removeCallbacks(longPress);
+                longPress = null;
             }
             if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
+                if (longPress != null) {
+                    removeCallbacks(longPress);
+                    longPress = null;
+                }
                 dragging = false;
+            }
+            if (longFired && (a == MotionEvent.ACTION_MOVE || a == MotionEvent.ACTION_UP)) {
+                return true;   // po dlugim przytrzymaniu nie przestawiaj wartosci
             }
             if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_MOVE
                     || a == MotionEvent.ACTION_UP) {
