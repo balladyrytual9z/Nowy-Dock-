@@ -1,4 +1,3 @@
-
 name: Build and publish CarPlay Launcher
 
 on:
@@ -54,42 +53,13 @@ jobs:
           fi
 
           set +o pipefail
-          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses
+          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses 2>&1 | tee -a "$RUNNER_TEMP/ci.log"
           set -o pipefail
 
           "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install \
             "platform-tools" \
             "platforms;android-35" \
-            "build-tools;35.0.0"
-
-      - name: Select project folder or uploaded ZIP
-        id: source
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [ -f "settings.gradle" ] || [ -f "settings.gradle.kts" ]; then
-            PROJECT_DIR="$GITHUB_WORKSPACE"
-          else
-            ZIP_PATH="$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" -- '*.zip' | head -n 1 || true)"
-
-            if [ -z "$ZIP_PATH" ]; then
-              ZIP_PATH="$(find . -maxdepth 3 -type f -name '*.zip' | head -n 1 || true)"
-            fi
-
-            if [ -z "$ZIP_PATH" ] || [ ! -f "$ZIP_PATH" ]; then
-              echo "ERROR: No source ZIP found."
-              exit 1
-            fi
-
-            mkdir -p "$RUNNER_TEMP/carplay-launcher-source"
-            unzip -q "$ZIP_PATH" -d "$RUNNER_TEMP/carplay-launcher-source"
-
-            SETTINGS_FILE="$(find "$RUNNER_TEMP/carplay-launcher-source" -maxdepth 6 \( -name settings.gradle -o -name settings.gradle.kts \) -type f | head -n 1)"
-            PROJECT_DIR="$(dirname "$SETTINGS_FILE")"
-          fi
-
-          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+            "build-tools;35.0.0" 2>&1 | tee -a "$RUNNER_TEMP/ci.log"
 
       - name: Set up Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
@@ -97,14 +67,23 @@ jobs:
           gradle-version: '8.9'
 
       - name: Build Android APK (Debug)
-        working-directory: ${{ steps.source.outputs.project_dir }}
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         shell: bash
         run: |
           set -euo pipefail
 
-          gradle --no-daemon --stacktrace clean assembleDebug
+          PROJECT_DIR="$GITHUB_WORKSPACE"
+          if [ ! -f "$PROJECT_DIR/settings.gradle" ]; then
+            echo "ERROR: settings.gradle not found in $PROJECT_DIR" | tee -a "$RUNNER_TEMP/ci.log"
+            exit 1
+          fi
+
+          cd "$PROJECT_DIR"
+          echo "gradle version:" | tee -a "$RUNNER_TEMP/ci.log"
+          gradle --version 2>&1 | tee -a "$RUNNER_TEMP/ci.log" || true
+          gradle --no-daemon --stacktrace clean assembleDebug 2>&1 | tee "$RUNNER_TEMP/build.log"
+          cp "$RUNNER_TEMP/build.log" "$RUNNER_TEMP/ci.log.bak" || true
 
           APK="app/build/outputs/apk/debug/app-debug.apk"
           if [ ! -s "$APK" ]; then
@@ -112,7 +91,7 @@ jobs:
             exit 1
           fi
 
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK" || true
 
           mkdir -p "$RUNNER_TEMP/release-assets"
           cp "$APK" "$RUNNER_TEMP/release-assets/CarPlay-Launcher-v1.0.${GITHUB_RUN_NUMBER}.apk"
@@ -120,6 +99,24 @@ jobs:
             cd "$RUNNER_TEMP/release-assets"
             sha256sum "CarPlay-Launcher-v1.0.${GITHUB_RUN_NUMBER}.apk" > SHA256SUMS.txt
           )
+
+      - name: Publish failure log [skip ci]
+        if: failure()
+        shell: bash
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          {
+            echo "# CI failure log (run ${{ github.run_id }})"
+            echo; echo '## build.log'; echo
+            cat "$RUNNER_TEMP/build.log" 2>/dev/null || echo "(missing)"
+            echo; echo '## ci.log'; echo
+            cat "$RUNNER_TEMP/ci.log" 2>/dev/null || echo "(missing)"
+          } > ci-failure-log.md || true
+          git add ci-failure-log.md || true
+          git commit -m "CI failure log [skip ci]" || true
+          git push origin HEAD:main || true
 
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
@@ -138,5 +135,3 @@ jobs:
           artifacts: "${{ runner.temp }}/release-assets/*"
           token: ${{ secrets.GITHUB_TOKEN }}
           generateReleaseNotes: true
-
-
