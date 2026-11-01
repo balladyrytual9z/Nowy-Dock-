@@ -79,7 +79,7 @@ public class Updater {
         }).start();
     }
 
-    private static void check(Context c) {
+    private static void check(Context c) throws Exception {
         JSONObject rel = httpJson(LATEST);
         if (rel == null) return;
         String tag = rel.optString("tag_name", "");
