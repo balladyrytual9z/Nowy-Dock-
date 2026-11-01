@@ -435,7 +435,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, (int) (0.5f * d)));
             sp.leftMargin = (int) (16f * d);
             sp.rightMargin = (int) (16f * d);
-            parent.addView(sp, parent.getChildCount() - 1, sp);
+            parent.addView(sep, parent.getChildCount() - 1, sp);
         }
     }
 
