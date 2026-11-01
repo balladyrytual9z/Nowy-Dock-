@@ -14,7 +14,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 
-// Pogoda i godziny sÅoÅca z Open-Meteo (bez klucza). OdÅwieÅ¼ane najwyÅ¼ej co 30 minut.
+// Pogoda i godziny słońca z Open-Meteo (bez klucza). Odświeżane najwyżej co 30 minut.
 public class WeatherData {
     public static String city = "";
     public static double temp, feels, wind, uv, tMax, tMin;
@@ -62,7 +62,7 @@ public class WeatherData {
                     ok = true;
                     ts = System.currentTimeMillis();
                 } catch (Throwable t) {
-                    // zostajÄ poprzednie dane (albo "brak danych")
+                    // zostają poprzednie dane (albo "brak danych")
                 }
                 loading = false;
                 if (done != null) main.post(done);

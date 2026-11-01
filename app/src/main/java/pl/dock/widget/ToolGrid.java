@@ -17,18 +17,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-// Siatka narzÄdzi panelu ÅÄcznoÅci. UkÅada kafelki jak Centrum sterowania w iPhonie,
-// a w trybie edycji pozwala je przeciÄgaÄ (zmiana kolejnoÅci) i usuwaÄ.
+// Siatka narzędzi panelu łączności. Układa kafelki jak Centrum sterowania w iPhonie,
+// a w trybie edycji pozwala je przeciągać (zmiana kolejności) i usuwać.
 public class ToolGrid extends ViewGroup {
 
     public interface Host {
-        /** WÅasny widok dla suwakÃ³w i przeÅÄcznika wyglÄdu; null = zwykÅy kafelek. */
+        /** Własny widok dla suwaków i przełącznika wyglądu; null = zwykły kafelek. */
         View create(PanelTool.Def d);
 
-        /** KlikniÄcie (longPress = false) albo dÅugie przytrzymanie kafelka. */
+        /** Kliknięcie (longPress = false) albo długie przytrzymanie kafelka. */
         void onTool(PanelTool.Def d, boolean longPress);
 
-        /** ZmieniÅa siÄ lista narzÄdzi (kolejnoÅÄ, dodanie, usuniÄcie). */
+        /** Zmieniła się lista narzędzi (kolejność, dodanie, usunięcie). */
         void onChanged(List<String> ids);
     }
 
@@ -54,7 +54,7 @@ public class ToolGrid extends ViewGroup {
     private int gap;
     private int offX;
 
-    // przeciÄganie
+    // przeciąganie
     private Item downItem;
     private boolean badgeHit;
     private float downX;
@@ -78,7 +78,7 @@ public class ToolGrid extends ViewGroup {
         return (int) (v * d + 0.5f);
     }
 
-    // ---------------------------------------------------------------- lista narzÄdzi
+    // ---------------------------------------------------------------- lista narzędzi
 
     public void setTools(List<String> ids) {
         for (Item it : items) {
@@ -158,7 +158,7 @@ public class ToolGrid extends ViewGroup {
         invalidate();
     }
 
-    // ---------------------------------------------------------------- drÅ¼enie kafelkÃ³w
+    // ---------------------------------------------------------------- drżenie kafelków
 
     private void startAllWobbles() {
         for (Item it : items) {
@@ -202,7 +202,7 @@ public class ToolGrid extends ViewGroup {
         if (v != null) v.setRotation(0f);
     }
 
-    // ---------------------------------------------------------------- ukÅad
+    // ---------------------------------------------------------------- układ
 
     private boolean fits(List<boolean[]> occ, int r, int c, int w, int h) {
         for (int i = r; i < r + h; i++) {
@@ -215,7 +215,7 @@ public class ToolGrid extends ViewGroup {
         return true;
     }
 
-    // ustawia kafelki w pierwszych wolnych miejscach; zwraca liczbÄ wierszy
+    // ustawia kafelki w pierwszych wolnych miejscach; zwraca liczbę wierszy
     private int pack() {
         List<boolean[]> occ = new ArrayList<boolean[]>();
         int rows = 0;
@@ -292,7 +292,7 @@ public class ToolGrid extends ViewGroup {
         }
     }
 
-    // przestawia kafelki po zmianie kolejnoÅci i pÅynnie przesuwa je na nowe miejsca
+    // przestawia kafelki po zmianie kolejności i płynnie przesuwa je na nowe miejsca
     private void reflow() {
         int n = items.size();
         int[] ol = new int[n];
@@ -340,7 +340,7 @@ public class ToolGrid extends ViewGroup {
             p.setTextAlign(Paint.Align.CENTER);
             p.setTextSize(14f * getResources().getDisplayMetrics().scaledDensity);
             p.setColor(night ? 0xFF9A9AA0 : 0xFF6C6C70);
-            cv.drawText("Brak narzÄdzi. NaciÅnij Edytuj i dodaj wÅasne.",
+            cv.drawText("Brak narzędzi. Naciśnij Edytuj i dodaj własne.",
                     getWidth() / 2f, getHeight() / 2f + dp(5), p);
         }
         if (!editing) return;
@@ -491,7 +491,7 @@ public class ToolGrid extends ViewGroup {
         host.onChanged(ids());
     }
 
-    // ---------------------------------------------------------------- kafelek (okrÄgÅy przycisk z podpisem)
+    // ---------------------------------------------------------------- kafelek (okrągły przycisk z podpisem)
 
     public static class Tile extends View {
         private final PanelTool.Def def;
@@ -535,10 +535,10 @@ public class ToolGrid extends ViewGroup {
 
         private String fit(String s, float maxW) {
             if (p.measureText(s) <= maxW) return s;
-            while (s.length() > 1 && p.measureText(s + "â¦") > maxW) {
+            while (s.length() > 1 && p.measureText(s + "…") > maxW) {
                 s = s.substring(0, s.length() - 1);
             }
-            return s + "â¦";
+            return s + "…";
         }
 
         private String[] split(String s, float maxW) {

@@ -6,16 +6,16 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 
-// Jeden wspÃ³lny odczyt stanu WiFi / Bluetooth / tetheringu / napiÄcia.
-// Odczyt jest drogi (refleksja, interfejsy sieciowe), wiÄc robimy go po zdarzeniu,
-// a nie przy kaÅ¼dym rysowaniu.
+// Jeden wspólny odczyt stanu WiFi / Bluetooth / tetheringu / napięcia.
+// Odczyt jest drogi (refleksja, interfejsy sieciowe), więc robimy go po zdarzeniu,
+// a nie przy każdym rysowaniu.
 public class StatusCenter {
 
     public static class Snap {
         public boolean wifiEn, wifiCon, bt, tether;
         public int cp;
         public int wifi;           // 0..3 (patrz Net.wifiState)
-        public boolean charging;   // napiÄcie wskazuje na pracujÄcy silnik
+        public boolean charging;   // napięcie wskazuje na pracujący silnik
         public int phone = -1;     // bateria iPhone'a (%), -1 = brak
         public String volt = "";
 
@@ -35,7 +35,7 @@ public class StatusCenter {
     private static volatile Runnable onChange;
     private static final Handler main = new Handler(Looper.getMainLooper());
 
-    // launcher rejestruje tu odÅwieÅ¼enie docka (wywoÅywane od razu po zmianie stanu)
+    // launcher rejestruje tu odświeżenie docka (wywoływane od razu po zmianie stanu)
     public static void setOnChange(Runnable r) {
         onChange = r;
     }
@@ -50,7 +50,7 @@ public class StatusCenter {
         main.post(r);
     }
 
-    // szybka ÅcieÅ¼ka: bateria telefonu
+    // szybka ścieżka: bateria telefonu
     public static synchronized void phoneChanged() {
         if (last == null) return;
         int v = PhoneBattery.level();
@@ -60,7 +60,7 @@ public class StatusCenter {
         }
     }
 
-    // szybka ÅcieÅ¼ka: tylko stan CarPlay
+    // szybka ścieżka: tylko stan CarPlay
     public static synchronized boolean refreshCp(Context c) {
         int cp = CarplayState.read(c.getApplicationContext());
         if (last == null) return refresh(c);
@@ -72,7 +72,7 @@ public class StatusCenter {
 
     private static long lastAt;
 
-    // zwraca true, jeÅli stan siÄ zmieniÅ
+    // zwraca true, jeśli stan się zmienił
     public static synchronized boolean refresh(Context c) {
         Context app = c.getApplicationContext();
         Snap s = new Snap();
@@ -84,7 +84,7 @@ public class StatusCenter {
         s.cp = CarplayState.read(app);
         Float volts = Prefs.showVoltage(app) ? Volt.read(app) : null;
         s.volt = Prefs.showVoltage(app) ? Volt.text(app) : "";
-        // histereza: >= 13,3 V = alternator Åaduje (silnik pracuje), poniÅ¼ej 13,0 V = silnik stoi
+        // histereza: >= 13,3 V = alternator ładuje (silnik pracuje), poniżej 13,0 V = silnik stoi
         if (volts != null) {
             if (volts >= 13.3f) chargingLatch = true;
             else if (volts < 13.0f) chargingLatch = false;
@@ -100,7 +100,7 @@ public class StatusCenter {
         return changed;
     }
 
-    // odczyt tylko wtedy, gdy poprzedni jest starszy niÅ¼ maxAgeMs (ogranicza czÄste zdarzenia baterii)
+    // odczyt tylko wtedy, gdy poprzedni jest starszy niż maxAgeMs (ogranicza częste zdarzenia baterii)
     public static synchronized boolean refreshIfStale(Context c, long maxAgeMs) {
         if (last != null && SystemClock.elapsedRealtime() - lastAt < maxAgeMs) return false;
         return refresh(c);

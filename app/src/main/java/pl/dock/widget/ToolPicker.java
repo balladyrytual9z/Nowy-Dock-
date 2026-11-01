@@ -22,8 +22,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-// Okno âDodaj narzÄdzieâ: lista narzÄdzi i skrÃ³tÃ³w do ustawieÅ dostÄpnych na tym tablecie,
-// z wyszukiwarkÄ. JuÅ¼ dodane pozycje sÄ wyszarzone.
+// Okno „Dodaj narzędzie”: lista narzędzi i skrótów do ustawień dostępnych na tym tablecie,
+// z wyszukiwarką. Już dodane pozycje są wyszarzone.
 public final class ToolPicker {
 
     public interface OnPick {
@@ -43,13 +43,13 @@ public final class ToolPicker {
         int pad = Ui.dp(a, 16);
         c.setPadding(pad, Ui.dp(a, 14), pad, Ui.dp(a, 12));
 
-        TextView title = Popups.text(a, "Dodaj narzÄdzie", 17, Popups.txt(night), true);
+        TextView title = Popups.text(a, "Dodaj narzędzie", 17, Popups.txt(night), true);
         title.setGravity(Gravity.CENTER);
         title.setPadding(0, 0, 0, Ui.dp(a, 10));
         c.addView(title);
 
         final EditText search = new EditText(a);
-        search.setHint("Szukaj narzÄdzi");
+        search.setHint("Szukaj narzędzi");
         search.setSingleLine(true);
         search.setInputType(InputType.TYPE_CLASS_TEXT);
         search.setTextSize(16);
@@ -189,10 +189,10 @@ public final class ToolPicker {
 
         private String fit(String s, float maxW) {
             if (p.measureText(s) <= maxW) return s;
-            while (s.length() > 1 && p.measureText(s + "â¦") > maxW) {
+            while (s.length() > 1 && p.measureText(s + "…") > maxW) {
                 s = s.substring(0, s.length() - 1);
             }
-            return s + "â¦";
+            return s + "…";
         }
 
         @Override
@@ -231,7 +231,7 @@ public final class ToolPicker {
             p.setTextSize(11f * getResources().getDisplayMetrics().scaledDensity);
             p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
             if (added) p.setAlpha(110);
-            // podpis w jednej lub dwÃ³ch liniach
+            // podpis w jednej lub dwóch liniach
             String s = def.label;
             float maxW = w - 6f * d;
             float base = 4f * d + dia + 15f * d;
@@ -251,7 +251,7 @@ public final class ToolPicker {
                 }
             }
             if (added) {
-                // znacznik âdodanoâ
+                // znacznik „dodano”
                 float bx = cx + dia / 2f - 4f * d;
                 float by = cy - dia / 2f + 6f * d;
                 p.setAlpha(255);

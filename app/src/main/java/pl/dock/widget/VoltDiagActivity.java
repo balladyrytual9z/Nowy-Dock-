@@ -33,7 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-// Ekran âDiagnostyka ÅºrÃ³dÅa napiÄciaâ
+// Ekran „Diagnostyka źródła napięcia”
 public class VoltDiagActivity extends BaseActivity {
 
     private static final int GREEN = 0xFF2ECC71;
@@ -81,13 +81,13 @@ public class VoltDiagActivity extends BaseActivity {
         root.setBackgroundColor(p.bg);
         root.setPadding(dp(16), dp(10), dp(16), dp(8));
 
-        root.addView(tv("Diagnostyka ÅºrÃ³dÅa napiÄcia", 22, p.text, true));
+        root.addView(tv("Diagnostyka źródła napięcia", 22, p.text, true));
 
-        TextView note = tv("Wynik 12â15 V jest tylko PRAWDOPODOBNYM napiÄciem instalacji i wymaga "
-                + "potwierdzenia (porÃ³wnaj z paskiem statusu radia). JeÅli napiÄcie jest dostÄpne "
-                + "wyÅÄcznie wewnÄtrz zmodyfikowanego frameworka lub prywatnego interfejsu MCU, "
-                + "zwykÅa aplikacja moÅ¼e nie mieÄ do niego dostÄpu. Dotknij wiersza, by zobaczyÄ "
-                + "szczegÃ³Åy lub uÅ¼yÄ go jako ÅºrÃ³dÅa w widÅ¼ecie.", 12, p.sub, false);
+        TextView note = tv("Wynik 12–15 V jest tylko PRAWDOPODOBNYM napięciem instalacji i wymaga "
+                + "potwierdzenia (porównaj z paskiem statusu radia). Jeśli napięcie jest dostępne "
+                + "wyłącznie wewnątrz zmodyfikowanego frameworka lub prywatnego interfejsu MCU, "
+                + "zwykła aplikacja może nie mieć do niego dostępu. Dotknij wiersza, by zobaczyć "
+                + "szczegóły lub użyć go jako źródła w widżecie.", 12, p.sub, false);
         note.setPadding(0, dp(4), 0, dp(6));
         root.addView(note);
 
@@ -123,7 +123,7 @@ public class VoltDiagActivity extends BaseActivity {
         bar.addView(bSave);
         root.addView(bar);
 
-        // rÄczny odczyt klucza Settings
+        // ręczny odczyt klucza Settings
         LinearLayout man = new LinearLayout(this);
         man.setOrientation(LinearLayout.HORIZONTAL);
         man.setGravity(Gravity.CENTER_VERTICAL);
@@ -177,9 +177,9 @@ public class VoltDiagActivity extends BaseActivity {
         statusView.setPadding(0, dp(2), 0, dp(4));
         root.addView(statusView);
 
-        // nagÅÃ³wek tabeli
+        // nagłówek tabeli
         LinearLayout head = rowContainer();
-        String[] hs = {"Å¹rÃ³dÅo", "Klucz / plik", "WartoÅÄ", "Jedn.", "Status / bÅÄd"};
+        String[] hs = {"Źródło", "Klucz / plik", "Wartość", "Jedn.", "Status / błąd"};
         for (int i = 0; i < hs.length; i++) {
             TextView h = tv(hs[i], 12, p.text, true);
             head.addView(h, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, W[i]));
@@ -273,7 +273,7 @@ public class VoltDiagActivity extends BaseActivity {
     private void startScan() {
         if (scanning) return;
         scanning = true;
-        statusView.setText("Skanowanieâ¦ (moÅ¼e potrwaÄ kilka sekund)");
+        statusView.setText("Skanowanie… (może potrwać kilka sekund)");
         all.clear();
         applyFilter();
         final Context app = getApplicationContext();
@@ -298,7 +298,7 @@ public class VoltDiagActivity extends BaseActivity {
                         all.addAll(fin);
                         applyFilter();
                         statusView.setText("Gotowe: " + fin.size() + " wierszy, w tym "
-                                + hot + " z wynikiem 12â15 V (prawdopodobne, niepotwierdzone)");
+                                + hot + " z wynikiem 12–15 V (prawdopodobne, niepotwierdzone)");
                     }
                 });
             }
@@ -323,7 +323,7 @@ public class VoltDiagActivity extends BaseActivity {
     private void manualRead() {
         String key = keyBox.getText().toString().trim();
         if (key.length() == 0) {
-            Toast.makeText(this, "Wpisz nazwÄ klucza", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Wpisz nazwę klucza", Toast.LENGTH_SHORT).show();
             return;
         }
         DiagScan.Row r = DiagScan.readSetting(getContentResolver(),
@@ -334,16 +334,16 @@ public class VoltDiagActivity extends BaseActivity {
         showDetail(r);
     }
 
-    // ------------------------------------------------------------ szczegÃ³Åy
+    // ------------------------------------------------------------ szczegóły
     private void showDetail(final DiagScan.Row r) {
-        String msg = "Å¹rÃ³dÅo: " + r.source + "\nKlucz/plik: " + r.name + "\nWartoÅÄ: " + r.value
+        String msg = "Źródło: " + r.source + "\nKlucz/plik: " + r.name + "\nWartość: " + r.value
                 + "\nJednostka: " + r.unit + "\nStatus: " + r.status;
         AlertDialog.Builder b = new AlertDialog.Builder(this)
-                .setTitle("SzczegÃ³Åy")
+                .setTitle("Szczegóły")
                 .setMessage(msg)
                 .setNegativeButton("Zamknij", null);
         if (r.useType != null) {
-            b.setPositiveButton("UÅ¼yj w widÅ¼ecie", new DialogInterface.OnClickListener() {
+            b.setPositiveButton("Użyj w widżecie", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface d, int w) {
                     useInWidget(r);
@@ -363,19 +363,19 @@ public class VoltDiagActivity extends BaseActivity {
         }
         StatusService.restart(this);
         DockWidget.updateAll(this);
-        Toast.makeText(this, "Å¹rÃ³dÅo napiÄcia widÅ¼etu ustawione: " + r.useRef,
+        Toast.makeText(this, "Źródło napięcia widżetu ustawione: " + r.useRef,
                 Toast.LENGTH_LONG).show();
     }
 
     // ------------------------------------------------------------ eksport
     private String report() {
         StringBuilder b = new StringBuilder();
-        b.append("ÅºrÃ³dÅo\tklucz/plik\twartoÅÄ\tjednostka\tstatus\n");
+        b.append("źródło\tklucz/plik\twartość\tjednostka\tstatus\n");
         for (DiagScan.Row r : all) {
             b.append(r.source).append('\t').append(r.name).append('\t').append(r.value)
                     .append('\t').append(r.unit).append('\t').append(r.status).append('\n');
             if (b.length() > 300000) {
-                b.append("â¦ (uciÄto â zbyt dÅugi raport)\n");
+                b.append("… (ucięto – zbyt długi raport)\n");
                 break;
             }
         }
@@ -385,10 +385,10 @@ public class VoltDiagActivity extends BaseActivity {
     private void copyReport() {
         try {
             ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            cm.setPrimaryClip(ClipData.newPlainText("diagnostyka napiÄcia", report()));
+            cm.setPrimaryClip(ClipData.newPlainText("diagnostyka napięcia", report()));
             Toast.makeText(this, "Skopiowano do schowka", Toast.LENGTH_SHORT).show();
         } catch (Throwable t) {
-            Toast.makeText(this, "Nie udaÅo siÄ skopiowaÄ: " + t.getClass().getSimpleName(),
+            Toast.makeText(this, "Nie udało się skopiować: " + t.getClass().getSimpleName(),
                     Toast.LENGTH_LONG).show();
         }
     }
@@ -406,7 +406,7 @@ public class VoltDiagActivity extends BaseActivity {
             }
             Toast.makeText(this, "Zapisano: " + f.getAbsolutePath(), Toast.LENGTH_LONG).show();
         } catch (Throwable t) {
-            Toast.makeText(this, "Nie udaÅo siÄ zapisaÄ: " + t.getClass().getSimpleName(),
+            Toast.makeText(this, "Nie udało się zapisać: " + t.getClass().getSimpleName(),
                     Toast.LENGTH_LONG).show();
         }
     }

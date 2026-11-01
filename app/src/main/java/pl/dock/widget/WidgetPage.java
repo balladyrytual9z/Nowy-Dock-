@@ -15,8 +15,8 @@ import android.view.ViewGroup;
 import java.util.ArrayList;
 import java.util.List;
 
-// Strona z widÅ¼etami uÅoÅ¼onymi w kolumnach (stosach). W kaÅ¼dej kolumnie widaÄ jeden widÅ¼et;
-// kolejne moÅ¼na przeÅÄczaÄ kropkami po prawej stronie kolumny. + iOS edit / wobble
+// Strona z widżetami ułożonymi w kolumnach (stosach). W każdej kolumnie widać jeden widżet;
+// kolejne można przełączać kropkami po prawej stronie kolumny. + iOS edit / wobble
 public class WidgetPage extends ViewGroup implements EditModeController.Listener {
 
     public interface Callbacks {
@@ -165,7 +165,7 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
         return out;
     }
 
-    // pokazuje wybrany widÅ¼et kaÅ¼dej kolumny i dodaje puste kafelki "+" tam, gdzie nic nie ma
+    // pokazuje wybrany widżet każdej kolumny i dodaje puste kafelki "+" tam, gdzie nic nie ma
     public void applySelection() {
         for (int i = getChildCount() - 1; i >= 0; i--) {
             if (getChildAt(i) instanceof EmptyTile) removeViewAt(i);
@@ -197,12 +197,12 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
         return c < 0 ? 0 : inCol(c).size();
     }
 
-    // ---------------------------------------------------------------- ukÅad
+    // ---------------------------------------------------------------- układ
     private float padL() {
         return 16f * d;
     }
 
-    // kwadratowe widÅ¼ety jak w CarPlay, wyÅrodkowane w pionie â z insetem na dock
+    // kwadratowe widżety jak w CarPlay, wyśrodkowane w pionie – z insetem na dock
     private RectF colRect(int c, int w, int hh) {
         int n = wheres.length;
         float dockInset = Ui.dp(getContext(), Ui.DOCK_OFFSET_DP);
@@ -251,7 +251,7 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
         int w = getWidth();
         int hh = getHeight();
         super.dispatchDraw(cv);
-        // kropki przeÅÄczania widÅ¼etÃ³w w kolumnie
+        // kropki przełączania widżetów w kolumnie
         for (int c = 0; c < wheres.length; c++) {
             int n = inCol(c).size();
             if (n < 2) continue;
@@ -358,7 +358,7 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
                     if (cb != null) cb.onAdd(EmptyTile.this.where);
                 }
             });
-            setContentDescription("Dodaj widÅ¼et");
+            setContentDescription("Dodaj widżet");
         }
 
         @Override
@@ -376,7 +376,7 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
             text.setTextAlign(Paint.Align.CENTER);
             text.setTypeface(Typeface.DEFAULT);
             text.setTextSize(16f * getResources().getDisplayMetrics().scaledDensity);
-            cv.drawText("Dodaj widÅ¼et", cx, cy + 22 * d, text);
+            cv.drawText("Dodaj widżet", cx, cy + 22 * d, text);
         }
     }
 }

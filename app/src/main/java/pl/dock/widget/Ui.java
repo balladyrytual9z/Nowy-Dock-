@@ -18,10 +18,10 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 
-// WspÃ³lne elementy interfejsu w stylu CarPlay / Apple
+// Wspólne elementy interfejsu w stylu CarPlay / Apple
 public class Ui {
 
-    // Okna ustawieÅ i podrÄczne zaczynajÄ siÄ obok docka, wiÄc dock zostaje widoczny i klikalny
+    // Okna ustawień i podręczne zaczynają się obok docka, więc dock zostaje widoczny i klikalny
     public static final int DOCK_OFFSET_DP = 77;
 
     public static int dp(Context c, float v) {
@@ -54,7 +54,7 @@ public class Ui {
         return g;
     }
 
-    // tÅo ekranu ustawieÅ â Apple-like soft wallpaper gradient with glass feel
+    // tło ekranu ustawień – Apple-like soft wallpaper gradient with glass feel
     public static GradientDrawable pageBg(Context c, boolean night) {
         GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 night ? new int[]{0xFF0B0B12, 0xFF1A1A2E, 0xFF12121A, 0xFF000000}
@@ -65,7 +65,7 @@ public class Ui {
         return g;
     }
 
-    // karta z listÄ (jak w ustawieniach CarPlay / Apple)
+    // karta z listą (jak w ustawieniach CarPlay / Apple)
     public static GradientDrawable cardBg(Context c, boolean night) {
         GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                 night ? new int[]{0xE0282830, 0xE01E1E24}
@@ -74,7 +74,7 @@ public class Ui {
         return g;
     }
 
-    // okno podrÄczne (jak wyskakujÄce menu Apple)
+    // okno podręczne (jak wyskakujące menu Apple)
     public static GradientDrawable popupBg(Context c, boolean night) {
         GradientDrawable g = new GradientDrawable();
         g.setColor(night ? 0xF20E0E0F : 0xF2F5F5F7);
@@ -83,7 +83,7 @@ public class Ui {
         return g;
     }
 
-    // karta w kolorze docka (noc: #131418) z ramkÄ jaÅniejszÄ od lewego gÃ³rnego rogu
+    // karta w kolorze docka (noc: #131418) z ramką jaśniejszą od lewego górnego rogu
     public static void ringCard(Canvas cv, RectF r, float radius, float stroke, boolean night,
                                 boolean ring) {
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -116,7 +116,7 @@ public class Ui {
 
     /**
      * Approximate iOS squircle (superellipse) using cubic Bezier control points.
-     * @param curvature 0.2â0.45 (higher = closer to circle)
+     * @param curvature 0.2–0.45 (higher = closer to circle)
      */
     public static Path squirclePath(RectF r, float curvature) {
         Path path = new Path();
@@ -144,10 +144,10 @@ public class Ui {
         cv.drawPath(squirclePath(r, curvature), p);
     }
 
-    // ------------------------------------------------------------ strzaÅka / znacznik
+    // ------------------------------------------------------------ strzałka / znacznik
     public static class Chev extends View {
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final int dir;   // 0 >, 1 ^, 2 v, 3 <, 4 â
+        private final int dir;   // 0 >, 1 ^, 2 v, 3 <, 4 ✓
 
         public Chev(Context c, int dir, int color) {
             super(c);
@@ -190,7 +190,7 @@ public class Ui {
         }
     }
 
-    // ------------------------------------------------------------ przeÅÄcznik jak w iOS
+    // ------------------------------------------------------------ przełącznik jak w iOS
     public static class IosSwitch extends View {
         public interface Listener {
             void onChanged(boolean on);

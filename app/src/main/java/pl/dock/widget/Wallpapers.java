@@ -7,7 +7,7 @@ import android.graphics.Paint;
 import android.graphics.RadialGradient;
 import android.graphics.Shader;
 
-// Zestaw tapet w stylu CarPlay (kaÅ¼da w wersji dziennej i nocnej). Tryb nocny: czerÅ.
+// Zestaw tapet w stylu CarPlay (każda w wersji dziennej i nocnej). Tryb nocny: czerń.
 public class Wallpapers {
 
     public static class Style {
@@ -33,13 +33,13 @@ public class Wallpapers {
     public static final Style[] ALL = {
             new Style("graphite", "Grafit", 0xFF000000, 0xFF26262A, 0xFF18181B,
                     0xFFE8E8ED, 0xFFFAFAFC, 0xFFD6D6DC, true),
-            new Style("carbon", "WÄgiel", 0xFF000000, 0xFF111113, 0xFF0A0A0B,
+            new Style("carbon", "Węgiel", 0xFF000000, 0xFF111113, 0xFF0A0A0B,
                     0xFFECECF0, 0xFFF7F7FA, 0xFFE0E0E5, false),
             new Style("aurora", "Zorza", 0xFF000000, 0xFF0D2A22, 0xFF10192A,
                     0xFFDDEEE8, 0xFFC4E6DA, 0xFFC8D4EE, true),
             new Style("ocean", "Ocean", 0xFF000000, 0xFF0B2133, 0xFF09121F,
                     0xFFDCE8F4, 0xFFBFD8F0, 0xFFD2E0F2, true),
-            new Style("ember", "Å»ar", 0xFF000000, 0xFF30150D, 0xFF1F0F0B,
+            new Style("ember", "Żar", 0xFF000000, 0xFF30150D, 0xFF1F0F0B,
                     0xFFF4E6DE, 0xFFF0D2C2, 0xFFEBDCD2, true),
             new Style("violet", "Fiolet", 0xFF000000, 0xFF220F34, 0xFF150B23,
                     0xFFE9E1F4, 0xFFDACBF0, 0xFFE2D8F0, true),

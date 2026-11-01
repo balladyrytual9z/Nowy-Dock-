@@ -17,7 +17,7 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// NapiÄcie tabletu z wybranego ÅºrÃ³dÅa
+// Napięcie tabletu z wybranego źródła
 public class Volt {
 
     static Intent batt(Context c) {
@@ -31,7 +31,7 @@ public class Volt {
             String s = r.readLine();
             return s == null ? "?" : s.trim();
         } catch (Throwable t) {
-            return "brak dostÄpu";
+            return "brak dostępu";
         } finally {
             try {
                 if (r != null) r.close();
@@ -86,7 +86,7 @@ public class Volt {
             if ("file".equals(src)) {
                 raw = parse(readRaw(Prefs.voltPath(c)));
             } else if ("bcast".equals(src)) {
-                // wartoÅÄ starsza niÅ¼ 2 min = ÅºrÃ³dÅo milczy (np. aplikacja OBD zamkniÄta)
+                // wartość starsza niż 2 min = źródło milczy (np. aplikacja OBD zamknięta)
                 float v = Prefs.bcastVal(c);
                 boolean fresh = System.currentTimeMillis() - Prefs.bcastTs(c) < 120000L;
                 if (v > 0 && fresh) raw = (double) v;
@@ -118,7 +118,7 @@ public class Volt {
         return "Bateria Androida";
     }
 
-    // pliki z napiÄciem w /sys/class/power_supply
+    // pliki z napięciem w /sys/class/power_supply
     public static List<String> discoverFiles() {
         List<String> out = new ArrayList<String>();
         try {

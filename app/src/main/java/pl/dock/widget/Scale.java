@@ -5,10 +5,10 @@ import android.content.Context;
 import android.content.res.Configuration;
 import android.util.DisplayMetrics;
 
-// Skala interfejsu zaleÅ¼na tylko od rozmiaru ekranu i ustawienia w Docku,
+// Skala interfejsu zależna tylko od rozmiaru ekranu i ustawienia w Docku,
 // a nie od systemowego ustawienia "Rozmiar interfejsu" / "Rozmiar czcionki".
 public class Scale {
-    // 214 dpi na ekranie 1280x720 = wyglÄd zaprojektowany w Docku
+    // 214 dpi na ekranie 1280x720 = wygląd zaprojektowany w Docku
     private static final float BASE_DPI = 214f;
 
     public static float user(Context base) {

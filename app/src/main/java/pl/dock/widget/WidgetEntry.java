@@ -3,7 +3,7 @@ package pl.dock.widget;
 
 import org.json.JSONObject;
 
-// WidÅ¼et systemowy Androida umieszczony w launcherze
+// Widżet systemowy Androida umieszczony w launcherze
 public class WidgetEntry {
     public int id;                 // appWidgetId
     public String where = "home";  // home | s1 | s2 | s3
