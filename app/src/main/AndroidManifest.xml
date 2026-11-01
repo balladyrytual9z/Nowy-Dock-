@@ -135,6 +135,48 @@
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden|density|uiMode" />
 
+        <!-- Faza 5: Terminal AT/OBD (surowe komendy ELM327) -->
+        <activity
+            android:name=".terminal.ObdTerminalActivity"
+            android:label="Terminal OBD"
+            android:launchMode="singleTop"
+            android:exported="false" />
+
+        <!-- Faza 5: Ustawienia OBD (5 zakladek) -->
+        <activity
+            android:name=".settings.ObdSettingsActivity"
+            android:label="Ustawienia OBD"
+            android:launchMode="singleTop"
+            android:exported="false" />
+
+        <!-- Faza 5: E-RAPORT (raport stanu + DTC + share) -->
+        <activity
+            android:name=".report.EReportActivity"
+            android:label="E-Raport"
+            android:launchMode="singleTop"
+            android:exported="false" />
+
+        <!-- Faza 5: Black Box UI (przeglad + eksport CSV) -->
+        <activity
+            android:name=".blackbox.BlackBoxActivity"
+            android:label="Black Box"
+            android:launchMode="singleTop"
+            android:exported="false" />
+
+        <!-- Faza 5: Trip / Best Runs (0-100 km/h) -->
+        <activity
+            android:name=".trip.TripActivity"
+            android:label="Trip i Best Runs"
+            android:launchMode="singleTop"
+            android:exported="false" />
+
+        <!-- Faza 5: Maintenance (olej / filtr / rozrzad) -->
+        <activity
+            android:name=".maintenance.MaintenanceActivity"
+            android:label="Serwis"
+            android:launchMode="singleTop"
+            android:exported="false" />
+
         <receiver
             android:name=".DockWidget"
             android:exported="true">

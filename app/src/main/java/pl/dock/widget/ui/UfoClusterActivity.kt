@@ -9,12 +9,11 @@ import android.widget.Toast
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import pl.dock.widget.ConfigActivity
 import pl.dock.widget.ObdCoreService
 import pl.dock.widget.dashboard.CarPlayDashboardActivity
 import pl.dock.widget.diagnostics.DtcManagerActivity
 import pl.dock.widget.orchestration.ConnectionManager
-import pl.dock.widget.ui.UfoClusterFullView
+import pl.dock.widget.settings.ObdSettingsActivity
 
 /**
  * Pelnoekranowy host zegara Honda OEM UFO Cluster (1280x720).
@@ -55,8 +54,13 @@ class UfoClusterActivity : Activity() {
             startActivity(Intent(this, CarPlayDashboardActivity::class.java))
             finish()
         }
-        cluster.onOpenSettings = { startActivity(Intent(this, ConfigActivity::class.java)) }
+        cluster.onOpenSettings = { startActivity(Intent(this, ObdSettingsActivity::class.java)) }
         cluster.onSpeedTap = { cluster.toggleUnits() }
+
+        // progi zegarow z ustawien (ObdSettingsActivity)
+        val sp = getSharedPreferences("obd_settings", MODE_PRIVATE)
+        cluster.redlineRpm = sp.getString("redline_rpm", "6500")?.toIntOrNull() ?: 6500
+        cluster.vtecRpm = sp.getString("vtec_rpm", "5200")?.toIntOrNull() ?: 5200
 
         ObdCoreService.start(this)
 

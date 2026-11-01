@@ -13,30 +13,31 @@ import android.widget.TextView
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import pl.dock.widget.blackbox.BlackBoxActivity
 import pl.dock.widget.dashboard.CarPlayDashboardActivity
 import pl.dock.widget.diagnostics.DtcManagerActivity
 import pl.dock.widget.diagnostics.MisfireLabActivity
+import pl.dock.widget.maintenance.MaintenanceActivity
 import pl.dock.widget.orchestration.ConnectionManager
-import pl.dock.widget.repository.VehicleUiState
-import pl.dock.widget.ui.SpinnerView
-import pl.dock.widget.ui.UfoClusterView
+import pl.dock.widget.report.EReportActivity
+import pl.dock.widget.settings.ObdSettingsActivity
+import pl.dock.widget.terminal.ObdTerminalActivity
+import pl.dock.widget.trip.TripActivity
 import pl.dock.widget.ui.UfoClusterActivity
 
 /**
- * Honda OBD Discovery - ekran startowy z nawigacja do modulow.
+ * Honda OBD Discovery - centrum dowodzenia modulami OBD.
  * Obserwuje [ConnectionManager.uiState] - zero bezposredniego Bluetooth w UI.
+ * Zakaz fabryzacji: brak danych = wyswietlone "-", nigdy zmyslone wartosci.
  */
 class ObdDiscoveryActivity : Activity() {
 
     private lateinit var manager: ConnectionManager
     private lateinit var statusTv: TextView
     private lateinit var dataTv: TextView
-    private lateinit var spinner: SpinnerView
-    private lateinit var cluster: UfoClusterView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         manager = ConnectionManager.get(applicationContext)
 
         val root = LinearLayout(this).apply {
@@ -55,15 +56,6 @@ class ObdDiscoveryActivity : Activity() {
             setTextColor(Color.parseColor("#E5E5EA"))
             setPadding(0, 16, 0, 0)
         }
-        spinner = SpinnerView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(96, 96)
-        }
-        cluster = UfoClusterView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 320
-            )
-        }
-
         root.addView(statusTv)
 
         // nawigacja do modulow
@@ -80,11 +72,28 @@ class ObdDiscoveryActivity : Activity() {
         nav.addView(navBtn("DTC MANAGER") {
             startActivity(Intent(this, DtcManagerActivity::class.java))
         })
+        nav.addView(navBtn("TERMINAL AT/OBD") {
+            startActivity(Intent(this, ObdTerminalActivity::class.java))
+        })
+        nav.addView(navBtn("BLACK BOX") {
+            startActivity(Intent(this, BlackBoxActivity::class.java))
+        })
+        nav.addView(navBtn("TRIP / BEST RUNS") {
+            startActivity(Intent(this, TripActivity::class.java))
+        })
+        nav.addView(navBtn("MAINTENANCE") {
+            startActivity(Intent(this, MaintenanceActivity::class.java))
+        })
+        nav.addView(navBtn("E-RAPORT") {
+            startActivity(Intent(this, EReportActivity::class.java))
+        })
+        nav.addView(navBtn("USTAWIENIA OBD") {
+            startActivity(Intent(this, ObdSettingsActivity::class.java))
+        })
         root.addView(nav)
 
-        root.addView(cluster)
-        root.addView(spinner)
-        root.addView(ScrollView(this).apply { addView(dataTv) })
+        root.addView(ScrollView(this).apply { addView(dataTv) }, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(root)
 
         // OBD core: czarna skrzynka + analityka dzialaja tez poza UI
@@ -107,20 +116,16 @@ class ObdDiscoveryActivity : Activity() {
             }
             setOnClickListener { onClick() }
             layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 92
-            ).apply { topMargin = 10 }
+                LinearLayout.LayoutParams.MATCH_PARENT, 84
+            ).apply { topMargin = 8 }
         }
 
-    private fun render(s: VehicleUiState) {
+    private fun render(s: pl.dock.widget.repository.VehicleUiState) {
         statusTv.text = when {
             s.connecting -> "Laczenie..."
             s.connected -> "Polaczono - " + s.adapterName
-            else -> "Rozlaczono" + (s.lastError?.let { " - $it" } ?: "")
+            else -> "Rozlaczono" + (s.lastError?.let { " - " + it } ?: "")
         }
-        spinner.visibility = if (s.connecting) android.view.View.VISIBLE else android.view.View.GONE
-        cluster.update(s.rpm, s.speedKmh, s.voltage, s.ectC, s.connected)
-        ObdWidgetProvider.push(this, s.rpm, s.speedKmh, s.voltage, s.connected)
-
         dataTv.text = buildString {
             appendLine("Protokol: " + (s.protocol.ifEmpty { "-" }))
             appendLine("Stan silnika: " + s.engineState)
@@ -135,20 +140,13 @@ class ObdDiscoveryActivity : Activity() {
             appendLine("STFT: " + fmt(s.stftPct) + " %" + stale(s.staleFlags.stft))
             appendLine("LTFT: " + fmt(s.ltftPct) + " %" + stale(s.staleFlags.ltft))
         }
+        ObdWidgetProvider.push(this, s.rpm, s.speedKmh, s.voltage, s.connected)
     }
 
-    private fun fmt(v: Float): String =
-        if (v.isNaN()) "-" else String.format("%.1f", v)
+    private fun fmt(v: Float): String = if (v.isNaN()) "-" else String.format("%.1f", v)
 
     private fun stale(flag: Boolean): String = if (flag) " [stale]" else ""
 
-    override fun onStop() {
-        super.onStop()
-        manager.onAppBackground()
-    }
-
-    override fun onStart() {
-        super.onStart()
-        manager.onAppForeground()
-    }
+    override fun onStart() { super.onStart(); manager.onAppForeground() }
+    override fun onStop() { super.onStop(); manager.onAppBackground() }
 }
