@@ -1,4 +1,4 @@
-# CI failure log (run 41306629656)
+# CI failure log (run 41306800186)
 
 ## build.log
 
@@ -29,13 +29,14 @@ to this project's gradle.properties.
 > Task :app:generateDebugResValues
 > Task :app:mapDebugSourceSetPaths
 > Task :app:generateDebugResources
-> Task :app:packageDebugResources
 > Task :app:mergeDebugResources
+> Task :app:packageDebugResources
 > Task :app:createDebugCompatibleScreenManifests
 > Task :app:extractDeepLinksDebug
 > Task :app:parseDebugLocalResources
 > Task :app:processDebugMainManifest
 > Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
 > Task :app:javaPreCompileDebug
 > Task :app:mergeDebugShaders
 > Task :app:compileDebugShaders NO-SOURCE
@@ -49,11 +50,10 @@ to this project's gradle.properties.
 > Task :app:mergeDebugNativeLibs NO-SOURCE
 > Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:mergeLibDexDebug
+> Task :app:processDebugResources
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
 > Task :app:writeDebugSigningConfigVersions
-> Task :app:processDebugManifestForPackage
-> Task :app:processDebugResources
 > Task :app:mergeExtDexDebug
 
 > Task :app:compileDebugKotlin
@@ -69,12 +69,236 @@ w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widg
 w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/transport/SppTransport.kt:87:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
 w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/transport/SppTransport.kt:105:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
 
+> Task :app:compileDebugJavaWithJavac
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolGrid.java:97: error: package PanelTool does not exist
+    private Item addItem(PanelTool.Def def) {
+                                  ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolGrid.java:36: error: package PanelTool does not exist
+        PanelTool.Def def;
+                 ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolGrid.java:26: error: package PanelTool does not exist
+        View create(PanelTool.Def d);
+                             ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolGrid.java:29: error: package PanelTool does not exist
+        void onTool(PanelTool.Def d, boolean longPress);
+                             ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolGrid.java:473: error: package PanelTool does not exist
+        private final PanelTool.Def def;
+                               ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolGrid.java:480: error: package PanelTool does not exist
+        Tile(Context c, final PanelTool.Def def, boolean night, final Host host, ToolGrid grid) {
+                                       ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityPanel.java:178: error: package PanelTool does not exist
+    private View makeView(PanelTool.Def d) {
+                                   ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityPanel.java:284: error: package PanelTool does not exist
+    private void openShortcut(PanelTool.Def d) {
+                                       ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityPanel.java:307: error: package PanelTool does not exist
+    private void runTool(PanelTool.Def d, boolean longPress) {
+                                  ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:174: error: package PanelTool does not exist
+        private final PanelTool.Def def;
+                               ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:180: error: package PanelTool does not exist
+        Cell(Context c, PanelTool.Def def, boolean night, boolean added) {
+                                 ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolGrid.java:90: error: package PanelTool does not exist
+            PanelTool.Def def = PanelTool.find(id);
+                     ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolGrid.java:90: error: cannot find symbol
+            PanelTool.Def def = PanelTool.find(id);
+                                ^
+  symbol:   variable PanelTool
+  location: class ToolGrid
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolGrid.java:124: error: package PanelTool does not exist
+        PanelTool.Def def = PanelTool.find(id);
+                 ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolGrid.java:124: error: cannot find symbol
+        PanelTool.Def def = PanelTool.find(id);
+                            ^
+  symbol:   variable PanelTool
+  location: class ToolGrid
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolGrid.java:504: error: cannot find symbol
+            on = PanelTool.isOn(getContext(), def);
+                 ^
+  symbol:   variable PanelTool
+  location: class Tile
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolGrid.java:547: error: cannot find symbol
+            int fill = def.kind == PanelTool.K_APP ? 0x00000000 : on ? PanelTool.onColor(def) : (night ? 0xFF3A3A3C : 0xFF8E8E93);
+                                   ^
+  symbol:   variable PanelTool
+  location: class Tile
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolGrid.java:547: error: cannot find symbol
+            int fill = def.kind == PanelTool.K_APP ? 0x00000000 : on ? PanelTool.onColor(def) : (night ? 0xFF3A3A3C : 0xFF8E8E93);
+                                                                       ^
+  symbol:   variable PanelTool
+  location: class Tile
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolGrid.java:551: error: cannot find symbol
+            if (def.kind == PanelTool.K_APP) {
+                            ^
+  symbol:   variable PanelTool
+  location: class Tile
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolGrid.java:563: error: cannot find symbol
+                    PanelTool.glyph(cv, "apps", cx, cy, dia / 2f, 0xFFFFFFFF);
+                    ^
+  symbol:   variable PanelTool
+  location: class Tile
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolGrid.java:566: error: cannot find symbol
+                PanelTool.glyph(cv, def.glyph, cx, cy, dia / 2f, 0xFFFFFFFF);
+                ^
+  symbol:   variable PanelTool
+  location: class Tile
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/AppsGridPage.java:388: error: incompatible types: long cannot be converted to Integer
+                    used.add(it.entry.id);
+                                     ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:70: error: reference to setTheme is ambiguous
+        setTheme(night ? R.style.Dock_Night : R.style.Dock_Day);
+        ^
+  both method setTheme(Resources.Theme) in ContextThemeWrapper and method setTheme(int) in Activity match
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:70: error: cannot find symbol
+        setTheme(night ? R.style.Dock_Night : R.style.Dock_Day);
+                          ^
+  symbol:   variable style
+  location: class R
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:70: error: cannot find symbol
+        setTheme(night ? R.style.Dock_Night : R.style.Dock_Day);
+                                               ^
+  symbol:   variable style
+  location: class R
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityPanel.java:71: error: cannot find symbol
+        PanelTool.init(a);
+        ^
+  symbol:   variable PanelTool
+  location: class ConnectivityPanel
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityPanel.java:118: error: package PanelTool does not exist
+            public View create(PanelTool.Def d) {
+                                        ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityPanel.java:123: error: package PanelTool does not exist
+            public void onTool(PanelTool.Def d, boolean longPress) {
+                                        ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityPanel.java:129: error: cannot find symbol
+                PanelTool.save(act, ids);
+                ^
+  symbol: variable PanelTool
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityPanel.java:133: error: cannot find symbol
+        grid.setTools(PanelTool.load(act));
+                      ^
+  symbol:   variable PanelTool
+  location: class ConnectivityPanel
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityPanel.java:179: error: cannot find symbol
+        if (d.kind == PanelTool.K_VOLUME) {
+                      ^
+  symbol:   variable PanelTool
+  location: class ConnectivityPanel
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityPanel.java:190: error: cannot find symbol
+        if (d.kind == PanelTool.K_BRIGHT) {
+                      ^
+  symbol:   variable PanelTool
+  location: class ConnectivityPanel
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityPanel.java:201: error: cannot find symbol
+        if (d.kind == PanelTool.K_MODE) {
+                      ^
+  symbol:   variable PanelTool
+  location: class ConnectivityPanel
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityPanel.java:308: error: cannot find symbol
+        if (d.kind == PanelTool.K_APP) {
+                      ^
+  symbol:   variable PanelTool
+  location: class ConnectivityPanel
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityPanel.java:310: error: cannot find symbol
+            else if (PanelTool.launchApp(act, d)) host.close();
+                     ^
+  symbol:   variable PanelTool
+  location: class ConnectivityPanel
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityPanel.java:314: error: cannot find symbol
+        if (d.kind == PanelTool.K_SHORTCUT) {
+                      ^
+  symbol:   variable PanelTool
+  location: class ConnectivityPanel
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityPanel.java:344: error: cannot find symbol
+            else if (!PanelTool.toggleTorch(act)) unavailable();
+                      ^
+  symbol:   variable PanelTool
+  location: class ConnectivityPanel
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:120: error: package PanelTool does not exist
+        List<PanelTool.Def> apps = PanelTool.installedApps(a);
+                      ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:120: error: cannot find symbol
+        List<PanelTool.Def> apps = PanelTool.installedApps(a);
+                                   ^
+  symbol:   variable PanelTool
+  location: class ToolPicker
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:122: error: cannot find symbol
+        String[] cats = {PanelTool.CAT_TOOLS, PanelTool.CAT_SETTINGS, PanelTool.CAT_APPS};
+                         ^
+  symbol:   variable PanelTool
+  location: class ToolPicker
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:122: error: cannot find symbol
+        String[] cats = {PanelTool.CAT_TOOLS, PanelTool.CAT_SETTINGS, PanelTool.CAT_APPS};
+                                              ^
+  symbol:   variable PanelTool
+  location: class ToolPicker
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:122: error: cannot find symbol
+        String[] cats = {PanelTool.CAT_TOOLS, PanelTool.CAT_SETTINGS, PanelTool.CAT_APPS};
+                                                                      ^
+  symbol:   variable PanelTool
+  location: class ToolPicker
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:125: error: package PanelTool does not exist
+            List<PanelTool.Def> defs = new ArrayList<PanelTool.Def>();
+                          ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:125: error: package PanelTool does not exist
+            List<PanelTool.Def> defs = new ArrayList<PanelTool.Def>();
+                                                              ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:126: error: package PanelTool does not exist
+            List<PanelTool.Def> src = PanelTool.CAT_APPS.equals(cat) ? apps : PanelTool.all();
+                          ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:126: error: package PanelTool does not exist
+            List<PanelTool.Def> src = PanelTool.CAT_APPS.equals(cat) ? apps : PanelTool.all();
+                                               ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:126: error: cannot find symbol
+            List<PanelTool.Def> src = PanelTool.CAT_APPS.equals(cat) ? apps : PanelTool.all();
+                                                                              ^
+  symbol:   variable PanelTool
+  location: class ToolPicker
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:127: error: package PanelTool does not exist
+            for (PanelTool.Def d : src) {
+                          ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:129: error: cannot find symbol
+                if (!PanelTool.available(a, d)) continue;
+                     ^
+  symbol:   variable PanelTool
+  location: class ToolPicker
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:144: error: package PanelTool does not exist
+                        final PanelTool.Def def = defs.get(i + j);
+                                       ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:209: error: cannot find symbol
+            if (def.kind != PanelTool.K_APP) cv.drawCircle(cx, cy, dia / 2f, p);
+                            ^
+  symbol:   variable PanelTool
+  location: class Cell
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:210: error: cannot find symbol
+            if (def.kind == PanelTool.K_APP) {
+                            ^
+  symbol:   variable PanelTool
+  location: class Cell
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolPicker.java:224: error: cannot find symbol
+                PanelTool.glyph(cv, def.glyph, cx, cy, dia / 2f, added ? 0x80FFFFFF : 0xFFFFFFFF);
+                ^
+  symbol:   variable PanelTool
+  location: class Cell
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/BootReceiver.java:13: error: cannot find symbol
+        pl.dock.widget.ObdCoreService.start(context);
+                                     ^
+  symbol:   method start(Context)
+  location: class ObdCoreService
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some messages have been simplified; recompile with -Xdiags:verbose to get full output
+54 errors
+
 > Task :app:compileDebugJavaWithJavac FAILED
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/StatusService.java:180: error: reached end of file while parsing
-        registerReceiver(modeReceiver, modeFilter);
-                                                   ^
-1 error
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1793536113985.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1793536264894.json
 
 FAILURE: Build failed with an exception.
 
@@ -117,6 +341,35 @@ org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:com
 	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
+	at org.gradle.execution.plan.DefaultPlanExecutor.process(DefaultPlanExecutor.java:111)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.executeWithServices(DefaultTaskExecutionGraph.java:138)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.execute(DefaultTaskExecutionGraph.java:123)
+	at org.gradle.execution.SelectedTaskExecutionAction.execute(SelectedTaskExecutionAction.java:35)
+	at org.gradle.execution.DryRunBuildExecutionAction.execute(DryRunBuildExecutionAction.java:51)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:54)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:43)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor.execute(BuildOperationFiringBuildWorkerExecutor.java:40)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$executeTasks$10(DefaultBuildLifecycleController.java:313)
+	at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.java:266)
+	at org.gradle.internal.model.StateTransitionController.lambda$tryTransition$8(StateTransitionController.java:177)
+	at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:44)
+	at org.gradle.internal.model.StateTransitionController.tryTransition(StateTransitionController.java:177)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.executeTasks(DefaultBuildLifecycleController.java:304)
+	at org.gradle.internal.build.DefaultBuildWorkGraphController$DefaultBuildWorkGraph.runWork(DefaultBuildWorkGraphController.java:220)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:267)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:131)
+	at org.gradle.composite.internal.DefaultBuildController.doRun(DefaultBuildController.java:181)
+	at org.gradle.composite.internal.DefaultBuildController.access$000(DefaultBuildController.java:50)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.lambda$run$0(DefaultBuildController.java:198)
+	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Compilation failed; see the compiler error output for details.
@@ -269,11 +522,40 @@ Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Com
 	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
+	at org.gradle.execution.plan.DefaultPlanExecutor.process(DefaultPlanExecutor.java:111)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.executeWithServices(DefaultTaskExecutionGraph.java:138)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.execute(DefaultTaskExecutionGraph.java:123)
+	at org.gradle.execution.SelectedTaskExecutionAction.execute(SelectedTaskExecutionAction.java:35)
+	at org.gradle.execution.DryRunBuildExecutionAction.execute(DryRunBuildExecutionAction.java:51)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:54)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:43)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor.execute(BuildOperationFiringBuildWorkerExecutor.java:40)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$executeTasks$10(DefaultBuildLifecycleController.java:313)
+	at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.java:266)
+	at org.gradle.internal.model.StateTransitionController.lambda$tryTransition$8(StateTransitionController.java:177)
+	at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:44)
+	at org.gradle.internal.model.StateTransitionController.tryTransition(StateTransitionController.java:177)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.executeTasks(DefaultBuildLifecycleController.java:304)
+	at org.gradle.internal.build.DefaultBuildWorkGraphController$DefaultBuildWorkGraph.runWork(DefaultBuildWorkGraphController.java:220)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:267)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:131)
+	at org.gradle.composite.internal.DefaultBuildController.doRun(DefaultBuildController.java:181)
+	at org.gradle.composite.internal.DefaultBuildController.access$000(DefaultBuildController.java:50)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.lambda$run$0(DefaultBuildController.java:198)
+	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 
 
-BUILD FAILED in 25s
+BUILD FAILED in 32s
 30 actionable tasks: 29 executed, 1 up-to-date
 
 ## ci.log
