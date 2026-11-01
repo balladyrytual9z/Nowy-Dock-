@@ -843,6 +843,12 @@ public class ConnectivityPanel extends LinearLayout {
             p.setColor(night ? 0xFF3A3A3C : 0xFFD1D1D6);
             r.set(0, 0, w, h);
             cv.drawRoundRect(r, rad, rad, p);
+            // iOS 26 Liquid Glass: subtelny szklany obrys suwaka
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(1.2f * d);
+            p.setColor(night ? 0x33FFFFFF : 0x14000000);
+            cv.drawRoundRect(r, rad, rad, p);
+            p.setStyle(Paint.Style.FILL);
             // White fill from bottom
             int save = cv.save();
             Path clip = new Path();
