@@ -11,8 +11,8 @@ public final class AppCategorizer {
 
     public static final String CAT_SUGGESTIONS = "Sugestie";
     public static final String CAT_RECENT = "Ostatnio dodane";
-    public static final String CAT_SOCIAL = "SpoÅecznoÅci";
-    public static final String CAT_UTILITIES = "NarzÄdzia";
+    public static final String CAT_SOCIAL = "Społeczności";
+    public static final String CAT_UTILITIES = "Narzędzia";
     public static final String CAT_ENTERTAINMENT = "Rozrywka";
     public static final String CAT_PRODUCTIVITY = "Biurowe i finansowe";
     public static final String CAT_NAVIGATION = "Nawigacja";
@@ -51,7 +51,7 @@ public final class AppCategorizer {
                 || l.contains("messenger") || l.contains("whatsapp") || l.contains("telegram")
                 || l.contains("facebook") || l.contains("instagram") || l.contains("discord")
                 || l.contains("snapchat") || l.contains("viber") || l.contains("skype")
-                || l.contains("spoÅecz") || l.contains("komunikator")) {
+                || l.contains("społecz") || l.contains("komunikator")) {
             return CAT_SOCIAL;
         }
         if (NAV_PKGS.contains(pkg) || l.contains("map") || l.contains("nav") || l.contains("gps")
@@ -68,7 +68,7 @@ public final class AppCategorizer {
         }
         if (UTILITIES_PKGS.contains(pkg) || l.contains("setting") || l.contains("tool")
                 || l.contains("file") || l.contains("camera") || l.contains("galeri")
-                || l.contains("kalkulator") || l.contains("calculator") || l.contains("narzÄd")
+                || l.contains("kalkulator") || l.contains("calculator") || l.contains("narzęd")
                 || l.contains("ustawienia") || l.contains("galeria") || l.contains("aparat")
                 || l.contains("latarka") || l.contains("flashlight") || l.contains("timer")
                 || l.contains("zegar") || l.contains("clock")) {
@@ -76,8 +76,8 @@ public final class AppCategorizer {
         }
         if (l.contains("bank") || l.contains("office") || l.contains("pdf") || l.contains("mail")
                 || l.contains("notes") || l.contains("notat") || l.contains("excel")
-                || l.contains("word") || l.contains("docs") || l.contains("pÅatno")
-                || l.contains("finance") || l.contains("finanse") || l.contains("pÅatnoÅÄ")
+                || l.contains("word") || l.contains("docs") || l.contains("płatno")
+                || l.contains("finance") || l.contains("finanse") || l.contains("płatność")
                 || l.contains("przelew") || l.contains("wallet") || l.contains("portfel")) {
             return CAT_PRODUCTIVITY;
         }

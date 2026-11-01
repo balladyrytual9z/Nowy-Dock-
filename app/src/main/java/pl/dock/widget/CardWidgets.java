@@ -14,17 +14,17 @@ import android.view.View;
 import java.util.Calendar;
 import java.util.TimeZone;
 
-// Wbudowane widÅ¼ety jak w CarPlay: data, kalendarz, zegary Åwiata, pogoda, zachÃ³d sÅoÅca.
-// KaÅ¼dy odÅwieÅ¼a siÄ raz na minutÄ i tylko wtedy, gdy jest widoczny.
+// Wbudowane widżety jak w CarPlay: data, kalendarz, zegary świata, pogoda, zachód słońca.
+// Każdy odświeża się raz na minutę i tylko wtedy, gdy jest widoczny.
 public class CardWidgets {
 
-    static final String[] DAYS = {"Niedz.", "Pon.", "Wt.", "År.", "Czw.", "Pt.", "Sob."};
+    static final String[] DAYS = {"Niedz.", "Pon.", "Wt.", "Śr.", "Czw.", "Pt.", "Sob."};
     static final String[] MONTHS = {"Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz",
-            "PaÅº", "Lis", "Gru"};
-    static final String[] MONTHS_FULL = {"STYCZEÅ", "LUTY", "MARZEC", "KWIECIEÅ", "MAJ", "CZERWIEC",
-            "LIPIEC", "SIERPIEÅ", "WRZESIEÅ", "PAÅ¹DZIERNIK", "LISTOPAD", "GRUDZIEÅ"};
+            "Paź", "Lis", "Gru"};
+    static final String[] MONTHS_FULL = {"STYCZEŃ", "LUTY", "MARZEC", "KWIECIEŃ", "MAJ", "CZERWIEC",
+            "LIPIEC", "SIERPIEŃ", "WRZESIEŃ", "PAŹDZIERNIK", "LISTOPAD", "GRUDZIEŃ"};
 
-    // wspÃ³lna baza: tryb, odÅwieÅ¼anie co minutÄ, rysowanie tekstu
+    // wspólna baza: tryb, odświeżanie co minutę, rysowanie tekstu
     abstract static class Base extends View implements NightAware {
         final float d;
         final float sd;
@@ -101,7 +101,7 @@ public class CardWidgets {
         }
     }
 
-    // ------------------------------------------------------------ data (duÅ¼a cyfra)
+    // ------------------------------------------------------------ data (duża cyfra)
     public static class DateCard extends Base {
         public DateCard(Context c) {
             super(c);
@@ -132,7 +132,7 @@ public class CardWidgets {
         }
     }
 
-    // ------------------------------------------------------------ kalendarz miesiÄczny
+    // ------------------------------------------------------------ kalendarz miesięczny
     public static class CalendarCard extends Base {
         public CalendarCard(Context c) {
             super(c);
@@ -146,14 +146,14 @@ public class CardWidgets {
             int today = now.get(Calendar.DAY_OF_MONTH);
             Calendar first = (Calendar) now.clone();
             first.set(Calendar.DAY_OF_MONTH, 1);
-            int offset = (first.get(Calendar.DAY_OF_WEEK) + 5) % 7;   // poniedziaÅek = 0
+            int offset = (first.get(Calendar.DAY_OF_WEEK) + 5) % 7;   // poniedziałek = 0
             int days = now.getActualMaximum(Calendar.DAY_OF_MONTH);
             float w = getWidth();
             float h = getHeight();
             float pad = w * 0.07f;
             text(cv, MONTHS_FULL[now.get(Calendar.MONTH)], pad, h * 0.13f, 17, 0xFFFF453A, true,
                     Paint.Align.LEFT);
-            String[] hd = {"P", "W", "Å", "C", "P", "S", "N"};
+            String[] hd = {"P", "W", "Ś", "C", "P", "S", "N"};
             float cw = (w - 2 * pad) / 7f;
             for (int i = 0; i < 7; i++) {
                 text(cv, hd[i], pad + cw * i + cw / 2f, h * 0.26f, 14, i >= 5 ? sub() : fg(), true,
@@ -180,7 +180,7 @@ public class CardWidgets {
         }
     }
 
-    // ------------------------------------------------------------ zegary Åwiata
+    // ------------------------------------------------------------ zegary świata
     public static class WorldClockCard extends Base {
         private static final String[] CODES = {"CUP", "TOK", "SYD", "PAR"};
         private static final String[] ZONES = {"America/Los_Angeles", "Asia/Tokyo",
@@ -188,7 +188,7 @@ public class CardWidgets {
 
         public WorldClockCard(Context c) {
             super(c);
-            setContentDescription("Zegary Åwiata");
+            setContentDescription("Zegary świata");
         }
 
         @Override
@@ -284,17 +284,17 @@ public class CardWidgets {
             }
             float pad = w * 0.02f;
             text(cv, WeatherData.city, pad, h * 0.10f, 26, fg(), true, Paint.Align.LEFT);
-            text(cv, Math.round(WeatherData.temp) + "Â°", pad, h * 0.34f, 70, fg(), true,
+            text(cv, Math.round(WeatherData.temp) + "°", pad, h * 0.34f, 70, fg(), true,
                     Paint.Align.LEFT);
             cloud(cv, w - w * 0.12f, h * 0.08f, w * 0.12f, WeatherData.code >= 51);
-            text(cv, "â" + Math.round(WeatherData.tMax) + "Â°", w - pad, h * 0.22f, 22, fg(), true,
+            text(cv, "↑" + Math.round(WeatherData.tMax) + "°", w - pad, h * 0.22f, 22, fg(), true,
                     Paint.Align.RIGHT);
-            text(cv, "â" + Math.round(WeatherData.tMin) + "Â°", w - pad, h * 0.31f, 22, sub(), true,
+            text(cv, "↓" + Math.round(WeatherData.tMin) + "°", w - pad, h * 0.31f, 22, sub(), true,
                     Paint.Align.RIGHT);
             String[] k = {"Opady", "Wiatr", "UVI", "Odczuwalna"};
             String[] v = {WeatherData.pop + "%", Math.round(WeatherData.wind) + " m/s",
                     Math.round(WeatherData.uv) + " " + WeatherData.uvLabel(),
-                    Math.round(WeatherData.feels) + "Â°"};
+                    Math.round(WeatherData.feels) + "°"};
             for (int i = 0; i < 4; i++) {
                 float y = h * (0.50f + i * 0.155f);
                 text(cv, k[i], pad, y, 24, fg(), true, Paint.Align.LEFT);
@@ -303,11 +303,11 @@ public class CardWidgets {
         }
     }
 
-    // ------------------------------------------------------------ zachÃ³d sÅoÅca
+    // ------------------------------------------------------------ zachód słońca
     public static class SunCard extends Base {
         public SunCard(Context c) {
             super(c);
-            setContentDescription("ZachÃ³d sÅoÅca");
+            setContentDescription("Zachód słońca");
         }
 
         @Override
@@ -334,10 +334,10 @@ public class CardWidgets {
             cv.drawLine(pad, h * 0.17f, pad + 28f * d, h * 0.17f, p);
             cv.drawArc(new RectF(pad + 4f * d, h * 0.09f, pad + 24f * d, h * 0.17f + 6f * d), 180,
                     180, false, p);
-            text(cv, "ZACHÃD", pad + 40f * d, h * 0.14f, 22, fg(), true, Paint.Align.LEFT);
-            text(cv, "SÅOÅCA", pad + 40f * d, h * 0.23f, 22, fg(), true, Paint.Align.LEFT);
+            text(cv, "ZACHÓD", pad + 40f * d, h * 0.14f, 22, fg(), true, Paint.Align.LEFT);
+            text(cv, "SŁOŃCA", pad + 40f * d, h * 0.23f, 22, fg(), true, Paint.Align.LEFT);
             text(cv, WeatherData.sunset, pad, h * 0.55f, 54, fg(), true, Paint.Align.LEFT);
-            text(cv, "WschÃ³d: " + WeatherData.sunrise, pad, h * 0.86f, 22, fg(), true,
+            text(cv, "Wschód: " + WeatherData.sunrise, pad, h * 0.86f, 22, fg(), true,
                     Paint.Align.LEFT);
         }
     }

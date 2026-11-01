@@ -14,13 +14,13 @@ import java.util.Locale;
  * Sensor Fusion for CarPlay / DiPlay projection state (Android 9 / API 28).
  *
  * Deterministic state machine aggregating independent vectors:
- *  1. NotificationListenerService â DiPlaySessionService foreground notifications
- *  2. MediaSessionManager â audio session STATE_PLAYING / PAUSED for DiPlay package
- *  3. UsageStatsManager â recent ACTIVITY_RESUMED of CarPlayHostActivity (polling)
- *  4. USB â Apple VID 0x05AC present
+ *  1. NotificationListenerService – DiPlaySessionService foreground notifications
+ *  2. MediaSessionManager – audio session STATE_PLAYING / PAUSED for DiPlay package
+ *  3. UsageStatsManager – recent ACTIVITY_RESUMED of CarPlayHostActivity (polling)
+ *  4. USB – Apple VID 0x05AC present
  *  5. Optional broadcast / Prefs.cpbVal override
  *
- * States: OFF â PHONE (connecting / detected) â CONNECTED (active session / foreground)
+ * States: OFF → PHONE (connecting / detected) → CONNECTED (active session / foreground)
  */
 public class CarplayState {
     public static final int OFF = 0;
@@ -58,10 +58,10 @@ public class CarplayState {
                 String[] n = DockNotificationListener.notificationText(pkg);
                 if (n != null) {
                     String all = (n[0] + " " + n[1]).toLowerCase(Locale.US);
-                    if (all.contains("error") || all.contains("fail") || all.contains("bÅÄd")) {
+                    if (all.contains("error") || all.contains("fail") || all.contains("błąd")) {
                         // leave as is or force lower; treat as not connected
                     } else if (all.contains("connecting") || all.contains("waiting")
-                            || all.contains("searching") || all.contains("ÅÄczenie")
+                            || all.contains("searching") || all.contains("łączenie")
                             || all.contains("pairing")) {
                         st = Math.max(st, PHONE);
                     } else {
@@ -80,7 +80,7 @@ public class CarplayState {
         } catch (Throwable ignored) {
         }
 
-        // 3. UsageStats â recent CarPlay host activity (requires PACKAGE_USAGE_STATS)
+        // 3. UsageStats – recent CarPlay host activity (requires PACKAGE_USAGE_STATS)
         try {
             if (st < CONNECTED && recentCarPlayHost(app, pkg)) {
                 st = Math.max(st, CONNECTED);
@@ -149,8 +149,8 @@ public class CarplayState {
     }
 
     public static String label(int state) {
-        if (state == CONNECTED) return "CarPlay poÅÄczony";
-        if (state == PHONE) return "iPhone wykryty / ÅÄczenie";
+        if (state == CONNECTED) return "CarPlay połączony";
+        if (state == PHONE) return "iPhone wykryty / łączenie";
         return "CarPlay nieaktywny";
     }
 }

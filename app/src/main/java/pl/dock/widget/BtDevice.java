@@ -16,8 +16,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-// WskaÅºnik Bluetooth w doku pokazuje, czy poÅÄczony jest WYBRANY telefon,
-// a nie czy sam Bluetooth jest wÅÄczony.
+// Wskaźnik Bluetooth w doku pokazuje, czy połączony jest WYBRANY telefon,
+// a nie czy sam Bluetooth jest włączony.
 public class BtDevice {
 
     private static final Set<String> connected = Collections.synchronizedSet(new HashSet<String>());
@@ -33,7 +33,7 @@ public class BtDevice {
         return f;
     }
 
-    // aktualizuje zbiÃ³r poÅÄczonych urzÄdzeÅ; true, gdy coÅ siÄ zmieniÅo
+    // aktualizuje zbiór połączonych urządzeń; true, gdy coś się zmieniło
     public static boolean handle(Intent i) {
         String a = i.getAction();
         if (a == null) return false;
@@ -61,7 +61,7 @@ public class BtDevice {
         return up ? connected.add(mac) : connected.remove(mac);
     }
 
-    // poczÄtkowy stan z profili HFP i A2DP
+    // początkowy stan z profili HFP i A2DP
     public static void init(final Context c) {
         if (started) return;
         started = true;

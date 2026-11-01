@@ -9,7 +9,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
-// Okno zapasowe centrum ÅÄcznoÅci (np. po klikniÄciu paska widÅ¼etu na innym launcherze)
+// Okno zapasowe centrum łączności (np. po kliknięciu paska widżetu na innym launcherze)
 public class ConnectivityActivity extends BaseActivity {
 
     private ConnectivityPanel panel;

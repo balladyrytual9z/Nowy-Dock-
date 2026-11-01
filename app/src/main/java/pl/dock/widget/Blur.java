@@ -3,7 +3,7 @@ package pl.dock.widget;
 
 import android.graphics.Bitmap;
 
-// Szybkie rozmycie (kilka przebiegÃ³w filtra pudeÅkowego) maÅej bitmapy: tÅo "liquid glass"
+// Szybkie rozmycie (kilka przebiegów filtra pudełkowego) małej bitmapy: tło "liquid glass"
 public class Blur {
 
     private static int cl(int v, int max) {

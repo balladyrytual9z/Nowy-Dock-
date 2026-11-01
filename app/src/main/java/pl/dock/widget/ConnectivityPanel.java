@@ -27,10 +27,10 @@ import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.List;
 
-// Centrum ÅÄcznoÅci w stylu iOS. ZawartoÅÄ to siatka narzÄdzi (ToolGrid), ktÃ³rÄ moÅ¼na
-// ukÅadaÄ po swojemu: przycisk âEdytujâ (albo dÅugie przytrzymanie tÅa) wÅÄcza tryb edycji,
-// w ktÃ³rym kafelki moÅ¼na przeciÄgaÄ, usuwaÄ i dodawaÄ nowe z listy narzÄdzi i skrÃ³tÃ³w do ustawieÅ.
-// UÅ¼ywane w launcherze (nakÅadka) i jako okno zapasowe.
+// Centrum łączności w stylu iOS. Zawartość to siatka narzędzi (ToolGrid), którą można
+// układać po swojemu: przycisk „Edytuj” (albo długie przytrzymanie tła) włącza tryb edycji,
+// w którym kafelki można przeciągać, usuwać i dodawać nowe z listy narzędzi i skrótów do ustawień.
+// Używane w launcherze (nakładka) i jako okno zapasowe.
 public class ConnectivityPanel extends LinearLayout {
 
     public interface Host {
@@ -92,11 +92,11 @@ public class ConnectivityPanel extends LinearLayout {
     }
 
     private void build() {
-        // nagÅÃ³wek: tytuÅ + przycisk Edytuj / Gotowe
+        // nagłówek: tytuł + przycisk Edytuj / Gotowe
         LinearLayout head = new LinearLayout(act);
         head.setOrientation(HORIZONTAL);
         head.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title = Popups.text(act, "Centrum ÅÄcznoÅci", 16, Popups.txt(night), true);
+        TextView title = Popups.text(act, "Centrum łączności", 16, Popups.txt(night), true);
         head.addView(title, new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         btnEdit = pill("Edytuj");
         btnEdit.setOnClickListener(new OnClickListener() {
@@ -114,7 +114,7 @@ public class ConnectivityPanel extends LinearLayout {
         addView(head, hp);
         staggerViews.add(head);
 
-        // siatka narzÄdzi
+        // siatka narzędzi
         grid = new ToolGrid(act, night, new ToolGrid.Host() {
             @Override
             public View create(PanelTool.Def d) {
@@ -137,7 +137,7 @@ public class ConnectivityPanel extends LinearLayout {
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         staggerViews.add(grid);
 
-        // dÅugie przytrzymanie tÅa = tryb edycji
+        // długie przytrzymanie tła = tryb edycji
         setOnLongClickListener(new OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
@@ -146,8 +146,8 @@ public class ConnectivityPanel extends LinearLayout {
             }
         });
 
-        // przycisk âDodaj narzÄdzieâ (widoczny tylko w trybie edycji)
-        btnAdd = pill("ï¼  Dodaj narzÄdzie");
+        // przycisk „Dodaj narzędzie” (widoczny tylko w trybie edycji)
+        btnAdd = pill("＋  Dodaj narzędzie");
         btnAdd.setTextSize(15);
         btnAdd.setVisibility(GONE);
         btnAdd.setOnClickListener(new OnClickListener() {
@@ -176,7 +176,7 @@ public class ConnectivityPanel extends LinearLayout {
         });
     }
 
-    // wÅasne widoki dla suwakÃ³w i przeÅÄcznika wyglÄdu; reszta to zwykÅe kafelki
+    // własne widoki dla suwaków i przełącznika wyglądu; reszta to zwykłe kafelki
     private View makeView(PanelTool.Def d) {
         if (d.kind == PanelTool.K_VOLUME) {
             PillSlider s = new PillSlider(act, false, volumeValue());
@@ -257,7 +257,7 @@ public class ConnectivityPanel extends LinearLayout {
         });
     }
 
-    // ---------------------------------------------------------------- dziaÅanie narzÄdzi
+    // ---------------------------------------------------------------- działanie narzędzi
 
     private boolean startAction(String action) {
         try {
@@ -280,7 +280,7 @@ public class ConnectivityPanel extends LinearLayout {
     }
 
     private void unavailable() {
-        Toast.makeText(act, "Ta funkcja jest niedostÄpna na tym tablecie", Toast.LENGTH_SHORT).show();
+        Toast.makeText(act, "Ta funkcja jest niedostępna na tym tablecie", Toast.LENGTH_SHORT).show();
     }
 
     private void openShortcut(PanelTool.Def d) {
@@ -379,7 +379,7 @@ public class ConnectivityPanel extends LinearLayout {
     private boolean askWriteSettings() {
         try {
             if (!Settings.System.canWrite(act)) {
-                // jednorazowa zgoda na zmianÄ ustawieÅ systemu
+                // jednorazowa zgoda na zmianę ustawień systemu
                 Intent i = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS,
                         android.net.Uri.parse("package:" + act.getPackageName()));
                 i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -403,7 +403,7 @@ public class ConnectivityPanel extends LinearLayout {
             i.putExtra("state", next);
             act.sendBroadcast(i);
         } catch (Throwable t) {
-            // zwykÅa aplikacja nie moÅ¼e tego zmieniÄ â otwÃ³rz ustawienia
+            // zwykła aplikacja nie może tego zmienić – otwórz ustawienia
             openAndClose("android.settings.AIRPLANE_MODE_SETTINGS");
         }
     }
@@ -558,7 +558,7 @@ public class ConnectivityPanel extends LinearLayout {
             @Override
             public void run() {
                 if (Net.bluetoothOn() == before && isAttachedToWindow()) {
-                    Net.openBluetoothApp(act);   // radio przejmuje Bluetooth: otwÃ³rz jego aplikacjÄ
+                    Net.openBluetoothApp(act);   // radio przejmuje Bluetooth: otwórz jego aplikację
                     host.close();
                 }
             }
@@ -566,7 +566,7 @@ public class ConnectivityPanel extends LinearLayout {
         update();
     }
 
-    // ---------------------------------------------------------------- gÅoÅnoÅÄ / jasnoÅÄ
+    // ---------------------------------------------------------------- głośność / jasność
     private float volumeValue() {
         try {
             AudioManager am = (AudioManager) act.getSystemService(Context.AUDIO_SERVICE);
@@ -613,7 +613,7 @@ public class ConnectivityPanel extends LinearLayout {
         if (modeSeg != null) modeSeg.refreshSelection();
         if (note != null) {
             boolean follow = Prefs.followSystem(act) && grid != null && grid.has("mode");
-            note.setText(follow ? "WyglÄd automatyczny: od zachodu do wschodu sÅoÅca" : "");
+            note.setText(follow ? "Wygląd automatyczny: od zachodu do wschodu słońca" : "");
             note.setVisibility(follow ? VISIBLE : GONE);
         }
     }
@@ -782,14 +782,14 @@ public class ConnectivityPanel extends LinearLayout {
             this.sun = sun;
             this.value = Math.max(0f, Math.min(1f, v));
             this.night = Look.night(c);
-            setContentDescription(sun ? "JasnoÅÄ ekranu" : "GÅoÅnoÅÄ");
+            setContentDescription(sun ? "Jasność ekranu" : "Głośność");
         }
 
         public void setListener(Listener l) {
             this.l = l;
         }
 
-        // ustawia wartoÅÄ z zewnÄtrz (nie w trakcie przesuwania palcem)
+        // ustawia wartość z zewnątrz (nie w trakcie przesuwania palcem)
         public void setValue(float v) {
             if (dragging) return;
             value = Math.max(0f, Math.min(1f, v));
@@ -815,7 +815,7 @@ public class ConnectivityPanel extends LinearLayout {
             cv.drawRect(0, h * (1f - value), w, h, p);
             cv.restoreToCount(save);
 
-            // Icon at bottom (iOS style) â gray when value ~0
+            // Icon at bottom (iOS style) – gray when value ~0
             float cx = w / 2f;
             float cy = h - 28f * d;
             boolean dim = value < 0.05f;
@@ -823,7 +823,7 @@ public class ConnectivityPanel extends LinearLayout {
             p.setStrokeCap(Paint.Cap.ROUND);
             p.setStrokeWidth(2.6f * d);
             if (sun) {
-                // Sun icon â size scales slightly with brightness
+                // Sun icon – size scales slightly with brightness
                 float scale = 0.85f + value * 0.25f;
                 p.setColor(dim ? 0xFF8E8E93 : 0xFFF2C94C);
                 p.setStyle(Paint.Style.FILL);

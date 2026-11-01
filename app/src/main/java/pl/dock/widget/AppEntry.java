@@ -4,13 +4,13 @@ package pl.dock.widget;
 import org.json.JSONObject;
 
 public class AppEntry {
-    public long id;            // 0 = aplikacja CarPlay (przypiÄta na dole)
+    public long id;            // 0 = aplikacja CarPlay (przypięta na dole)
     public String pkg = "";
     public String mode = "default";   // default | file | app | builtin
     public String iconPkg = "";       // dla "app": pakiet ikony, dla "builtin": id ikony
     public int count;
     public long last;
-    public boolean orig;              // ikona dokÅadnie taka jak oryginalna (bez ramki)
+    public boolean orig;              // ikona dokładnie taka jak oryginalna (bez ramki)
 
     public String key() {
         return id == 0 ? "cp" : "e" + id;

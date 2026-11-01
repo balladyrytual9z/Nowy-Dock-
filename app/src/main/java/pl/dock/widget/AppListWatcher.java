@@ -8,7 +8,7 @@ import android.content.IntentFilter;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 
-/** Centralne ÅºrÃ³dÅo informacji o zmianie listy aplikacji. */
+/** Centralne źródło informacji o zmianie listy aplikacji. */
 public final class AppListWatcher extends BroadcastReceiver {
 
     public interface Listener {

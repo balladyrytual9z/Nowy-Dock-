@@ -8,8 +8,8 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.view.View;
 
-// TÅo launchera. Rysowane raz do maÅych bitmap (pÃ³Å rozdzielczoÅci); w trybie dziennym
-// strona widÅ¼etÃ³w pÅynnie ciemnieje do wersji nocnej (jak w CarPlay).
+// Tło launchera. Rysowane raz do małych bitmap (pół rozdzielczości); w trybie dziennym
+// strona widżetów płynnie ciemnieje do wersji nocnej (jak w CarPlay).
 public class BackgroundView extends View {
 
     private Bitmap bmpDay;
@@ -17,7 +17,7 @@ public class BackgroundView extends View {
     private String style = "graphite";
     private boolean night = true;
     private float parallax;
-    private float blend;     // 0..1: ile nocnej wersji naÅoÅ¼yÄ na dziennÄ
+    private float blend;     // 0..1: ile nocnej wersji nałożyć na dzienną
     private final Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
     private final RectF dst = new RectF();
 
@@ -42,7 +42,7 @@ public class BackgroundView extends View {
         invalidate();
     }
 
-    // 0 = tÅo wg trybu, 1 = zawsze nocne (strona widÅ¼etÃ³w w trybie dziennym)
+    // 0 = tło wg trybu, 1 = zawsze nocne (strona widżetów w trybie dziennym)
     public void setNightBlend(float b) {
         b = Math.max(0f, Math.min(1f, b));
         if (Math.abs(b - blend) < 0.004f) return;

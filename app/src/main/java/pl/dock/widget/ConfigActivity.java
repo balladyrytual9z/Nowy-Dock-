@@ -41,7 +41,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-// Ustawienia widÅ¼etu w stylu CarPlay
+// Ustawienia widżetu w stylu CarPlay
 public class ConfigActivity extends BaseActivity {
 
     private static final int REQ_FILE = 1;
@@ -162,7 +162,7 @@ public class ConfigActivity extends BaseActivity {
             r.addView(text(value, 17, p.sub, false));
         }
         if (chevron) {
-            TextView ch = text("  âº", 26, p.sub, false);
+            TextView ch = text("  ›", 26, p.sub, false);
             r.addView(ch);
         }
         if (click != null) r.setOnClickListener(click);
@@ -234,8 +234,8 @@ public class ConfigActivity extends BaseActivity {
         title.setPadding(dp(8), dp(4), 0, 0);
         col.addView(title);
 
-        // --- WyglÄd ---
-        section(col, "WyglÄd");
+        // --- Wygląd ---
+        section(col, "Wygląd");
         LinearLayout g = group(col);
         g.addView(segRow("Styl", new String[]{"Klasyczny", "Liquid Glass"},
                 "glass".equals(Prefs.style(this)) ? 1 : 0, new OnSel() {
@@ -247,7 +247,7 @@ public class ConfigActivity extends BaseActivity {
                 }));
         sep(g);
         String fr = Prefs.frame(this);
-        g.addView(segRow("Ramka ikon", new String[]{"Brak", "PierÅcieÅ", "CarPlay"},
+        g.addView(segRow("Ramka ikon", new String[]{"Brak", "Pierścień", "CarPlay"},
                 "none".equals(fr) ? 0 : ("ring".equals(fr) ? 1 : 2), new OnSel() {
                     @Override
                     public void on(int i) {
@@ -257,7 +257,7 @@ public class ConfigActivity extends BaseActivity {
                     }
                 }));
         sep(g);
-        g.addView(switchRow("PodÄÅ¼aj za ustawieniami systemu", Prefs.followSystem(this),
+        g.addView(switchRow("Podążaj za ustawieniami systemu", Prefs.followSystem(this),
                 new CompoundButton.OnCheckedChangeListener() {
                     @Override
                     public void onCheckedChanged(CompoundButton v, boolean on) {
@@ -280,7 +280,7 @@ public class ConfigActivity extends BaseActivity {
                     }));
             if ("time".equals(mode)) {
                 sep(g);
-                g.addView(row(null, "Noc zaczyna siÄ o", hhmm(Prefs.nightStart(this)), true,
+                g.addView(row(null, "Noc zaczyna się o", hhmm(Prefs.nightStart(this)), true,
                         p.text, new View.OnClickListener() {
                             @Override
                             public void onClick(View v) {
@@ -288,7 +288,7 @@ public class ConfigActivity extends BaseActivity {
                             }
                         }));
                 sep(g);
-                g.addView(row(null, "Noc koÅczy siÄ o", hhmm(Prefs.nightEnd(this)), true,
+                g.addView(row(null, "Noc kończy się o", hhmm(Prefs.nightEnd(this)), true,
                         p.text, new View.OnClickListener() {
                             @Override
                             public void onClick(View v) {
@@ -298,10 +298,10 @@ public class ConfigActivity extends BaseActivity {
             }
         }
 
-        // --- GÃ³rne aplikacje ---
-        section(col, "GÃ³rne aplikacje");
+        // --- Górne aplikacje ---
+        section(col, "Górne aplikacje");
         g = group(col);
-        g.addView(segRow("KtÃ³re pokazywaÄ", new String[]{"Ostatnio uÅ¼ywane", "NajczÄÅciej uÅ¼ywane"},
+        g.addView(segRow("Które pokazywać", new String[]{"Ostatnio używane", "Najczęściej używane"},
                 "count".equals(Prefs.sortMode(this)) ? 1 : 0, new OnSel() {
                     @Override
                     public void on(int i) {
@@ -310,7 +310,7 @@ public class ConfigActivity extends BaseActivity {
                     }
                 }));
         sep(g);
-        g.addView(row(null, "Wyzeruj statystyki uÅ¼ycia", "", false, p.accent,
+        g.addView(row(null, "Wyzeruj statystyki użycia", "", false, p.accent,
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -319,8 +319,8 @@ public class ConfigActivity extends BaseActivity {
                         changed();
                     }
                 }));
-        footer(col, "Na widÅ¼ecie widaÄ 3 aplikacje z listy poniÅ¼ej (wg powyÅ¼szego wyboru) "
-                + "oraz CarPlay na dole. Zliczane sÄ klikniÄcia na widÅ¼ecie.");
+        footer(col, "Na widżecie widać 3 aplikacje z listy poniżej (wg powyższego wyboru) "
+                + "oraz CarPlay na dole. Zliczane są kliknięcia na widżecie.");
 
         // --- CarPlay ---
         section(col, "Ikona CarPlay w docku");
@@ -376,7 +376,7 @@ public class ConfigActivity extends BaseActivity {
                     }));
             sep(g);
         }
-        g.addView(row(null, "Dodaj aplikacjÄ", "", false, p.accent, new View.OnClickListener() {
+        g.addView(row(null, "Dodaj aplikację", "", false, p.accent, new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 pickApp(new OnPick() {
@@ -386,7 +386,7 @@ public class ConfigActivity extends BaseActivity {
                         changed();
                         Popups.menu(ConfigActivity.this, "Ikona: " + appLabel(pkg),
                                 new String[]{"Jak w CarPlay (ramka)",
-                                        "DokÅadnie jak oryginalna ikona aplikacji"},
+                                        "Dokładnie jak oryginalna ikona aplikacji"},
                                 new Popups.OnSel() {
                                     @Override
                                     public void on(int i) {
@@ -410,13 +410,13 @@ public class ConfigActivity extends BaseActivity {
                     }
                 }));
         sep(g);
-        g.addView(row(null, "PrzywrÃ³Ä domyÅlne (DSP, Bluetooth, OBD2, pliki, DiPlay)", "", false,
+        g.addView(row(null, "Przywróć domyślne (DSP, Bluetooth, OBD2, pliki, DiPlay)", "", false,
                 p.accent, new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        Popups.confirm(ConfigActivity.this, "PrzywrÃ³ciÄ domyÅlne aplikacje?",
-                                "Lista aplikacji i aplikacja CarPlay wrÃ³cÄ do ustawieÅ domyÅlnych.",
-                                "PrzywrÃ³Ä", new Runnable() {
+                        Popups.confirm(ConfigActivity.this, "Przywrócić domyślne aplikacje?",
+                                "Lista aplikacji i aplikacja CarPlay wrócą do ustawień domyślnych.",
+                                "Przywróć", new Runnable() {
                                     @Override
                                     public void run() {
                                         Prefs.resetToDefaults(ConfigActivity.this);
@@ -425,7 +425,7 @@ public class ConfigActivity extends BaseActivity {
                                 });
                     }
                 }));
-        footer(col, "Dodaj ile chcesz. KaÅ¼da moÅ¼e mieÄ wÅasnÄ ikonÄ.");
+        footer(col, "Dodaj ile chcesz. Każda może mieć własną ikonę.");
 
         // --- Przycisk siatki ---
         // --- Launcher ---
@@ -440,7 +440,7 @@ public class ConfigActivity extends BaseActivity {
                     }
                 }));
         sep(g);
-        g.addView(toggle("Paralaksa tÅa przy przewijaniu", Prefs.parallax(this), new BoolSetter() {
+        g.addView(toggle("Paralaksa tła przy przewijaniu", Prefs.parallax(this), new BoolSetter() {
             @Override
             public void set(boolean v) {
                 Prefs.setParallax(ConfigActivity.this, v);
@@ -462,7 +462,7 @@ public class ConfigActivity extends BaseActivity {
                     }
                 }));
         sep(g);
-        g.addView(toggle("Gest od doÅu â centrum ÅÄcznoÅci", Prefs.overlayEnabled(this),
+        g.addView(toggle("Gest od dołu – centrum łączności", Prefs.overlayEnabled(this),
                 new BoolSetter() {
                     @Override
                     public void set(boolean v) {
@@ -485,7 +485,7 @@ public class ConfigActivity extends BaseActivity {
             }
         }));
         sep(g);
-        g.addView(toggle("Strona z widÅ¼etami (przesuniÄcie w lewo)", Prefs.widgetsPage(this),
+        g.addView(toggle("Strona z widżetami (przesunięcie w lewo)", Prefs.widgetsPage(this),
                 new BoolSetter() {
                     @Override
                     public void set(boolean v) {
@@ -493,7 +493,7 @@ public class ConfigActivity extends BaseActivity {
                     }
                 }));
         sep(g);
-        g.addView(row(null, "Ustaw Dock jako domyÅlny launcher", "", true, p.accent,
+        g.addView(row(null, "Ustaw Dock jako domyślny launcher", "", true, p.accent,
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -501,20 +501,20 @@ public class ConfigActivity extends BaseActivity {
                             startActivity(new Intent(Settings.ACTION_HOME_SETTINGS));
                         } catch (Throwable t) {
                             Toast.makeText(ConfigActivity.this,
-                                    "Wybierz launcher w ustawieniach Androida (Aplikacje domyÅlne)",
+                                    "Wybierz launcher w ustawieniach Androida (Aplikacje domyślne)",
                                     Toast.LENGTH_LONG).show();
                         }
                     }
                 }));
-        footer(col, "WidÅ¼ety systemowe dodajesz dÅugim dotkniÄciem ekranu gÅÃ³wnego "
-                + "albo kafelka âDodaj widÅ¼etâ na stronie widÅ¼etÃ³w.");
+        footer(col, "Widżety systemowe dodajesz długim dotknięciem ekranu głównego "
+                + "albo kafelka „Dodaj widżet” na stronie widżetów.");
 
-        // --- ÅÄcznoÅÄ ---
-        section(col, "ÅÄcznoÅÄ");
+        // --- Łączność ---
+        section(col, "Łączność");
         g = group(col);
         String ba = Prefs.btAction(this);
-        g.addView(segRow("KlikniÄcie Bluetooth w panelu",
-                new String[]{"PrzeÅÄcz / aplikacja", "Aplikacja", "PrzeÅÄcz"},
+        g.addView(segRow("Kliknięcie Bluetooth w panelu",
+                new String[]{"Przełącz / aplikacja", "Aplikacja", "Przełącz"},
                 "auto".equals(ba) ? 0 : ("app".equals(ba) ? 1 : 2), new OnSel() {
                     @Override
                     public void on(int i) {
@@ -540,20 +540,20 @@ public class ConfigActivity extends BaseActivity {
                                 });
                     }
                 }));
-        footer(col, "âPrzeÅÄcz / aplikacjaâ: Dock prÃ³buje przeÅÄczyÄ Bluetooth, a gdy radio "
-                + "tego nie przyjmie, otwiera jego aplikacjÄ.");
+        footer(col, "„Przełącz / aplikacja”: Dock próbuje przełączyć Bluetooth, a gdy radio "
+                + "tego nie przyjmie, otwiera jego aplikację.");
 
         // --- Status CarPlay (DiPlay) ---
         section(col, "Status CarPlay");
         g = group(col);
-        g.addView(toggle("PokaÅ¼ ikonÄ statusu CarPlay na doku", Prefs.cpShow(this), new BoolSetter() {
+        g.addView(toggle("Pokaż ikonę statusu CarPlay na doku", Prefs.cpShow(this), new BoolSetter() {
             @Override
             public void set(boolean v) {
                 Prefs.setCpShow(ConfigActivity.this, v);
             }
         }));
         sep(g);
-        g.addView(toggle("SygnaÅ: sesja multimedialna DiPlay", Prefs.cpUseSession(this),
+        g.addView(toggle("Sygnał: sesja multimedialna DiPlay", Prefs.cpUseSession(this),
                 new BoolSetter() {
                     @Override
                     public void set(boolean v) {
@@ -561,14 +561,14 @@ public class ConfigActivity extends BaseActivity {
                     }
                 }));
         sep(g);
-        g.addView(toggle("SygnaÅ: powiadomienie DiPlay", Prefs.cpUseNotif(this), new BoolSetter() {
+        g.addView(toggle("Sygnał: powiadomienie DiPlay", Prefs.cpUseNotif(this), new BoolSetter() {
             @Override
             public void set(boolean v) {
                 Prefs.setCpUseNotif(ConfigActivity.this, v);
             }
         }));
         sep(g);
-        g.addView(toggle("SygnaÅ: iPhone na USB", Prefs.cpUseUsb(this), new BoolSetter() {
+        g.addView(toggle("Sygnał: iPhone na USB", Prefs.cpUseUsb(this), new BoolSetter() {
             @Override
             public void set(boolean v) {
                 Prefs.setCpUseUsb(ConfigActivity.this, v);
@@ -609,14 +609,14 @@ public class ConfigActivity extends BaseActivity {
                                 });
                     }
                 }));
-        footer(col, "DiPlay nie ma oficjalnego API, wiÄc stan jest wnioskowany z kilku sygnaÅÃ³w. "
-                + "Zielona ikona = sesja aktywna, pomaraÅczowa = iPhone wykryty / ÅÄczenie.");
+        footer(col, "DiPlay nie ma oficjalnego API, więc stan jest wnioskowany z kilku sygnałów. "
+                + "Zielona ikona = sesja aktywna, pomarańczowa = iPhone wykryty / łączenie.");
 
         // --- Odtwarzanie ---
         section(col, "Odtwarzanie muzyki");
         g = group(col);
-        g.addView(row(null, "DostÄp do powiadomieÅ",
-                MediaHub.accessGranted(this) ? "wÅÄczony" : "WYÅÄCZONY", true,
+        g.addView(row(null, "Dostęp do powiadomień",
+                MediaHub.accessGranted(this) ? "włączony" : "WYŁĄCZONY", true,
                 MediaHub.accessGranted(this) ? p.text : p.accent, new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -624,12 +624,12 @@ public class ConfigActivity extends BaseActivity {
                     }
                 }));
         sep(g);
-        g.addView(row(null, "Å¹rÃ³dÅo odtwarzania (pakiet)",
+        g.addView(row(null, "Źródło odtwarzania (pakiet)",
                 Prefs.mediaPkg(this).length() == 0 ? "DiPlay" : Prefs.mediaPkg(this), true, p.text,
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        ask("Pakiet ÅºrÃ³dÅa odtwarzania (puste = DiPlay)", new String[]{"pakiet"},
+                        ask("Pakiet źródła odtwarzania (puste = DiPlay)", new String[]{"pakiet"},
                                 new String[]{Prefs.mediaPkg(ConfigActivity.this)}, new OnText() {
                                     @Override
                                     public void on(String[] val) {
@@ -647,12 +647,12 @@ public class ConfigActivity extends BaseActivity {
                         mediaDiag();
                     }
                 }));
-        footer(col, "Dock czyta sesjÄ multimedialnÄ DiPlay (tytuÅ, wykonawca, okÅadka). "
-                + "Wymaga jednorazowego wÅÄczenia dostÄpu do powiadomieÅ.");
+        footer(col, "Dock czyta sesję multimedialną DiPlay (tytuł, wykonawca, okładka). "
+                + "Wymaga jednorazowego włączenia dostępu do powiadomień.");
 
         section(col, "Przycisk aplikacji");
         g = group(col);
-        g.addView(segRow("Otwiera listÄ aplikacji", new String[]{"Dock", "Launchera systemu"},
+        g.addView(segRow("Otwiera listę aplikacji", new String[]{"Dock", "Launchera systemu"},
                 "system".equals(Prefs.gridMode(this)) ? 1 : 0, new OnSel() {
                     @Override
                     public void on(int i) {
@@ -660,13 +660,13 @@ public class ConfigActivity extends BaseActivity {
                         changed();
                     }
                 }));
-        footer(col, "âDockâ to wÅasna lista wszystkich aplikacji. JeÅli launcher tabletu ma "
-                + "swojÄ listÄ, sprÃ³buj drugiej opcji.");
+        footer(col, "„Dock” to własna lista wszystkich aplikacji. Jeśli launcher tabletu ma "
+                + "swoją listę, spróbuj drugiej opcji.");
 
         // --- Pasek stanu ---
         section(col, "Pasek stanu");
         g = group(col);
-        g.addView(switchRow("PokaÅ¼ napiÄcie tabletu", Prefs.showVoltage(this),
+        g.addView(switchRow("Pokaż napięcie tabletu", Prefs.showVoltage(this),
                 new CompoundButton.OnCheckedChangeListener() {
                     @Override
                     public void onCheckedChanged(CompoundButton v, boolean on) {
@@ -676,14 +676,14 @@ public class ConfigActivity extends BaseActivity {
                     }
                 }));
         sep(g);
-        g.addView(row(null, "Å¹rÃ³dÅo napiÄcia", "", true, p.text, new View.OnClickListener() {
+        g.addView(row(null, "Źródło napięcia", "", true, p.text, new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 voltSourceDialog();
             }
         }));
         sep(g);
-        g.addView(row(null, "Diagnostyka ÅÄcznoÅci i napiÄcia", "", true, p.text,
+        g.addView(row(null, "Diagnostyka łączności i napięcia", "", true, p.text,
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -691,39 +691,39 @@ public class ConfigActivity extends BaseActivity {
                     }
                 }));
         sep(g);
-        g.addView(row(null, "Diagnostyka ÅºrÃ³dÅa napiÄcia (12 V)", "", true, p.text,
+        g.addView(row(null, "Diagnostyka źródła napięcia (12 V)", "", true, p.text,
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
                         startActivity(new Intent(ConfigActivity.this, VoltDiagActivity.class));
                     }
                 }));
-        footer(col, "Å¹rÃ³dÅo: " + Volt.sourceLabel(this) + ". Diagnostyka pokazuje odczyty "
-                + "ze wszystkich ÅºrÃ³deÅ naraz â zrÃ³b zrzut ekranu.");
+        footer(col, "Źródło: " + Volt.sourceLabel(this) + ". Diagnostyka pokazuje odczyty "
+                + "ze wszystkich źródeł naraz – zrób zrzut ekranu.");
 
         extraSections(col);
         finishLayout(col, title, sv);
         setContentView(sv);
     }
 
-    // ---------- hierarchia: kategorie gÅÃ³wne (styl iOS) -> podsekcje ----------
+    // ---------- hierarchia: kategorie główne (styl iOS) -> podsekcje ----------
     private String openSection;
     private String searchQuery = "";
 
-    /** GÅÃ³wne kategorie ustawieÅ (kolejnoÅÄ jak w iOS: ÅÄcznoÅÄ â ekran â wyglÄd â aplikacje â ogÃ³lne). */
+    /** Główne kategorie ustawień (kolejność jak w iOS: łączność → ekran → wygląd → aplikacje → ogólne). */
     private static final String[] TOP_CATEGORIES = {
-            "PoÅÄczenia",
-            "Ekran gÅÃ³wny i Launcher",
-            "WyglÄd i dÅºwiÄk",
+            "Połączenia",
+            "Ekran główny i Launcher",
+            "Wygląd i dźwięk",
             "Aplikacje",
-            "OgÃ³lne"
+            "Ogólne"
     };
 
-    /** Mapuje nazwÄ podsekcji (tag sec|) na kategoriÄ gÅÃ³wnÄ. */
+    /** Mapuje nazwę podsekcji (tag sec|) na kategorię główną. */
     private String categoryForSection(String secName) {
-        if (secName == null) return "OgÃ³lne";
+        if (secName == null) return "Ogólne";
         String s = secName.toLowerCase();
-        // Aplikacje najpierw (Å¼eby âIkona CarPlayâ¦â nie wpadÅa do PoÅÄczeÅ)
+        // Aplikacje najpierw (żeby „Ikona CarPlay…” nie wpadła do Połączeń)
         if (s.startsWith("aplikacje")
                 || s.contains("ikona carplay")
                 || s.contains("wtyczki")
@@ -732,37 +732,37 @@ public class ConfigActivity extends BaseActivity {
                 || s.contains("dashboard")) {
             return "Aplikacje";
         }
-        // PoÅÄczenia
-        if (s.contains("ÅÄcznoÅÄ") || s.contains("lacznosc")
+        // Połączenia
+        if (s.contains("łączność") || s.contains("lacznosc")
                 || s.equals("telefon")
                 || s.contains("status carplay")
                 || s.contains("carplay (diplay)")
                 || (s.contains("carplay") && !s.contains("ikona"))) {
-            return "PoÅÄczenia";
+            return "Połączenia";
         }
-        // Ekran gÅÃ³wny i Launcher
-        if (s.contains("gÃ³rne aplikacje") || s.contains("gorne aplikacje")
+        // Ekran główny i Launcher
+        if (s.contains("górne aplikacje") || s.contains("gorne aplikacje")
                 || s.equals("launcher")
                 || s.contains("przycisk aplikacji")
                 || s.contains("przycisk home")
                 || s.contains("pozycja dock")
                 || s.contains("gesty")) {
-            return "Ekran gÅÃ³wny i Launcher";
+            return "Ekran główny i Launcher";
         }
-        // WyglÄd i dÅºwiÄk
-        if (s.equals("wyglÄd") || s.equals("wyglad")
+        // Wygląd i dźwięk
+        if (s.equals("wygląd") || s.equals("wyglad")
                 || s.contains("skala interfejsu")
                 || s.equals("tapeta")
                 || s.contains("odtwarzanie muzyki")
                 || s.contains("pasek stanu")) {
-            return "WyglÄd i dÅºwiÄk";
+            return "Wygląd i dźwięk";
         }
-        // Reszta â OgÃ³lne (Circadian, Kopia, SamochÃ³d i system, diagnostyka itd.)
-        return "OgÃ³lne";
+        // Reszta → Ogólne (Circadian, Kopia, Samochód i system, diagnostyka itd.)
+        return "Ogólne";
     }
 
     private Bitmap categoryIcon(String cat) {
-        // Proste kolorowe ikony kategorii (okrÄg + symbol)
+        // Proste kolorowe ikony kategorii (okrąg + symbol)
         int size = dp(40);
         Bitmap bm = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
         android.graphics.Canvas c = new android.graphics.Canvas(bm);
@@ -773,16 +773,16 @@ public class ConfigActivity extends BaseActivity {
         stroke.setColor(0xFFFFFFFF);
         float cx = size / 2f, cy = size / 2f, r = size / 2f - 1;
         int bg;
-        if ("PoÅÄczenia".equals(cat)) {
+        if ("Połączenia".equals(cat)) {
             bg = 0xFF007AFF; // niebieski jak Wi-Fi/BT
             fill.setColor(bg);
             c.drawCircle(cx, cy, r, fill);
-            // symbol sygnaÅu / anteny
+            // symbol sygnału / anteny
             c.drawCircle(cx, cy + r * 0.25f, r * 0.18f, stroke);
             stroke.setStrokeWidth(Math.max(1.5f, size / 22f));
             c.drawArc(cx - r * 0.45f, cy - r * 0.15f, cx + r * 0.45f, cy + r * 0.55f, 200, 140, false, stroke);
             c.drawArc(cx - r * 0.7f, cy - r * 0.35f, cx + r * 0.7f, cy + r * 0.65f, 200, 140, false, stroke);
-        } else if ("Ekran gÅÃ³wny i Launcher".equals(cat)) {
+        } else if ("Ekran główny i Launcher".equals(cat)) {
             bg = 0xFF34C759; // zielony
             fill.setColor(bg);
             c.drawCircle(cx, cy, r, fill);
@@ -796,11 +796,11 @@ public class ConfigActivity extends BaseActivity {
             house.close();
             fill.setColor(0xFFFFFFFF);
             c.drawPath(house, fill);
-        } else if ("WyglÄd i dÅºwiÄk".equals(cat)) {
+        } else if ("Wygląd i dźwięk".equals(cat)) {
             bg = 0xFFAF52DE; // fiolet
             fill.setColor(bg);
             c.drawCircle(cx, cy, r, fill);
-            // sÅoÅce / jasnoÅÄ
+            // słońce / jasność
             fill.setColor(0xFFFFFFFF);
             c.drawCircle(cx, cy, r * 0.28f, fill);
             stroke.setColor(0xFFFFFFFF);
@@ -814,7 +814,7 @@ public class ConfigActivity extends BaseActivity {
                 c.drawLine(x1, y1, x2, y2, stroke);
             }
         } else if ("Aplikacje".equals(cat)) {
-            bg = 0xFFFF9500; // pomaraÅcz
+            bg = 0xFFFF9500; // pomarańcz
             fill.setColor(bg);
             c.drawCircle(cx, cy, r, fill);
             // siatka 2x2
@@ -824,11 +824,11 @@ public class ConfigActivity extends BaseActivity {
             c.drawRoundRect(cx + off - g, cy - off - g, cx + off + g, cy - off + g, 3, 3, fill);
             c.drawRoundRect(cx - off - g, cy + off - g, cx - off + g, cy + off + g, 3, 3, fill);
             c.drawRoundRect(cx + off - g, cy + off - g, cx + off + g, cy + off + g, 3, 3, fill);
-        } else { // OgÃ³lne
+        } else { // Ogólne
             bg = 0xFF8E8E93; // szary
             fill.setColor(bg);
             c.drawCircle(cx, cy, r, fill);
-            // zÄbatka uproszczona
+            // zębatka uproszczona
             fill.setColor(0xFFFFFFFF);
             c.drawCircle(cx, cy, r * 0.22f, fill);
             stroke.setColor(0xFFFFFFFF);
@@ -863,7 +863,7 @@ public class ConfigActivity extends BaseActivity {
         }
         col.removeAllViews();
 
-        // Grupowanie podsekcji w kategorie gÅÃ³wne
+        // Grupowanie podsekcji w kategorie główne
         java.util.Map<String, List<String>> catToSecs = new java.util.LinkedHashMap<String, List<String>>();
         for (String cat : TOP_CATEGORIES) {
             catToSecs.put(cat, new ArrayList<String>());
@@ -882,7 +882,7 @@ public class ConfigActivity extends BaseActivity {
                 break;
             }
         }
-        // kompatybilnoÅÄ: jeÅli openSection to stara nazwa podsekcji, otwÃ³rz jej kategoriÄ
+        // kompatybilność: jeśli openSection to stara nazwa podsekcji, otwórz jej kategorię
         if (!isTopLevel && !isCategory && map.containsKey(openSection)) {
             openSection = categoryForSection(openSection);
             isCategory = true;
@@ -894,13 +894,13 @@ public class ConfigActivity extends BaseActivity {
 
         if (isTopLevel) {
             col.addView(title);
-            TextView hint = text("Ustawienia pogrupowane jak w iOS â wybierz kategoriÄ.", 14, p.sub, false);
+            TextView hint = text("Ustawienia pogrupowane jak w iOS — wybierz kategorię.", 14, p.sub, false);
             hint.setPadding(dp(8), dp(2), dp(8), dp(8));
             col.addView(hint);
 
             // Pasek wyszukiwania (filtruje kategorie i podsekcje)
             final EditText search = new EditText(this);
-            search.setHint("Szukaj ustawieÅâ¦");
+            search.setHint("Szukaj ustawień…");
             search.setTextSize(17);
             search.setTextColor(p.text);
             search.setHintTextColor(p.sub);
@@ -956,7 +956,7 @@ public class ConfigActivity extends BaseActivity {
                                 }));
                     }
                     if (first) {
-                        TextView empty = text("Brak wynikÃ³w dla \"" + searchQuery + "\"", 16, p.sub, false);
+                        TextView empty = text("Brak wyników dla \"" + searchQuery + "\"", 16, p.sub, false);
                         empty.setPadding(dp(16), dp(20), dp(16), dp(20));
                         empty.setGravity(Gravity.CENTER);
                         listHost.addView(empty);
@@ -974,10 +974,10 @@ public class ConfigActivity extends BaseActivity {
                 @Override public void afterTextChanged(android.text.Editable s) {}
             });
         } else {
-            // Ekran kategorii: wstecz + tytuÅ + podsekcje naleÅ¼Äce do kategorii
+            // Ekran kategorii: wstecz + tytuł + podsekcje należące do kategorii
             LinearLayout bar = new LinearLayout(this);
             bar.setGravity(Gravity.CENTER_VERTICAL);
-            TextView back = text("â¹", 30, p.text, true);
+            TextView back = text("‹", 30, p.text, true);
             back.setGravity(Gravity.CENTER);
             back.setBackground(round(p.card, 22));
             back.setContentDescription("Wstecz");
@@ -996,7 +996,7 @@ public class ConfigActivity extends BaseActivity {
             List<String> secs = catToSecs.get(openSection);
             if (secs != null) {
                 for (String secName : secs) {
-                    // nagÅÃ³wek podsekcji
+                    // nagłówek podsekcji
                     TextView secTitle = text(secName.toUpperCase(), 13, p.sub, true);
                     secTitle.setPadding(dp(8), dp(18), 0, dp(6));
                     col.addView(secTitle);
@@ -1038,8 +1038,8 @@ public class ConfigActivity extends BaseActivity {
         section(col, "Przycisk Home");
         g = group(col);
         String ha = Prefs.homeAction(this);
-        g.addView(segRow("Po naciÅniÄciu Home na ekranie gÅÃ³wnym",
-                new String[]{"OtwÃ³rz CarPlay", "OtwÃ³rz aplikacjÄ", "Nic"},
+        g.addView(segRow("Po naciśnięciu Home na ekranie głównym",
+                new String[]{"Otwórz CarPlay", "Otwórz aplikację", "Nic"},
                 "carplay".equals(ha) ? 0 : ("app".equals(ha) ? 1 : 2), new OnSel() {
                     @Override
                     public void on(int i) {
@@ -1065,14 +1065,14 @@ public class ConfigActivity extends BaseActivity {
                         }
                     }));
         }
-        footer(col, "Z innej aplikacji Home zawsze wraca na ekran gÅÃ³wny. Opcja dziaÅa tylko wtedy, "
-                + "gdy jesteÅ juÅ¼ na ekranie gÅÃ³wnym. Wybierz âNicâ, jeÅli launcher nie ma uruchamiaÄ "
-                + "Å¼adnej aplikacji.");
+        footer(col, "Z innej aplikacji Home zawsze wraca na ekran główny. Opcja działa tylko wtedy, "
+                + "gdy jesteś już na ekranie głównym. Wybierz „Nic”, jeśli launcher nie ma uruchamiać "
+                + "żadnej aplikacji.");
 
         section(col, "Skala interfejsu");
         g = group(col);
         float us = Prefs.uiScale(this);
-        g.addView(segRow("Rozmiar elementÃ³w", new String[]{"MaÅy", "Standardowy", "DuÅ¼y"},
+        g.addView(segRow("Rozmiar elementów", new String[]{"Mały", "Standardowy", "Duży"},
                 us < 0.95f ? 0 : (us > 1.05f ? 2 : 1), new OnSel() {
                     @Override
                     public void on(int i) {
@@ -1080,7 +1080,7 @@ public class ConfigActivity extends BaseActivity {
                         recreate();
                     }
                 }));
-        footer(col, "Nie zaleÅ¼y od ustawienia âRozmiar wyÅwietlaniaâ w Androidzie.");
+        footer(col, "Nie zależy od ustawienia „Rozmiar wyświetlania” w Androidzie.");
 
         section(col, "Tapeta");
         g = group(col);
@@ -1088,7 +1088,7 @@ public class ConfigActivity extends BaseActivity {
         for (int i = 0; i < Wallpapers.ALL.length; i++) {
             final Wallpapers.Style st = Wallpapers.ALL[i];
             if (i > 0) sep(g);
-            g.addView(row(null, st.name, st.id.equals(cw) ? "â" : "", false, p.text,
+            g.addView(row(null, st.name, st.id.equals(cw) ? "✓" : "", false, p.text,
                     new View.OnClickListener() {
                         @Override
                         public void onClick(View v) {
@@ -1098,7 +1098,7 @@ public class ConfigActivity extends BaseActivity {
                     }));
         }
         sep(g);
-        g.addView(row(null, "Tapeta systemowa", "system".equals(cw) ? "â" : "", false, p.text,
+        g.addView(row(null, "Tapeta systemowa", "system".equals(cw) ? "✓" : "", false, p.text,
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -1106,7 +1106,7 @@ public class ConfigActivity extends BaseActivity {
                         changed();
                     }
                 }));
-        footer(col, "KaÅ¼da tapeta ma wersjÄ jasnÄ i ciemnÄ; przeÅÄczajÄ siÄ razem z trybem wyglÄdu.");
+        footer(col, "Każda tapeta ma wersję jasną i ciemną; przełączają się razem z trybem wyglądu.");
 
         section(col, "Circadian Display");
         g = group(col);
@@ -1123,7 +1123,7 @@ public class ConfigActivity extends BaseActivity {
                 }
             }));
             sep(g);
-            g.addView(row(null, "OtwÃ³rz Circadian Display", "", true, p.accent, new View.OnClickListener() {
+            g.addView(row(null, "Otwórz Circadian Display", "", true, p.accent, new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     android.content.Intent i = pl.dock.widget.circadian.CircadianBridge.openApp(ConfigActivity.this);
@@ -1141,8 +1141,8 @@ public class ConfigActivity extends BaseActivity {
                 }
             }));
         }
-        footer(col, "Circadian Display ustawia ciepÅo i przygaszenie ekranu wg krzywej. "
-                + "Dock aktywuje wybrany profil przy przejÅciu w tryb nocny.");
+        footer(col, "Circadian Display ustawia ciepło i przygaszenie ekranu wg krzywej. "
+                + "Dock aktywuje wybrany profil przy przejściu w tryb nocny.");
 
         section(col, "Kopia zapasowa");
         g = group(col);
@@ -1166,20 +1166,20 @@ public class ConfigActivity extends BaseActivity {
                 startActivityForResult(i, REQ_BACKUP_IMPORT);
             }
         }));
-        footer(col, "Kopia obejmuje listÄ aplikacji, widÅ¼ety, tapetÄ, wyglÄd i wszystkie ustawienia Docka. "
-                + "Nie obejmuje peÅnych danych Circadian Display â te majÄ wÅasny eksport.");
+        footer(col, "Kopia obejmuje listę aplikacji, widżety, tapetę, wygląd i wszystkie ustawienia Docka. "
+                + "Nie obejmuje pełnych danych Circadian Display — te mają własny eksport.");
 
         section(col, "Telefon");
         g = group(col);
         String bn = Prefs.btDeviceName(this);
-        g.addView(row(null, "Telefon do Åledzenia", bn.length() == 0 ? "Nie wybrano" : bn, true, p.text,
+        g.addView(row(null, "Telefon do śledzenia", bn.length() == 0 ? "Nie wybrano" : bn, true, p.text,
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
                         pickPhone();
                     }
                 }));
-        footer(col, "Ikona Bluetooth w docku Åwieci tylko wtedy, gdy poÅÄczony jest ten telefon.");
+        footer(col, "Ikona Bluetooth w docku świeci tylko wtedy, gdy połączony jest ten telefon.");
 
         section(col, "CarPlay (DiPlay)");
         g = group(col);
@@ -1192,16 +1192,16 @@ public class ConfigActivity extends BaseActivity {
                     }
                 }));
         sep(g);
-        g.addView(row(null, "OtwÃ³rz CarPlay teraz", "", true, p.accent, new View.OnClickListener() {
+        g.addView(row(null, "Otwórz CarPlay teraz", "", true, p.accent, new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Launch.carplay(ConfigActivity.this);
             }
         }));
-        footer(col, "ZmieÅ okno tylko wtedy, gdy przycisk CarPlay otwiera ekran ustawieÅ DiPlay "
+        footer(col, "Zmień okno tylko wtedy, gdy przycisk CarPlay otwiera ekran ustawień DiPlay "
                 + "zamiast obrazu z telefonu.");
 
-        section(col, "SamochÃ³d i system");
+        section(col, "Samochód i system");
         g = group(col);
         g.addView(row(null, "Ustawienia samochodu", "", true, p.text, new View.OnClickListener() {
             @Override
@@ -1234,7 +1234,7 @@ public class ConfigActivity extends BaseActivity {
             }
         }));
 
-        // ustawienia udostÄpniane przez inne aplikacje (np. OBD2 Dashboard)
+        // ustawienia udostępniane przez inne aplikacje (np. OBD2 Dashboard)
         List<PluginSettings.Plugin> plugins = PluginSettings.discover(this);
         for (final PluginSettings.Plugin pl : plugins) {
             section(col, pl.label);
@@ -1274,8 +1274,8 @@ public class ConfigActivity extends BaseActivity {
             String n = list.get(i).getName();
             names[i] = n == null ? list.get(i).getAddress() : n;
         }
-        names[list.size()] = "Å»aden (dowolne urzÄdzenie)";
-        Popups.menu(this, "Telefon do Åledzenia", names, new Popups.OnSel() {
+        names[list.size()] = "Żaden (dowolne urządzenie)";
+        Popups.menu(this, "Telefon do śledzenia", names, new Popups.OnSel() {
             @Override
             public void on(int i) {
                 if (i >= list.size()) {
@@ -1320,11 +1320,11 @@ public class ConfigActivity extends BaseActivity {
     private String iconModeName(AppEntry e) {
         if ("file".equals(e.mode)) return "Z pliku";
         if ("app".equals(e.mode)) return "Innej aplikacji";
-        return "DomyÅlna";
+        return "Domyślna";
     }
 
     private String appLabel(String pkg) {
-        if (pkg == null || pkg.length() == 0) return "â";
+        if (pkg == null || pkg.length() == 0) return "—";
         try {
             PackageManager pm = getPackageManager();
             return pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString();
@@ -1335,9 +1335,9 @@ public class ConfigActivity extends BaseActivity {
 
     // ---------- menu wpisu ----------
     private void entryMenu(final AppEntry e) {
-        String[] items = {"ZmieÅ aplikacjÄ", "Ikona",
-                "Ikona dokÅadnie jak oryginalna: " + (e.orig ? "TAK" : "nie"),
-                "PrzesuÅ wyÅ¼ej", "PrzesuÅ niÅ¼ej", "UsuÅ z listy"};
+        String[] items = {"Zmień aplikację", "Ikona",
+                "Ikona dokładnie jak oryginalna: " + (e.orig ? "TAK" : "nie"),
+                "Przesuń wyżej", "Przesuń niżej", "Usuń z listy"};
         Popups.menu(this, appLabel(e.pkg), items, new Popups.OnSel() {
             @Override
             public void on(int which) {
@@ -1363,8 +1363,8 @@ public class ConfigActivity extends BaseActivity {
                     Prefs.move(ConfigActivity.this, e.id, 1);
                     changed();
                 } else {
-                    Popups.confirm(ConfigActivity.this, "UsunÄÄ z listy?", appLabel(e.pkg),
-                            "UsuÅ", new Runnable() {
+                    Popups.confirm(ConfigActivity.this, "Usunąć z listy?", appLabel(e.pkg),
+                            "Usuń", new Runnable() {
                                 @Override
                                 public void run() {
                                     Prefs.remove(ConfigActivity.this, e.id);
@@ -1378,7 +1378,7 @@ public class ConfigActivity extends BaseActivity {
 
     private void iconMenu(final AppEntry e) {
         String[] items = {"Z pliku (obraz z tabletu)", "Ikona innej aplikacji",
-                "Wbudowane ikony (styl iOS / CarPlay)", "DomyÅlna ikona aplikacji"};
+                "Wbudowane ikony (styl iOS / CarPlay)", "Domyślna ikona aplikacji"};
         new AlertDialog.Builder(this)
                 .setTitle("Ikona")
                 .setItems(items, new DialogInterface.OnClickListener() {
@@ -1390,7 +1390,7 @@ public class ConfigActivity extends BaseActivity {
                             i.addCategory(Intent.CATEGORY_OPENABLE);
                             if (i.resolveActivity(getPackageManager()) == null) {
                                 Toast.makeText(ConfigActivity.this,
-                                        "Tablet nie ma wyboru plikÃ³w â uÅ¼yj ikony innej aplikacji",
+                                        "Tablet nie ma wyboru plików – użyj ikony innej aplikacji",
                                         Toast.LENGTH_LONG).show();
                                 return;
                             }
@@ -1431,13 +1431,13 @@ public class ConfigActivity extends BaseActivity {
         super.onActivityResult(req, res, data);
         if (req == REQ_BACKUP_EXPORT && res == RESULT_OK && data != null && data.getData() != null) {
             boolean ok = pl.dock.widget.backup.BackupManager.writeTo(this, data.getData());
-            android.widget.Toast.makeText(this, ok ? "Zapisano" : "BÅÄd zapisu",
+            android.widget.Toast.makeText(this, ok ? "Zapisano" : "Błąd zapisu",
                     android.widget.Toast.LENGTH_SHORT).show();
             return;
         }
         if (req == REQ_BACKUP_IMPORT && res == RESULT_OK && data != null && data.getData() != null) {
             boolean ok = pl.dock.widget.backup.BackupManager.importFrom(this, data.getData());
-            android.widget.Toast.makeText(this, ok ? "Zaimportowano â zrestartuj aplikacjÄ" : "BÅÄd importu",
+            android.widget.Toast.makeText(this, ok ? "Zaimportowano — zrestartuj aplikację" : "Błąd importu",
                     android.widget.Toast.LENGTH_LONG).show();
             if (ok) recreate();
             return;
@@ -1454,15 +1454,15 @@ public class ConfigActivity extends BaseActivity {
                     Prefs.persist(this, fileEntry);
                     changed();
                 } else {
-                    Toast.makeText(this, "Nie udaÅo siÄ wczytaÄ obrazu", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "Nie udało się wczytać obrazu", Toast.LENGTH_LONG).show();
                 }
             } catch (Exception ex) {
-                Toast.makeText(this, "Nie udaÅo siÄ wczytaÄ obrazu", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Nie udało się wczytać obrazu", Toast.LENGTH_LONG).show();
             }
         }
     }
 
-    // ---------- wybÃ³r aplikacji ----------
+    // ---------- wybór aplikacji ----------
     private void pickApp(final OnPick cb) {
         final PackageManager pm = getPackageManager();
         Intent main = new Intent(Intent.ACTION_MAIN);
@@ -1484,7 +1484,7 @@ public class ConfigActivity extends BaseActivity {
 
         ListView lv = new ListView(this);
         final AlertDialog dlg = new AlertDialog.Builder(this)
-                .setTitle("Wybierz aplikacjÄ")
+                .setTitle("Wybierz aplikację")
                 .setView(lv)
                 .setNegativeButton("Anuluj", null)
                 .create();
@@ -1516,7 +1516,7 @@ public class ConfigActivity extends BaseActivity {
         dlg.show();
     }
 
-    // ---------- ÅºrÃ³dÅo napiÄcia ----------
+    // ---------- źródło napięcia ----------
     private interface OnText {
         void on(String[] values);
     }
@@ -1560,19 +1560,19 @@ public class ConfigActivity extends BaseActivity {
     private void voltSourceDialog() {
         final List<String> paths = new ArrayList<String>();
         List<String> labels = new ArrayList<String>();
-        labels.add("Bateria Androida (domyÅlnie)");
+        labels.add("Bateria Androida (domyślnie)");
         paths.add("");
         for (String f : Volt.discoverFiles()) {
-            labels.add(f + "  â  " + Volt.readRaw(f));
+            labels.add(f + "  →  " + Volt.readRaw(f));
             paths.add(f);
         }
         final int n = paths.size();
-        labels.add("WÅasny plikâ¦");
-        labels.add("WÅasny broadcastâ¦");
-        labels.add("Klucz ustawieÅ Androidaâ¦");
+        labels.add("Własny plik…");
+        labels.add("Własny broadcast…");
+        labels.add("Klucz ustawień Androida…");
         labels.add("Z aplikacji OBD2 Dashboard (broadcast Docka)");
         new AlertDialog.Builder(this)
-                .setTitle("Å¹rÃ³dÅo napiÄcia")
+                .setTitle("Źródło napięcia")
                 .setItems(labels.toArray(new String[0]), new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface d, int which) {
@@ -1584,7 +1584,7 @@ public class ConfigActivity extends BaseActivity {
                             Prefs.setVoltPath(ConfigActivity.this, paths.get(which));
                             sourceChanged();
                         } else if (which == n) {
-                            ask("WÅasny plik", new String[]{"/sys/â¦/voltage_now"},
+                            ask("Własny plik", new String[]{"/sys/…/voltage_now"},
                                     new String[]{Prefs.voltPath(ConfigActivity.this)},
                                     new OnText() {
                                         @Override
@@ -1595,8 +1595,8 @@ public class ConfigActivity extends BaseActivity {
                                         }
                                     });
                         } else if (which == n + 1) {
-                            ask("WÅasny broadcast",
-                                    new String[]{"Akcja (np. com.x.VOLTAGE)", "Nazwa extra z liczbÄ"},
+                            ask("Własny broadcast",
+                                    new String[]{"Akcja (np. com.x.VOLTAGE)", "Nazwa extra z liczbą"},
                                     new String[]{Prefs.bcastAction(ConfigActivity.this),
                                             Prefs.bcastExtra(ConfigActivity.this)},
                                     new OnText() {
@@ -1608,7 +1608,7 @@ public class ConfigActivity extends BaseActivity {
                                         }
                                     });
                         } else if (which == n + 2) {
-                            ask("Klucz ustawieÅ Androida",
+                            ask("Klucz ustawień Androida",
                                     new String[]{"np. system:nazwa, global:nazwa, secure:nazwa"},
                                     new String[]{Prefs.settingKey(ConfigActivity.this)},
                                     new OnText() {
@@ -1620,7 +1620,7 @@ public class ConfigActivity extends BaseActivity {
                                         }
                                     });
                         } else {
-                            // umowa z poprawkÄ aplikacji OBD2 Dashboard (patrz obd-bridge/README)
+                            // umowa z poprawką aplikacji OBD2 Dashboard (patrz obd-bridge/README)
                             Prefs.setBcast(ConfigActivity.this, "pl.dock.widget.OBD_VOLTAGE", "voltage");
                             Prefs.setVoltSource(ConfigActivity.this, "bcast");
                             sourceChanged();
@@ -1704,7 +1704,7 @@ public class ConfigActivity extends BaseActivity {
         dlg.show();
     }
 
-    // dobiera wbudowane ikony do aplikacji z domyÅlnÄ ikonÄ, wg nazwy
+    // dobiera wbudowane ikony do aplikacji z domyślną ikoną, wg nazwy
     private void autoIcons() {
         int count = 0;
         int obd = 0;

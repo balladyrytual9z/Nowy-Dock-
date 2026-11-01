@@ -10,8 +10,8 @@ import android.view.View;
 
 import java.util.Calendar;
 
-// Zegar analogowy (wbudowany widÅ¼et jak w panelu widÅ¼etÃ³w CarPlay).
-// OdÅwieÅ¼a siÄ raz na minutÄ i tylko, gdy jest widoczny.
+// Zegar analogowy (wbudowany widżet jak w panelu widżetów CarPlay).
+// Odświeża się raz na minutę i tylko, gdy jest widoczny.
 public class ClockCard extends View implements NightAware {
 
     private final float d;
