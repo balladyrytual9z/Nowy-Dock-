@@ -11,7 +11,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Central executors for Dock 2.0 â avoid spawning ad-hoc threads.
+ * Central executors for Dock 2.0 – avoid spawning ad-hoc threads.
  */
 public final class DockTaskManager {
 
