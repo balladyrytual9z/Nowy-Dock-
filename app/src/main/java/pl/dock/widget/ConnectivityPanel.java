@@ -246,7 +246,12 @@ public class ConnectivityPanel extends LinearLayout {
         editMode = true;
         grid.setEditing(true);
         btnEdit.setText("Gotowe");
+        btnAdd.setAlpha(0f);
+        btnAdd.setScaleX(0.9f);
+        btnAdd.setScaleY(0.9f);
         btnAdd.setVisibility(VISIBLE);
+        btnAdd.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(220)
+                .setInterpolator(pl.dock.widget.ui.DockMotion.IOS_SPRING).start();
     }
 
     public void exitEditMode() {
@@ -254,7 +259,13 @@ public class ConnectivityPanel extends LinearLayout {
         editMode = false;
         grid.setEditing(false);
         btnEdit.setText("Edytuj");
-        btnAdd.setVisibility(GONE);
+        btnAdd.animate().alpha(0f).scaleX(0.9f).scaleY(0.9f).setDuration(180)
+                .withEndAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        btnAdd.setVisibility(GONE);
+                    }
+                }).start();
     }
 
     private void openPicker() {
