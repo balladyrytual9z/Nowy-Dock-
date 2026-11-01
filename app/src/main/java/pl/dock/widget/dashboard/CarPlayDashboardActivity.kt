@@ -294,18 +294,6 @@ class CarPlayDashboardActivity : Activity() {
     private fun rebuildCharts() {
         chartsArea.removeAllViews()
         charts.clear()
-        if (selection.isEmpty()) {
-            chartsArea.addView(TextView(this).apply {
-                text = "Dotknij parametr, aby pokazac wykres (maks. 4)"
-                setTextColor(Color.parseColor("#8E8E93"))
-                textSize = 14f
-                gravity = Gravity.CENTER
-            })
-            return
-        }
-    private fun rebuildCharts() {
-        chartsArea.removeAllViews()
-        charts.clear()
         cells.clear()
         if (selection.isEmpty()) {
             chartsArea.addView(TextView(this).apply {
