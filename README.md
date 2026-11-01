@@ -4,7 +4,7 @@ Android launcher for car tablets (API 26+, target 28 / Android 9 Automotive).
 Application ID: `pl.dock.widget`  
 Version: **1.3.0-obd**
 
-MediaTek MT8163 (ARMv7) friendly â soft graphite night palette, heap-conscious design.
+MediaTek MT8163 (ARMv7) friendly - soft graphite night palette, heap-conscious design.
 
 ## Features added in 1.3.0 (Parts 4-6)
 
@@ -26,34 +26,34 @@ MediaTek MT8163 (ARMv7) friendly â soft graphite night palette, heap-consci
 
 ConnectionManager is now a process-wide singleton shared by UI, widget and the core service.
 
-## Previously: 1.2.2 â Honda OBD Discovery
+## Previously: 1.2.2 - Honda OBD Discovery
 
 Integrated ELM327 / vGate discovery stack (SPP + BLE) under MVVM isolation:
 
 ```
 pl.dock.widget
-âââ transport/          # ElmTransport, SppTransport, BleTransport, ConnectionDaemon
-âââ session/            # ElmSession, EngineState
-âââ orchestration/      # ConnectionManager, PidScheduler
-âââ repository/         # VehicleUiState (StateFlow snapshot)
-âââ ObdDiscoveryActivity
+|- transport/          # ElmTransport, SppTransport, BleTransport, ConnectionDaemon
+|- session/            # ElmSession, EngineState
+|- orchestration/      # ConnectionManager, PidScheduler
+|- repository/         # VehicleUiState (StateFlow snapshot)
+`- ObdDiscoveryActivity
 ```
 
 UI observes only `ConnectionManager.uiState: StateFlow<VehicleUiState>`.  
 Zero direct Bluetooth access from the presentation layer.
 
 ### Transport (Part 2)
-- **SppTransport**: insecure RFCOMM â secure RFCOMM â reflection channel-1 (UUID 00001101-â¦)
+- **SppTransport**: insecure RFCOMM -> secure RFCOMM -> reflection channel-1 (UUID 00001101-...)
 - **BleTransport**: mutex, 12 s pair / 6 s TX timeouts, MTU 185, 20-byte chunks, WRITE_TYPE_NO_RESPONSE, CCCD 0x2902 (missing descriptor ignored)
 - **ConnectionDaemon**: exponential backoff (max 30 s) + GATT cache clear via reflection
 
 ### Session & Scheduler (Part 3)
-- **ElmSession**: ATZ, ATE0, ATSP6, ATH1, ATAT1 â waits for `>` (no Thread.sleep)
+- **ElmSession**: ATZ, ATE0, ATSP6, ATH1, ATAT1 - waits for `>` (no Thread.sleep)
 - AT MA blocked (request/response only)
 - **PidScheduler**: Fast 100 ms (010C/010D), Medium 500 ms (Load/TPS/MAP), Slow 2 s (ECT/IAT/STFT/LTFT)
 - Stale flag after 3 s without response
 - Background keep-alive: AT RV only
-- **EngineState**: protect when V < 11.0 V or RPM 1â450; resume RPM > 600 & V > 13.2 V
+- **EngineState**: protect when V < 11.0 V or RPM 1-450; resume RPM > 600 & V > 13.2 V
 
 Open **Honda OBD Discovery** from the app (activity exported) or add as dock tool.
 
@@ -74,5 +74,4 @@ Debug keystore: `app/dock-debug.p12` (alias `dock`, password `dockdock`) if pres
 
 ## CI
 
-`.github/workflows/build-release.yml` â Java 17, Gradle 8.9, assembleDebug + GitHub Release.
-
+`.github/workflows/build-release.yml` - Java 17, Gradle 8.9, assembleDebug + GitHub Release.
