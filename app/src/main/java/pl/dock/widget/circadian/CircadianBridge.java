@@ -7,13 +7,13 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 
-/** Most do Circadian Display. DziaÅa tylko gdy pakiet jest zainstalowany. */
+/** Most do Circadian Display. Działa tylko gdy pakiet jest zainstalowany. */
 public final class CircadianBridge {
     public static final String PKG = "com.circadiandisplay.app";
     public static final String AUTHORITY = "com.circadiandisplay.app.state";
-    /** Dock â Circadian (or internal): night mode changed. */
+    /** Dock → Circadian (or internal): night mode changed. */
     public static final String ACTION_NIGHT = "pl.dock.widget.NIGHT_MODE_CHANGED";
-    /** Circadian Display â Dock: overlay / profile state flipped (extra isNight). */
+    /** Circadian Display → Dock: overlay / profile state flipped (extra isNight). */
     public static final String ACTION_STATE_CHANGED = "pl.circadiandisplay.STATE_CHANGED";
 
     public static boolean isInstalled(Context c) {

@@ -12,8 +12,8 @@ import pl.dock.widget.StatusCenter;
 
 /**
  * Dwukierunkowa synchronizacja z Circadian Display:
- *  - pl.circadiandisplay.STATE_CHANGED  (z nakÅadki, extra isNight)
- *  - pl.dock.widget.NIGHT_MODE_CHANGED   (z Docka / wewnÄtrzne)
+ *  - pl.circadiandisplay.STATE_CHANGED  (z nakładki, extra isNight)
+ *  - pl.dock.widget.NIGHT_MODE_CHANGED   (z Docka / wewnętrzne)
  */
 public class NightModeReceiver extends BroadcastReceiver {
     @Override
@@ -25,7 +25,7 @@ public class NightModeReceiver extends BroadcastReceiver {
         boolean isNight = i.getBooleanExtra("isNight", false);
 
         if (CircadianBridge.ACTION_STATE_CHANGED.equals(a)) {
-            // Circadian â Dock: ustaw tryb i odÅwieÅ¼ UI
+            // Circadian → Dock: ustaw tryb i odśwież UI
             if (!Prefs.circadianAuto(c)) return;
             String want = isNight ? "night" : "day";
             if (!Prefs.followSystem(c)) {
@@ -37,7 +37,7 @@ public class NightModeReceiver extends BroadcastReceiver {
                 DockWidget.updateAll(c);
             } catch (Throwable ignored) {
             }
-            // PrzekaÅ¼ do launchera / StatusService (ten sam pakiet)
+            // Przekaż do launchera / StatusService (ten sam pakiet)
             c.sendBroadcast(new Intent(CircadianBridge.ACTION_NIGHT)
                     .setPackage(c.getPackageName())
                     .putExtra("isNight", isNight)
@@ -47,7 +47,7 @@ public class NightModeReceiver extends BroadcastReceiver {
 
         if (CircadianBridge.ACTION_NIGHT.equals(a)
                 || "pl.dock.widget.NIGHT_MODE_CHANGED".equals(a)) {
-            // Dock â Circadian: aktywuj profil nocny nakÅadki
+            // Dock → Circadian: aktywuj profil nocny nakładki
             if (isNight && Prefs.circadianAuto(c) && CircadianBridge.isInstalled(c)) {
                 CircadianBridge.activateForNight(c);
             }
