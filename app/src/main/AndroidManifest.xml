@@ -106,6 +106,12 @@
             android:label="DTC Manager"
             android:exported="false" />
 
+        <!-- Misfire Lab: Mode 06, slupki cylinderow 1-4 -->
+        <activity
+            android:name=".diagnostics.MisfireLabActivity"
+            android:label="Misfire Lab"
+            android:exported="false" />
+
         <!-- Osobna ikona startowa: natychmiastowe kasowanie DTC bez potwierdzen -->
         <activity
             android:name=".diagnostics.KasujDtcActivity"
