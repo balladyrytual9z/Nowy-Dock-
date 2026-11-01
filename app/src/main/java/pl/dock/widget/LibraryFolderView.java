@@ -125,7 +125,8 @@ public class LibraryFolderView extends FrameLayout {
             iv.setOnClickListener(new OnClickListener() {
                 @Override public void onClick(View v) {
                     if (editing) return;
-                    if (listener != null) listener.onAppTap(app);
+                    // iOS: dotkniecie mini-klasterka rozwija cala kategorie
+                    if (listener != null) listener.onFolderTap(categoryName);
                 }
             });
         }

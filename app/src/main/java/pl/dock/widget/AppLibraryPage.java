@@ -13,6 +13,9 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +44,9 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
     private ScrollView scrollView;
     private LinearLayout letterBar;
     private String filterQuery = "";
+    private boolean searchFocused = false;
     private final Map<String, Integer> categoryY = new LinkedHashMap<String, Integer>();
+    private final Map<String, String> labels = new LinkedHashMap<String, String>();
 
     public AppLibraryPage(Context c) {
         super(c);
@@ -124,6 +129,13 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
             }
             @Override public void afterTextChanged(android.text.Editable s) {}
         });
+        // iOS: dotkniecie paska szukania (bez tekstu) = pelna lista alfabetyczna
+        searchEt.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override public void onFocusChange(View v, boolean hasFocus) {
+                searchFocused = hasFocus;
+                rebuildFolders();
+            }
+        });
 
         addView(header, new LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -196,6 +208,7 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
     /** Rebuild from full launcher items list (selected apps). */
     public void setApps(List<AppsGridPage.Item> items) {
         categories.clear();
+        labels.clear();
         // order: Suggestions/Recent first if we want â for now auto categories
         List<String> order = new ArrayList<String>();
         order.add(AppCategorizer.CAT_SOCIAL);
@@ -226,6 +239,7 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
                         label = pkg;
                     }
                 }
+                labels.put(pkg, label);
                 String cat = AppCategorizer.getCategory(e, label);
                 if (!categories.containsKey(cat)) {
                     categories.put(cat, new ArrayList<AppEntry>());
@@ -233,6 +247,23 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
                 categories.get(cat).add(e);
             }
         }
+        // ===== iOS: dwie specjalne kategorie na samej górze =====
+        try {
+            List<AppEntry> all = new ArrayList<AppEntry>();
+            for (List<AppEntry> lst : categories.values()) all.addAll(lst);
+            List<AppEntry> sug = suggestions(all);
+            List<AppEntry> rec = recentlyAdded(all);
+            if (!sug.isEmpty() || !rec.isEmpty()) {
+                Map<String, List<AppEntry>> ordered = new LinkedHashMap<String, List<AppEntry>>();
+                if (!sug.isEmpty()) ordered.put("Sugestie", sug);
+                if (!rec.isEmpty()) ordered.put("Ostatnio dodane", rec);
+                ordered.putAll(categories);
+                categories.clear();
+                categories.putAll(ordered);
+            }
+        } catch (Throwable ignored) {
+        }
+
         // drop empty
         List<String> empty = new ArrayList<String>();
         for (Map.Entry<String, List<AppEntry>> e : categories.entrySet()) {
@@ -247,6 +278,10 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         if (grid == null) return;
         grid.removeAllViews();
         folders.clear();
+        if (searchFocused && (filterQuery == null || filterQuery.length() == 0)) {
+            buildAlphabeticalList();
+            return;
+        }
 
         LibraryFolderView.Listener fl = new LibraryFolderView.Listener() {
             @Override public void onFolderTap(String category) {
@@ -261,7 +296,7 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
             }
 
             @Override public void onAppLongPress(View iconView, AppEntry app) {
-                EditModeController.get().setEditing(true);
+                showLibraryAppMenu(app);
             }
 
             @Override public void onRemoveApp(AppEntry app) {
@@ -349,6 +384,181 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
             empty.setGravity(Gravity.CENTER);
             empty.setPadding(0, dp(40), 0, 0);
             grid.addView(empty);
+        }
+    }
+
+    // Sugestie: do 4 najczesciej uzywanych aplikacji z ostatniego tygodnia
+    private List<AppEntry> suggestions(List<AppEntry> all) {
+        List<AppEntry> out = new ArrayList<AppEntry>();
+        Map<String, Long> last = new LinkedHashMap<String, Long>();
+        try {
+            android.app.usage.UsageStatsManager usm = (android.app.usage.UsageStatsManager)
+                    ctx.getSystemService(Context.USAGE_STATS_SERVICE);
+            if (usm != null) {
+                List<android.app.usage.UsageStats> stats = usm.queryUsageStats(
+                        android.app.usage.UsageStatsManager.INTERVAL_WEEKLY,
+                        System.currentTimeMillis() - 7L * 24 * 3600 * 1000L,
+                        System.currentTimeMillis());
+                if (stats != null) {
+                    for (android.app.usage.UsageStats s : stats) {
+                        if (s == null) continue;
+                        Long cur = last.get(s.getPackageName());
+                        if (cur == null || s.getLastTimeUsed() > cur) {
+                            last.put(s.getPackageName(), s.getLastTimeUsed());
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        if (last.isEmpty()) return out;
+        final Map<String, Long> usage = last;
+        List<AppEntry> cands = new ArrayList<AppEntry>(all);
+        Collections.sort(cands, new Comparator<AppEntry>() {
+            @Override public int compare(AppEntry a, AppEntry b) {
+                Long ta = usage.get(a.pkg), tb = usage.get(b.pkg);
+                if (ta == null && tb == null) return 0;
+                if (ta == null) return 1;
+                if (tb == null) return -1;
+                return tb.compareTo(ta);
+            }
+        });
+        for (AppEntry e : cands) {
+            if (out.size() >= 4) break;
+            if (usage.containsKey(e.pkg)) out.add(e);
+        }
+        return out;
+    }
+
+    // Ostatnio dodane: instalacje/aktualizacje z ostatnich 7 dni
+    private List<AppEntry> recentlyAdded(List<AppEntry> all) {
+        List<AppEntry> out = new ArrayList<AppEntry>();
+        long week = 7L * 24 * 60 * 60 * 1000;
+        long now = System.currentTimeMillis();
+        try {
+            PackageManager pm = ctx.getPackageManager();
+            for (AppEntry e : all) {
+                try {
+                    long t = pm.getPackageInfo(e.pkg, 0).lastUpdateTime;
+                    if (t > 0 && now - t <= week) out.add(e);
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return out;
+    }
+
+    // iOS: menu kontekstowe aplikacji w Bibliotece
+    private void showLibraryAppMenu(final AppEntry app) {
+        if (app == null || app.pkg == null || app.pkg.length() == 0
+                || !(ctx instanceof android.app.Activity)) {
+            EditModeController.get().setEditing(true);
+            return;
+        }
+        final android.app.Activity a = (android.app.Activity) ctx;
+        Popups.menu(a, appLabel(app),
+                new String[]{"Dodaj do ekranu głównego", "Informacje o aplikacji", "Usuń aplikację"},
+                new Popups.OnSel() {
+                    @Override public void on(int idx) {
+                        if (idx == 0) {
+                            Prefs.add(ctx, app.pkg);
+                            android.widget.Toast.makeText(ctx, "Dodano do ekranu głównego",
+                                    android.widget.Toast.LENGTH_SHORT).show();
+                        } else if (idx == 1) {
+                            try {
+                                a.startActivity(new android.content.Intent(
+                                        android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                        android.net.Uri.parse("package:" + app.pkg)));
+                            } catch (Throwable ignored) {
+                            }
+                        } else if (idx == 2) {
+                            try {
+                                android.content.Intent i = new android.content.Intent(
+                                        android.content.Intent.ACTION_UNINSTALL_PACKAGE,
+                                        android.net.Uri.parse("package:" + app.pkg));
+                                i.putExtra(android.content.Intent.EXTRA_RETURN_RESULT, true);
+                                a.startActivity(i);
+                            } catch (Throwable ignored) {
+                            }
+                        }
+                    }
+                });
+    }
+
+    private String appLabel(AppEntry e) {
+        if (e == null) return "";
+        String l = labels.get(e.pkg);
+        if (l != null && l.length() > 0) return l;
+        return e.pkg != null ? e.pkg : "";
+    }
+
+    // pelna lista alfabetyczna (dotkniecie paska szukania bez tekstu, jak w iOS)
+    private void buildAlphabeticalList() {
+        List<AppEntry> all = new ArrayList<AppEntry>();
+        HashSet<String> seen = new HashSet<String>();
+        for (List<AppEntry> lst : categories.values()) {
+            for (AppEntry e : lst) {
+                if (e != null && e.pkg != null && seen.add(e.pkg)) all.add(e);
+            }
+        }
+        Collections.sort(all, new Comparator<AppEntry>() {
+            @Override public int compare(AppEntry a, AppEntry b) {
+                return appLabel(a).compareToIgnoreCase(appLabel(b));
+            }
+        });
+        if (all.isEmpty()) {
+            TextView empty = new TextView(ctx);
+            empty.setText("Brak aplikacji");
+            empty.setTextColor(night ? 0x99FFFFFF : 0x99666666);
+            empty.setGravity(Gravity.CENTER);
+            empty.setPadding(0, dp(40), 0, 0);
+            grid.addView(empty);
+            return;
+        }
+        LinearLayout row = null;
+        int col = 0;
+        for (final AppEntry app : all) {
+            if (row == null || col >= 4) {
+                row = new LinearLayout(ctx);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                grid.addView(row);
+                col = 0;
+            }
+            LinearLayout cell = new LinearLayout(ctx);
+            cell.setOrientation(LinearLayout.VERTICAL);
+            cell.setGravity(Gravity.CENTER_HORIZONTAL);
+            cell.setPadding(dp(6), dp(6), dp(6), dp(6));
+            android.widget.ImageView iv = new android.widget.ImageView(ctx);
+            iv.setImageBitmap(Icons.forEntry(ctx, app));
+            int isz = dp(52);
+            iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+            cell.addView(iv, new LinearLayout.LayoutParams(isz, isz));
+            TextView tv = new TextView(ctx);
+            tv.setText(appLabel(app));
+            tv.setTextSize(11);
+            tv.setMaxLines(1);
+            tv.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            tv.setGravity(Gravity.CENTER);
+            tv.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
+            cell.addView(tv, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            cell.setOnClickListener(new OnClickListener() {
+                @Override public void onClick(View v) {
+                    if (editing) return;
+                    if (host != null) host.openApp(app.pkg);
+                }
+            });
+            cell.setOnLongClickListener(new OnLongClickListener() {
+                @Override public boolean onLongClick(View v) {
+                    showLibraryAppMenu(app);
+                    return true;
+                }
+            });
+            LinearLayout.LayoutParams cellLp = new LinearLayout.LayoutParams(0,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            row.addView(cell, cellLp);
+            col++;
         }
     }
 
