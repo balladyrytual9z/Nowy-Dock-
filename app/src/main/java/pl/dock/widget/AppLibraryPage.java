@@ -78,10 +78,16 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         removeAllViews();
         folders.clear();
 
+        // inset na dock: zawartosc biblioteki nie moze wchodzic pod dok
+        int dockInset = Ui.dp(ctx, Ui.DOCK_OFFSET_DP);
+        boolean dockLeft = Ui.dockLeft(ctx);
+        int extraL = dockLeft ? dockInset : 0;
+        int extraR = dockLeft ? 0 : dockInset;
+
         // Title + iOS-style search bar
         LinearLayout header = new LinearLayout(ctx);
         header.setOrientation(LinearLayout.VERTICAL);
-        header.setPadding(dp(16), dp(12), dp(16), dp(4));
+        header.setPadding(dp(16) + extraL, dp(12), dp(16) + extraR, dp(4));
 
         title = new TextView(ctx);
         title.setText("Biblioteka aplikacji");
@@ -128,7 +134,7 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
 
         grid = new LinearLayout(ctx);
         grid.setOrientation(LinearLayout.VERTICAL);
-        grid.setPadding(dp(14), dp(4), dp(28), dp(24)); // right pad for letter bar
+        grid.setPadding(dp(14) + extraL, dp(4), dp(28) + extraR, dp(24)); // right pad for letter bar
         scrollView.addView(grid, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -162,6 +168,8 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         LayoutParams lbLp = new LayoutParams(dp(22), ViewGroup.LayoutParams.MATCH_PARENT);
         lbLp.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
         lbLp.topMargin = dp(100);
+        lbLp.rightMargin = extraR;
+        lbLp.leftMargin = extraL;
         addView(letterBar, lbLp);
     }
 

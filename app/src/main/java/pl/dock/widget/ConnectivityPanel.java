@@ -47,6 +47,8 @@ public class ConnectivityPanel extends LinearLayout {
     private TextView btnAdd;
     private TextView note;
     private ModeSegment modeSeg;
+    private LinearLayout warmthRow;
+    private android.widget.SeekBar warmthBar;
     private PillSlider volSlider;
     private PillSlider briSlider;
     private BroadcastReceiver rc;
@@ -357,8 +359,9 @@ public class ConnectivityPanel extends LinearLayout {
             if (longPress) {
                 showWarmthSlider();
             } else {
-                boolean on = !NightShift.isOn(act);
-                boolean ok = NightShift.set(act, on);
+                // cykl jak w iPhonie: wylaczony -> wlaczony -> od zachodu do wschodu
+                String next = NightShift.nextMode(NightShift.mode(act));
+                boolean ok = NightShift.setMode(act, next);
                 if (!ok) host.close();
             }
         } else if (longPress) {
@@ -434,25 +437,54 @@ public class ConnectivityPanel extends LinearLayout {
         }
     }
 
-    /** Suwak warmth Night Shift â zapis do Prefs i prÃ³ba sync z Circadian Display. */
+    /** Inline suwak ciepla Night Shift - pojawia sie pod siatka narzedzi i ustawia
+     *  filtr NA BIEZACO (bez przycisku "Zapisz"), jak przytrzymanie przycisku w iPhonie. */
     private void showWarmthSlider() {
-        final android.app.AlertDialog.Builder b = new android.app.AlertDialog.Builder(act);
-        b.setTitle("Night Shift â ciepÅo");
-        final android.widget.SeekBar sb = new android.widget.SeekBar(act);
-        sb.setMax(80);
-        sb.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
-        int pad = dp(16);
-        sb.setPadding(pad, pad, pad, pad);
-        b.setView(sb);
-        b.setPositiveButton("Zapisz", new android.content.DialogInterface.OnClickListener() {
+        if (warmthRow != null) {
+            warmthRow.setVisibility(VISIBLE);
+            warmthBar.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
+            scheduleWarmthHide();
+            return;
+        }
+        warmthRow = new LinearLayout(act);
+        warmthRow.setOrientation(HORIZONTAL);
+        warmthRow.setGravity(Gravity.CENTER_VERTICAL);
+        warmthRow.setPadding(dp(6), dp(2), dp(6), dp(2));
+        warmthRow.setBackground(Ui.round(night ? 0x33FFFFFF : 0x14000000, 18, act));
+
+        TextView lbl = new TextView(act);
+        lbl.setText("Ciepło");
+        lbl.setTextSize(14);
+        lbl.setTypeface(null, Typeface.BOLD);
+        lbl.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
+        warmthRow.addView(lbl, new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        warmthBar = new android.widget.SeekBar(act);
+        warmthBar.setMax(80);
+        warmthBar.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
+        LayoutParams bp = new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        bp.leftMargin = dp(10);
+        bp.rightMargin = dp(6);
+        warmthRow.addView(warmthBar, bp);
+
+        warmthBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
             @Override
-            public void onClick(android.content.DialogInterface d, int w) {
-                int strength = Math.max(5, sb.getProgress());
+            public void onProgressChanged(android.widget.SeekBar sb, int prog, boolean fromUser) {
+                if (!fromUser) return;
+                int strength = Math.max(5, Math.min(80, prog));
                 Prefs.setNightShiftStrength(act, strength);
-                if (NightShift.isOn(act)) {
-                    NightShift.set(act, false);
-                    NightShift.set(act, true);
-                }
+                NightShift.refresh(act);   // nakladka zmienia kolor na zywo
+            }
+
+            @Override
+            public void onStartTrackingTouch(android.widget.SeekBar sb) {
+                removeCallbacks(hideWarmth);
+            }
+
+            @Override
+            public void onStopTrackingTouch(android.widget.SeekBar sb) {
+                int strength = Math.max(5, Math.min(80, sb.getProgress()));
                 try {
                     if (pl.dock.widget.circadian.CircadianBridge.isInstalled(act)) {
                         android.os.Bundle in = new android.os.Bundle();
@@ -463,12 +495,41 @@ public class ConnectivityPanel extends LinearLayout {
                     }
                 } catch (Throwable ignored) {
                 }
-                update();
+                scheduleWarmthHide();
             }
         });
-        b.setNegativeButton("Anuluj", null);
-        b.show();
+
+        LayoutParams rp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        rp.topMargin = dp(10);
+        addView(warmthRow, rp);
+        warmthRow.setAlpha(0f);
+        warmthRow.setTranslationY(dp(8));
+        warmthRow.animate().alpha(1f).translationY(0f).setDuration(220).start();
+        scheduleWarmthHide();
     }
+
+    private void scheduleWarmthHide() {
+        removeCallbacks(hideWarmth);
+        postDelayed(hideWarmth, 6000);
+    }
+
+    private final Runnable hideWarmth = new Runnable() {
+        @Override
+        public void run() {
+            if (warmthRow != null && warmthBar != null && !warmthBar.isPressed()) {
+                warmthRow.animate().alpha(0f).setDuration(250)
+                        .withEndAction(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (warmthRow != null) warmthRow.setVisibility(GONE);
+                            }
+                        }).start();
+            } else {
+                scheduleWarmthHide();
+            }
+        }
+    };
 
     private void applyMode() {
         host.modeChanged();
@@ -595,13 +656,14 @@ public class ConnectivityPanel extends LinearLayout {
         rc = null;
     }
 
-    // ---------------------------------------------------------------- segment: Jasny / Ciemny / Auto (jeden kafelek)
+    // ------------------------------------------------- jeden przycisk wygladu: klik = nastepny stan
+    // (Jasny -> Ciemny -> Auto -> Jasny), jak przycisk jasnosci w iPhonie
     private class ModeSegment extends View {
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final float d = getResources().getDisplayMetrics().density;
         private final String[] labels = {"Jasny", "Ciemny", "Auto"};
         private int selected; // 0 day, 1 night, 2 auto
-        private int pressedSeg = -1;
+        private boolean pressed = false;
 
         ModeSegment(Context c) {
             super(c);
@@ -622,69 +684,82 @@ public class ConnectivityPanel extends LinearLayout {
             float w = getWidth();
             float h = getHeight();
             float rad = 18f * d;
-            // background track
+            RectF track = new RectF(0, 0, w, h);
+
+            // tl segmentu (jak w iOS)
             p.setStyle(Paint.Style.FILL);
             p.setColor(night ? 0xF0606767 : 0xFFE4E4EA);
-            RectF track = new RectF(0, 0, w, h);
             cv.drawRoundRect(track, rad, rad, p);
 
-            float segW = w / 3f;
-            // selected pill
+            // wybrana pigulka na cala szerokosc - podswietlona jak aktywny przycisk
             float pad = 3f * d;
-            RectF pill = new RectF(selected * segW + pad, pad, (selected + 1) * segW - pad, h - pad);
-            p.setColor(night ? 0xFF3A3A3C : 0xFFFFFFFF);
+            RectF pill = new RectF(pad, pad, w - pad, h - pad);
+            p.setColor(selected == 1 ? 0xFF0A84FF   // Ciemny - niebieski akcent
+                            : selected == 2 ? (night ? 0xFF48484A : 0xFFC7C7CC)
+                            : (night ? 0xFF3A3A3C : 0xFFFFFFFF));
             cv.drawRoundRect(pill, rad - 2f, rad - 2f, p);
 
-            // subtle border
+            // subtelna ramka
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeWidth(1.2f * d);
             p.setColor(0x44FFFFFF);
             cv.drawRoundRect(track, rad, rad, p);
 
-            // labels
+            // etykieta aktualnego stanu + wskazowka kolejnego stanu
             p.setStyle(Paint.Style.FILL);
             p.setTextAlign(Paint.Align.CENTER);
             p.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
             float sd = getResources().getDisplayMetrics().scaledDensity;
-            p.setTextSize(14f * sd);
+            p.setTextSize(15f * sd);
+            int ink = selected == 1 ? 0xFFFFFFFF : (night ? 0xFFFFFFFF : 0xFF1C1C1E);
+            p.setColor(ink);
+            cv.drawText(labels[selected], w / 2f, h / 2f + 5.5f * d, p);
+
+            // male kropki stanow pod etykieta (1 z 3)
+            float dotR = 2.2f * d;
+            float gap = 9f * d;
+            float x0 = w / 2f - gap;
             for (int i = 0; i < 3; i++) {
-                p.setColor(i == selected ? (night ? 0xFFFFFFFF : 0xFF1C1C1E) : (night ? 0xFFC9CFCF : 0xFF6C6C70));
-                cv.drawText(labels[i], i * segW + segW / 2f, h / 2f + 5f * d, p);
+                p.setColor(i == selected ? (selected == 1 ? 0xFFFFFFFF : 0xFF0A84FF)
+                        : (night ? 0x66FFFFFF : 0x33000000));
+                cv.drawCircle(x0 + i * gap, h - 7f * d, dotR, p);
             }
         }
 
         @Override public boolean onTouchEvent(MotionEvent e) {
-            float segW = getWidth() / 3f;
             int a = e.getActionMasked();
             if (a == MotionEvent.ACTION_DOWN) {
-                pressedSeg = Math.min(2, Math.max(0, (int) (e.getX() / segW)));
-                invalidate();
+                pressed = true;
+                animate().scaleX(0.95f).scaleY(0.95f).setDuration(80).start();
                 return true;
             }
             if (a == MotionEvent.ACTION_UP) {
-                int seg = Math.min(2, Math.max(0, (int) (e.getX() / segW)));
-                pressedSeg = -1;
-                if (seg == 0) {
+                animate().scaleX(1f).scaleY(1f).setDuration(120).start();
+                pressed = false;
+                // cykl stanow: Jasny -> Ciemny -> Auto -> Jasny
+                int next = (selected + 1) % 3;
+                if (next == 0) {
                     Prefs.setFollowSystem(act, false);
                     Prefs.setMode(act, "day");
-                } else if (seg == 1) {
+                } else if (next == 1) {
                     Prefs.setFollowSystem(act, false);
                     Prefs.setMode(act, "night");
                 } else {
                     Prefs.setFollowSystem(act, true);
                 }
-                applyMode();
                 refreshSelection();
+                applyMode();
                 if (host != null) host.modeChanged();
                 return true;
             }
             if (a == MotionEvent.ACTION_CANCEL) {
-                pressedSeg = -1;
-                invalidate();
+                animate().scaleX(1f).scaleY(1f).setDuration(120).start();
+                pressed = false;
             }
             return true;
         }
     }
+
 
 
     // ---------------------------------------------------------------- pionowy suwak

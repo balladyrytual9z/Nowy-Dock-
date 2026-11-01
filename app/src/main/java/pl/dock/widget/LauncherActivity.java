@@ -99,11 +99,7 @@ public class LauncherActivity extends BaseActivity {
             boolean n = Look.night(LauncherActivity.this);
             if (n != night) {
                 night = n;
-                applyTheme();
-            }
-            if (Prefs.nightShiftAuto(LauncherActivity.this)
-                    && NightShift.isOn(LauncherActivity.this) != night) {
-                NightShift.set(LauncherActivity.this, night);
+                smoothThemeChange();
             }
             refreshDock();
             scheduleMinute();
@@ -839,6 +835,41 @@ public class LauncherActivity extends BaseActivity {
         }
     }
 
+    // Plynne przejscie dzien/noc na CALYM ekranie: przezroczysty scrim narasta,
+    // motyw zamienia sie pod nim, potem scrim zanika (zadnych naglych skokow).
+    private View themeScrim;
+
+    private void smoothThemeChange() {
+        if (root == null || themeScrim != null || Prefs.reduceMotion(this)) {
+            applyTheme();
+            return;
+        }
+        final View scrim = new View(this);
+        themeScrim = scrim;
+        scrim.setBackgroundColor(night ? 0xFF0B0C0E : 0xFFE8E8ED);
+        root.addView(scrim, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        scrim.setAlpha(0f);
+        scrim.animate().alpha(0.4f).setDuration(160)
+                .withEndAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        applyTheme();
+                        scrim.animate().alpha(0f).setDuration(320)
+                                .withEndAction(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        try {
+                                            root.removeView(scrim);
+                                        } catch (Throwable ignored) {
+                                        }
+                                        if (themeScrim == scrim) themeScrim = null;
+                                    }
+                                }).start();
+                    }
+                }).start();
+    }
+
     // ---------------------------------------------------------------- dock
     private void updateClockText() {
         java.util.Calendar c = java.util.Calendar.getInstance();
@@ -1230,7 +1261,7 @@ public class LauncherActivity extends BaseActivity {
             @Override
             public void modeChanged() {
                 night = Look.night(LauncherActivity.this);
-                applyTheme();
+                smoothThemeChange();
             }
         });
         boolean left = Ui.dockLeft(this);

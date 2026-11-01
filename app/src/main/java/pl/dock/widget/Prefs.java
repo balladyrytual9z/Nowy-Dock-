@@ -724,6 +724,24 @@ public class Prefs {
         ed(c).putBoolean("nsauto", v).apply();
     }
 
+    // Tryb Night Shift: "off" | "on" | "sunset" (od zachodu do wschodu słońca).
+    // Sunset korzysta z SolarTimes (lat/lon z "obd_settings" - te same co modul OBD).
+    public static String nightShiftMode(Context c) {
+        String m = sp(c).getString("nsmode", null);
+        if (m == null) {
+            m = nightShiftOn(c) ? (nightShiftAuto(c) ? "sunset" : "on") : "off";
+        }
+        return m;
+    }
+
+    public static void setNightShiftMode(Context c, String v) {
+        boolean on = !"off".equals(v);
+        ed(c).putString("nsmode", v)
+                .putBoolean("nson", on)
+                .putBoolean("nsauto", "sunset".equals(v))
+                .apply();
+    }
+
     // Centrum sterowania â gest od doÅu i pozycja panelu
     public static boolean overlayEnabled(Context c) {
         return sp(c).getBoolean("cc_overlay", true);
