@@ -1,4 +1,3 @@
-
 package pl.dock.widget;
 
 import android.app.Notification;
@@ -19,17 +18,17 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
 
-// ObsÅuguje widÅ¼et Dock: reaguje na zdarzenia systemowe i odÅwieÅ¼a widÅ¼et tylko przy zmianie.
+/** Obsluguje widzet Dock: reaguje na zdarzenia systemowe i odswieza widzet tylko przy zmianie. */
 public class StatusService extends Service {
 
     private static final String CHANNEL = "dock_status";
+    private static final int NOTIF_ID = 43;
     private BroadcastReceiver receiver;
     private BroadcastReceiver bcastReceiver;
     private long lastBattery = 0;
     private Handler handler;
     private Runnable tick;
     private BroadcastReceiver modeReceiver;
-    private Runnable nightScheduler;
 
     public static void start(Context c) {
         try {
@@ -55,7 +54,7 @@ public class StatusService extends Service {
         start(c);
     }
 
-    // okresowa kontrola to tylko zabezpieczenie; napiÄcie z pliku / ustawienia nie ma broadcastu
+    // okresowa kontrola to tylko zabezpieczenie; napiecie z pliku / ustawienia nie ma broadcastu
     private long interval() {
         boolean poll = Prefs.showVoltage(this) && !"battery".equals(Prefs.voltSource(this));
         return poll ? 20000L : 60000L;
@@ -70,7 +69,7 @@ public class StatusService extends Service {
             public void onReceive(Context context, Intent intent) {
                 String a = intent.getAction();
                 if (Intent.ACTION_BATTERY_CHANGED.equals(a)) {
-                    // napiÄcie baterii potrzebne tylko, gdy jest pokazywane
+                    // napiecie baterii potrzebne tylko, gdy jest pokazywane
                     if (!Prefs.showVoltage(context)) return;
                     long now = System.currentTimeMillis();
                     if (now - lastBattery < 5000) return;
@@ -101,7 +100,7 @@ public class StatusService extends Service {
         f.addAction(android.bluetooth.BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED);
         registerReceiver(receiver, f);
 
-        // wÅasny broadcast z napiÄciem (jeÅli wybrany w ustawieniach)
+        // wlasny broadcast z napieciem (jesli wybrany w ustawieniach)
         String action = Prefs.bcastAction(this);
         if (action.length() > 0) {
             bcastReceiver = new BroadcastReceiver() {
@@ -131,7 +130,7 @@ public class StatusService extends Service {
             public void run() {
                 PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
                 boolean screenOn = pm == null || pm.isInteractive();
-                // gdy launcher jest na wierzchu, sam dba o odÅwieÅ¼anie
+                // gdy launcher jest na wierzchu, sam dba o odswiezanie
                 if (screenOn && !LauncherActivity.visible) {
                     StatusCenter.refresh(StatusService.this);
                     DockWidget.updateAll(StatusService.this);
@@ -148,16 +147,16 @@ public class StatusService extends Service {
             }
         });
 
-        // Dwukierunkowa pÄtla z Circadian Display:
-        //  â¢ pl.circadiandisplay.STATE_CHANGED  â nakÅadka zgÅasza zmianÄ isNight
-        //  â¢ pl.dock.widget.NIGHT_MODE_CHANGED  â Dock informuje nakÅadkÄ / siebie
+        // Dwukierunkowa petla z Circadian Display:
+        //  pl.circadiandisplay.STATE_CHANGED  <- nakladka zglasza zmiane isNight
+        //  pl.dock.widget.NIGHT_MODE_CHANGED  -> Dock informuje nakladke / siebie
         modeReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context ctx, Intent intent) {
                 String a = intent.getAction();
                 if (a == null) return;
                 if (pl.dock.widget.circadian.CircadianBridge.ACTION_STATE_CHANGED.equals(a)) {
-                    // Stan z aplikacji Circadian Display (Night Shift) â natychmiastowa synchronizacja UI
+                    // Stan z aplikacji Circadian Display (Night Shift) - natychmiastowa synchronizacja UI
                     boolean isNight = intent.getBooleanExtra("isNight", false);
                     applyCircadianState(ctx, isNight);
                     return;
@@ -165,7 +164,7 @@ public class StatusService extends Service {
                 if (pl.dock.widget.circadian.CircadianBridge.ACTION_NIGHT.equals(a)
                         || "pl.dock.widget.NIGHT_MODE_CHANGED".equals(a)) {
                     boolean isNight = intent.getBooleanExtra("isNight", false);
-                    // WewnÄtrzny / wychodzÄcy sygnaÅ: aktywuj profil nocny Circadian gdy trzeba
+                    // Wewnetrzny / wychodzacy sygnal: aktywuj profil nocny Circadian gdy trzeba
                     if (isNight && Prefs.circadianAuto(ctx)
                             && pl.dock.widget.circadian.CircadianBridge.isInstalled(ctx)) {
                         pl.dock.widget.circadian.CircadianBridge.activateForNight(ctx);
@@ -178,4 +177,74 @@ public class StatusService extends Service {
         modeFilter.addAction(pl.dock.widget.circadian.CircadianBridge.ACTION_STATE_CHANGED);
         modeFilter.addAction("pl.dock.widget.NIGHT_MODE_CHANGED");
         registerReceiver(modeReceiver, modeFilter);
+    }
 
+    /** Synchronizuje UI z tad (launcher widoczny) lub tylko widzet, gdy launcher ukryty. */
+    private void applyCircadianState(Context ctx, boolean isNight) {
+        try {
+            if (LauncherActivity.visible) {
+                NightAware.notifyAll(ctx);
+            }
+        } catch (Throwable ignored) {
+        }
+        DockWidget.updateAll(ctx);
+    }
+
+    private void goForeground() {
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (Build.VERSION.SDK_INT >= 26) {
+            NotificationChannel ch = new NotificationChannel(
+                    CHANNEL, "Dock status", NotificationManager.IMPORTANCE_MIN);
+            ch.setDescription("Utrzymuje odswiezanie widzetu Dock");
+            ch.setShowBadge(false);
+            nm.createNotificationChannel(ch);
+        }
+        Notification n;
+        if (Build.VERSION.SDK_INT >= 26) {
+            n = new Notification.Builder(this, CHANNEL)
+                    .setSmallIcon(android.R.drawable.ic_menu_compass)
+                    .setContentTitle("Dock")
+                    .setContentText("Monitor stanu systemu")
+                    .setOngoing(true)
+                    .build();
+        } else {
+            n = new Notification.Builder(this)
+                    .setSmallIcon(android.R.drawable.ic_menu_compass)
+                    .setContentTitle("Dock")
+                    .setContentText("Monitor stanu systemu")
+                    .setOngoing(true)
+                    .build();
+        }
+        startForeground(NOTIF_ID, n);
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        return START_STICKY;
+    }
+
+    @Override
+    public void onDestroy() {
+        if (handler != null && tick != null) {
+            handler.removeCallbacks(tick);
+        }
+        if (receiver != null) {
+            try { unregisterReceiver(receiver); } catch (Throwable ignored) {}
+            receiver = null;
+        }
+        if (bcastReceiver != null) {
+            try { unregisterReceiver(bcastReceiver); } catch (Throwable ignored) {}
+            bcastReceiver = null;
+        }
+        if (modeReceiver != null) {
+            try { unregisterReceiver(modeReceiver); } catch (Throwable ignored) {}
+            modeReceiver = null;
+        }
+        super.onDestroy();
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+}
