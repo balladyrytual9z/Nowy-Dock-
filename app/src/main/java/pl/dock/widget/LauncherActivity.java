@@ -1099,6 +1099,12 @@ public class LauncherActivity extends BaseActivity {
         cp.builtinId = "carplay";
         cp.action = "carplay";
         out.add(cp);
+        // ikona OBD (DiPlay/CarPlay filtro wala wlasny pakiet, wiec dodajemy ja recznie)
+        AppsGridPage.Item obd = new AppsGridPage.Item();
+        obd.label = "OBD";
+        obd.builtinId = "obdgear";
+        obd.action = "obd";
+        out.add(obd);
         out.addAll(apps);
         return out;
     }
@@ -1117,6 +1123,13 @@ public class LauncherActivity extends BaseActivity {
                     if (EditModeController.get().isEditing()) return;
                     if (it.settings) {
                         openSettings();
+                    } else if ("obd".equals(it.action)) {
+                        try {
+                            startActivity(new Intent(LauncherActivity.this,
+                                    pl.dock.widget.ObdDiscoveryActivity.class));
+                        } catch (Throwable ignored) {
+                            android.util.Log.w("Dock", "OBD open", ignored);
+                        }
                     } else if (it.action.length() > 0) {
                         Launch.carplay(LauncherActivity.this);
                         overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);
@@ -1134,6 +1147,11 @@ public class LauncherActivity extends BaseActivity {
                 public void onAppsChanged() {
                     rebuildAppPages();
                 }
+
+                @Override
+                public void onEdgeDrag(AppsGridPage.Item it, int direction) {
+                    moveItemToAdjacentPage(it, direction);
+                }
             });
             appPages.add(p);
         }
@@ -1142,12 +1160,42 @@ public class LauncherActivity extends BaseActivity {
         pager.setPosition(Math.min(pos, pager.count() - 1));
     }
 
+    // Edge scrolling: ikona przeciagnieta do krawedzi strony trafia na sasiednia strone
+    private void moveItemToAdjacentPage(AppsGridPage.Item it, int direction) {
+        if (it == null || direction == 0) return;
+        int idx = items.indexOf(it);
+        if (idx < 0) return;
+        int target = Math.round(pager.position()) + direction;
+        if (target < appsStart || target >= appsStart + appPages.size()) return;
+        items.remove(idx);
+        int insert = Math.max(appsStart, Math.min(target, items.size()));
+        items.add(insert, it);
+        // utrwal kolejnosc tak jak przy dragowaniu w obrebie strony
+        try {
+            List<AppEntry> ordered = new ArrayList<AppEntry>();
+            java.util.LinkedHashSet<Integer> used = new java.util.LinkedHashSet<Integer>();
+            for (AppsGridPage.Item i2 : items) {
+                if (i2.entry != null) {
+                    ordered.add(i2.entry);
+                    used.add((int) i2.entry.id);
+                }
+            }
+            for (AppEntry e : Prefs.apps(this)) {
+                if (!used.contains((int) e.id)) ordered.add(e);
+            }
+            Prefs.saveApps(this, ordered);
+        } catch (Throwable ignored) {
+        }
+        rebuildAppPages();
+        pager.goTo(Math.min(target, pager.count() - 1), true);
+    }
+
     private void appMenu(final AppsGridPage.Item it) {
         if (it.settings || it.action.length() > 0) return;
         final String[] options = {
                 "Dodaj do ekranu głównego",
                 "Informacje o aplikacji",
-                "Odinstaluj"
+                "Usuń aplikację"
         };
         Popups.menu(this, it.label, options, new Popups.OnSel() {
             @Override

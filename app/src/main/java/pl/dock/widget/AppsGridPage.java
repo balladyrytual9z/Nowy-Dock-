@@ -52,6 +52,9 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         void onLong(Item it);
 
         void onAppsChanged();
+
+        // przeciagniecie ikony do krawedzi strony: przenies na sasiednia strone
+        void onEdgeDrag(Item it, int direction);
     }
 
     private final float d;
@@ -77,6 +80,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
     private int dragIndex = -1;
     private float dragX, dragY;
     private boolean dragActive = false;
+    private long lastEdge = 0;   // debounce zmiany strony przy dragowaniu do krawedzi
     private final Runnable wobbleTick = new Runnable() {
         @Override
         public void run() {
@@ -524,6 +528,25 @@ public class AppsGridPage extends View implements EditModeController.Listener {
                     if (dragActive) {
                         dragX = e.getX();
                         dragY = e.getY();
+                        // edge scrolling: drag do krawedzi przenosi ikone na sasiednia strone
+                        long now = System.currentTimeMillis();
+                        if (now - lastEdge > 600 && dragIndex >= 0 && dragIndex < items.size()
+                                && listener != null) {
+                            float edge = 56f * d;
+                            int dir = 0;
+                            if (dragX < edge) dir = -1;
+                            else if (dragX > getWidth() - edge) dir = 1;
+                            if (dir != 0) {
+                                lastEdge = now;
+                                Item dragIt = items.get(dragIndex);
+                                dragActive = false;
+                                dragIndex = -1;
+                                pressed = -1;
+                                invalidate();
+                                listener.onEdgeDrag(dragIt, dir);
+                                return true;
+                            }
+                        }
                         invalidate();
                     }
                     return true;
