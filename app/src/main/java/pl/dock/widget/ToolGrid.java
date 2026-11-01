@@ -568,7 +568,13 @@ public class ToolGrid extends ViewGroup {
             if (dia < 24f * d) dia = Math.min(w, h) * 0.7f;
             float cx = w / 2f;
             float cy = 2f * d + dia / 2f;
-            int fill = def.kind == PanelTool.K_APP ? 0x00000000 : on ? PanelTool.onColor(def) : (night ? 0xFF3A3A3C : 0xFF8E8E93);
+            // styl iOS 18 Control Center: aktywne = bialy kafelek + kolorowy glyph,
+            // nieaktywne = polprzezroczyste tlo + bialy glyph
+            int fill = def.kind == PanelTool.K_APP ? 0x00000000
+                    : on ? (night ? 0xFFF2F2F7 : 0xFFFFFFFF)
+                    : (night ? 0x26FFFFFF : 0x26000000);
+            int ink = def.kind == PanelTool.K_APP ? 0xFFFFFFFF
+                    : (on ? PanelTool.onColor(def) : 0xFFFFFFFF);
             p.setStyle(Paint.Style.FILL);
             p.setColor(fill);
             cv.drawCircle(cx, cy, dia / 2f, p);
@@ -587,7 +593,7 @@ public class ToolGrid extends ViewGroup {
                     PanelTool.glyph(cv, "apps", cx, cy, dia / 2f, 0xFFFFFFFF);
                 }
             } else {
-                PanelTool.glyph(cv, def.glyph, cx, cy, dia / 2f, 0xFFFFFFFF);
+                PanelTool.glyph(cv, def.glyph, cx, cy, dia / 2f, ink);
             }
 
             p.reset();
@@ -607,6 +613,7 @@ public class ToolGrid extends ViewGroup {
         public boolean onTouchEvent(MotionEvent e) {
             int a = e.getActionMasked();
             if (a == MotionEvent.ACTION_DOWN) {
+                performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);
                 animate().scaleX(0.94f).scaleY(0.94f).setDuration(80).start();
             } else if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
                 animate().scaleX(1f).scaleY(1f).setDuration(120).start();

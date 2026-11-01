@@ -1,4 +1,3 @@
-
 package pl.dock.widget;
 
 import android.content.Context;
@@ -6,11 +5,8 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
-import android.graphics.Typeface;
-import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 
@@ -18,7 +14,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * iOS App Library folder card: glass squircle with up to 4 mini icons + category label.
+ * iOS App Library folder (liquid glass): 3 duze ikony + mini-klaster 2x2
+ * w prawym dolnym rogu; nazwe kategorii rysuje AppLibraryPage pod plyta.
  */
 public class LibraryFolderView extends FrameLayout {
 
@@ -34,13 +31,14 @@ public class LibraryFolderView extends FrameLayout {
     private final boolean night;
     private final Listener listener;
     private final Paint bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint strokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF rect = new RectF();
     private final float d;
     private boolean editing;
     private final List<ImageView> iconViews = new ArrayList<ImageView>();
     private final List<View> badgeViews = new ArrayList<View>();
+    private int bigCount = 0;
+    private int miniCount = 0;
 
     public LibraryFolderView(Context c, String category, List<AppEntry> apps,
                              boolean night, Listener listener) {
@@ -69,25 +67,16 @@ public class LibraryFolderView extends FrameLayout {
         removeAllViews();
         iconViews.clear();
         badgeViews.clear();
-        int limit = Math.min(apps.size(), 4);
-        int iconSize = (int) (38 * d);
-        int pad = (int) (14 * d);
-        int gap = (int) (8 * d);
+        bigCount = Math.min(apps.size(), 3);
+        miniCount = Math.min(4, Math.max(0, apps.size() - bigCount));
 
-        for (int i = 0; i < limit; i++) {
+        for (int i = 0; i < bigCount; i++) {
             final AppEntry app = apps.get(i);
             ImageView iv = new ImageView(getContext());
-            Bitmap bmp = Icons.forEntry(getContext(), app);
-            iv.setImageBitmap(bmp);
+            iv.setImageBitmap(Icons.forEntry(getContext(), app));
             iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            // soft squircle via outline is limited on API 26; round via padding ok
-
-            LayoutParams lp = new LayoutParams(iconSize, iconSize);
-            lp.leftMargin = pad + (i % 2) * (iconSize + gap);
-            lp.topMargin = pad + (i / 2) * (iconSize + gap);
-            addView(iv, lp);
+            addView(iv);
             iconViews.add(iv);
-
             iv.setOnClickListener(new OnClickListener() {
                 @Override public void onClick(View v) {
                     if (listener != null) listener.onAppTap(app);
@@ -99,8 +88,7 @@ public class LibraryFolderView extends FrameLayout {
                     return true;
                 }
             });
-
-            // remove badge (hidden until edit)
+            // plakietka usuwania (widoczna tylko w trybie edycji)
             View badge = new View(getContext()) {
                 private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
                 @Override protected void onDraw(Canvas c) {
@@ -118,15 +106,26 @@ public class LibraryFolderView extends FrameLayout {
                 }
             };
             badge.setVisibility(GONE);
-            LayoutParams blp = new LayoutParams((int) (20 * d), (int) (20 * d));
-            blp.leftMargin = lp.leftMargin + iconSize - (int) (10 * d);
-            blp.topMargin = lp.topMargin - (int) (6 * d);
-            addView(badge, blp);
+            addView(badge);
             badgeViews.add(badge);
             final AppEntry appRef = app;
             badge.setOnClickListener(new OnClickListener() {
                 @Override public void onClick(View v) {
                     if (listener != null) listener.onRemoveApp(appRef);
+                }
+            });
+        }
+        for (int i = 0; i < miniCount; i++) {
+            final AppEntry app = apps.get(bigCount + i);
+            ImageView iv = new ImageView(getContext());
+            iv.setImageBitmap(Icons.forEntry(getContext(), app));
+            iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            addView(iv);
+            iconViews.add(iv);
+            iv.setOnClickListener(new OnClickListener() {
+                @Override public void onClick(View v) {
+                    if (editing) return;
+                    if (listener != null) listener.onAppTap(app);
                 }
             });
         }
@@ -141,9 +140,9 @@ public class LibraryFolderView extends FrameLayout {
             } else {
                 EditModeController.get().stopWobble(iv);
             }
-            if (i < badgeViews.size()) {
-                badgeViews.get(i).setVisibility(on ? VISIBLE : GONE);
-            }
+        }
+        for (View badge : badgeViews) {
+            badge.setVisibility(on ? VISIBLE : GONE);
         }
         invalidate();
     }
@@ -154,6 +153,18 @@ public class LibraryFolderView extends FrameLayout {
 
     public List<AppEntry> getApps() {
         return apps;
+    }
+
+    // geometria duzych ikon (trojkat: dwie gorne + jedna dolna po lewej)
+    private int[] bigPos(int w, int idx) {
+        float p = w * 0.10f;
+        int bigSz = (int) (w * 0.30f);
+        int bigGap = (int) (w * 0.04f);
+        int x, y;
+        if (idx == 0) { x = (int) p; y = (int) p; }
+        else if (idx == 1) { x = (int) (w - p - bigSz); y = (int) p; }
+        else { x = (int) p; y = (int) (p + bigSz + bigGap); }
+        return new int[]{x, y, bigSz};
     }
 
     @Override
@@ -180,7 +191,24 @@ public class LibraryFolderView extends FrameLayout {
         rect.set(0.5f * d, 0.5f * d, w - 0.5f * d, h - 0.5f * d);
         Ui.drawSquircle(cv, rect, strokePaint, 0.42f);
 
-        // Label is now drawn outside by AppLibraryPage (under the tile)
+        // szklana pigulka pod mini-klasterem w prawym dolnym rogu
+        if (miniCount > 0) {
+            float p = w * 0.10f;
+            float miniSz = w * 0.13f;
+            float miniGap = w * 0.03f;
+            float miniPad = w * 0.045f;
+            float cl = w - p - miniPad - (2 * miniSz + miniGap);
+            float cb = h - p - miniPad - (2 * miniSz + miniGap);
+            bgPaint.setStyle(Paint.Style.FILL);
+            bgPaint.setColor(0x4DFFFFFF);
+            rect.set(cl, cb, cl + 2 * miniSz + miniGap, cb + 2 * miniSz + miniGap);
+            Ui.drawSquircle(cv, rect, bgPaint, 0.42f);
+            strokePaint.setStrokeWidth(1.0f * d);
+            strokePaint.setColor(0x33FFFFFF);
+            rect.set(cl + 0.5f * d, cb + 0.5f * d,
+                    cl + 2 * miniSz + miniGap - 0.5f * d, cb + 2 * miniSz + miniGap - 0.5f * d);
+            Ui.drawSquircle(cv, rect, strokePaint, 0.42f);
+        }
     }
 
     @Override
@@ -188,52 +216,60 @@ public class LibraryFolderView extends FrameLayout {
         int w = MeasureSpec.getSize(widthMeasureSpec);
         int h = (int) (w * 0.88f);
         setMeasuredDimension(w, h);
-        // measure children
-        int iconSize = (int) (38 * d);
+        int bigSz = (int) (w * 0.30f);
+        int miniSz = (int) (w * 0.13f);
+        int badgeSize = (int) (20 * d);
+        int iconIdx = 0;
         for (int i = 0; i < getChildCount(); i++) {
             View child = getChildAt(i);
             if (child instanceof ImageView) {
+                int sz = iconIdx < bigCount ? bigSz : miniSz;
                 child.measure(
-                        MeasureSpec.makeMeasureSpec(iconSize, MeasureSpec.EXACTLY),
-                        MeasureSpec.makeMeasureSpec(iconSize, MeasureSpec.EXACTLY));
+                        MeasureSpec.makeMeasureSpec(sz, MeasureSpec.EXACTLY),
+                        MeasureSpec.makeMeasureSpec(sz, MeasureSpec.EXACTLY));
+                iconIdx++;
             } else {
-                int bs = (int) (20 * d);
                 child.measure(
-                        MeasureSpec.makeMeasureSpec(bs, MeasureSpec.EXACTLY),
-                        MeasureSpec.makeMeasureSpec(bs, MeasureSpec.EXACTLY));
+                        MeasureSpec.makeMeasureSpec(badgeSize, MeasureSpec.EXACTLY),
+                        MeasureSpec.makeMeasureSpec(badgeSize, MeasureSpec.EXACTLY));
             }
         }
     }
 
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
-        int iconSize = (int) (38 * d);
-        int pad = (int) (14 * d);
-        int gap = (int) (8 * d);
+        int w = r - l;
+        int h = b - t;
         int iconIdx = 0;
         int badgeIdx = 0;
         for (int i = 0; i < getChildCount(); i++) {
             View child = getChildAt(i);
             if (child instanceof ImageView) {
-                int col = iconIdx % 2;
-                int row = iconIdx / 2;
-                int left = pad + col * (iconSize + gap);
-                int top = pad + row * (iconSize + gap);
-                child.layout(left, top, left + iconSize, top + iconSize);
+                if (iconIdx < bigCount) {
+                    int[] bp = bigPos(w, iconIdx);
+                    child.layout(bp[0], bp[1], bp[0] + bp[2], bp[1] + bp[2]);
+                } else {
+                    // mini-klaster 2x2 w prawym dolnym rogu
+                    int mi = iconIdx - bigCount;
+                    int col = mi % 2;
+                    int row = mi / 2;
+                    float p = w * 0.10f;
+                    int miniSz = (int) (w * 0.13f);
+                    int miniGap = (int) (w * 0.03f);
+                    int miniPad = (int) (w * 0.045f);
+                    int bx = (int) (w - p - miniPad - (2 * miniSz + miniGap)) + col * (miniSz + miniGap);
+                    int by = (int) (h - p - miniPad - (2 * miniSz + miniGap)) + row * (miniSz + miniGap);
+                    child.layout(bx, by, bx + miniSz, by + miniSz);
+                }
                 iconIdx++;
             } else {
-                // badge
-                int bi = badgeIdx;
-                int col = bi % 2;
-                int row = bi / 2;
-                int left = pad + col * (iconSize + gap) + iconSize - (int) (10 * d);
-                int top = pad + row * (iconSize + gap) - (int) (6 * d);
-                int bs = (int) (20 * d);
-                child.layout(left, top, left + bs, top + bs);
+                int[] bp = bigPos(w, badgeIdx);
+                int badgeSize = (int) (20 * d);
+                child.layout(bp[0] + bp[2] - (int) (10 * d), bp[1] - (int) (6 * d),
+                        bp[0] + bp[2] - (int) (10 * d) + badgeSize,
+                        bp[1] - (int) (6 * d) + badgeSize);
                 badgeIdx++;
             }
         }
     }
 }
-
-

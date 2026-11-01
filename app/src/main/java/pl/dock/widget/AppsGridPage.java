@@ -99,6 +99,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         public void run() {
             if (pressed >= 0 && pressed < items.size()) {
                 longFired = true;
+                performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
                 enterEditMode();
                 // still notify listener so context menu can appear if desired
                 if (listener != null) {
@@ -245,7 +246,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
             float x = left + col * colPitch;
             float y = top + row * rowPitch;
             Bitmap b = bitmapFor(it);
-            float s = (pressed == i && !dragActive) ? 0.93f : 1f;
+            float s = (pressed == i && !dragActive) ? 0.90f : 1f;
             float inset = iconSz * (1f - s) / 2f;
 
             if (editMode && !dragActive) {
@@ -499,6 +500,9 @@ public class AppsGridPage extends View implements EditModeController.Listener {
                     }
                 }
                 pressed = hit(downX, downY);
+                if (pressed >= 0) {
+                    performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);
+                }
                 if (pressed < 0) {
                     // long press empty space also enters edit
                     if (!editMode) {

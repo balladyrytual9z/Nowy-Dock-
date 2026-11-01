@@ -107,8 +107,9 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         searchEt.setHintTextColor(night ? 0x99FFFFFF : 0x99666666);
         searchEt.setSingleLine(true);
         searchEt.setBackground(new android.graphics.drawable.GradientDrawable() {{
-            setCornerRadius(dp(12));
-            setColor(night ? 0x33FFFFFF : 0x22000000);
+            setCornerRadius(dp(24));
+            setColor(night ? 0x4DFFFFFF : 0xCCFFFFFF);
+            setStroke(Math.max(1, (int) (0.5f * d)), 0x33FFFFFF);
         }});
         searchEt.setPadding(dp(14), dp(10), dp(14), dp(10));
         searchEt.setMinimumHeight(dp(40));
