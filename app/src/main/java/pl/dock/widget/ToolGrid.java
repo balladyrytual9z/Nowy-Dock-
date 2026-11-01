@@ -1,4 +1,3 @@
-
 package pl.dock.widget;
 
 import android.animation.ObjectAnimator;
@@ -143,6 +142,7 @@ public class ToolGrid extends ViewGroup {
         if (editing == on) return;
         editing = on;
         if (on) {
+            performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
             setClipChildren(false);
             setClipToPadding(false);
             startAllWobbles();
@@ -434,6 +434,8 @@ public class ToolGrid extends ViewGroup {
         grabY = y - v.getTop();
         v.animate().cancel();
         v.animate().scaleX(1.08f).scaleY(1.08f).setDuration(120).start();
+        v.setElevation(dp(6));   // iOS: kafelek unosci sie nad reszte
+        performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
         if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
     }
 
@@ -465,6 +467,7 @@ public class ToolGrid extends ViewGroup {
         dragItem = null;
         if (it == null) return;
         final View v = it.view;
+        v.setElevation(0f);
         v.animate().translationX(0f).translationY(0f).scaleX(1f).scaleY(1f)
                 .setDuration(180).withEndAction(new Runnable() {
                     @Override
@@ -576,9 +579,13 @@ public class ToolGrid extends ViewGroup {
                     : (night ? 0x26FFFFFF : 0xFFE4E4EA);
             int ink = def.kind == PanelTool.K_APP ? 0xFFFFFFFF
                     : (on ? PanelTool.onColor(def) : (night ? 0xFFFFFFFF : 0xFF3C3C43));
+            // iOS 18: kafelek to squircle (zaokraglony prostokat), nie kolo
+            float rad = dia * 0.28f;
+            android.graphics.RectF body = new android.graphics.RectF(
+                    cx - dia / 2f, cy - dia / 2f, cx + dia / 2f, cy + dia / 2f);
             p.setStyle(Paint.Style.FILL);
             p.setColor(fill);
-            cv.drawCircle(cx, cy, dia / 2f, p);
+            cv.drawRoundRect(body, rad, rad, p);
             if (def.kind == PanelTool.K_APP) {
                 android.graphics.Bitmap ic = null;
                 try {
