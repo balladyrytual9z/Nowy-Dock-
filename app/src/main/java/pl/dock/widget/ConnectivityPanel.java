@@ -1,4 +1,3 @@
-
 package pl.dock.widget;
 
 import android.app.Activity;
@@ -884,6 +883,8 @@ public class ConnectivityPanel extends LinearLayout {
                 longFired = false;
                 downY = e.getY();
                 getParent().requestDisallowInterceptTouchEvent(true);
+                animate().scaleX(0.97f).scaleY(0.97f).setDuration(90)
+                        .setInterpolator(pl.dock.widget.ui.DockMotion.IOS_SPRING).start();
                 if (longPress != null) removeCallbacks(longPress);
                 // iOS: dlugie przytrzymanie suwaka otwiera opcje (cisza / cieplo ekranu)
                 longPress = new Runnable() {
@@ -907,6 +908,8 @@ public class ConnectivityPanel extends LinearLayout {
                     longPress = null;
                 }
                 dragging = false;
+                animate().scaleX(1f).scaleY(1f).setDuration(180)
+                        .setInterpolator(pl.dock.widget.ui.DockMotion.IOS_SPRING).start();
             }
             if (longFired && (a == MotionEvent.ACTION_MOVE || a == MotionEvent.ACTION_UP)) {
                 return true;   // po dlugim przytrzymaniu nie przestawiaj wartosci
