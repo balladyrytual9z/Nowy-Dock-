@@ -24,8 +24,15 @@ android {
         applicationId 'pl.dock.widget'
         minSdk 26
         targetSdk 28
-        versionCode 15
-        versionName '1.3.0-obd'
+
+        // versionCode przekazywany z CI (-Pvc=<run_number>) - zawsze rosnacy,
+        // dzieki czemu instalacja APK na tablecie jest UPDATEM, a nie
+        // wymagajacym odinstalowania reinstallem. Fallback 15 dla lokalnych
+        // buildow.
+        def vc = (project.hasProperty('vc') ? project.property('vc') : '15') as Integer
+        versionCode vc
+        versionName "1.0.${vc}-obd"
+
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
         }
@@ -68,9 +75,8 @@ android {
 }
 
 dependencies {
-    // pure Android framework â no AndroidX for UI
+    // pure Android framework - no AndroidX for UI
     // Kotlin + Coroutines for OBD transport / session (MVVM isolation)
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
 }
-

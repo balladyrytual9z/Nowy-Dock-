@@ -18,12 +18,16 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * Read-Only Safety Lock: komendy modyfikujace ECU (2E WriteData,
  * 10 xx Session Control, 27 SecurityAccess, 30/31 aktywne testy)
- * sa zablokowane domyslnie; dostepne tylko w trybie serwisowym
- * (serviceMode = prefs "obd_settings" -> "service_mode").
+ * sa zablokowane domyslnie. Odblokowanie w locie (bez reconnectu):
+ * [allowMutating] ustawiane przez ConnectionManager.setServiceMode().
+ *
+ * Timer S3 (UDS): sesja rozszerzona wymaga podtrzymania 3E 00 co <5 s,
+ * inaczej ECU degraduje sesje i resetuje autoryzacje Security Access
+ * do LOCKED (wg raportu inzynierii wstecznej Keihin).
  */
 class ElmSession(
     private val transport: ElmTransport,
-    private val serviceMode: Boolean = false,
+    serviceMode: Boolean = false,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 ) {
     companion object {
@@ -34,6 +38,9 @@ class ElmSession(
         /** Prefiksy komend modyfikujacych ECU (Read-Only Safety Lock). */
         private val MUTATING = setOf("2E", "27", "10", "30", "31")
     }
+
+    /** Flaga trybu serwisowego - wlaczana np. z Terminala (bez reconnectu). */
+    @Volatile var allowMutating: Boolean = serviceMode
 
     private val _responses = MutableSharedFlow<String>(extraBufferCapacity = 32)
     val responses: SharedFlow<String> = _responses.asSharedFlow()
@@ -82,10 +89,10 @@ class ElmSession(
             throw SecurityException("AT MA (Monitor All) is blocked - request/response only")
         }
         val noSpace = cmd.replace(" ", "")
-        if (!serviceMode && MUTATING.any { noSpace.startsWith(it) }) {
+        if (!allowMutating && MUTATING.any { noSpace.startsWith(it) }) {
             throw SecurityException(
                 "Read-Only Safety Lock: komenda '" + cmd +
-                "' modyfikuje ECU - odblokuj ja tylko w trybie serwisowym"
+                "' modyfikuje ECU - wlacz TRYB SERWISOWY w Terminalu"
             )
         }
         if (!transport.isConnected()) throw IllegalStateException("Transport not connected")

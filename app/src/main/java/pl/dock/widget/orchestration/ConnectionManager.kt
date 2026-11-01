@@ -18,9 +18,15 @@ import pl.dock.widget.transport.*
  * publishes a single [VehicleUiState] StateFlow for the UI layer.
  * UI never talks to Bluetooth directly.
  *
- * Nowe PID-y (spec Honda Keihin): 0101 (MIL + liczba DTC),
- * 0133 (BARO), 0134 (Lambda -> AFR). Tryb serwisowy (odblokowanie
- * komend modyfikujacych) = prefs "obd_settings" -> "service_mode".
+ * Nowe PID-y (raport inzynierii wstecznej Keihin):
+ *  - 0101: MIL + DTC count + pelne dekodowanie monitorow gotowosci
+ *    (bajty A/B/C/D wg SAE J1979; bajt C = supported, bajt D: bit 0
+ *    oznacza test ZAKONCZONY pomyślnie - Ready).
+ *  - 0133 (BARO), 0134 (Lambda -> AFR)
+ *  - Mode 21 "2101" (KWP2000 ReadDataByIdentifier): czas wtrysku [ms].
+ *
+ * Tryb serwisowy (odblokowanie komend modyfikujacych 10/27/30/31/2E):
+ * [setServiceMode] - zmiana w locie, bez reconnectu.
  */
 class ConnectionManager(
     private val appContext: Context,
@@ -40,7 +46,8 @@ class ConnectionManager(
 
     /**
      * Raw ELM request (request/response only, AT MA blocked inside the session).
-     * Used by Mode $06 misfire polling, DTC read/clear, freeze frame, VIN.
+     * Used by Mode $06 misfire polling, DTC read/clear, freeze frame, VIN,
+     * tryb serwisowy (1003 / 2701 / 3E00 / rutyny 31 / IO 30).
      */
     suspend fun rawRequest(command: String): String? = try {
         session?.request(command)
@@ -59,6 +66,21 @@ class ConnectionManager(
     private val engineState = EngineState()
 
     private val stale = mutableMapOf<String, Boolean>()
+
+    /**
+     * Tryb serwisowy ON/OFF - odblokowuje/zablokowuje komendy modyfikujace
+     * ECU w locie (bez reconnectu) i utrwala w prefs "obd_settings".
+     */
+    fun setServiceMode(enabled: Boolean) {
+        session?.allowMutating = enabled
+        appContext.getSharedPreferences("obd_settings", Context.MODE_PRIVATE)
+            .edit().putBoolean("service_mode", enabled).apply()
+        Log.w(TAG, "Service mode " + (if (enabled) "ENABLED (komendy 10/27/30/31/2E odblokowane)" else "DISABLED (Read-Only Lock)"))
+    }
+
+    fun isServiceMode(): Boolean = session?.allowMutating
+        ?: appContext.getSharedPreferences("obd_settings", Context.MODE_PRIVATE)
+            .getBoolean("service_mode", false)
 
     /**
      * @param address MAC address
@@ -80,8 +102,8 @@ class ConnectionManager(
                 transport = t
                 t.connect(address)
 
-                // Read-Only Safety Lock: komendy modyfikujace ECU sa zablokowane
-                // dopoki nie wlaczony jest tryb serwisowy (zakladka DIAG).
+                // Read-Only Safety Lock: przy restarcie aplikacji przywracamy
+                // stan flagi z prefs (domyslnie wylaczony).
                 val serviceMode = appContext
                     .getSharedPreferences("obd_settings", Context.MODE_PRIVATE)
                     .getBoolean("service_mode", false)
@@ -164,15 +186,20 @@ class ConnectionManager(
             "010F" -> cur.copy(iatC = parseTemp(raw, "410F") ?: cur.iatC)
             "0106" -> cur.copy(stftPct = parseFuelTrim(raw, "4106") ?: cur.stftPct)
             "0107" -> cur.copy(ltftPct = parseFuelTrim(raw, "4107") ?: cur.ltftPct)
-            "0101" -> { // MIL + liczba kodow DTC
-                val r = parseMilStatus(raw)
-                if (r != null) cur.copy(milOn = r.first, dtcCount = r.second)
+            "0101" -> { // MIL + DTC count + readiness (A/B/C/D)
+                val r = parseReadiness(raw)
+                if (r != null) cur.copy(milOn = r.milOn, dtcCount = r.dtcCount,
+                    readinessTotal = r.total, readinessReady = r.ready)
                 else cur
             }
             "0133" -> cur.copy(baroKpa = parseByte(raw, "4133")?.toFloat() ?: cur.baroKpa)
             "0134" -> { // Lambda (SAE): ((A*256)+B)/32768 -> AFR przy 14.7
                 val afr = parseLambdaAfr(raw)
                 if (afr != null) cur.copy(lambdaAfr = afr) else cur
+            }
+            "2101" -> { // KWP2000 ReadDataByIdentifier: czas wtrysku (16-bit BE, skala x0.001 ms)
+                val ms = parseInjectionMs(raw)
+                if (ms != null) cur.copy(injectionMs = ms) else cur
             }
             else -> cur
         }
@@ -240,12 +267,38 @@ class ConnectionManager(
         return (b - 128) * 100f / 128f
     }
 
-    /** PID 0101: bajt A = MIL(bit 0) + liczba DTC (bity 1-7). */
-    private fun parseMilStatus(raw: String): Pair<Boolean, Int>? {
-        val b = parseByte(raw, "4101") ?: return null
-        val mil = (b and 0x01) != 0
-        val count = b shr 1
-        return Pair(mil, count)
+    private data class Readiness(val milOn: Boolean, val dtcCount: Int,
+                                  val total: Int, val ready: Int)
+
+    /**
+     * PID 0101 - pelne dekodowanie 4 bajtow (A, B, C, D) wg SAE J1979:
+     *  A: bit0 = MIL, bity 1-7 = liczba DTC
+     *  B: monitory ciagle (misfire / fuel system)
+     *  C: monitory nieciagle - SUPPORTED (bit = 1)
+     *  D: monitory nieciagle - status testu; bit = 0 oznacza
+     *     "Test ZAKONCZONY (Ready)", bit = 1 "Not Ready / Incomplete"
+     * Zwraca [Readiness] lub null (brak fabrykacji).
+     */
+    private fun parseReadiness(raw: String): Readiness? {
+        val hex = raw.replace(" ", "").uppercase()
+        val i = hex.indexOf("4101")
+        if (i < 0 || hex.length < i + 14) return null
+        return try {
+            val a = hex.substring(i + 4, i + 6).toInt(16)
+            val c = hex.substring(i + 8, i + 10).toInt(16)   // supported
+            val d = hex.substring(i + 10, i + 12).toInt(16)  // test status
+            val mil = (a and 0x01) != 0
+            val dtc = a shr 1
+            var total = 0
+            var ready = 0
+            for (bit in 0..7) {
+                if ((c shr bit) and 1 == 1) {
+                    total++
+                    if ((d shr bit) and 1 == 0) ready++   // bit 0 = zakonczony (Ready)
+                }
+            }
+            Readiness(mil, dtc, total, ready)
+        } catch (_: Exception) { null }
     }
 
     /** PID 0134: lambda = ((A*256)+B)/32768; AFR = lambda * 14.7 (benzyna). */
@@ -258,6 +311,23 @@ class ConnectionManager(
             val b = hex.substring(i + 6, i + 8).toInt(16)
             val lambda = ((a * 256) + b) / 32768f
             lambda * 14.7f
+        } catch (_: Exception) { null }
+    }
+
+    /**
+     * Mode 21 (KWP2000 ReadDataByIdentifier), zapytanie "2101":
+     * odpowiedz 61 01 [dane...]. Czas wtrysku = pierwsze 2 bajty danych
+     * (16-bit Big Endian) x 0.001 [ms] - skala wg raportu wymaga kalibracji
+     * wzgledem HDS (mnoznik 0.001 / 0.01).
+     */
+    private fun parseInjectionMs(raw: String): Float? {
+        val hex = raw.replace(" ", "").uppercase()
+        val i = hex.indexOf("6101")
+        if (i < 0 || hex.length < i + 8) return null
+        return try {
+            val a = hex.substring(i + 4, i + 6).toInt(16)
+            val b = hex.substring(i + 6, i + 8).toInt(16)
+            ((a * 256) + b) * 0.001f
         } catch (_: Exception) { null }
     }
 }

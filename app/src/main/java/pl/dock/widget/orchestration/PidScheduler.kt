@@ -15,8 +15,9 @@ import java.util.concurrent.atomic.AtomicLong
  * Adaptive polling scheduler with three tiers:
  *  Fast   100 ms  - PID 010C (RPM), 010D (VSS)
  *  Medium 500 ms  - Engine Load, TPS, MAP
- *  Slow   2000 ms  - ECT, IAT, STFT, LTFT + 0101 (MIL/readiness),
- *                    0133 (BARO), 0134 (Lambda/AFR)
+ *  Slow   2000 ms  - ECT, IAT, STFT, LTFT + 0101 (MIL/readiness A-D),
+ *                    0133 (BARO), 0134 (Lambda/AFR), 2101 (czas wtrysku,
+ *                    KWP2000 ReadDataByIdentifier - ukryty PID Hondy)
  *
  * Stale-data marking if no response > 3 s.
  * Keep-alive in background: only AT RV (voltage), no PID traffic.
@@ -39,7 +40,7 @@ class PidScheduler(
         val FAST_PIDS = listOf("010C", "010D")          // RPM, VSS
         val MEDIUM_PIDS = listOf("0104", "0111", "010B") // Load, TPS, MAP
         val SLOW_PIDS = listOf("0105", "010F", "0106", "0107",
-            "0101", "0133", "0134") // ECT, IAT, STFT, LTFT, MIL, BARO, LAMBDA
+            "0101", "0133", "0134", "2101") // ECT, IAT, STFT, LTFT, MIL, BARO, LAMBDA, INJ
     }
 
     private val executor: ScheduledExecutorService =

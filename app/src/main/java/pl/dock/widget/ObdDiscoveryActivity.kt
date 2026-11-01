@@ -34,8 +34,9 @@ import pl.dock.widget.ui.UfoClusterActivity
  *
  * Dopracowanie: korutyna telemetrii anulowana w onDestroy (brak wycieku),
  * przycisk WSTECZ zamyka ekran, przewodnik UFO Dash Self-Diag
- * (fabryczny test zegarow Civic VIII krok po kroku), nowe dane:
- * MIL, liczba kodow DTC, BARO, Lambda/AFR.
+ * (fabryczny test zegarow Civic VIII krok po kroku + tabela kodow Error
+ * magistral: F-CAN/B-CAN/UART), nowe dane: MIL, liczba kodow DTC,
+ * BARO, Lambda/AFR, monitory gotowosci (0101 A-D), wtrysk (2101).
  */
 class ObdDiscoveryActivity : Activity() {
 
@@ -116,8 +117,9 @@ class ObdDiscoveryActivity : Activity() {
 
     /**
      * Przewodnik po ukrytym menu zegarow (UFO Dash Self-Diag) -
-     * fabryczny test cyfrowy deski rozdzielczej Civic VIII.
-     * Wersje wyposazenia moga sie nieznacznie roznic.
+     * fabryczny test cyfrowy deski rozdzielczej Civic VIII,
+     * wraz z systematyka kodow Error magistral (F-CAN/B-CAN/UART)
+     * wg architektury Gateway klastra zegarow.
      */
     private fun showSelfDiagGuide() {
         AlertDialog.Builder(this)
@@ -128,12 +130,24 @@ class ObdDiscoveryActivity : Activity() {
                 "2. Wcisnij i PRZYTRZYMAJ przycisk RESET\n" +
                 "   licznika (przycisk na kolumnie/zegarach).\n" +
                 "3. Trzymajac RESET, przekrec zaplon na II (ON).\n" +
-                "4. Trzymaj RESET ok. 5-10 s.\n" +
-                "5. Zegary wykonaja pelny sweep - wskazowki\n" +
-                "   obrotomierza i predkosciomierza przejada\n" +
-                "   od min do max i spowrotem; wyswietlacz\n" +
-                "   pokaze kod diagnostyczny klastra (jesli jest).\n" +
-                "6. Zwolnij przycisk / wylacz zaplon, aby zakonczyc.\n\n" +
+                "4. Trzymaj RESET ok. 5-10 s (kroki musza\n" +
+                "   zmiescic sie w oknie 5 s miedzy etapami).\n" +
+                "5. Potwierdzenie: pieciokrotny beeper\n" +
+                "   (test ukladu dzwiekowego) + sweep wskazowek\n" +
+                "   (min->max->min) + test matrycy LCD.\n" +
+                "6. Testy mozna ponawiac przyciskiem RESET.\n" +
+                "7. Kazdy ruch kola (VSS > 2 km/h) wylacza tryb.\n\n" +
+                "KODY ERROR NA LCD (magistrale klastra):\n" +
+                "Error 1  = F-CAN (ECM/VSA) -> B1168/B1178\n" +
+                "Error 2  = B-CAN (MICU) -> B1157\n" +
+                "Error 3  = UART (speedo<->tacho)\n" +
+                "Error 12 = F-CAN + B-CAN (gateway/zasilanie)\n" +
+                "Error 13 = F-CAN + UART\n" +
+                "Error 23 = B-CAN + UART (wiazki/zasilanie)\n" +
+                "Error 123 = pelna kolizja (F-CAN+B-CAN+UART)\n\n" +
+                "Uwaga: Error 1 (F-CAN) moze kaskadowo wywolac\n" +
+                "C1555 (EPS) oraz U0155 - najpierw sprawdz magistrale,\n" +
+                "zanim wymienisz modul wspomagania.\n\n" +
                 "Uwaga: to procedura fabryczna Hondy - wersje\n" +
                 "wyposazenia moga nieznacznie roznic sie w krokach."
             )
@@ -178,8 +192,10 @@ class ObdDiscoveryActivity : Activity() {
             appendLine("LTFT: " + fmt(s.ltftPct) + " %" + stale(s.staleFlags.ltft))
             appendLine("MIL (Check Engine): " + (if (s.milOn) "ZAPALONA" else "wylaczona"))
             appendLine("Kody DTC w ECU: " + (if (s.dtcCount >= 0) s.dtcCount else "-"))
+            appendLine("Monitory gotowosci: " + (if (s.readinessReady >= 0) s.readinessReady.toString() + "/" + s.readinessTotal else "-"))
             appendLine("BARO: " + fmt(s.baroKpa) + " kPa")
             appendLine("AFR (lambda x14.7): " + fmt(s.lambdaAfr))
+            appendLine("Wtrysk (2101): " + fmt(s.injectionMs) + " ms")
         }
         ObdWidgetProvider.push(this, s.rpm, s.speedKmh, s.voltage, s.connected)
     }
