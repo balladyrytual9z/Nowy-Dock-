@@ -24,7 +24,7 @@ import pl.dock.widget.orchestration.ConnectionManager
 import pl.dock.widget.repository.EngineStateLabel
 
 /**
- * ObdCoreService – foreground core of the OBD stack.
+ * ObdCoreService - foreground core of the OBD stack.
  *
  * Started from BOOT_COMPLETED (via [BootReceiver]) and from the OBD UI.
  * Notification channel uses IMPORTANCE_LOW so Android 9 doesn't kill it,
@@ -33,7 +33,7 @@ import pl.dock.widget.repository.EngineStateLabel
  * Owns:
  *  - Black Box (RAM ring + WAL persistence on harsh deceleration)
  *  - Virtual Dyno / Mechanical Health / Misfire analytics
- *  - critical alerts (shift light, ECT > 102 °C) with ducked audio
+ *  - critical alerts (shift light, ECT > 102 C) with ducked audio
  *  - NanoServer CSV export (port 8080)
  */
 class ObdCoreService : Service() {
@@ -43,13 +43,13 @@ class ObdCoreService : Service() {
         private const val CHANNEL = "obd_core"
         private const val NOTIF_ID = 42
 
-        /** ECT alert threshold [°C] */
+        /** ECT alert threshold [deg C] */
         const val ECT_ALERT_C = 102f
         /** Shift light [RPM] */
         const val SHIFT_LIGHT_RPM = 6800
         /** Black Box feed interval [ms] */
         private const val FRAME_MS = 1_000L
-        /** Mode $06 poll interval [ms] */
+        /** Mode 06 poll interval [ms] */
         private const val MODE06_MS = 30_000L
 
         @Volatile var running = false
@@ -59,7 +59,7 @@ class ObdCoreService : Service() {
             try {
                 context.startForegroundService(Intent(context, ObdCoreService::class.java))
             } catch (e: Exception) {
-                Log.w(TAG, "start failed: ${e.message}")
+                Log.w(TAG, "start failed: " + e.message)
             }
         }
 
@@ -94,7 +94,7 @@ class ObdCoreService : Service() {
         nano.start()
         startForeground(NOTIF_ID, buildNotification("Dock OBD core aktywny"))
         observeTelemetry()
-        Log.i(TAG, "ObdCoreService created (WAL db + NanoServer :${NanoServer.DEFAULT_PORT})")
+        Log.i(TAG, "ObdCoreService created (WAL db + NanoServer :" + NanoServer.DEFAULT_PORT + ")")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
@@ -134,26 +134,27 @@ class ObdCoreService : Service() {
 
                 // --- critical alerts (audio duck) --------------------------
                 if (!s.ectC.isNaN() && s.ectC >= ECT_ALERT_C) {
-                    raiseAlert("ECT", "Przegrzanie: ${s.ectC.toInt()} °C")
+                    raiseAlert("ECT", "Przegrzanie: " + s.ectC.toInt() + " C")
                 } else if (s.rpm >= SHIFT_LIGHT_RPM) {
-                    raiseAlert("SHIFT", "Shift light ${s.rpm} RPM")
+                    raiseAlert("SHIFT", "Shift light " + s.rpm + " RPM")
                 } else if (s.engineState == EngineStateLabel.PROTECTED) {
-                    raiseAlert("VOLT", "Niskie napięcie ${"%.1f".format(s.voltage)} V")
+                    raiseAlert("VOLT", "Niskie napiecie " + "%.1f".format(s.voltage) + " V")
                 }
 
                 // --- widget feed (throttled inside) ----------------------------
-                ObdWidgetProvider.push(this, s.rpm, s.speedKmh, s.voltage, s.connected)
+                ObdWidgetProvider.push(this@ObdCoreService, s.rpm, s.speedKmh, s.voltage, s.connected)
 
-                // --- periodic Mode $06 (misfire) ----------------------------
+                // --- periodic Mode 06 (misfire) ----------------------------
                 if (s.connected && now - lastMode06Ms >= MODE06_MS) {
                     lastMode06Ms = now
                     try {
                         val res = misfire.poll { cmd -> manager.rawRequest(cmd) }
-                        if (res.any { it.failed }) {
-                            raiseAlert("MISFIRE", "Wypadanie zapłonów: cyl. ${res.filter { it.failed }.joinToString { it.mid.toString() }}")
+                        val failed = res.filter { it.failed }
+                        if (failed.isNotEmpty()) {
+                            raiseAlert("MISFIRE", "Wypadanie zaplonow: cyl. " + failed.joinToString { it.mid.toString() })
                         }
                     } catch (e: Exception) {
-                        Log.w(TAG, "Mode 06 poll failed: ${e.message}")
+                        Log.w(TAG, "Mode 06 poll failed: " + e.message)
                     }
                 }
             }
@@ -161,7 +162,7 @@ class ObdCoreService : Service() {
     }
 
     private fun raiseAlert(kind: String, message: String) {
-        Log.w(TAG, "[$kind] $message")
+        Log.w(TAG, "[" + kind + "] " + message)
         audio.alert(kind)   // rate-limited inside AudioAlertManager
         lastAlert = kind
     }
@@ -171,7 +172,7 @@ class ObdCoreService : Service() {
         val ch = NotificationChannel(
             CHANNEL, "Dock OBD", NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Usługa OBD w tle (czarna skrzynka, analityka)"
+            description = "Usluga OBD w tle (czarna skrzynka, analityka)"
             setShowBadge(false)
         }
         nm.createNotificationChannel(ch)
