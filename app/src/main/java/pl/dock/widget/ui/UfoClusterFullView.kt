@@ -23,7 +23,8 @@ import android.view.View
  *
  * Dopracowanie: bieg wyliczany ze stosunku RPM/km/h (L13Z1, 5 biegow);
  * poprawiona geometria wskazowki (wektor prostopadly);
- * footer ma najwyzszy priorytet w obsludze dotyku (konflikt z lukami).
+ * footer ma najwyzszy priorytet w obsludze dotyku (konflikt z lukami);
+ * progi ECO/REDLINE/VTEC w pelni konfigurowalne z Ustawien OBD.
  */
 class UfoClusterFullView(context: Context) : View(context) {
 
@@ -60,9 +61,12 @@ class UfoClusterFullView(context: Context) : View(context) {
     private var lastDataMs = 0L
     private var useMph = false
 
-    // konfiguracja (z Ustawien)
+    // konfiguracja (z Ustawien; aplikowana w onResume hosta)
     var redlineRpm = 6500
     var vtecRpm = 5200
+    var ecoTps = 18f
+    var ecoMap = 48f
+    var ecoRpm = 2800f
 
     // ---------- Callbacki ----------
     var onOpenDtc: () -> Unit = {}
@@ -353,7 +357,9 @@ class UfoClusterFullView(context: Context) : View(context) {
             c.drawRect(x, 20f, x + segW, 44f, pFill)
         }
 
-        val eco = !tpsPct.isNaN() && tpsPct < 18f && !mapKpa.isNaN() && mapKpa < 48f && rpm < 2800f
+        // progi ECO z Ustawien (zakladka DZIEN-NOC/ECO)
+        val eco = !tpsPct.isNaN() && tpsPct < ecoTps &&
+            !mapKpa.isNaN() && mapKpa < ecoMap && rpm < ecoRpm
         pItalic.textSize = 24f
         pItalic.color = if (eco) GREEN else 0x2230D158
         c.drawText("ECO", 300f, 90f, pItalic)

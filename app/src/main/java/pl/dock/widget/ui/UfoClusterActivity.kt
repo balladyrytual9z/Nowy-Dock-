@@ -7,6 +7,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import pl.dock.widget.ObdCoreService
@@ -18,11 +19,16 @@ import pl.dock.widget.settings.ObdSettingsActivity
 /**
  * Pelnoekranowy host zegara Honda OEM UFO Cluster (1280x720).
  * Tryb immersyjny, bez paskow systemowych - zgodnie ze specyfikacja radia.
+ *
+ * Dopracowanie: progi zegarow (redline/VTEC/ECO) sa aplikowane w onResume,
+ * dzieki czemu powrot z Ustawien od razu pokazuje nowe wartosci;
+ * korutyna telemetrii jest anulowana w onDestroy (brak wycieku).
  */
 class UfoClusterActivity : Activity() {
 
     private lateinit var manager: ConnectionManager
     private lateinit var cluster: UfoClusterFullView
+    private val scope = MainScope()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,7 +49,7 @@ class UfoClusterActivity : Activity() {
                 or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
             )
 
-        // akcje footer + gesty (akcja tapniecia predkosciomierza: km/h <-> mph)
+        // akcje footer + gesty (tapniecie predkosciomierza: km/h <-> mph)
         cluster.onOpenDtc = { startActivity(Intent(this, DtcManagerActivity::class.java)) }
         cluster.onSaveEvent = {
             // ZAPISZ EVENT: ostatnie 30 s telemetrii z bufora czarnej skrzynki
@@ -57,14 +63,10 @@ class UfoClusterActivity : Activity() {
         cluster.onOpenSettings = { startActivity(Intent(this, ObdSettingsActivity::class.java)) }
         cluster.onSpeedTap = { cluster.toggleUnits() }
 
-        // progi zegarow z ustawien (ObdSettingsActivity)
-        val sp = getSharedPreferences("obd_settings", MODE_PRIVATE)
-        cluster.redlineRpm = sp.getString("redline_rpm", "6500")?.toIntOrNull() ?: 6500
-        cluster.vtecRpm = sp.getString("vtec_rpm", "5200")?.toIntOrNull() ?: 5200
-
+        applyGaugePrefs()
         ObdCoreService.start(this)
 
-        MainScope().launch {
+        scope.launch {
             manager.uiState.collectLatest { s ->
                 cluster.update(
                     s.rpm, s.speedKmh, s.voltage, s.ectC,
@@ -75,8 +77,28 @@ class UfoClusterActivity : Activity() {
         }
     }
 
+    /** Progi z SharedPreferences - wolane przy starcie i po powrocie z Ustawien. */
+    private fun applyGaugePrefs() {
+        val sp = getSharedPreferences("obd_settings", MODE_PRIVATE)
+        cluster.redlineRpm = sp.getString("redline_rpm", "6500")?.toIntOrNull() ?: 6500
+        cluster.vtecRpm = sp.getString("vtec_rpm", "5200")?.toIntOrNull() ?: 5200
+        cluster.ecoTps = sp.getString("eco_tps", "18")?.toFloatOrNull() ?: 18f
+        cluster.ecoMap = sp.getString("eco_map", "48")?.toFloatOrNull() ?: 48f
+        cluster.ecoRpm = sp.getString("eco_rpm", "2800")?.toFloatOrNull() ?: 2800f
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyGaugePrefs()
+    }
+
     override fun onStart() { super.onStart(); manager.onAppForeground() }
     override fun onStop() { super.onStop(); manager.onAppBackground() }
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
+    }
 
     @Suppress("DEPRECATION")
     override fun onWindowFocusChanged(hasFocus: Boolean) {

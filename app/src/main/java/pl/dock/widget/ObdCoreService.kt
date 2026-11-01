@@ -35,6 +35,10 @@ import pl.dock.widget.repository.EngineStateLabel
  * przez SharedPreferences "obd_settings" (zakladka DIAG w Ustawieniach):
  * shift_light, ect_alert, analytics, blackbox; shift light czyta prog
  * redline_rpm zamiast stalej.
+ *
+ * Odometr (akumulacja dystansu dla modulu Serwis) liczony jest TUTAJ,
+ * w strumieniu telemetrii - przebieg rosnie takze przy zamknietym
+ * ekranie Serwis (wczesniej liczyl sie tylko przy otwartym ekranie).
  */
 class ObdCoreService : Service() {
 
@@ -80,6 +84,7 @@ class ObdCoreService : Service() {
     private val misfire = MisfireAnalyzer()
     private lateinit var health: MechanicalHealthMonitor
     private lateinit var obdPrefs: SharedPreferences
+    private lateinit var maintPrefs: SharedPreferences
 
     private var lastFrameMs = 0L
     private var lastMode06Ms = 0L
@@ -91,6 +96,7 @@ class ObdCoreService : Service() {
         manager = ConnectionManager.get(applicationContext)
         db = AppDatabase(this)
         obdPrefs = getSharedPreferences("obd_settings", MODE_PRIVATE)
+        maintPrefs = getSharedPreferences("obd_maintenance", MODE_PRIVATE)
         recorder = BlackBoxRecorder(db)
         nano = NanoServer(this, db, recorder)
         audio = AudioAlertManager(this)
@@ -111,6 +117,9 @@ class ObdCoreService : Service() {
                 val now = System.currentTimeMillis()
                 val analyticsOn = obdPrefs.getBoolean("analytics", true)
                 val blackboxOn = obdPrefs.getBoolean("blackbox", true)
+
+                // --- odometr (Serwis): akumulacja dystansu z VSS, w tle ---
+                accumulateOdometer(s.speedKmh, now)
 
                 // --- Black Box feed (~1 Hz), bramkowane ustawieniem ---
                 if (blackboxOn && now - lastFrameMs >= FRAME_MS) {
@@ -167,6 +176,36 @@ class ObdCoreService : Service() {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Akumulacja przebiegu dla modulu Serwis ("obd_maintenance":
+     * odo_acc w metrach, odo_ts = znacznik czasu ostatniej probki).
+     * Przedzial dt ograniczony do 100..5000 ms - chroni przed zliczaniem
+     * dystansu po dlugiej przerwie w telemetrii (gap > 5 s jest ignorowany).
+     */
+    private fun accumulateOdometer(speedKmh: Int, now: Long) {
+        if (speedKmh > 0) {
+            val lastTs = maintPrefs.getLong("odo_ts", 0L)
+            if (lastTs == 0L) {
+                maintPrefs.edit().putLong("odo_ts", now).apply()
+                return
+            }
+            val dt = now - lastTs
+            if (dt in 100..5000) {
+                val acc = maintPrefs.getFloat("odo_acc", 0f)
+                val meters = (speedKmh * (dt / 3_600_000.0)).toFloat()
+                maintPrefs.edit()
+                    .putFloat("odo_acc", acc + meters)
+                    .putLong("odo_ts", now)
+                    .apply()
+            } else {
+                // za dluga przerwa - odswiez znacznik bez doliczania dystansu
+                maintPrefs.edit().putLong("odo_ts", now).apply()
+            }
+        } else {
+            maintPrefs.edit().putLong("odo_ts", now).apply()
         }
     }
 

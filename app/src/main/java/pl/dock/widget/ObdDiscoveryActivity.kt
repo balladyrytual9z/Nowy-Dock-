@@ -11,6 +11,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import pl.dock.widget.blackbox.BlackBoxActivity
@@ -29,12 +30,16 @@ import pl.dock.widget.ui.UfoClusterActivity
  * Honda OBD Discovery - centrum dowodzenia modulami OBD.
  * Obserwuje [ConnectionManager.uiState] - zero bezposredniego Bluetooth w UI.
  * Zakaz fabryzacji: brak danych = wyswietlone "-", nigdy zmyslone wartosci.
+ *
+ * Dopracowanie: korutyna telemetrii anulowana w onDestroy (brak wycieku),
+ * przycisk WSTECZ zamyka ekran i wraca do launchera.
  */
 class ObdDiscoveryActivity : Activity() {
 
     private lateinit var manager: ConnectionManager
     private lateinit var statusTv: TextView
     private lateinit var dataTv: TextView
+    private val scope = MainScope()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -81,7 +86,7 @@ class ObdDiscoveryActivity : Activity() {
         nav.addView(navBtn("TRIP / BEST RUNS") {
             startActivity(Intent(this, TripActivity::class.java))
         })
-        nav.addView(navBtn("MAINTENANCE") {
+        nav.addView(navBtn("SERWIS (MAINTENANCE)") {
             startActivity(Intent(this, MaintenanceActivity::class.java))
         })
         nav.addView(navBtn("E-RAPORT") {
@@ -90,6 +95,7 @@ class ObdDiscoveryActivity : Activity() {
         nav.addView(navBtn("USTAWIENIA OBD") {
             startActivity(Intent(this, ObdSettingsActivity::class.java))
         })
+        nav.addView(navBtn("WSTECZ (ZAMKNIJ)") { finish() })
         root.addView(nav)
 
         root.addView(ScrollView(this).apply { addView(dataTv) }, LinearLayout.LayoutParams(
@@ -99,7 +105,7 @@ class ObdDiscoveryActivity : Activity() {
         // OBD core: czarna skrzynka + analityka dzialaja tez poza UI
         ObdCoreService.start(this)
 
-        MainScope().launch {
+        scope.launch {
             manager.uiState.collectLatest { state -> render(state) }
         }
     }
@@ -149,4 +155,9 @@ class ObdDiscoveryActivity : Activity() {
 
     override fun onStart() { super.onStart(); manager.onAppForeground() }
     override fun onStop() { super.onStop(); manager.onAppBackground() }
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
+    }
 }
