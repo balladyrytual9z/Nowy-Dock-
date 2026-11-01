@@ -1,0 +1,76 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'pl.dock.widget'
+    compileSdk 35
+
+    def debugKeystore = file('dock-debug.p12')
+    if (debugKeystore.exists()) {
+        signingConfigs {
+            debug {
+                storeFile debugKeystore
+                storePassword 'dockdock'
+                keyAlias 'dock'
+                keyPassword 'dockdock'
+                storeType 'pkcs12'
+            }
+        }
+    }
+
+    defaultConfig {
+        applicationId 'pl.dock.widget'
+        minSdk 26
+        targetSdk 28
+        versionCode 15
+        versionName '1.3.0-obd'
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+        }
+    }
+
+    buildTypes {
+        debug {
+            if (debugKeystore.exists()) {
+                signingConfig signingConfigs.debug
+            }
+            minifyEnabled false
+        }
+        release {
+            minifyEnabled false
+            if (debugKeystore.exists()) {
+                signingConfig signingConfigs.debug
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    packaging {
+        resources {
+            excludes += ['META-INF/INDEX.LIST', 'META-INF/DEPENDENCIES']
+        }
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    // pure Android framework â no AndroidX for UI
+    // Kotlin + Coroutines for OBD transport / session (MVVM isolation)
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
+}
+
