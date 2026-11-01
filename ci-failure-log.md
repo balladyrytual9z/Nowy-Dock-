@@ -1,4 +1,4 @@
-# CI failure log (run 41306247761)
+# CI failure log (run 41306499207)
 
 ## build.log
 
@@ -25,12 +25,12 @@ to this project's gradle.properties.
 > Task :app:preDebugBuild UP-TO-DATE
 > Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :app:checkKotlinGradlePluginConfigurationErrors
-> Task :app:generateDebugResValues
 > Task :app:checkDebugAarMetadata
+> Task :app:generateDebugResValues
 > Task :app:mapDebugSourceSetPaths
 > Task :app:generateDebugResources
-> Task :app:packageDebugResources
 > Task :app:mergeDebugResources
+> Task :app:packageDebugResources
 > Task :app:createDebugCompatibleScreenManifests
 > Task :app:extractDeepLinksDebug
 > Task :app:parseDebugLocalResources
@@ -41,32 +41,24 @@ to this project's gradle.properties.
 > Task :app:compileDebugShaders NO-SOURCE
 > Task :app:generateDebugAssets UP-TO-DATE
 > Task :app:mergeDebugAssets
-> Task :app:processDebugManifestForPackage
 > Task :app:compressDebugAssets
-> Task :app:processDebugResources
-> Task :app:checkDebugDuplicateClasses
 > Task :app:desugarDebugFileDependencies
+> Task :app:checkDebugDuplicateClasses
+> Task :app:processDebugManifestForPackage
 > Task :app:mergeDebugStartupProfile
-> Task :app:mergeLibDexDebug
 > Task :app:mergeDebugJniLibFolders
 > Task :app:mergeDebugNativeLibs NO-SOURCE
+> Task :app:mergeLibDexDebug
 > Task :app:stripDebugDebugSymbols NO-SOURCE
+> Task :app:processDebugResources
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
 > Task :app:writeDebugSigningConfigVersions
 > Task :app:mergeExtDexDebug
 
 > Task :app:compileDebugKotlin FAILED
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ObdCoreService.kt:145:40 Type mismatch: inferred type is CoroutineScope but Context was expected
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ObdWidgetProvider.kt:49:21 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
-public inline fun Array<*>?.isNullOrEmpty(): Boolean defined in kotlin.collections
-public inline fun CharSequence?.isNullOrEmpty(): Boolean defined in kotlin.text
-public inline fun <T> Collection<TypeVariable(T)>?.isNullOrEmpty(): Boolean defined in kotlin.collections
-public inline fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>?.isNullOrEmpty(): Boolean defined in kotlin.collections
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/blackbox/AppDatabase.kt:34:12 Unresolved reference: setWriteAheadLoggingEnabled
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ui/UfoClusterView.kt:50:17 The integer literal does not conform to the expected type Int
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ui/UfoClusterView.kt:104:37 Val cannot be reassigned
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1793535828989.json
+e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ui/UfoClusterView.kt:57:17 Type mismatch: inferred type is Long but Int was expected
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1793536017446.json
 
 FAILURE: Build failed with an exception.
 
@@ -270,7 +262,7 @@ Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilat
 	... 2 more
 
 
-BUILD FAILED in 40s
+BUILD FAILED in 25s
 29 actionable tasks: 28 executed, 1 up-to-date
 
 ## ci.log
