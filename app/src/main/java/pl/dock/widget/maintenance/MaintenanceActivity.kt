@@ -39,24 +39,24 @@ class MaintenanceActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val root = LinearLayout(this).apply {
+        val root = LinearLayout(this@MaintenanceActivity).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#121212"))
             setPadding(28, 36, 28, 20)
         }
-        root.addView(TextView(this).apply {
+        root.addView(TextView(this@MaintenanceActivity).apply {
             text = "MAINTENANCE"
             textSize = 22f
             setTextColor(Color.WHITE)
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         })
-        body = TextView(this).apply {
+        body = TextView(this@MaintenanceActivity).apply {
             textSize = 15f
             setTextColor(Color.parseColor("#E5E5EA"))
             setPadding(0, 16, 0, 8)
         }
-        root.addView(ScrollView(this).apply {
-            addView(LinearLayout(this).apply {
+        root.addView(ScrollView(this@MaintenanceActivity).apply {
+            addView(LinearLayout(this@MaintenanceActivity).apply {
                 orientation = LinearLayout.VERTICAL
                 addView(body)
                 for ((key, label, _) in items) addView(itemRow(key, label))
@@ -69,7 +69,7 @@ class MaintenanceActivity : Activity() {
 
     /** Wiersz: ostatni serwis (km) + interwal; zapis przy utracie fokusu. */
     private fun itemRow(key: String, label: String): View =
-        LinearLayout(this).apply {
+        LinearLayout(this@MaintenanceActivity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(12, 16, 12, 8)
             background = GradientDrawable().apply {
@@ -82,17 +82,17 @@ class MaintenanceActivity : Activity() {
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply { topMargin = 12 }
 
-            addView(TextView(this).apply {
+            addView(TextView(this@MaintenanceActivity).apply {
                 text = label
                 textSize = 15f
                 setTextColor(Color.WHITE)
             })
-            addView(TextView(this).apply {
+            addView(TextView(this@MaintenanceActivity).apply {
                 text = "Ostatni serwis (km):"
                 textSize = 12f
                 setTextColor(Color.parseColor("#8E8E93"))
             })
-            addView(EditText(this).apply {
+            addView(EditText(this@MaintenanceActivity).apply {
                 setText(sp().getLong(key, 0L).toString())
                 textSize = 15f
                 setTextColor(Color.WHITE)
@@ -105,12 +105,12 @@ class MaintenanceActivity : Activity() {
                     }
                 }
             })
-            addView(TextView(this).apply {
+            addView(TextView(this@MaintenanceActivity).apply {
                 text = "Interwal (km):"
                 textSize = 12f
                 setTextColor(Color.parseColor("#8E8E93"))
             })
-            addView(EditText(this).apply {
+            addView(EditText(this@MaintenanceActivity).apply {
                 setText(sp().getLong(key + "_int", defaultInterval(key)).toString())
                 textSize = 15f
                 setTextColor(Color.WHITE)
@@ -123,7 +123,7 @@ class MaintenanceActivity : Activity() {
                     }
                 }
             })
-            statusViews[key] = TextView(this).apply {
+            statusViews[key] = TextView(this@MaintenanceActivity).apply {
                 textSize = 13f
                 setPadding(0, 8, 0, 0)
             }.also { addView(it) }
@@ -132,7 +132,7 @@ class MaintenanceActivity : Activity() {
     private val statusViews = HashMap<String, TextView>()
 
     private fun kmRow(): View =
-        LinearLayout(this).apply {
+        LinearLayout(this@MaintenanceActivity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(12, 16, 12, 8)
             background = GradientDrawable().apply {
@@ -144,12 +144,12 @@ class MaintenanceActivity : Activity() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply { topMargin = 12 }
-            addView(TextView(this).apply {
+            addView(TextView(this@MaintenanceActivity).apply {
                 text = "Przebieg bazowy (km) - docelowo zliczany z VSS:"
                 textSize = 12f
                 setTextColor(Color.parseColor("#8E8E93"))
             })
-            addView(EditText(this).apply {
+            addView(EditText(this@MaintenanceActivity).apply {
                 setText(sp().getLong("base_km", 0L).toString())
                 textSize = 15f
                 setTextColor(Color.WHITE)
@@ -162,7 +162,7 @@ class MaintenanceActivity : Activity() {
                     }
                 }
             })
-            addView(Button(this).apply {
+            addView(Button(this@MaintenanceActivity).apply {
                 text = "ZAPISZ I PRZELICZ"
                 isAllCaps = false
                 textSize = 12f

@@ -34,17 +34,17 @@ class ObdSettingsActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val root = LinearLayout(this).apply {
+        val root = LinearLayout(this@ObdSettingsActivity).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.parseColor("#121212"))
             setPadding(20, 32, 20, 16)
         }
 
         // pasek zakladek
-        val tabBar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val tabBar = LinearLayout(this@ObdSettingsActivity).apply { orientation = LinearLayout.HORIZONTAL }
         val labels = arrayOf("POLACZ", "ZEGARY", "DIAG", "DZIEN/NOC", "INFO")
         tabs = Array(5) { i ->
-            Button(this).apply {
+            Button(this@ObdSettingsActivity).apply {
                 text = labels[i]
                 textSize = 11f
                 isAllCaps = false
@@ -66,7 +66,7 @@ class ObdSettingsActivity : Activity() {
             buildConnPage(), buildGaugesPage(), buildDiagPage(),
             buildNightPage(), buildInfoPage()
         )
-        val container = FrameLayout(this)
+        val container = FrameLayout(this@ObdSettingsActivity)
         for (p in pages) {
             container.addView(p, android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
@@ -88,8 +88,8 @@ class ObdSettingsActivity : Activity() {
         }
     }
 
-    private fun page(): ScrollView = ScrollView(this).apply {
-        addView(LinearLayout(this).apply {
+    private fun page(): ScrollView = ScrollView(this@ObdSettingsActivity).apply {
+        addView(LinearLayout(this@ObdSettingsActivity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(8, 20, 8, 20)
         })
@@ -97,7 +97,7 @@ class ObdSettingsActivity : Activity() {
 
     private fun pageBody(p: View): LinearLayout = (p as ScrollView).getChildAt(0) as LinearLayout
 
-    private fun header(text: String): TextView = TextView(this).apply {
+    private fun header(text: String): TextView = TextView(this@ObdSettingsActivity).apply {
         this.text = text
         textSize = 16f
         setTextColor(Color.WHITE)
@@ -105,7 +105,7 @@ class ObdSettingsActivity : Activity() {
         setPadding(0, 16, 0, 8)
     }
 
-    private fun caption(text: String): TextView = TextView(this).apply {
+    private fun caption(text: String): TextView = TextView(this@ObdSettingsActivity).apply {
         this.text = text
         textSize = 12f
         setTextColor(Color.parseColor("#8E8E93"))
@@ -113,7 +113,7 @@ class ObdSettingsActivity : Activity() {
     }
 
     private fun numField(key: String, hint: String): EditText {
-        val et = EditText(this).apply {
+        val et = EditText(this@ObdSettingsActivity).apply {
             inputType = android.text.InputType.TYPE_CLASS_NUMBER
             setTextColor(Color.WHITE)
             setHintTextColor(Color.parseColor("#8E8E93"))
@@ -131,7 +131,7 @@ class ObdSettingsActivity : Activity() {
     }
 
     private fun toggleBtn(key: String, label: String): Button {
-        val btn = Button(this).apply {
+        val btn = Button(this@ObdSettingsActivity).apply {
             textSize = 13f
             isAllCaps = false
             setTextColor(Color.WHITE)
@@ -210,13 +210,13 @@ class ObdSettingsActivity : Activity() {
         b.addView(numField("lat", "52.23"))
         b.addView(numField("lon", "21.01"))
         b.addView(toggleBtn("night_auto", "Tryb automatyczny"))
-        val status = TextView(this).apply {
+        val status = TextView(this@ObdSettingsActivity).apply {
             textSize = 14f
             setTextColor(Color.parseColor("#E5E5EA"))
             setPadding(4, 20, 4, 0)
         }
         b.addView(status)
-        val calcBtn = Button(this).apply {
+        val calcBtn = Button(this@ObdSettingsActivity).apply {
             text = "PRZELICZ TERAZ"
             textSize = 13f
             isAllCaps = false
