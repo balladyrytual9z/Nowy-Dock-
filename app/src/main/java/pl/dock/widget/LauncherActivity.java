@@ -143,6 +143,7 @@ public class LauncherActivity extends BaseActivity {
         BtDevice.init(this);
         buildUi();
         StatusService.start(this);
+        Updater.scheduleCheck(this);
         NightShift.restore(this);
         updateClockText();
         loadApps();
@@ -916,6 +917,11 @@ public class LauncherActivity extends BaseActivity {
             @Override
             public void onReceive(Context context, Intent intent) {
                 String a = intent.getAction();
+                // Samoaktualizacja: przy podlaczeniu WiFi sprawdz nowy release na GitHubie
+                if (ConnectivityManager.CONNECTIVITY_ACTION.equals(a)
+                        || WifiManager.NETWORK_STATE_CHANGED_ACTION.equals(a)) {
+                    Updater.scheduleCheck(context);
+                }
                 if (Intent.ACTION_BATTERY_CHANGED.equals(a) && !Prefs.showVoltage(context)) return;
                 BtDevice.handle(intent);
                 PhoneBattery.handle(intent);
