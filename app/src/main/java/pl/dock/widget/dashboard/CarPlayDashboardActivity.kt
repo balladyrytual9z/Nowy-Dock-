@@ -20,13 +20,14 @@ import pl.dock.widget.LauncherActivity
 import pl.dock.widget.diagnostics.DtcManagerActivity
 import pl.dock.widget.diagnostics.MisfireLabActivity
 import pl.dock.widget.orchestration.ConnectionManager
+import pl.dock.widget.report.EReportActivity
 import pl.dock.widget.repository.VehicleUiState
 import pl.dock.widget.ui.ChartView
 
 /**
  * CarPlay Dashboard: staly pionowy dock (~110dp) po lewej + obszar roboczy.
  * Moduly: Overview, Live Data (Multi-Select max 4 wykresy), Misfire Lab,
- * DTC Manager, Home. Karty #1C1C1E, radius 16dp, obramowanie #2C2C2E.
+ * DTC Manager, E-Raport, Home. Karty #1C1C1E, radius 16dp, obramowanie #2C2C2E.
  */
 class CarPlayDashboardActivity : Activity() {
 
@@ -98,6 +99,7 @@ class CarPlayDashboardActivity : Activity() {
         dock.addView(dockBtn("LIVE DATA") { showLive() })
         dock.addView(dockBtn("MISFIRE") { startActivity(Intent(this, MisfireLabActivity::class.java)) })
         dock.addView(dockBtn("DTC") { startActivity(Intent(this, DtcManagerActivity::class.java)) })
+        dock.addView(dockBtn("E-RAPORT") { startActivity(Intent(this, EReportActivity::class.java)) })
         val spacer = View(this)
         spacer.layoutParams = LinearLayout.LayoutParams(1, 0, 1f)
         dock.addView(spacer)

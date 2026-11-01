@@ -24,6 +24,9 @@ import android.view.View
  *
  * Wszystkie wspolrzedne sa zdefiniowane w wirtualnej przestrzeni 1280x720
  * i skalowane ze zachowaniem proporcji (letterboxing przy innych proporcjach).
+ *
+ * Dopracowanie: bieg jest wyliczany ze stosunku RPM/km/h wedlug
+ * przełożen manualnej skrzyni L13Z1 (5 biegow) - nigdy nie jest fabrykowany.
  */
 class UfoClusterFullView(context: Context) : View(context) {
 
@@ -48,7 +51,7 @@ class UfoClusterFullView(context: Context) : View(context) {
     private var rpm = 0f          // wyrenderowane (interpolowane)
     private var rpmTarget = 0f
     private var speedKmh = -1
-    private var gear = "?"
+    private var gear = "N"
     private var connected = false
     private var connecting = false
     private var voltage = Float.NaN
@@ -133,11 +136,34 @@ class UfoClusterFullView(context: Context) : View(context) {
         connected = conn
         connecting = conn_ing
         if (conn) lastDataMs = System.currentTimeMillis()
+        computeGear()
         trackMidStats()
         postInvalidateOnAnimation()
     }
 
     fun toggleUnits() { useMph = !useMph }
+
+    /**
+     * Bieg ze stosunku RPM/km/h (Honda L13Z1, manual 5-biegowa, opona ~1.85 m).
+     * Przelozene calkowite (skrzynia x final) daja okolo:
+     * 1: ~132, 2: ~71, 3: ~49, 4: ~38, 5: ~31 RPM na 1 km/h.
+     * Przy braku wiarygodnych danych (postojob/niskie obroty) pokazujemy "N".
+     */
+    private fun computeGear() {
+        if (speedKmh > 3 && rpmTarget > 500f) {
+            val r = rpmTarget / speedKmh
+            gear = when {
+                r < 35f -> "5"
+                r < 44f -> "4"
+                r < 60f -> "3"
+                r < 100f -> "2"
+                else -> "1"
+            }
+        } else if (speedKmh in 0..3) {
+            gear = "N"
+        }
+        // przy speed<0 (brak danych) zostaje poprzednia wartosc - bez fabrykacji
+    }
 
     private fun trackMidStats() {
         val key = midLoop[midIndex]
