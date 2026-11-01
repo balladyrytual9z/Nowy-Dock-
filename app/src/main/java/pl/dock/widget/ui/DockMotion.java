@@ -9,7 +9,7 @@ import android.view.animation.OvershootInterpolator;
 import android.view.animation.PathInterpolator;
 
 /**
- * Shared interpolators for Dock 2.0 â iOS-inspired spring & standard curves.
+ * Shared interpolators for Dock 2.0 – iOS-inspired spring & standard curves.
  */
 public final class DockMotion {
 

@@ -2,12 +2,12 @@
 package pl.dock.widget.ui;
 
 /**
- * Central colour palette for Dock 2.0 â Graphite / Night and Day.
+ * Central colour palette for Dock 2.0 – Graphite / Night and Day.
  * Accent is a muted green, not neon.
  */
 public final class DockColors {
 
-    // Night / Graphite â soft dark for LCD car tablets (NOT pure AMOLED black)
+    // Night / Graphite – soft dark for LCD car tablets (NOT pure AMOLED black)
     public static final int NIGHT_BASE = 0xFF0B0C0E;
     public static final int NIGHT_CARD = 0xFF16181C;
     public static final int NIGHT_RAISED = 0xFF22252A;

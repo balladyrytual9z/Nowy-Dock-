@@ -8,7 +8,7 @@ import android.view.View;
 import android.view.animation.AccelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
 
-/** Apple-like push/pop: nowa plansza wjeÅ¼dÅ¼a od prawej, stara lekko odjeÅ¼dÅ¼a w lewo i przygasa. */
+/** Apple-like push/pop: nowa plansza wjeżdża od prawej, stara lekko odjeżdża w lewo i przygasa. */
 public final class PushPopTransition {
 
     public static void push(final View incoming, final View outgoing, boolean reduceMotion) {

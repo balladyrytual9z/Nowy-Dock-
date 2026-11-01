@@ -62,7 +62,7 @@ class EngineState {
                 label = EngineStateLabel.OFF
             }
             else -> {
-                // transitional â keep previous protected flag
+                // transitional – keep previous protected flag
                 if (!protected) label = EngineStateLabel.UNKNOWN
             }
         }

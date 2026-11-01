@@ -9,7 +9,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 
-/** ObracajÄcy siÄ pierÅcieÅ z kreskami â jak iOS "reconnecting". */
+/** Obracający się pierścień z kreskami — jak iOS "reconnecting". */
 public class SpinnerView extends View {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF rect = new RectF();
