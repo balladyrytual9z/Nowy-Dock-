@@ -1,4 +1,4 @@
-# CI failure log (run 41350177326)
+# CI failure log (run 41351518727)
 
 ## build.log
 
@@ -39,20 +39,20 @@ to this project's gradle.properties.
 > Task :app:javaPreCompileDebug
 > Task :app:mergeDebugShaders
 > Task :app:compileDebugShaders NO-SOURCE
+> Task :app:processDebugManifestForPackage
 > Task :app:generateDebugAssets UP-TO-DATE
 > Task :app:mergeDebugAssets
 > Task :app:compressDebugAssets
 > Task :app:desugarDebugFileDependencies
 > Task :app:mergeDebugStartupProfile
-> Task :app:checkDebugDuplicateClasses
 > Task :app:mergeDebugJniLibFolders
 > Task :app:mergeDebugNativeLibs NO-SOURCE
 > Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:validateSigningDebug
-> Task :app:mergeLibDexDebug
 > Task :app:writeDebugAppMetadata
+> Task :app:checkDebugDuplicateClasses
 > Task :app:writeDebugSigningConfigVersions
-> Task :app:processDebugManifestForPackage
+> Task :app:mergeLibDexDebug
 > Task :app:processDebugResources
 > Task :app:mergeExtDexDebug
 
@@ -70,20 +70,18 @@ w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widg
 w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/transport/SppTransport.kt:105:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
 
 > Task :app:compileDebugJavaWithJavac
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/AppsGridPage.java:438: error: no suitable method found for addView(android.widget.LinearLayout.LayoutParams,int,android.widget.LinearLayout.LayoutParams)
-            parent.addView(sp, parent.getChildCount() - 1, sp);
-                  ^
-    method ViewGroup.addView(View,int,int) is not applicable
-      (argument mismatch; android.widget.LinearLayout.LayoutParams cannot be converted to View)
-    method ViewGroup.addView(View,int,android.view.ViewGroup.LayoutParams) is not applicable
-      (argument mismatch; android.widget.LinearLayout.LayoutParams cannot be converted to View)
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/Updater.java:113: error: unreported exception Exception; must be caught or declared to be thrown
+        byte[] apk = httpGet(apkUrl, 15000, 600000);
+                            ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/Updater.java:114: error: unreported exception Exception; must be caught or declared to be thrown
+        String actual = sha256(apk);
+                              ^
 Note: Some input files use or override a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
-Note: Some messages have been simplified; recompile with -Xdiags:verbose to get full output
-1 error
+2 errors
 
 > Task :app:compileDebugJavaWithJavac FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793567162213.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793568061523.json
 
 FAILURE: Build failed with an exception.
 
@@ -282,7 +280,7 @@ Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Com
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 
 
-BUILD FAILED in 45s
+BUILD FAILED in 34s
 30 actionable tasks: 29 executed, 1 up-to-date
 
 ## ci.log
