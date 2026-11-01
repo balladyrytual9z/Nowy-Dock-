@@ -1,4 +1,4 @@
-# CI failure log (run 41308447482)
+# CI failure log (run 41308596028)
 
 ## build.log
 
@@ -36,6 +36,7 @@ to this project's gradle.properties.
 > Task :app:parseDebugLocalResources
 > Task :app:processDebugMainManifest
 > Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
 > Task :app:javaPreCompileDebug
 > Task :app:mergeDebugShaders
 > Task :app:compileDebugShaders NO-SOURCE
@@ -44,92 +45,23 @@ to this project's gradle.properties.
 > Task :app:compressDebugAssets
 > Task :app:desugarDebugFileDependencies
 > Task :app:mergeDebugStartupProfile
-> Task :app:mergeDebugJniLibFolders
 > Task :app:checkDebugDuplicateClasses
+> Task :app:mergeDebugJniLibFolders
 > Task :app:mergeDebugNativeLibs NO-SOURCE
-> Task :app:processDebugManifestForPackage
-> Task :app:mergeLibDexDebug
 > Task :app:stripDebugDebugSymbols NO-SOURCE
+> Task :app:mergeLibDexDebug
 > Task :app:processDebugResources
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
 > Task :app:writeDebugSigningConfigVersions
 > Task :app:mergeExtDexDebug
 
-> Task :app:compileDebugKotlin FAILED
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:486:2 Missing '}
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:84:9 Unresolved reference: showOverview
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:85:9 Unresolved reference: observe
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:94:54 Unresolved reference: dp
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:97:44 Unresolved reference: showOverview
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:98:45 Unresolved reference: showLive
+> Task :app:compileDebugKotlin
 e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:132:34 Type mismatch: inferred type is ScrollView but Context! was expected
 e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:135:34 Type mismatch: inferred type is LinearLayout but Context! was expected
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:289:13 Unresolved reference: highlightSelection
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:306:5 Modifier 'private' is not applicable to 'local function'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:309:9 Unresolved reference: cells
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:319:9 Unresolved reference: chartMatrix
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:324:21 Unresolved reference: cells
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:324:33 Unresolved reference: cells
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:337:5 Modifier 'private' is not applicable to 'local function'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:339:18 Unresolved reference: splitRow
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:339:27 Unresolved reference: hRow
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:340:20 Unresolved reference: splitRow
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:340:29 Unresolved reference: hRow
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:340:41 Unresolved reference: splitRow
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:340:50 Unresolved reference: hRow
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:341:20 Unresolved reference: splitRow
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:341:29 Unresolved reference: hRow
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:341:41 Unresolved reference: splitRow
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:341:50 Unresolved reference: hRow
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:342:32 Unresolved reference: hRow
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:342:40 Unresolved reference: splitRow
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:343:32 Unresolved reference: hRow
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:343:40 Unresolved reference: splitRow
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:347:5 Modifier 'private' is not applicable to 'local function'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:356:5 Modifier 'private' is not applicable to 'local function'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:361:13 Unresolved reference: cells
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:365:5 Modifier 'private' is not applicable to 'local variable'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:367:5 Modifier 'private' is not applicable to 'local function'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:377:5 Modifier 'private' is not applicable to 'local function'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:382:5 Modifier 'private' is not applicable to 'local function'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:391:5 Modifier 'private' is not applicable to 'local function'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:393:50 Unresolved reference: render
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:397:5 Modifier 'private' is not applicable to 'local function'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:414:9 Unresolved reference: updateParam
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:415:9 Unresolved reference: updateParam
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:416:9 Unresolved reference: updateParam
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:417:9 Unresolved reference: updateParam
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:418:9 Unresolved reference: updateParam
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:419:9 Unresolved reference: updateParam
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:420:9 Unresolved reference: updateParam
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:421:9 Unresolved reference: updateParam
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:422:9 Unresolved reference: updateParam
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:423:9 Unresolved reference: updateParam
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:426:32 Unresolved reference: pushChart
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:427:34 Unresolved reference: pushChart
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:428:51 Unresolved reference: pushChart
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:429:55 Unresolved reference: pushChart
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:430:55 Unresolved reference: pushChart
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:431:53 Unresolved reference: pushChart
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:432:53 Unresolved reference: pushChart
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:433:51 Unresolved reference: pushChart
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:434:33 Unresolved reference: pushChart
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:437:5 Modifier 'private' is not applicable to 'local function'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:440:49 Unresolved reference: fmt
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:444:13 Unresolved reference: inNormalRange
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:445:13 Unresolved reference: isCritical
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:451:5 Modifier 'private' is not applicable to 'local function'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:461:5 Modifier 'private' is not applicable to 'local function'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:468:5 Modifier 'private' is not applicable to 'local function'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:471:40 Unresolved reference: lastPushMs
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:472:13 Unresolved reference: lastPushMs
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:477:5 Modifier 'private' is not applicable to 'local variable'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:479:5 Modifier 'private' is not applicable to 'local function'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:482:5 Modifier 'private' is not applicable to 'local function'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:484:5 Modifier 'override' is not applicable to 'local function'
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/dashboard/CarPlayDashboardActivity.kt:485:5 Modifier 'override' is not applicable to 'local function'
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1793537494700.json
+
+> Task :app:compileDebugKotlin FAILED
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1793537617061.json
 
 FAILURE: Build failed with an exception.
 
@@ -333,7 +265,7 @@ Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilat
 	... 2 more
 
 
-BUILD FAILED in 21s
+BUILD FAILED in 19s
 29 actionable tasks: 28 executed, 1 up-to-date
 
 ## ci.log
