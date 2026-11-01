@@ -347,33 +347,91 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         return -1;
     }
 
+    // Menu kontekstowe w stylu iOS: ciemne szklo, zaokraglenia,
+    // opcja destrukcyjna ("Usun aplikacje") w kolorze czerwonym #FF3B30.
     private void showRemoveDialog(final int index) {
         if (index < 0 || index >= items.size()) return;
         final Item it = items.get(index);
         if (it.settings || it.action.length() > 0) return;
-        final String[] options = {"Usuń z ekranu głównego", "Odinstaluj aplikację"};
-        new AlertDialog.Builder(getContext())
-                .setTitle(it.label)
-                .setItems(options, (d, which) -> {
-                    if (which == 0) {
-                        // remove from Dock home list
-                        if (it.entry != null) {
-                            Prefs.remove(getContext(), it.entry.id);
-                        } else if (it.pkg != null && it.pkg.length() > 0) {
-                            // fallback: remove by package if no entry id
-                            List<AppEntry> list = Prefs.apps(getContext());
-                            for (AppEntry e : list) {
-                                if (it.pkg.equals(e.pkg)) {
-                                    Prefs.remove(getContext(), e.id);
-                                    break;
-                                }
-                            }
-                        }
-                        if (listener != null) listener.onAppsChanged();
-                    } else {
-                        uninstallPackage(it.pkg);
-                    }
-                }).show();
+        Context ctx = getContext();
+        final Dialog dlg = new Dialog(ctx);
+        dlg.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout c = new LinearLayout(ctx);
+        c.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(0xD91C1C1E);
+        bg.setCornerRadius(20f * d);
+        bg.setStroke(Math.max(1, (int) (0.5f * d)), 0x33FFFFFF);
+        c.setBackground(bg);
+
+        boolean canHide = it.entry != null;
+        // tytul aplikacji na gorze menu
+        addIosMenuRow(c, dlg, it.label, 0xFF9A9AA0, Typeface.DEFAULT_BOLD, new Runnable() {
+            @Override public void run() { }
+        }, false);
+        addIosMenuRow(c, dlg, "Informacje o aplikacji", 0xFFFFFFFF, Typeface.DEFAULT, new Runnable() {
+            @Override public void run() {
+                try {
+                    Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    i.setData(Uri.parse("package:" + it.pkg));
+                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    getContext().startActivity(i);
+                } catch (Throwable ignored) { }
+            }
+        }, true);
+        if (canHide) {
+            addIosMenuRow(c, dlg, "Usuń z ekranu głównego", 0xFFFFFFFF, Typeface.DEFAULT, new Runnable() {
+                @Override public void run() {
+                    Prefs.remove(getContext(), it.entry.id);
+                    if (listener != null) listener.onAppsChanged();
+                }
+            }, true);
+        }
+        addIosMenuRow(c, dlg, "Usuń aplikację", 0xFFFF3B30, Typeface.DEFAULT, new Runnable() {
+            @Override public void run() { uninstallPackage(it.pkg); }
+        }, true);
+
+        dlg.setContentView(c);
+        dlg.setCanceledOnTouchOutside(true);
+        Window w = dlg.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0x00000000));
+            w.setLayout((int) (280f * d), android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+        dlg.show();
+    }
+
+    // jeden wiersz menu: 44dp wysokosci, ikona po lewej nie jest potrzebna w CarPlay
+    private void addIosMenuRow(LinearLayout parent, final Dialog dlg, String label, int color,
+                                Typeface tf, final Runnable act, boolean closeOnClick) {
+        TextView tv = new TextView(getContext());
+        tv.setText(label);
+        tv.setTextColor(color);
+        tv.setTypeface(tf);
+        tv.setTextSize(15);
+        tv.setGravity(Gravity.CENTER_VERTICAL);
+        tv.setPadding((int) (16f * d), 0, (int) (16f * d), 0);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT, (int) (44f * d));
+        parent.addView(tv, lp);
+        if (closeOnClick) {
+            tv.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    try { dlg.dismiss(); } catch (Throwable ignored) { }
+                    act.run();
+                }
+            });
+        }
+        if (parent.getChildCount() > 1) {
+            // separator jak w iOS
+            android.view.View sep = new android.view.View(getContext());
+            sep.setBackgroundColor(0x33FFFFFF);
+            LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, (int) (0.5f * d)));
+            sp.leftMargin = (int) (16f * d);
+            sp.rightMargin = (int) (16f * d);
+            parent.addView(sp, parent.getChildCount() - 1);
+        }
     }
 
     private void uninstallPackage(String pkg) {
