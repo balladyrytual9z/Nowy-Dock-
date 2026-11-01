@@ -1,4 +1,4 @@
-# CI failure log (run 41308714261)
+# CI failure log (run 41311456101)
 
 ## build.log
 
@@ -25,8 +25,8 @@ to this project's gradle.properties.
 > Task :app:preDebugBuild UP-TO-DATE
 > Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :app:checkKotlinGradlePluginConfigurationErrors
-> Task :app:checkDebugAarMetadata
 > Task :app:generateDebugResValues
+> Task :app:checkDebugAarMetadata
 > Task :app:mapDebugSourceSetPaths
 > Task :app:generateDebugResources
 > Task :app:packageDebugResources
@@ -38,18 +38,18 @@ to this project's gradle.properties.
 > Task :app:processDebugManifest
 > Task :app:javaPreCompileDebug
 > Task :app:mergeDebugShaders
+> Task :app:processDebugManifestForPackage
 > Task :app:compileDebugShaders NO-SOURCE
 > Task :app:generateDebugAssets UP-TO-DATE
 > Task :app:mergeDebugAssets
 > Task :app:compressDebugAssets
-> Task :app:processDebugManifestForPackage
-> Task :app:checkDebugDuplicateClasses
 > Task :app:desugarDebugFileDependencies
 > Task :app:mergeDebugStartupProfile
 > Task :app:mergeDebugJniLibFolders
+> Task :app:checkDebugDuplicateClasses
 > Task :app:mergeDebugNativeLibs NO-SOURCE
-> Task :app:mergeLibDexDebug
 > Task :app:stripDebugDebugSymbols NO-SOURCE
+> Task :app:mergeLibDexDebug
 > Task :app:processDebugResources
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
@@ -57,9 +57,18 @@ to this project's gradle.properties.
 > Task :app:mergeExtDexDebug
 
 > Task :app:compileDebugKotlin FAILED
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ui/UfoClusterFullView.kt:205:42 Type mismatch: inferred type is Float but Double was expected
-e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ui/UfoClusterFullView.kt:428:44 Type mismatch: inferred type is Float? but Float was expected
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1793537710678.json
+e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/maintenance/MaintenanceActivity.kt:59:34 Type mismatch: inferred type is ScrollView but Context! was expected
+e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/maintenance/MaintenanceActivity.kt:85:30 Type mismatch: inferred type is LinearLayout but Context! was expected
+e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/maintenance/MaintenanceActivity.kt:90:30 Type mismatch: inferred type is LinearLayout but Context! was expected
+e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/maintenance/MaintenanceActivity.kt:95:30 Type mismatch: inferred type is LinearLayout but Context! was expected
+e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/maintenance/MaintenanceActivity.kt:108:30 Type mismatch: inferred type is LinearLayout but Context! was expected
+e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/maintenance/MaintenanceActivity.kt:113:30 Type mismatch: inferred type is LinearLayout but Context! was expected
+e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/maintenance/MaintenanceActivity.kt:126:41 Type mismatch: inferred type is LinearLayout but Context! was expected
+e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/maintenance/MaintenanceActivity.kt:147:30 Type mismatch: inferred type is LinearLayout but Context! was expected
+e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/maintenance/MaintenanceActivity.kt:152:30 Type mismatch: inferred type is LinearLayout but Context! was expected
+e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/maintenance/MaintenanceActivity.kt:165:28 Type mismatch: inferred type is LinearLayout but Context! was expected
+e: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/settings/ObdSettingsActivity.kt:92:30 Type mismatch: inferred type is ScrollView but Context! was expected
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1793539758988.json
 
 FAILURE: Build failed with an exception.
 
@@ -263,7 +272,7 @@ Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilat
 	... 2 more
 
 
-BUILD FAILED in 28s
+BUILD FAILED in 21s
 29 actionable tasks: 28 executed, 1 up-to-date
 
 ## ci.log
