@@ -16,7 +16,7 @@ import android.widget.TextView;
 import pl.dock.widget.ui.DockColors;
 
 /**
- * Dock 2.0 diagnostics â FPS proxy, memory, media latency, provider status.
+ * Dock 2.0 diagnostics – FPS proxy, memory, media latency, provider status.
  */
 public class DockDiagnosticsActivity extends Activity {
 
