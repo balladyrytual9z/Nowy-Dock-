@@ -365,6 +365,8 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         };
 
         categoryY.clear();
+        LinearLayout row = null;
+        int col = 0;
         for (Map.Entry<String, List<AppEntry>> e : categories.entrySet()) {
             if (e.getValue().isEmpty()) continue;
             // Search filter: match category name or any app label
@@ -382,33 +384,46 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
                 }
                 if (!match) continue;
             }
-            // naglowek kategorii - LISTA aplikacji pogrupowana na kategorie (jak w iOS)
-            TextView head = new TextView(ctx);
-            head.setText(e.getKey());
-            head.setTextSize(20);
-            head.setTypeface(pl.dock.widget.ui.DockTheme.interSemiBold());
-            head.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
-            head.setPadding(dp(4), dp(14), dp(4), dp(8));
-            grid.addView(head, new LinearLayout.LayoutParams(
+            // Record approximate Y for letter index (after layout would be better; use index for now)
+            categoryY.put(e.getKey(), grid.getChildCount() * dp(140));
+            if (col == 0) {
+                row = new LinearLayout(ctx);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(Gravity.TOP);
+                LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                rlp.bottomMargin = dp(16);
+                grid.addView(row, rlp);
+            }
+            // Vertical wrapper: folder tile + label underneath (iOS style)
+            LinearLayout cell = new LinearLayout(ctx);
+            cell.setOrientation(LinearLayout.VERTICAL);
+            cell.setGravity(Gravity.CENTER_HORIZONTAL);
+
+            LibraryFolderView folder = new LibraryFolderView(ctx, e.getKey(), e.getValue(), night, fl);
+            folders.add(folder);
+            LinearLayout.LayoutParams folderLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            cell.addView(folder, folderLp);
+
+            TextView label = new TextView(ctx);
+            label.setText(e.getKey());
+            label.setTextSize(13);
+            label.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+            label.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
+            label.setGravity(Gravity.CENTER);
+            label.setMaxLines(1);
+            label.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            label.setPadding(0, dp(6), 0, 0);
+            cell.addView(label, new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-            LinearLayout row = null;
-            int col = 0;
-            for (final AppEntry app : e.getValue()) {
-                if (row == null || col >= 4) {
-                    row = new LinearLayout(ctx);
-                    row.setOrientation(LinearLayout.HORIZONTAL);
-                    row.setGravity(Gravity.TOP);
-                    LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                    rlp.bottomMargin = dp(10);
-                    grid.addView(row, rlp);
-                    col = 0;
-                }
-                row.addView(makeAppCell(app, fl), new LinearLayout.LayoutParams(
-                        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-                col++;
-            }
+            LinearLayout.LayoutParams cellLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            if (col == 0) cellLp.rightMargin = dp(12);
+            row.addView(cell, cellLp);
+            if (editing) folder.setEditing(true);
+            col++;
+            if (col >= 2) col = 0;
         }
         if (categories.isEmpty()) {
             TextView empty = new TextView(ctx);
@@ -686,7 +701,6 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
     public void setEditing(boolean on) {
         editing = on;
         for (LibraryFolderView f : folders) f.setEditing(on);
-        if (grid != null) rebuildFolders();
     }
 
     @Override
