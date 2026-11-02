@@ -448,8 +448,8 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         android.widget.ImageView iv = new android.widget.ImageView(ctx);
         android.graphics.Bitmap bmp = Icons.forEntry(ctx, app);
         if (bmp != null) {
-            android.graphics.drawable.RoundedBitmapDrawable rd =
-                    android.graphics.drawable.RoundedBitmapDrawableFactory.create(ctx.getResources(), bmp);
+            androidx.core.graphics.drawable.RoundedBitmapDrawable rd =
+                    androidx.core.graphics.drawable.RoundedBitmapDrawableFactory.create(ctx.getResources(), bmp);
             rd.setCornerRadius(dp(12));
             rd.setAntiAlias(true);
             iv.setImageDrawable(rd);
@@ -809,5 +809,6 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         return (int) (v * d + 0.5f);
     }
 }
+
 
 
