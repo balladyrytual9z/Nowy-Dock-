@@ -82,25 +82,12 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         }
     };
 
-    // Edit mode / wobble / drag-reorder
+    // Edit mode / drag-reorder (bez trzesienia ikon)
     private boolean editMode = false;
-    private final float[] wobblePhase = new float[PER_PAGE];
     private int dragIndex = -1;
     private float dragX, dragY;
     private boolean dragActive = false;
     private long lastEdge = 0;   // debounce zmiany strony przy dragowaniu do krawedzi
-    private final Runnable wobbleTick = new Runnable() {
-        @Override
-        public void run() {
-            if (editMode) {
-                for (int i = 0; i < wobblePhase.length; i++) {
-                    wobblePhase[i] += 0.18f;
-                }
-                invalidate();
-                h.postDelayed(this, 16);
-            }
-        }
-    };
 
     private final Runnable longPress = new Runnable() {
         @Override
@@ -124,10 +111,6 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         d = c.getResources().getDisplayMetrics().density;
         slop = ViewConfiguration.get(c).getScaledTouchSlop();
         text.setTextAlign(Paint.Align.CENTER);
-        // random initial phases
-        for (int i = 0; i < wobblePhase.length; i++) {
-            wobblePhase[i] = (float) (Math.random() * Math.PI * 2);
-        }
         EditModeController.get().addListener(this);
     }
 
@@ -158,14 +141,12 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         EditModeController.get().setEditing(true);
         // sprzetowa warstwa na czas drzenia: ostre, gladkie krawedzie ikon (jak w iOS)
         setLayerType(View.LAYER_TYPE_HARDWARE, null);
-        h.post(wobbleTick);
         invalidate();
     }
 
     public void exitEditMode() {
         if (!editMode) return;
         editMode = false;
-        h.removeCallbacks(wobbleTick);
         setLayerType(View.LAYER_TYPE_NONE, null);
         invalidate();
     }
@@ -273,9 +254,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
             float inset = iconSz * (1f - s) / 2f;
 
             if (editMode && !dragActive) {
-                float angle = (float) Math.sin(wobblePhase[i]) * 1.6f;
                 cv.save();
-                cv.rotate(angle, x + iconSz / 2f, y + iconSz / 2f);
             }
 
             bmp.setAlpha(pressed == i && !dragActive ? 190 : 255);
@@ -622,7 +601,6 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         super.onDetachedFromWindow();
         h.removeCallbacks(longPress);
         h.removeCallbacks(bgLongPress);
-        h.removeCallbacks(wobbleTick);
         EditModeController.get().removeListener(this);
     }
 }

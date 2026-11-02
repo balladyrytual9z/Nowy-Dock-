@@ -135,20 +135,11 @@ public class LibraryFolderView extends FrameLayout {
 
     public void setEditing(boolean on) {
         editing = on;
-        for (int i = 0; i < iconViews.size(); i++) {
-            View iv = iconViews.get(i);
-            if (on) {
-                EditModeController.get().startWobble(iv, i * 0.7f);
-            } else {
-                EditModeController.get().stopWobble(iv);
-            }
-        }
         for (View badge : badgeViews) {
             badge.setVisibility(on ? VISIBLE : GONE);
         }
         invalidate();
     }
-
     public String getCategoryName() {
         return categoryName;
     }

@@ -1,4 +1,3 @@
-
 package pl.dock.widget;
 
 import android.app.Activity;
@@ -181,11 +180,51 @@ public class Popups {
         ref[0] = panel(a, c, 440, Gravity.CENTER);
         ref[0].show();
     }
+
+    // menu przyklejone do widoku (obok ikony aplikacji, jak w iOS)
+    public static void menuNear(final Activity a, View anchor, String title, String[] items,
+                               final OnSel cb) {
+        boolean night = Look.night(a);
+        LinearLayout c = new LinearLayout(a);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setBackground(Ui.popupBg(a, night));
+        c.setElevation(Ui.dp(a, 12));
+        if (title != null && title.length() > 0) {
+            TextView t = text(a, title, 14, sub(night), true);
+            t.setPadding(Ui.dp(a, 20), Ui.dp(a, 12), Ui.dp(a, 20), Ui.dp(a, 4));
+            c.addView(t);
+        }
+        final android.widget.PopupWindow[] w = new android.widget.PopupWindow[1];
+        for (int i = 0; i < items.length; i++) {
+            final int idx = i;
+            if (i > 0) {
+                View hl = new View(a);
+                hl.setBackgroundColor(night ? 0x33FFFFFF : 0x22000000);
+                c.addView(hl, new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, 1));
+            }
+            TextView r = text(a, items[i], 18, txt(night), false);
+            r.setPadding(Ui.dp(a, 22), Ui.dp(a, 12), Ui.dp(a, 22), Ui.dp(a, 12));
+            c.addView(r);
+            r.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    w[0].dismiss();
+                    cb.on(idx);
+                }
+            });
+        }
+        w[0] = new android.widget.PopupWindow(c, ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        w[0].setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0x00000000));
+        w[0].setOutsideTouchable(true);
+        w[0].showAsDropDown(anchor, 0, -anchor.getHeight() / 2);
+    }
+
+
+
+
+
+
+
 }
-
-
-
-
-
-
-

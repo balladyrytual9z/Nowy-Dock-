@@ -1,4 +1,3 @@
-
 package pl.dock.widget;
 
 import android.content.Context;
@@ -903,6 +902,20 @@ public class Prefs {
         ed(c).putBoolean("lib_hidden_" + pkg, hidden).apply();
     }
 
+
+    // pakiety ukryte w Bibliotece aplikacji (do przywracania w Ustawieniach)
+    public static java.util.List<String> hiddenInLibrary(Context c) {
+        java.util.List<String> out = new java.util.ArrayList<String>();
+        java.util.Map<String, ?> all = sp(c).getAll();
+        for (String k : all.keySet()) {
+            if (k != null && k.startsWith("lib_hidden_")) {
+                Object v = all.get(k);
+                if (Boolean.TRUE.equals(v)) out.add(k.substring("lib_hidden_".length()));
+            }
+        }
+        java.util.Collections.sort(out);
+        return out;
+    }
     // ---------- narzędzia w panelu łączności ----------
     // identyfikatory oddzielone przecinkami; null = układ domyślny, "" = pusty panel
     public static String panelTools(Context c) {

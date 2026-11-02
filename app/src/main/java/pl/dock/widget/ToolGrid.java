@@ -1,4 +1,4 @@
-package pl.dock.widget;
+successfully downloaded text file (SHA: d2e537be7719690dd30225d8168857399be9ee64)package pl.dock.widget;
 
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
@@ -167,35 +167,12 @@ public class ToolGrid extends ViewGroup {
     }
 
     private void startWobble(View v) {
-        stopWobble(v);
-        // pivot na srodku kafelka - bez tego obrot wokol rogu (0,0) psul siatke
-        if (v.getWidth() > 0 && v.getHeight() > 0) {
-            v.setPivotX(v.getWidth() / 2f);
-            v.setPivotY(v.getHeight() / 2f);
-            startWobbleAnim(v);
-        } else {
-            final View fv = v;
-            fv.post(new Runnable() {
-                @Override
-                public void run() {
-                    if (!editing || fv.getWidth() <= 0) return;
-                    fv.setPivotX(fv.getWidth() / 2f);
-                    fv.setPivotY(fv.getHeight() / 2f);
-                    startWobbleAnim(fv);
-                }
-            });
-        }
+        // trzesienie kafelkow usuniete
     }
 
     private void startWobbleAnim(View v) {
-        ObjectAnimator oa = ObjectAnimator.ofFloat(v, View.ROTATION, -1.7f, 1.7f);
-        oa.setDuration(110 + rnd.nextInt(60));
-        oa.setRepeatMode(ValueAnimator.REVERSE);
-        oa.setRepeatCount(ValueAnimator.INFINITE);
-        oa.start();
-        wobbles.put(v, oa);
+        // trzesienie kafelkow usuniete
     }
-
     private void stopWobble(View v) {
         ObjectAnimator oa = wobbles.remove(v);
         if (oa != null) oa.cancel();

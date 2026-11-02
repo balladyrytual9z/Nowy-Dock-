@@ -1,4 +1,4 @@
-
+successfully downloaded text file (SHA: 086c5aba87eccf9df97e100b7fafc116b3faf68f)
 package pl.dock.widget;
 
 import android.content.Context;
@@ -142,12 +142,11 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
     }
 
     private void startWobble(View v) {
+        // trzesienie usuniete
         if (v == null) return;
-        EditModeController.get().startWobble(v, (float) (Math.random() * Math.PI * 2));
     }
 
     private void stopWobble(View v) {
-        EditModeController.get().stopWobble(v);
     }
 
     private int colOf(String where) {

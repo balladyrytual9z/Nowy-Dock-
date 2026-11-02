@@ -22,7 +22,7 @@ import java.util.Map;
 /**
  * iOS App Library page: searchable title + 2-column grid of category folders.
  */
-public class AppLibraryPage extends FrameLayout implements EditModeController.Listener {
+public class AppLibraryPage extends FrameLayout {
 
     public interface Host {
         void openApp(String pkg);
@@ -59,16 +59,19 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         this.night = Look.night(c);
         setClickable(true);
         buildChrome();
-        EditModeController.get().addListener(this);
-        setOnLongClickListener(new OnLongClickListener() {
+        // DLUZE przytrzymanie na tle listy wlacza tryb z minusami (zadnego trzesienia)
+        final OnLongClickListener bgLong = new OnLongClickListener() {
             @Override public boolean onLongClick(View v) {
-                EditModeController.get().setEditing(true);
+                setMinusMode(true);
                 return true;
             }
-        });
+        };
+        setOnLongClickListener(bgLong);
+        if (scrollView != null) scrollView.setOnLongClickListener(bgLong);
+        if (grid != null) grid.setOnLongClickListener(bgLong);
         setOnClickListener(new OnClickListener() {
             @Override public void onClick(View v) {
-                if (editing) EditModeController.get().setEditing(false);
+                if (editing) setMinusMode(false);
             }
         });
     }
@@ -368,7 +371,7 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
             }
 
             @Override public void onAppLongPress(View iconView, AppEntry app) {
-                showLibraryAppMenu(app);
+                showLibraryAppMenuNear(iconView, app);
             }
 
             @Override public void onRemoveApp(AppEntry app) {
@@ -438,6 +441,7 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
     }
 
     // wiersz aplikacji: zaokraglona ikona po lewej + nazwa po prawej (jak w Ustawieniach iOS)
+    // wiersz aplikacji: zaokraglona ikona po lewej + nazwa po prawej (jak w Ustawieniach iOS)
     private View makeAppRow(final AppEntry app, final LibraryFolderView.Listener fl) {
         LinearLayout row = new LinearLayout(ctx);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -445,20 +449,51 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         row.setPadding(dp(16), dp(7), dp(16), dp(7));
         row.setTag(app);
 
+        FrameLayout iconBox = new FrameLayout(ctx);
         android.widget.ImageView iv = new android.widget.ImageView(ctx);
         android.graphics.Bitmap bmp = Icons.forEntry(ctx, app);
-            if (bmp != null) {
-                android.graphics.Bitmap out = android.graphics.Bitmap.createBitmap(dp(48), dp(48), android.graphics.Bitmap.Config.ARGB_8888);
-                android.graphics.Canvas cv = new android.graphics.Canvas(out);
-                android.graphics.Paint pt = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG | android.graphics.Paint.FILTER_BITMAP_FLAG);
-                android.graphics.RectF rect = new android.graphics.RectF(0, 0, dp(48), dp(48));
-                cv.drawRoundRect(rect, dp(12), dp(12), pt);
-                pt.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN));
-                android.graphics.Rect src = new android.graphics.Rect(0, 0, bmp.getWidth(), bmp.getHeight());
-                cv.drawBitmap(bmp, src, rect, pt);
-                iv.setImageBitmap(out);
-            }
-        row.addView(iv, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        if (bmp != null) {
+            android.graphics.Bitmap out = android.graphics.Bitmap.createBitmap(dp(48), dp(48), android.graphics.Bitmap.Config.ARGB_8888);
+            android.graphics.Canvas cv = new android.graphics.Canvas(out);
+            android.graphics.Paint pt = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG | android.graphics.Paint.FILTER_BITMAP_FLAG);
+            android.graphics.RectF rect = new android.graphics.RectF(0, 0, dp(48), dp(48));
+            cv.drawRoundRect(rect, dp(12), dp(12), pt);
+            pt.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN));
+            android.graphics.Rect src = new android.graphics.Rect(0, 0, bmp.getWidth(), bmp.getHeight());
+            cv.drawBitmap(bmp, src, rect, pt);
+            iv.setImageBitmap(out);
+        }
+        iconBox.addView(iv, new FrameLayout.LayoutParams(dp(48), dp(48)));
+
+        if (editing) {
+            // minus w LEWYM GORNYM rogu ikony (jak w iOS)
+            View badge = new View(ctx) {
+                @Override protected void onDraw(android.graphics.Canvas c) {
+                    float s = getWidth();
+                    android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+                    p.setStyle(android.graphics.Paint.Style.FILL);
+                    p.setColor(0xFFFF3B30);
+                    c.drawCircle(s / 2f, s / 2f, s / 2f, p);
+                    p.setColor(0xFFFFFFFF);
+                    p.setStyle(android.graphics.Paint.Style.STROKE);
+                    p.setStrokeWidth(2.2f * d);
+                    p.setStrokeCap(android.graphics.Paint.Cap.ROUND);
+                    float m = s * 0.28f;
+                    c.drawLine(m, s / 2f, s - m, s / 2f, p);
+                }
+            };
+            FrameLayout.LayoutParams blp = new FrameLayout.LayoutParams(dp(22), dp(22),
+                    Gravity.TOP | Gravity.START);
+            blp.leftMargin = -dp(8);
+            blp.topMargin = -dp(8);
+            iconBox.addView(badge, blp);
+            badge.setOnClickListener(new OnClickListener() {
+                @Override public void onClick(View v) {
+                    fl.onRemoveApp(app);
+                }
+            });
+        }
+        row.addView(iconBox, new LinearLayout.LayoutParams(dp(48), dp(48)));
 
         TextView name = new TextView(ctx);
         name.setText(appLabel(app));
@@ -472,26 +507,6 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         nlp.leftMargin = dp(14);
         row.addView(name, nlp);
 
-        if (editing) {
-            // badge usuwania: bialy minus na czerwonym kole (jak w iOS)
-            TextView badge = new TextView(ctx);
-            badge.setText("\u2212");
-            badge.setTextSize(15);
-            badge.setTypeface(Typeface.DEFAULT_BOLD);
-            badge.setTextColor(0xFFFFFFFF);
-            badge.setGravity(Gravity.CENTER);
-            android.graphics.drawable.GradientDrawable bgd = new android.graphics.drawable.GradientDrawable();
-            bgd.setColor(0xFFFF3B30);
-            bgd.setCornerRadius(dp(12));
-            badge.setBackground(bgd);
-            row.addView(badge, new LinearLayout.LayoutParams(dp(24), dp(24)));
-            badge.setOnClickListener(new OnClickListener() {
-                @Override public void onClick(View v) {
-                    fl.onRemoveApp(app);
-                }
-            });
-        }
-
         row.setOnClickListener(new OnClickListener() {
             @Override public void onClick(View v) {
                 fl.onAppTap(app);
@@ -499,7 +514,7 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         });
         row.setOnLongClickListener(new OnLongClickListener() {
             @Override public boolean onLongClick(View v) {
-                fl.onAppLongPress(v, app);
+                showLibraryAppMenuNear(v, app);
                 return true;
             }
         });
@@ -679,22 +694,26 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         return out;
     }
 
-    // iOS: menu kontekstowe aplikacji w Bibliotece
-    private void showLibraryAppMenu(final AppEntry app) {
+    // menu przy aplikacji (nie na srodku ekranu): usuwa z listy / informacje / odinstaluj
+    private void showLibraryAppMenuNear(final View anchor, final AppEntry app) {
         if (app == null || app.pkg == null || app.pkg.length() == 0
                 || !(ctx instanceof android.app.Activity)) {
-            EditModeController.get().setEditing(true);
             return;
         }
         final android.app.Activity a = (android.app.Activity) ctx;
-        Popups.menu(a, appLabel(app),
-                new String[]{"Dodaj do ekranu głównego", "Informacje o aplikacji", "Usuń aplikację"},
+        Popups.menuNear(a, anchor, appLabel(app),
+                new String[]{"Usuń z listy aplikacji", "Informacje o aplikacji", "Odinstaluj"},
                 new Popups.OnSel() {
                     @Override public void on(int idx) {
                         if (idx == 0) {
-                            Prefs.add(ctx, app.pkg);
-                            android.widget.Toast.makeText(ctx, "Dodano do ekranu głównego",
-                                    android.widget.Toast.LENGTH_SHORT).show();
+                            Prefs.setHiddenInLibrary(ctx, app.pkg, true);
+                            if (host != null) host.onLibraryChanged();
+                            for (List<AppEntry> lst : categories.values()) {
+                                for (int i = lst.size() - 1; i >= 0; i--) {
+                                    if (app.pkg.equals(lst.get(i).pkg)) lst.remove(i);
+                                }
+                            }
+                            rebuildFolders();
                         } else if (idx == 1) {
                             try {
                                 a.startActivity(new android.content.Intent(
@@ -781,7 +800,7 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
             });
             cell.setOnLongClickListener(new OnLongClickListener() {
                 @Override public boolean onLongClick(View v) {
-                    showLibraryAppMenu(app);
+                    showLibraryAppMenuNear(v, app);
                     return true;
                 }
             });
@@ -791,28 +810,19 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
             col++;
         }
     }
-
-    public void setEditing(boolean on) {
+    // tryb z minusami (bez trzesienia): wlaczany dlugim przytrzymaniem tla listy
+    public void setMinusMode(boolean on) {
         editing = on;
         if (grid != null) rebuildFolders();
     }
 
     @Override
-    public void onEditModeChanged(boolean editing) {
-        setEditing(editing);
-    }
-
-    @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
-        EditModeController.get().removeListener(this);
-        setEditing(false);
+        editing = false;
     }
 
     private int dp(float v) {
         return (int) (v * d + 0.5f);
     }
 }
-
-
-
