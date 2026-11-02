@@ -820,6 +820,9 @@ public class LauncherActivity extends BaseActivity {
     }
 
     private String appLabelSafe(String pkg) {
+        if ("dock:settings".equals(pkg)) return "Ustawienia";
+        if ("dock:obd".equals(pkg)) return "OBD";
+        if ("dock:carplay".equals(pkg)) return "CarPlay";
         try {
             return getPackageManager().getApplicationLabel(
                     getPackageManager().getApplicationInfo(pkg, 0)).toString();
@@ -1262,6 +1265,23 @@ public class LauncherActivity extends BaseActivity {
 
     // każde uruchomienie z launchera trafia do statystyk; po Home wracamy na tę samą stronę
     private void openApp(String pkg, int fromPage) {
+        // narzedzia systemowe z Biblioteki (dock:...) - Ustawienia, OBD, CarPlay
+        if (pkg != null && pkg.startsWith("dock:")) {
+            if ("dock:settings".equals(pkg)) {
+                openSettings();
+            } else if ("dock:obd".equals(pkg)) {
+                try {
+                    startActivity(new Intent(this, pl.dock.widget.ObdDiscoveryActivity.class));
+                    overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);
+                } catch (Throwable t) {
+                    Toast.makeText(this, "Nie można otworzyć OBD", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Launch.carplay(this);
+                overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);
+            }
+            return;
+        }
         try {
             Intent i = pkg == null || pkg.length() == 0 ? null
                     : getPackageManager().getLaunchIntentForPackage(pkg);
@@ -1281,8 +1301,13 @@ public class LauncherActivity extends BaseActivity {
     }
 
     private void openSettings() {
-        startActivity(new Intent(this, ConfigActivity.class));
-        overridePendingTransition(R.anim.cp_slide_in, R.anim.cp_fade_out);
+        try {
+            startActivity(new Intent(this, ConfigActivity.class));
+            overridePendingTransition(R.anim.cp_slide_in, R.anim.cp_fade_out);
+        } catch (Throwable t) {
+            android.util.Log.w("Dock", "openSettings", t);
+            Toast.makeText(this, "Nie można otworzyć ustawień", Toast.LENGTH_LONG).show();
+        }
     }
 
     // ---------------------------------------------------------------- centrum łączności (szkło)

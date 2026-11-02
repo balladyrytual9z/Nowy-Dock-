@@ -210,6 +210,7 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         labels.clear();
         // order: Suggestions/Recent first if we want â for now auto categories
         List<String> order = new ArrayList<String>();
+        order.add("Narzędzia");
         order.add(AppCategorizer.CAT_SOCIAL);
         order.add(AppCategorizer.CAT_ENTERTAINMENT);
         order.add(AppCategorizer.CAT_NAVIGATION);
@@ -222,7 +223,19 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         if (items != null) {
             PackageManager pm = ctx.getPackageManager();
             for (AppsGridPage.Item it : items) {
-                if (it == null || it.settings || (it.action != null && it.action.length() > 0)) continue;
+                if (it == null) continue;
+                // iOS 26 CarPlay: stale, przewidywalne kategorie - narzedzia systemowe
+                // (Ustawienia / CarPlay / OBD) zawsze w tym samym miejscu Biblioteki
+                if (it.settings || (it.action != null && it.action.length() > 0)) {
+                    AppEntry tool = new AppEntry();
+                    boolean isObd = "obd".equals(it.action);
+                    tool.pkg = it.settings ? "dock:settings" : (isObd ? "dock:obd" : "dock:carplay");
+                    tool.mode = "builtin";
+                    tool.iconPkg = it.settings ? "settings" : (isObd ? "obdgear" : "carplay");
+                    labels.put(tool.pkg, it.label);
+                    categories.get("Narzędzia").add(tool);
+                    continue;
+                }
                 String pkg = it.pkg;
                 if (pkg == null || pkg.length() == 0) continue;
                 if (Prefs.isHiddenInLibrary(ctx, pkg)) continue;
