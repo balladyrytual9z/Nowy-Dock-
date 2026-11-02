@@ -1,4 +1,3 @@
-
 package pl.dock.widget;
 
 import android.content.Context;
@@ -247,22 +246,8 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
                 categories.get(cat).add(e);
             }
         }
-        // ===== iOS: dwie specjalne kategorie na samej górze =====
-        try {
-            List<AppEntry> all = new ArrayList<AppEntry>();
-            for (List<AppEntry> lst : categories.values()) all.addAll(lst);
-            List<AppEntry> sug = suggestions(all);
-            List<AppEntry> rec = recentlyAdded(all);
-            if (!sug.isEmpty() || !rec.isEmpty()) {
-                Map<String, List<AppEntry>> ordered = new LinkedHashMap<String, List<AppEntry>>();
-                if (!sug.isEmpty()) ordered.put("Sugestie", sug);
-                if (!rec.isEmpty()) ordered.put("Ostatnio dodane", rec);
-                ordered.putAll(categories);
-                categories.clear();
-                categories.putAll(ordered);
-            }
-        } catch (Throwable ignored) {
-        }
+        // CarPlay iOS 26: ZERO personalizacji - statyczne, przewidywalne kategorie
+        // (kierowca musi wiedziec, ze aplikacje sa zawsze w tym samym miejscu)
 
         // drop empty
         List<String> empty = new ArrayList<String>();

@@ -699,52 +699,38 @@ public class LauncherActivity extends BaseActivity {
         headerRow.setPadding(0, 0, 0, Ui.dp(this, 20));
         col.addView(headerRow);
 
-        // 4-column grid of apps
-        android.widget.ScrollView sc = new android.widget.ScrollView(this);
-        sc.setVerticalScrollBarEnabled(false);
-        sc.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
-        sc.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                closeLibraryFolder();
-            }
-        });
-        LinearLayout grid = new LinearLayout(this);
-        grid.setOrientation(LinearLayout.VERTICAL);
-        sc.addView(grid, new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        // CarPlay iOS 26: POZIOMA lista duzych kafelkow (duze cele dotykowe w jezdzie)
+        android.widget.HorizontalScrollView hs = new android.widget.HorizontalScrollView(this);
+        hs.setHorizontalScrollBarEnabled(false);
+        hs.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(Ui.dp(this, 8), 0, Ui.dp(this, 24), 0);
+        hs.addView(row, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        int cols = 4;
-        LinearLayout row = null;
-        int i = 0;
         for (final AppEntry e : apps) {
-            if (i % cols == 0) {
-                row = new LinearLayout(this);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setGravity(Gravity.TOP);
-                LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                rlp.bottomMargin = Ui.dp(this, 18);
-                grid.addView(row, rlp);
-            }
             LinearLayout cell = new LinearLayout(this);
             cell.setOrientation(LinearLayout.VERTICAL);
             cell.setGravity(Gravity.CENTER_HORIZONTAL);
-            cell.setPadding(Ui.dp(this, 4), 0, Ui.dp(this, 4), 0);
+            cell.setPadding(Ui.dp(this, 10), 0, Ui.dp(this, 10), 0);
 
             android.widget.ImageView iv = new android.widget.ImageView(this);
             iv.setImageBitmap(Icons.forEntry(this, e));
-            iv.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
-            cell.addView(iv, new LinearLayout.LayoutParams(Ui.dp(this, 64), Ui.dp(this, 64)));
+            iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+            cell.addView(iv, new LinearLayout.LayoutParams(Ui.dp(this, 96), Ui.dp(this, 96)));
 
             TextView lb = new TextView(this);
             lb.setText(appLabelSafe(e.pkg));
-            lb.setTextSize(12);
+            lb.setTextSize(14);
             lb.setTextColor(n ? 0xFFFFFFFF : 0xFF1C1C1E);
             lb.setGravity(Gravity.CENTER);
             lb.setMaxLines(2);
             lb.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            lb.setPadding(0, Ui.dp(this, 6), 0, 0);
-            cell.addView(lb);
+            lb.setPadding(0, Ui.dp(this, 10), 0, 0);
+            cell.addView(lb, new LinearLayout.LayoutParams(
+                    Ui.dp(this, 124), ViewGroup.LayoutParams.WRAP_CONTENT));
 
             cell.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
@@ -765,21 +751,21 @@ public class LauncherActivity extends BaseActivity {
                 }
             });
 
-            LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            row.addView(cell, clp);
-            i++;
+            row.addView(cell, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
         }
         if (apps.isEmpty()) {
             TextView empty = new TextView(this);
             empty.setText("Brak aplikacji w tej kategorii");
             empty.setTextSize(16);
             empty.setTextColor(n ? 0x99FFFFFF : 0x99666666);
-            empty.setPadding(0, Ui.dp(this, 40), 0, 0);
-            empty.setGravity(Gravity.CENTER);
-            grid.addView(empty);
+            empty.setPadding(Ui.dp(this, 32), 0, 0, 0);
+            empty.setGravity(Gravity.CENTER_VERTICAL);
+            row.addView(empty, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
         }
 
-        col.addView(sc, new LinearLayout.LayoutParams(
+        col.addView(hs, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         overlay.addView(col, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
