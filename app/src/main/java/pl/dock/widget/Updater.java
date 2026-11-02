@@ -159,7 +159,10 @@ public class Updater {
             return;
         }
 
-        File out = new File(c.getCacheDir(), "dock-update.apk");
+        // katalog pod serwowanie APK instalatorowi systemowemu (ApkProvider)
+        File dir = new File(c.getCacheDir(), "updates");
+        dir.mkdirs();
+        File out = new File(dir, "update.apk");
         try {
             OutputStream os = new FileOutputStream(out);
             try {
@@ -194,6 +197,21 @@ public class Updater {
                 }
                 return;
             }
+            // 1) Klasyczny instalator systemowy (ACTION_VIEW przez wlasny ApkProvider).
+            // Na radiach OEM z Androidem 9 okno potwierdzenia PackageInstallera czesto
+            // w ogole sie nie pokazuje; pelny instalator systemowy otwiera sie pewnie.
+            try {
+                Uri uri = Uri.parse("content://pl.dock.widget.apk/update.apk");
+                Intent vi = new Intent(Intent.ACTION_VIEW);
+                vi.setDataAndType(uri, "application/vnd.android.package-archive");
+                vi.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                c.startActivity(vi);
+                toast(c, "Aktualizacja pobrana - potwierdz instalacje");
+                return;
+            } catch (Throwable t) {
+                android.util.Log.w("Dock", "install view", t);
+            }
+            // 2) Awaryjnie: PackageInstaller (jak dotychczas)
             PackageInstaller pi = pm.getPackageInstaller();
             PackageInstaller.SessionParams p = new PackageInstaller.SessionParams(
                     PackageInstaller.SessionParams.MODE_FULL_INSTALL);

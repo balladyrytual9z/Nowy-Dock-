@@ -228,6 +228,13 @@
             android:authorities="pl.dock.widget.state"
             android:exported="true" />
 
+        <!-- APK pobrany przez samoaktualizacje serwowany instalatorowi systemowemu -->
+        <provider
+            android:name=".ApkProvider"
+            android:authorities="pl.dock.widget.apk"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
         <receiver
             android:name=".circadian.NightModeReceiver"
             android:exported="true">
