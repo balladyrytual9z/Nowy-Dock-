@@ -1322,9 +1322,10 @@ public class LauncherActivity extends BaseActivity {
         boolean left = Ui.dockLeft(this);
         dock.setTranslationX(left ? -Ui.dp(this, 26) : Ui.dp(this, 26));
         dock.setAlpha(0.4f);
-        dock.animate().translationX(0f).alpha(1f).setDuration(320)
-                .setInterpolator(new android.view.animation.DecelerateInterpolator(1.4f))
-                .start();
+        dock.animate().alpha(1f).setDuration(200).start();
+        // fizyczna sprezyna: dok wjezdza z bezwladnoscia, jak w iOS
+        pl.dock.widget.ui.DockMotion.springX(dock, 0f,
+                pl.dock.widget.ui.DockMotion.STIFFNESS_MEDIUM, 0.8f);
     }
 
     /** Ekran systemowy (Ustawienia itp.): dok plynnie sie chowa, potem otwiera sie ekran. */
