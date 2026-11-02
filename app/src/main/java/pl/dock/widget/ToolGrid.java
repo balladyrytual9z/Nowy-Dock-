@@ -1,4 +1,4 @@
-successfully downloaded text file (SHA: d2e537be7719690dd30225d8168857399be9ee64)package pl.dock.widget;
+package pl.dock.widget;
 
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;

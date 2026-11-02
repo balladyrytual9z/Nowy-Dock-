@@ -1,4 +1,3 @@
-successfully downloaded text file (SHA: 086c5aba87eccf9df97e100b7fafc116b3faf68f)
 package pl.dock.widget;
 
 import android.content.Context;

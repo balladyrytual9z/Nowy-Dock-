@@ -364,6 +364,7 @@ public class ConfigActivity extends BaseActivity {
                         startActivity(new Intent(ConfigActivity.this, AppsPickerActivity.class));
                     }
                 }));
+        sep(g);
         g.addView(row(null, "Ukryte w Bibliotece aplikacji", "", true, p.accent,
                 new View.OnClickListener() {
                     @Override
@@ -371,7 +372,6 @@ public class ConfigActivity extends BaseActivity {
                         showHiddenApps();
                     }
                 }));
-        sep(g);
         sep(g);
         for (final AppEntry e : apps) {
             String val = "";
