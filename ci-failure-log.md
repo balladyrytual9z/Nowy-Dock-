@@ -1,4 +1,4 @@
-# CI failure log (run 41463135309)
+# CI failure log (run 41533929585)
 
 ## build.log
 
@@ -25,8 +25,8 @@ to this project's gradle.properties.
 > Task :app:preDebugBuild UP-TO-DATE
 > Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :app:checkKotlinGradlePluginConfigurationErrors
-> Task :app:generateDebugResValues
 > Task :app:checkDebugAarMetadata
+> Task :app:generateDebugResValues
 > Task :app:mapDebugSourceSetPaths
 > Task :app:generateDebugResources
 > Task :app:packageDebugResources
@@ -36,24 +36,24 @@ to this project's gradle.properties.
 > Task :app:parseDebugLocalResources
 > Task :app:processDebugMainManifest
 > Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
 > Task :app:javaPreCompileDebug
 > Task :app:mergeDebugShaders
 > Task :app:compileDebugShaders NO-SOURCE
-> Task :app:processDebugManifestForPackage
 > Task :app:generateDebugAssets UP-TO-DATE
 > Task :app:mergeDebugAssets
 > Task :app:compressDebugAssets
 > Task :app:desugarDebugFileDependencies
-> Task :app:checkDebugDuplicateClasses
 > Task :app:mergeDebugStartupProfile
+> Task :app:checkDebugDuplicateClasses
 > Task :app:mergeDebugJniLibFolders
 > Task :app:mergeLibDexDebug
 > Task :app:mergeDebugNativeLibs NO-SOURCE
 > Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
-> Task :app:writeDebugSigningConfigVersions
 > Task :app:processDebugResources
+> Task :app:writeDebugSigningConfigVersions
 > Task :app:mergeExtDexDebug
 
 > Task :app:compileDebugKotlin
@@ -70,80 +70,22 @@ w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widg
 w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/transport/SppTransport.kt:105:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
 
 > Task :app:compileDebugJavaWithJavac
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1128: error: cannot find symbol
-        SeekBar briBar = new SeekBar(this);
-        ^
-  symbol:   class SeekBar
-  location: class ConfigActivity
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1128: error: cannot find symbol
-        SeekBar briBar = new SeekBar(this);
-                             ^
-  symbol:   class SeekBar
-  location: class ConfigActivity
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1142: error: package SeekBar does not exist
-        briBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                                                     ^
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1144: error: cannot find symbol
-            public void onProgressChanged(SeekBar sb, int prog, boolean fromUser) {
-                                          ^
-  symbol: class SeekBar
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1167: error: cannot find symbol
-            public void onStartTrackingTouch(SeekBar sb) {
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/AppLibraryPage.java:451: error: cannot find symbol
+            android.graphics.drawable.RoundedBitmapDrawable rd =
+                                     ^
+  symbol:   class RoundedBitmapDrawable
+  location: package android.graphics.drawable
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/AppLibraryPage.java:452: error: cannot find symbol
+                    android.graphics.drawable.RoundedBitmapDrawableFactory.create(ctx.getResources(), bmp);
                                              ^
-  symbol: class SeekBar
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1170: error: cannot find symbol
-            public void onStopTrackingTouch(SeekBar sb) {
-                                            ^
-  symbol: class SeekBar
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1143: error: method does not override or implement a method from a supertype
-            @Override
-            ^
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1166: error: method does not override or implement a method from a supertype
-            @Override
-            ^
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1169: error: method does not override or implement a method from a supertype
-            @Override
-            ^
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1217: error: cannot find symbol
-        SeekBar tempBar = new SeekBar(this);
-        ^
-  symbol:   class SeekBar
-  location: class ConfigActivity
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1217: error: cannot find symbol
-        SeekBar tempBar = new SeekBar(this);
-                              ^
-  symbol:   class SeekBar
-  location: class ConfigActivity
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1226: error: package SeekBar does not exist
-        tempBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                                                      ^
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1228: error: cannot find symbol
-            public void onProgressChanged(SeekBar sb, int prog, boolean fromUser) {
-                                          ^
-  symbol: class SeekBar
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1235: error: cannot find symbol
-            public void onStartTrackingTouch(SeekBar sb) {
-                                             ^
-  symbol: class SeekBar
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1238: error: cannot find symbol
-            public void onStopTrackingTouch(SeekBar sb) {
-                                            ^
-  symbol: class SeekBar
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1227: error: method does not override or implement a method from a supertype
-            @Override
-            ^
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1234: error: method does not override or implement a method from a supertype
-            @Override
-            ^
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1237: error: method does not override or implement a method from a supertype
-            @Override
-            ^
+  symbol:   class RoundedBitmapDrawableFactory
+  location: package android.graphics.drawable
 Note: Some input files use or override a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
-18 errors
+2 errors
 
 > Task :app:compileDebugJavaWithJavac FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793630073158.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793657051452.json
 
 FAILURE: Build failed with an exception.
 
@@ -186,6 +128,35 @@ org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:com
 	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
+	at org.gradle.execution.plan.DefaultPlanExecutor.process(DefaultPlanExecutor.java:111)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.executeWithServices(DefaultTaskExecutionGraph.java:138)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.execute(DefaultTaskExecutionGraph.java:123)
+	at org.gradle.execution.SelectedTaskExecutionAction.execute(SelectedTaskExecutionAction.java:35)
+	at org.gradle.execution.DryRunBuildExecutionAction.execute(DryRunBuildExecutionAction.java:51)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:54)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:43)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor.execute(BuildOperationFiringBuildWorkerExecutor.java:40)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$executeTasks$10(DefaultBuildLifecycleController.java:313)
+	at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.java:266)
+	at org.gradle.internal.model.StateTransitionController.lambda$tryTransition$8(StateTransitionController.java:177)
+	at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:44)
+	at org.gradle.internal.model.StateTransitionController.tryTransition(StateTransitionController.java:177)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.executeTasks(DefaultBuildLifecycleController.java:304)
+	at org.gradle.internal.build.DefaultBuildWorkGraphController$DefaultBuildWorkGraph.runWork(DefaultBuildWorkGraphController.java:220)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:267)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:131)
+	at org.gradle.composite.internal.DefaultBuildController.doRun(DefaultBuildController.java:181)
+	at org.gradle.composite.internal.DefaultBuildController.access$000(DefaultBuildController.java:50)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.lambda$run$0(DefaultBuildController.java:198)
+	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Compilation failed; see the compiler error output for details.
@@ -338,11 +309,40 @@ Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Com
 	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
+	at org.gradle.execution.plan.DefaultPlanExecutor.process(DefaultPlanExecutor.java:111)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.executeWithServices(DefaultTaskExecutionGraph.java:138)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.execute(DefaultTaskExecutionGraph.java:123)
+	at org.gradle.execution.SelectedTaskExecutionAction.execute(SelectedTaskExecutionAction.java:35)
+	at org.gradle.execution.DryRunBuildExecutionAction.execute(DryRunBuildExecutionAction.java:51)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:54)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:43)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor.execute(BuildOperationFiringBuildWorkerExecutor.java:40)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$executeTasks$10(DefaultBuildLifecycleController.java:313)
+	at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.java:266)
+	at org.gradle.internal.model.StateTransitionController.lambda$tryTransition$8(StateTransitionController.java:177)
+	at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:44)
+	at org.gradle.internal.model.StateTransitionController.tryTransition(StateTransitionController.java:177)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.executeTasks(DefaultBuildLifecycleController.java:304)
+	at org.gradle.internal.build.DefaultBuildWorkGraphController$DefaultBuildWorkGraph.runWork(DefaultBuildWorkGraphController.java:220)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:267)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:131)
+	at org.gradle.composite.internal.DefaultBuildController.doRun(DefaultBuildController.java:181)
+	at org.gradle.composite.internal.DefaultBuildController.access$000(DefaultBuildController.java:50)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.lambda$run$0(DefaultBuildController.java:198)
+	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 
 
-BUILD FAILED in 40s
+BUILD FAILED in 42s
 30 actionable tasks: 29 executed, 1 up-to-date
 
 ## ci.log
