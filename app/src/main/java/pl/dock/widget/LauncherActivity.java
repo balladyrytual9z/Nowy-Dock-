@@ -272,11 +272,11 @@ public class LauncherActivity extends BaseActivity {
             pager.goTo(target, false);
             return;
         }
-        if (Math.abs(pager.position() - homeIdx) < 0.15f) {
-            runHomeAction();
-        } else {
-            pager.goTo(homeIdx, true);
-        }
+        // Przelacznik Home: dziala z kazdej strony launchera (widzetow, glownej,
+        // aplikacji, biblioteki). Zapamietujemy aktualna strone - Home nacisniety
+        // w DiPlay wroci do Docka dokladnie na te strone, z ktorej przyszedles.
+        returnPage = Math.round(pager.position());
+        runHomeAction();
     }
 
     private void runHomeAction() {

@@ -1067,9 +1067,10 @@ public class ConfigActivity extends BaseActivity {
                         });
                     }
                 }));
-        footer(col, "Home działa jak przełącznik: w DiPlay wraca do Docka, w Docku na ekranie "
-                + "głównym przełącza na aplikację powyżej (domyślnie DiPlay). Z każdej innej "
-                + "aplikacji Home wraca do Docka. Dock musi być domyślnym launcherem Androida "
+        footer(col, "Home działa jak przełącznik: w Docku przełącza na aplikację powyżej "
+                + "(domyślnie DiPlay) z dowolnej strony i zapamiętuje stronę, z której "
+                + "przeszedłeś; w DiPlay Home wraca do Docka dokładnie na tę stronę. "
+                + "Dock musi być domyślnym launcherem Androida "
                 + "(Launcher › „Ustaw Dock jako domyślny launcher”).");
 
         section(col, "Skala interfejsu");
