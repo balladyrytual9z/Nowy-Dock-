@@ -263,7 +263,7 @@ public class DockView extends View {
                     new int[]{0x44FFFFFF, 0x10FFFFFF, 0x04FFFFFF, 0x22FFFFFF},
                     new float[]{0f, 0.25f, 0.7f, 1f}, Shader.TileMode.CLAMP));
             rect.set(l, t, rr, bt);
-            cv.drawRoundRect(rect, rad, rad, glassPaint);
+            Ui.drawSuper(cv, rect, glassPaint, rad);
             Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
             edge.setStyle(Paint.Style.STROKE);
             edge.setStrokeWidth(1.4f * d);
@@ -271,7 +271,7 @@ public class DockView extends View {
                     new int[]{0xCCFFFFFF, 0x44FFFFFF, 0x14FFFFFF, 0x55FFFFFF},
                     new float[]{0f, 0.3f, 0.75f, 1f}, Shader.TileMode.CLAMP));
             rect.set(l + d * 0.7f, t + d * 0.7f, rr - d * 0.7f, bt - d * 0.7f);
-            cv.drawRoundRect(rect, rad - d * 0.7f, rad - d * 0.7f, edge);
+            Ui.drawSuper(cv, rect, edge, rad - d * 0.7f);
         } else {
             // kolor docka w nocy: #131418; ramka jaśniejsza od lewego górnego rogu
             float nb = night ? 1f : blend;
@@ -279,7 +279,7 @@ public class DockView extends View {
             card.setShader(null);
             card.setColor(lerp(0xFFF2F2F5, 0xFF131418, nb));
             rect.set(l, t, rr, bt);
-            cv.drawRoundRect(rect, rad, rad, card);
+            Ui.drawSuper(cv, rect, card, rad);
             card.setStyle(Paint.Style.STROKE);
             card.setStrokeWidth(1.8f * d);
             boolean en = effNight();
@@ -288,7 +288,7 @@ public class DockView extends View {
                             : new int[]{0x99FFFFFF, 0x55808090, 0x22808090, 0x40808090},
                     new float[]{0f, 0.3f, 0.75f, 1f}, Shader.TileMode.CLAMP));
             rect.set(l + d, t + d, rr - d, bt - d);
-            cv.drawRoundRect(rect, rad - d, rad - d, card);
+            Ui.drawSuper(cv, rect, card, rad - d);
             card.setShader(null);
         }
 
@@ -387,7 +387,7 @@ public class DockView extends View {
         m.setScale(sz / b.getWidth(), sz / b.getHeight());
         sh.setLocalMatrix(m);
         bmpPaint.setShader(sh);
-        cv.drawRoundRect(rect, rad, rad, bmpPaint);
+        Ui.drawSuper(cv, rect, bmpPaint, rad);
         bmpPaint.setShader(null);
     }
 

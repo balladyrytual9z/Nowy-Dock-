@@ -1,4 +1,3 @@
-
 package pl.dock.widget;
 
 import android.content.Context;
@@ -143,6 +142,46 @@ public class Ui {
     public static void drawSquircle(Canvas cv, RectF r, Paint p, float curvature) {
         cv.drawPath(squirclePath(r, curvature), p);
     }
+
+    // ---------------- superelipsa (Lame) - prawdziwy squircle jak w iOS ----------------
+
+    /**
+     * Sciezka superelipsy o zadanym promieniu rogu. Wzgledem klasycznego
+     * drawRoundRect (cwiartki kol) krzywna jest ciagla - dokladnie to, co
+     * Apple uzywa w iOS (ciagle rogi zamiast odcinkow kol).
+     */
+    public static Path superPath(RectF r, float cornerRad) {
+        Path path = new Path();
+        float w = r.width(), h = r.height();
+        if (w <= 0f || h <= 0f) return path;
+        float m = Math.min(w, h);
+        float rad = Math.max(0f, Math.min(cornerRad, m * 0.5f));
+        float t = rad / m;                       // 0..0.5
+        float n = 2f + 3f * (0.5f - t) / 0.273f; // rad/m = 0.227 -> n = 5 (ikona iOS), 0.5 -> kolko
+        if (n < 2f) n = 2f;
+        if (n > 12f) n = 12f;
+        float e = 2f / n;
+        int steps = 96;
+        for (int i = 0; i <= steps; i++) {
+            double th = 2.0 * Math.PI * (i / (double) steps);
+            double ct = Math.cos(th), st = Math.sin(th);
+            double x = (w / 2.0) * Math.signum(ct) * Math.pow(Math.abs(ct), e);
+            double y = (h / 2.0) * Math.signum(st) * Math.pow(Math.abs(st), e);
+            float px = r.left + w / 2f + (float) x;
+            float py = r.top + h / 2f + (float) y;
+            if (i == 0) path.moveTo(px, py);
+            else path.lineTo(px, py);
+        }
+        path.close();
+        return path;
+    }
+
+    /** Rysuje superelipse (squircle) zamiast zwyklego zaokraglenia. */
+    public static void drawSuper(Canvas cv, RectF r, Paint p, float cornerRad) {
+        if (r == null || r.width() <= 0f || r.height() <= 0f) return;
+        cv.drawPath(superPath(r, cornerRad), p);
+    }
+
 
     // ------------------------------------------------------------ strzałka / znacznik
     public static class Chev extends View {
