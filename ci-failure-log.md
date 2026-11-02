@@ -1,4 +1,4 @@
-# CI failure log (run 41534173331)
+# CI failure log (run 41536669097)
 
 ## build.log
 
@@ -43,15 +43,15 @@ to this project's gradle.properties.
 > Task :app:mergeDebugAssets
 > Task :app:compressDebugAssets
 > Task :app:processDebugManifestForPackage
+> Task :app:checkDebugDuplicateClasses
 > Task :app:desugarDebugFileDependencies
 > Task :app:mergeDebugStartupProfile
-> Task :app:checkDebugDuplicateClasses
 > Task :app:mergeDebugJniLibFolders
 > Task :app:mergeDebugNativeLibs NO-SOURCE
+> Task :app:mergeLibDexDebug
 > Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
-> Task :app:mergeLibDexDebug
 > Task :app:writeDebugSigningConfigVersions
 > Task :app:processDebugResources
 > Task :app:mergeExtDexDebug
@@ -69,19 +69,18 @@ w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widg
 w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/transport/SppTransport.kt:87:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
 w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/transport/SppTransport.kt:105:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
 
-> Task :app:compileDebugJavaWithJavac
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/AppLibraryPage.java:451: error: package androidx.core.graphics.drawable does not exist
-            androidx.core.graphics.drawable.RoundedBitmapDrawable rd =
-                                           ^
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/AppLibraryPage.java:452: error: package androidx.core.graphics.drawable does not exist
-                    androidx.core.graphics.drawable.RoundedBitmapDrawableFactory.create(ctx.getResources(), bmp);
-                                                   ^
-Note: Some input files use or override a deprecated API.
-Note: Recompile with -Xlint:deprecation for details.
-2 errors
-
 > Task :app:compileDebugJavaWithJavac FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793657154746.json
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ToolGrid.java:1: error: class, interface, or enum expected
+successfully downloaded text file (SHA: d2e537be7719690dd30225d8168857399be9ee64)package pl.dock.widget;
+^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1409: error: reached end of file while parsing
+                Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                                                                     ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/WidgetPage.java:1: error: class, interface, or enum expected
+successfully downloaded text file (SHA: 086c5aba87eccf9df97e100b7fafc116b3faf68f)
+^
+3 errors
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793658158492.json
 
 FAILURE: Build failed with an exception.
 
@@ -280,7 +279,7 @@ Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Com
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 
 
-BUILD FAILED in 43s
+BUILD FAILED in 41s
 30 actionable tasks: 29 executed, 1 up-to-date
 
 ## ci.log
