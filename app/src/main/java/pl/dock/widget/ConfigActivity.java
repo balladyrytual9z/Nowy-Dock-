@@ -1129,7 +1129,37 @@ public class ConfigActivity extends BaseActivity {
 
         section(col, "Circadian Display");
         g = group(col);
+        g.addView(toggle("Wbudowana krzywa dobowa (ciepło + przyciemnienie ekranu)",
+                pl.dock.widget.circadian.CircadianPrefs.enabled(this), new BoolSetter() {
+            @Override
+            public void set(boolean v) {
+                pl.dock.widget.circadian.CircadianPrefs.setEnabled(ConfigActivity.this, v);
+                if (v && !pl.dock.widget.circadian.CircadianService.canDraw(ConfigActivity.this)) {
+                    Toast.makeText(ConfigActivity.this,
+                            "Nadaj Dockowi zgodę na wyświetlanie nad innymi aplikacjami.",
+                            Toast.LENGTH_LONG).show();
+                    try {
+                        startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                android.net.Uri.parse("package:" + getPackageName())));
+                    } catch (Throwable ignored) {}
+                }
+                pl.dock.widget.circadian.CircadianService.refresh(ConfigActivity.this);
+            }
+        }));
+        sep(g);
+        g.addView(row(null, "Edytor krzywej (profile pory dnia)", "", true, p.accent, new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                try {
+                    startActivity(new Intent(ConfigActivity.this,
+                            pl.dock.widget.circadian.CircadianActivity.class));
+                } catch (Throwable t) {
+                    Toast.makeText(ConfigActivity.this, "Nie udało się otworzyć edytora krzywej.", Toast.LENGTH_SHORT).show();
+                }
+            }
+        }));
         if (pl.dock.widget.circadian.CircadianBridge.isInstalled(this)) {
+            sep(g);
             g.addView(toggle("Automatycznie aktywuj profil Circadian przy trybie nocnym",
                     Prefs.circadianAuto(this), new BoolSetter() {
                 @Override
@@ -1141,7 +1171,6 @@ public class ConfigActivity extends BaseActivity {
                     }
                 }
             }));
-            sep(g);
             g.addView(row(null, "Otwórz Circadian Display", "", true, p.accent, new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -1149,20 +1178,10 @@ public class ConfigActivity extends BaseActivity {
                     if (i != null) startActivity(i);
                 }
             }));
-        } else {
-            g.addView(row(null, "Zainstaluj Circadian Display", "Brak", true, p.accent, new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    try {
-                        startActivity(new Intent(Intent.ACTION_VIEW,
-                                android.net.Uri.parse("https://f-droid.org/packages/com.circadiandisplay.app/")));
-                    } catch (Throwable ignored) {}
-                }
-            }));
         }
-        footer(col, "Circadian Display ustawia ciepło i przygaszenie ekranu wg krzywej. "
-                + "Dock aktywuje wybrany profil przy przejściu w tryb nocny.");
-
+        footer(col, "Wbudowany Circadian Display ustawia ciepło i przygaszenie ekranu wg krzywej z edytora powyżej "
+                + "(po włączeniu wraca też sam po restarcie urządzenia). Kafelek Night Shift w Centrum łączności "
+                + "to szybki filtr — oba działają niezależnie, możesz używać jednego albo obu.");
         section(col, "Kopia zapasowa");
         g = group(col);
         g.addView(row(null, "Eksportuj ustawienia do pliku", "", true, p.accent, new View.OnClickListener() {
