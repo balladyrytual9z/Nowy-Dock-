@@ -26,7 +26,11 @@ public final class CircadianBridge {
     }
 
     public static boolean activateForNight(Context c) {
-        if (!isInstalled(c)) return false;
+        if (!isInstalled(c)) {
+            // brak zewnetrznej aplikacji - wbudowany silnik Circadian w Docku
+            CircadianService.activateForNight(c);
+            return true;
+        }
         try {
             Bundle b = c.getContentResolver().call(
                     Uri.parse("content://" + AUTHORITY), "activate_for_night", null, null);
@@ -53,8 +57,14 @@ public final class CircadianBridge {
 
     public static Intent openApp(Context c) {
         Intent i = c.getPackageManager().getLaunchIntentForPackage(PKG);
-        if (i != null) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        return i;
+        if (i != null) {
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            return i;
+        }
+        // fallback: wbudowany ekran ustawien krzywej
+        Intent embedded = new Intent(c, CircadianActivity.class);
+        embedded.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        return embedded;
     }
 
     public static Intent openSettingsIntent(Context c) {

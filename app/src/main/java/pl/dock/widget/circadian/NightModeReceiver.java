@@ -48,8 +48,13 @@ public class NightModeReceiver extends BroadcastReceiver {
         if (CircadianBridge.ACTION_NIGHT.equals(a)
                 || "pl.dock.widget.NIGHT_MODE_CHANGED".equals(a)) {
             // Dock → Circadian: aktywuj profil nocny nakładki
-            if (isNight && Prefs.circadianAuto(c) && CircadianBridge.isInstalled(c)) {
-                CircadianBridge.activateForNight(c);
+            if (isNight && Prefs.circadianAuto(c)) {
+                if (CircadianBridge.isInstalled(c)) {
+                    CircadianBridge.activateForNight(c);
+                } else {
+                    // brak zewnetrznej aplikacji - wlacz wbudowany silnik Docka
+                    CircadianService.activateForNight(c);
+                }
             }
         }
     }

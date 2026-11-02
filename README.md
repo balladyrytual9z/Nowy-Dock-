@@ -61,6 +61,16 @@ Open **Honda OBD Discovery** from the app (activity exported) or add as dock too
 
 - App Library (Biblioteka aplikacji), connectivity panel with custom tools, Liquid Glass, Night Shift + Circadian, Media Center, notification badges, edit-mode wobble, etc.
 
+## Built-in Circadian Display (no separate APK)
+
+The launcher now ships an embedded port of Circadian Display (`pl.dock.widget.circadian`) - the external app is no longer required:
+- `CircadianCurve` - linear time interpolation of warmth/dimming (CurveEngine port, all edge cases preserved)
+- `CircadianPrefs` - curve stored in SharedPreferences, seeded with the default "Evening" profile (18:00-23:00)
+- `CircadianService` - foreground service evaluating the curve every minute; single overlay window (black dimming + amber warmth), touch/gesture pass-through preserved on Android 12+
+- `CircadianActivity` - on/off switch and curve point editor, opens from the "Circadian" icon or via `CircadianBridge` when the external app is absent
+
+`CircadianBridge`/`NightModeReceiver` still prefer the external Circadian Display app when installed, and fall back to the embedded engine otherwise; night-theme sync via `pl.circadiandisplay.STATE_CHANGED` keeps working either way.
+
 ## Build
 
 ```bash

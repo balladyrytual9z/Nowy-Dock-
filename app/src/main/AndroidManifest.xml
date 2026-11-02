@@ -258,5 +258,21 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/obd_widget_info" />
         </receiver>
+        <!-- Wbudowany Circadian Display (silnik + edytor w launcherze, bez osobnej APK) -->
+        <activity
+            android:name=".circadian.CircadianActivity"
+            android:label="Circadian"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".circadian.CircadianService"
+            android:exported="false" />
     </application>
 </manifest>
