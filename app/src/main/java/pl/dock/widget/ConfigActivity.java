@@ -1,4 +1,3 @@
-
 package pl.dock.widget;
 
 import android.app.Activity;
@@ -1108,6 +1107,21 @@ public class ConfigActivity extends BaseActivity {
                 }));
         footer(col, "Każda tapeta ma wersję jasną i ciemną; przełączają się razem z trybem wyglądu.");
 
+        section(col, "Aktualizacja");
+        g = group(col);
+        g.addView(row(null, "Zainstalowana wersja", localTag(), false, p.text, null));
+        sep(g);
+        g.addView(row(null, "Sprawdź aktualizacje teraz", "", true, p.accent,
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        Updater.checkNow(ConfigActivity.this);
+                    }
+                }));
+        footer(col, "Aktualizacje pobierają się automatycznie przez WiFi (co 6 h). "
+                + "Przycisk sprawdza od razu – gdy pojawi się nowa wersja, pobierze ją "
+                + "i poprosi o potwierdzenie instalacji.");
+
         section(col, "Circadian Display");
         g = group(col);
         if (pl.dock.widget.circadian.CircadianBridge.isInstalled(this)) {
@@ -1245,6 +1259,14 @@ public class ConfigActivity extends BaseActivity {
                     changed();
                 }
             });
+        }
+    }
+
+    private String localTag() {
+        try {
+            return "v1.0." + getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+        } catch (Throwable t) {
+            return "v1.0.?";
         }
     }
 

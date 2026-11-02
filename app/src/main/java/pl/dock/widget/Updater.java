@@ -69,7 +69,7 @@ public class Updater {
             @Override
             public void run() {
                 try {
-                    check(app);
+                    check(app, false);
                 } catch (Throwable t) {
                     android.util.Log.w("Dock", "update", t);
                 } finally {
@@ -79,13 +79,52 @@ public class Updater {
         }).start();
     }
 
-    private static void check(Context c) throws Exception {
+    /**
+     * Reczne sprawdzenie aktualizacji z Ustawien - ignoruje przerwe 6 h.
+     * Daje komunikaty zwrotne: najnowsza wersja / pobieram / blad.
+     */
+    public static void checkNow(Context c) {
+        if (busy) {
+            toast(c, "Sprawdzanie aktualizacji już trwa…");
+            return;
+        }
+        if (!onWifi(c)) {
+            toast(c, "Sprawdzanie tylko przez WiFi – podłącz WiFi");
+            return;
+        }
+        final Context app = c.getApplicationContext();
+        app.getSharedPreferences("dock.update", 0).edit()
+                .putLong("last_check", System.currentTimeMillis()).commit();
+        busy = true;
+        toast(app, "Sprawdzam aktualizacje…");
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    check(app, true);
+                } catch (Throwable t) {
+                    android.util.Log.w("Dock", "update", t);
+                    toast(app, "Nie udało się sprawdzić aktualizacji");
+                } finally {
+                    busy = false;
+                }
+            }
+        }).start();
+    }
+
+    private static void check(Context c, boolean manual) throws Exception {
         JSONObject rel = httpJson(LATEST);
-        if (rel == null) return;
+        if (rel == null) {
+            if (manual) toast(c, "Nie udało się pobrać informacji o aktualizacji");
+            return;
+        }
         String tag = rel.optString("tag_name", "");
         int remote = parseTag(tag);
         int local = localVersion(c);
-        if (remote <= 0 || remote <= local) return;   // brak nowszej wersji
+        if (remote <= 0 || remote <= local) {
+            if (manual) toast(c, "Masz najnowszą wersję Docka (" + localTag(c) + ")");
+            return;   // brak nowszej wersji
+        }
 
         String apkUrl = null, shaUrl = null;
         JSONArray assets = rel.optJSONArray("assets");
@@ -96,7 +135,10 @@ public class Updater {
             if (name.endsWith(".apk")) apkUrl = a.optString("browser_download_url");
             if ("SHA256SUMS.txt".equals(name)) shaUrl = a.optString("browser_download_url");
         }
-        if (apkUrl == null) return;
+        if (apkUrl == null) {
+            if (manual) toast(c, "Release " + tag + " nie ma jeszcze pliku APK");
+            return;
+        }
 
         // oczekiwana suma kontrolna z SHA256SUMS.txt (pierwszy token w pliku)
         String expected = null;
@@ -138,6 +180,9 @@ public class Updater {
             PackageManager pm = c.getPackageManager();
             // Android 9: raz trzeba zezwolic na "nieznane zrodla" dla tej aplikacji
             if (!pm.canRequestPackageInstalls()) {
+                // NIE zuzyczaj przerwy 6 h: gdy uzytkownik cofnie sie bez nadania
+                // zgody, przy nastepnym starcie/WiFi spróbuj od razu ponownie
+                c.getSharedPreferences("dock.update", 0).edit().putLong("last_check", 0L).commit();
                 toast(c, "Aktualizacja gotowa - zezwol na instalacje aplikacji Dock");
                 try {
                     Intent i = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
@@ -183,6 +228,15 @@ public class Updater {
             return Integer.parseInt(parts[parts.length - 1].replaceAll("[^0-9]", ""));
         } catch (Throwable t) {
             return -1;
+        }
+    }
+
+    private static String localTag(Context c) {
+        try {
+            return "v1.0." + c.getPackageManager()
+                    .getPackageInfo(c.getPackageName(), 0).versionCode;
+        } catch (Throwable t) {
+            return "";
         }
     }
 
