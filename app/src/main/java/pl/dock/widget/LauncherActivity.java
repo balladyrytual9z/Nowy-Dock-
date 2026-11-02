@@ -239,6 +239,8 @@ public class LauncherActivity extends BaseActivity {
                 try {
                     Bitmap blur = LiveBlur.captureAndBlur(root, root.getWidth(), root.getHeight());
                     dock.setGlassBitmap(blur);
+                    dock.setGlassOrigin(dock.getLeft());
+                    dock.setRootSize(root.getWidth(), root.getHeight());
                 } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);}
             }
         }
@@ -452,6 +454,8 @@ public class LauncherActivity extends BaseActivity {
                     try {
                         Bitmap blur = LiveBlur.captureAndBlur(root, root.getWidth(), root.getHeight());
                         dock.setGlassBitmap(blur);
+                        dock.setGlassOrigin(dock.getLeft());
+                        dock.setRootSize(root.getWidth(), root.getHeight());
                     } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);}
                 }
                 dotsTop.setAlpha(1f - t);

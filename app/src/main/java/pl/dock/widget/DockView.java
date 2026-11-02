@@ -37,6 +37,8 @@ public class DockView extends View {
     private Listener listener;
     private boolean night = true, glass, showVolt;
     private Bitmap glassBmp;
+    private int glassX;      // polozenie doka w root: wycinek pelnoekranowego snapshota
+    private int rootW, rootH;
     private float blend;            // 0..1: strona widżetów w trybie dziennym robi dock nocny
     private String clock = "--:--";
     private String volt = "";
@@ -145,6 +147,17 @@ public class DockView extends View {
         invalidate();
     }
 
+    // polozenie doka na ekranie + rozmiar roota: glass rysuje WYCINEK snapshota
+    // caloekranowego (dokladnie to, co jest za dokia), a nie rozciaga calej bitmapy
+    public void setGlassOrigin(int x) {
+        this.glassX = x;
+    }
+
+    public void setRootSize(int w, int h) {
+        this.rootW = w;
+        this.rootH = h;
+    }
+
     // strona widżetów: dock płynnie przechodzi w wersję nocną
     public void setNightBlend(float b) {
         b = Math.max(0f, Math.min(1f, b));
@@ -235,7 +248,11 @@ public class DockView extends View {
         if (glass) {
             // Prawdziwy live blur tła + warstwa połysku Liquid Glass
             if (glassBmp != null) {
-                LiveBlur.draw(cv, glassBmp, (int) l, (int) t, (int) rr, (int) bt, effNight());
+                // wycinek pelnoekranowego snapshota spod doka (1:1 z tlem ekranu),
+                // nie miniatura calego ekranu scisnieta do paska doka
+                LiveBlur.drawRegion(cv, glassBmp, rootW, rootH,
+                        glassX + (int) l, (int) t, glassX + (int) rr, (int) bt,
+                        l, t, rr, bt, effNight());
             } else if (bg != null) {
                 bg.setBounds((int) l, (int) t, (int) rr, (int) bt);
                 bg.draw(cv);
