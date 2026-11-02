@@ -48,6 +48,9 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
     private final Map<String, String> labels = new LinkedHashMap<String, String>();
     private static final String LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#";
     private final LinkedHashMap<String, Integer> letterY = new LinkedHashMap<String, Integer>();
+    private TextView stickyHeader;      // przyklejony naglowek aktualnej kategorii
+    private String lastStickySection;
+    private final List<View> sectionHeaders = new ArrayList<View>();
 
     public AppLibraryPage(Context c) {
         super(c);
@@ -220,6 +223,27 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         lbLp.rightMargin = extraR;
         lbLp.leftMargin = extraL;
         addView(letterBar, lbLp);
+
+        // przyklejony (sticky) naglowek aktualnej kategorii - widoczny przy scrollu
+        stickyHeader = new TextView(ctx);
+        stickyHeader.setTextSize(20);
+        stickyHeader.setTypeface(pl.dock.widget.ui.DockTheme.interSemiBold());
+        stickyHeader.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
+        stickyHeader.setBackgroundColor(night ? 0xF20E0E0F : 0xF2F5F5F7);
+        stickyHeader.setPadding(dp(16) + extraL, dp(10), dp(54) + extraR, dp(10));
+        stickyHeader.setVisibility(GONE);
+        LayoutParams shLp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        shLp.topMargin = dp(100);
+        addView(stickyHeader, shLp);
+
+        // aktualizacja sticky przy przewijaniu listy
+        scrollView.getViewTreeObserver().addOnScrollChangedListener(
+                new android.view.ViewTreeObserver.OnScrollChangedListener() {
+                    @Override public void onScrollChanged() {
+                        updateSticky();
+                    }
+                });
     }
 
     private void resetLetter(int i) {
@@ -365,8 +389,7 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         };
 
         categoryY.clear();
-        LinearLayout row = null;
-        int col = 0;
+        sectionHeaders.clear();
         for (Map.Entry<String, List<AppEntry>> e : categories.entrySet()) {
             if (e.getValue().isEmpty()) continue;
             // Search filter: match category name or any app label
@@ -384,46 +407,22 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
                 }
                 if (!match) continue;
             }
-            // Record approximate Y for letter index (after layout would be better; use index for now)
-            categoryY.put(e.getKey(), grid.getChildCount() * dp(140));
-            if (col == 0) {
-                row = new LinearLayout(ctx);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setGravity(Gravity.TOP);
-                LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                rlp.bottomMargin = dp(16);
-                grid.addView(row, rlp);
-            }
-            // Vertical wrapper: folder tile + label underneath (iOS style)
-            LinearLayout cell = new LinearLayout(ctx);
-            cell.setOrientation(LinearLayout.VERTICAL);
-            cell.setGravity(Gravity.CENTER_HORIZONTAL);
-
-            LibraryFolderView folder = new LibraryFolderView(ctx, e.getKey(), e.getValue(), night, fl);
-            folders.add(folder);
-            LinearLayout.LayoutParams folderLp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            cell.addView(folder, folderLp);
-
-            TextView label = new TextView(ctx);
-            label.setText(e.getKey());
-            label.setTextSize(13);
-            label.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-            label.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
-            label.setGravity(Gravity.CENTER);
-            label.setMaxLines(1);
-            label.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            label.setPadding(0, dp(6), 0, 0);
-            cell.addView(label, new LinearLayout.LayoutParams(
+            // LISTA aplikacji w kategorii: naglowek + wiersze ikona+nazwa
+            categoryY.put(e.getKey(), grid.getChildCount() * dp(60));
+            TextView head = new TextView(ctx);
+            head.setText(e.getKey());
+            head.setTextSize(20);
+            head.setTypeface(pl.dock.widget.ui.DockTheme.interSemiBold());
+            head.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
+            head.setPadding(dp(16), dp(16), dp(16), dp(6));
+            head.setTag(e.getKey());
+            sectionHeaders.add(head);
+            grid.addView(head, new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-            LinearLayout.LayoutParams cellLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            if (col == 0) cellLp.rightMargin = dp(12);
-            row.addView(cell, cellLp);
-            if (editing) folder.setEditing(true);
-            col++;
-            if (col >= 2) col = 0;
+            for (final AppEntry app : e.getValue()) {
+                grid.addView(makeAppRow(app, fl), new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            }
         }
         if (categories.isEmpty()) {
             TextView empty = new TextView(ctx);
@@ -435,6 +434,97 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         }
         // pozycje liter dla paska A-Z (dopiero po policzeniu layoutu)
         post(measureLetters);
+        updateSticky();
+    }
+
+    // wiersz aplikacji: zaokraglona ikona po lewej + nazwa po prawej (jak w Ustawieniach iOS)
+    private View makeAppRow(final AppEntry app, final LibraryFolderView.Listener fl) {
+        LinearLayout row = new LinearLayout(ctx);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(16), dp(7), dp(16), dp(7));
+        row.setTag(app);
+
+        android.widget.ImageView iv = new android.widget.ImageView(ctx);
+        android.graphics.Bitmap bmp = Icons.forEntry(ctx, app);
+        if (bmp != null) {
+            android.graphics.drawable.RoundedBitmapDrawable rd =
+                    android.graphics.drawable.RoundedBitmapDrawableFactory.create(ctx.getResources(), bmp);
+            rd.setCornerRadius(dp(12));
+            rd.setAntiAlias(true);
+            iv.setImageDrawable(rd);
+        }
+        row.addView(iv, new LinearLayout.LayoutParams(dp(48), dp(48)));
+
+        TextView name = new TextView(ctx);
+        name.setText(appLabel(app));
+        name.setTextSize(17);
+        name.setTypeface(pl.dock.widget.ui.DockTheme.interRegular());
+        name.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
+        name.setMaxLines(1);
+        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        nlp.leftMargin = dp(14);
+        row.addView(name, nlp);
+
+        if (editing) {
+            // badge usuwania: bialy minus na czerwonym kole (jak w iOS)
+            TextView badge = new TextView(ctx);
+            badge.setText("\u2212");
+            badge.setTextSize(15);
+            badge.setTypeface(Typeface.DEFAULT_BOLD);
+            badge.setTextColor(0xFFFFFFFF);
+            badge.setGravity(Gravity.CENTER);
+            android.graphics.drawable.GradientDrawable bgd = new android.graphics.drawable.GradientDrawable();
+            bgd.setColor(0xFFFF3B30);
+            bgd.setCornerRadius(dp(12));
+            badge.setBackground(bgd);
+            row.addView(badge, new LinearLayout.LayoutParams(dp(24), dp(24)));
+            badge.setOnClickListener(new OnClickListener() {
+                @Override public void onClick(View v) {
+                    fl.onRemoveApp(app);
+                }
+            });
+        }
+
+        row.setOnClickListener(new OnClickListener() {
+            @Override public void onClick(View v) {
+                fl.onAppTap(app);
+            }
+        });
+        row.setOnLongClickListener(new OnLongClickListener() {
+            @Override public boolean onLongClick(View v) {
+                fl.onAppLongPress(v, app);
+                return true;
+            }
+        });
+        return row;
+    }
+
+    // przyklejony naglowek: pokazuje kategorie, ktora jest aktualnie na gorze listy
+    private void updateSticky() {
+        if (stickyHeader == null) return;
+        if (sectionHeaders.isEmpty() || scrollView == null) {
+            stickyHeader.setVisibility(GONE);
+            lastStickySection = null;
+            return;
+        }
+        int y = scrollView.getScrollY();
+        String cur = null;
+        for (View h : sectionHeaders) {
+            if (h.getTop() <= y + dp(4)) cur = (String) h.getTag();
+        }
+        if (cur == null) {
+            stickyHeader.setVisibility(GONE);
+            lastStickySection = null;
+            return;
+        }
+        if (!cur.equals(lastStickySection)) {
+            lastStickySection = cur;
+            stickyHeader.setText(cur);
+        }
+        stickyHeader.setVisibility(VISIBLE);
     }
 
     // komorka aplikacji na liscie biblioteki: ikona + podpis (+ usuwanie w trybie edycji)
@@ -700,7 +790,7 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
 
     public void setEditing(boolean on) {
         editing = on;
-        for (LibraryFolderView f : folders) f.setEditing(on);
+        if (grid != null) rebuildFolders();
     }
 
     @Override
