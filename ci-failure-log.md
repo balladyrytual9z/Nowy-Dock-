@@ -1,4 +1,4 @@
-# CI failure log (run 41434447767)
+# CI failure log (run 41463135309)
 
 ## build.log
 
@@ -25,8 +25,8 @@ to this project's gradle.properties.
 > Task :app:preDebugBuild UP-TO-DATE
 > Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :app:checkKotlinGradlePluginConfigurationErrors
-> Task :app:checkDebugAarMetadata
 > Task :app:generateDebugResValues
+> Task :app:checkDebugAarMetadata
 > Task :app:mapDebugSourceSetPaths
 > Task :app:generateDebugResources
 > Task :app:packageDebugResources
@@ -39,19 +39,19 @@ to this project's gradle.properties.
 > Task :app:javaPreCompileDebug
 > Task :app:mergeDebugShaders
 > Task :app:compileDebugShaders NO-SOURCE
+> Task :app:processDebugManifestForPackage
 > Task :app:generateDebugAssets UP-TO-DATE
 > Task :app:mergeDebugAssets
 > Task :app:compressDebugAssets
-> Task :app:processDebugManifestForPackage
 > Task :app:desugarDebugFileDependencies
+> Task :app:checkDebugDuplicateClasses
 > Task :app:mergeDebugStartupProfile
 > Task :app:mergeDebugJniLibFolders
+> Task :app:mergeLibDexDebug
 > Task :app:mergeDebugNativeLibs NO-SOURCE
-> Task :app:checkDebugDuplicateClasses
 > Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
-> Task :app:mergeLibDexDebug
 > Task :app:writeDebugSigningConfigVersions
 > Task :app:processDebugResources
 > Task :app:mergeExtDexDebug
@@ -70,17 +70,80 @@ w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widg
 w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/transport/SppTransport.kt:105:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
 
 > Task :app:compileDebugJavaWithJavac
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/backup/BackupManager.java:34: error: cannot find symbol
-                        android.net.Uri.parse("content://" + CircadianBridge.AUTHORITY),
-                                                                            ^
-  symbol:   variable AUTHORITY
-  location: class CircadianBridge
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1128: error: cannot find symbol
+        SeekBar briBar = new SeekBar(this);
+        ^
+  symbol:   class SeekBar
+  location: class ConfigActivity
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1128: error: cannot find symbol
+        SeekBar briBar = new SeekBar(this);
+                             ^
+  symbol:   class SeekBar
+  location: class ConfigActivity
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1142: error: package SeekBar does not exist
+        briBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                                                     ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1144: error: cannot find symbol
+            public void onProgressChanged(SeekBar sb, int prog, boolean fromUser) {
+                                          ^
+  symbol: class SeekBar
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1167: error: cannot find symbol
+            public void onStartTrackingTouch(SeekBar sb) {
+                                             ^
+  symbol: class SeekBar
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1170: error: cannot find symbol
+            public void onStopTrackingTouch(SeekBar sb) {
+                                            ^
+  symbol: class SeekBar
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1143: error: method does not override or implement a method from a supertype
+            @Override
+            ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1166: error: method does not override or implement a method from a supertype
+            @Override
+            ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1169: error: method does not override or implement a method from a supertype
+            @Override
+            ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1217: error: cannot find symbol
+        SeekBar tempBar = new SeekBar(this);
+        ^
+  symbol:   class SeekBar
+  location: class ConfigActivity
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1217: error: cannot find symbol
+        SeekBar tempBar = new SeekBar(this);
+                              ^
+  symbol:   class SeekBar
+  location: class ConfigActivity
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1226: error: package SeekBar does not exist
+        tempBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                                                      ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1228: error: cannot find symbol
+            public void onProgressChanged(SeekBar sb, int prog, boolean fromUser) {
+                                          ^
+  symbol: class SeekBar
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1235: error: cannot find symbol
+            public void onStartTrackingTouch(SeekBar sb) {
+                                             ^
+  symbol: class SeekBar
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1238: error: cannot find symbol
+            public void onStopTrackingTouch(SeekBar sb) {
+                                            ^
+  symbol: class SeekBar
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1227: error: method does not override or implement a method from a supertype
+            @Override
+            ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1234: error: method does not override or implement a method from a supertype
+            @Override
+            ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConfigActivity.java:1237: error: method does not override or implement a method from a supertype
+            @Override
+            ^
 Note: Some input files use or override a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
-1 error
+18 errors
 
 > Task :app:compileDebugJavaWithJavac FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793617769508.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793630073158.json
 
 FAILURE: Build failed with an exception.
 
@@ -279,7 +342,7 @@ Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Com
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 
 
-BUILD FAILED in 43s
+BUILD FAILED in 40s
 30 actionable tasks: 29 executed, 1 up-to-date
 
 ## ci.log
