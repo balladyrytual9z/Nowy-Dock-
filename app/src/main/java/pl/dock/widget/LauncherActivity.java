@@ -286,7 +286,13 @@ public class LauncherActivity extends BaseActivity {
             overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);
         } else if ("app".equals(a)) {
             String pkg = Prefs.homeAppPkg(this);
-            if (pkg.length() > 0) openApp(pkg, homeIdx);
+            if (pkg.length() > 0) {
+                openApp(pkg, homeIdx);
+            } else {
+                // nic nie wybrano: bezpieczny przełącznik na DiPlay (jak przycisk Quick Switch)
+                Launch.carplay(this);
+                overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);
+            }
         }
     }
 

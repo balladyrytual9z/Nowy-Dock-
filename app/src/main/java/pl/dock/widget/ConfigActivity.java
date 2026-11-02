@@ -1037,8 +1037,8 @@ public class ConfigActivity extends BaseActivity {
         section(col, "Przycisk Home");
         g = group(col);
         String ha = Prefs.homeAction(this);
-        g.addView(segRow("Po naciśnięciu Home na ekranie głównym",
-                new String[]{"Otwórz CarPlay", "Otwórz aplikację", "Nic"},
+        g.addView(segRow("Przycisk Home przełącza",
+                new String[]{"DiPlay (CarPlay)", "Inną aplikację", "Nic"},
                 "carplay".equals(ha) ? 0 : ("app".equals(ha) ? 1 : 2), new OnSel() {
                     @Override
                     public void on(int i) {
@@ -1047,26 +1047,30 @@ public class ConfigActivity extends BaseActivity {
                         changed();
                     }
                 }));
-        if ("app".equals(ha)) {
-            sep(g);
-            String cur = Prefs.homeAppPkg(this);
-            g.addView(row(null, "Aplikacja", cur.length() == 0 ? "Nie wybrano" : appLabel(cur), true,
-                    p.text, new View.OnClickListener() {
-                        @Override
-                        public void onClick(View v) {
-                            pickApp(new OnPick() {
-                                @Override
-                                public void on(String pkg) {
-                                    Prefs.setHomeAppPkg(ConfigActivity.this, pkg);
-                                    changed();
-                                }
-                            });
-                        }
-                    }));
-        }
-        footer(col, "Z innej aplikacji Home zawsze wraca na ekran główny. Opcja działa tylko wtedy, "
-                + "gdy jesteś już na ekranie głównym. Wybierz „Nic”, jeśli launcher nie ma uruchamiać "
-                + "żadnej aplikacji.");
+        sep(g);
+        // aplikacja przełączania: zawsze widoczna; dotkniecie zmienia cel przycisku Home
+        String curSwitch = "carplay".equals(ha)
+                ? appLabel(Prefs.diplayPkg(this))
+                : (Prefs.homeAppPkg(this).length() == 0 ? "Nie wybrano"
+                        : appLabel(Prefs.homeAppPkg(this)));
+        g.addView(row(null, "Aplikacja przełączania", curSwitch, true, p.text,
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        pickApp(new OnPick() {
+                            @Override
+                            public void on(String pkg) {
+                                Prefs.setHomeAppPkg(ConfigActivity.this, pkg);
+                                Prefs.setHomeAction(ConfigActivity.this, "app");
+                                changed();
+                            }
+                        });
+                    }
+                }));
+        footer(col, "Home działa jak przełącznik: w DiPlay wraca do Docka, w Docku na ekranie "
+                + "głównym przełącza na aplikację powyżej (domyślnie DiPlay). Z każdej innej "
+                + "aplikacji Home wraca do Docka. Dock musi być domyślnym launcherem Androida "
+                + "(Launcher › „Ustaw Dock jako domyślny launcher”).");
 
         section(col, "Skala interfejsu");
         g = group(col);
