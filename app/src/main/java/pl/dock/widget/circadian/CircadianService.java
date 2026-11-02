@@ -45,6 +45,7 @@ public class CircadianService extends Service {
     private FilterView overlay;
     private float windowAlpha = 1f;
     private boolean lastNight = false;
+    private android.animation.ValueAnimator glide;
     private final Handler h = new Handler(Looper.getMainLooper());
 
     private final Runnable tick = new Runnable() {
@@ -66,7 +67,9 @@ public class CircadianService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (!CircadianPrefs.enabled(this) || !canDraw(this)) {
+        // JEDEN filtr naraz: kafel Night Shift w Centrum sterowania ma pierwszenstwo
+        if (!CircadianPrefs.enabled(this) || !canDraw(this)
+                || !"off".equals(pl.dock.widget.Prefs.nightShiftMode(this))) {
             clearOverlay();
             stopSelf();
             return START_NOT_STICKY;
@@ -136,10 +139,41 @@ public class CircadianService extends Service {
 
         // kompensacja alpha okna, by netto na ekranie bylo dokladnie tyle,
         // ile zada krzywa (do sufitu 0.8 na Androidzie 12+)
-        float comp = 1f / windowAlpha;
-        overlay.dimmingAlpha = Math.max(0f, Math.min(1f, dimming * comp));
-        overlay.warmthAlpha = Math.max(0f, Math.min(1f, warmth * MAX_WARMTH_ALPHA * comp));
-        overlay.invalidate();
+                float comp = 1f / windowAlpha;
+        final float tDim = Math.max(0f, Math.min(1f, dimming * comp));
+        final float tWarm = Math.max(0f, Math.min(1f, warmth * MAX_WARMTH_ALPHA * comp));
+        glideTo(tWarm, tDim);
+    }
+
+    // Plynne nakladanie krzywej: nowe wartosci narastaja gladko w ~2,5 s, wiez
+    // 1-minutowe ticki sa niewyczuwalne, a wlaczenie od zera to miekkie pojawienie.
+    private void glideTo(final float tWarm, final float tDim) {
+        if (overlay == null) return;
+        if (glide != null) glide.cancel();
+        final float w0 = overlay.warmthAlpha;
+        final float d0 = overlay.dimmingAlpha;
+        if (Math.abs(tWarm - w0) < 0.002f && Math.abs(tDim - d0) < 0.002f) return;
+        if (pl.dock.widget.Prefs.reduceMotion(this)) {
+            overlay.warmthAlpha = tWarm;
+            overlay.dimmingAlpha = tDim;
+            overlay.invalidate();
+            return;
+        }
+        glide = android.animation.ValueAnimator.ofFloat(0f, 1f);
+        glide.setDuration(2500L);
+        glide.setInterpolator(new android.view.animation.DecelerateInterpolator(1.2f));
+        glide.addUpdateListener(new android.animation.ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(android.animation.ValueAnimator a) {
+                float t = (Float) a.getAnimatedValue();
+                if (overlay != null) {
+                    overlay.warmthAlpha = w0 + (tWarm - w0) * t;
+                    overlay.dimmingAlpha = d0 + (tDim - d0) * t;
+                    overlay.invalidate();
+                }
+            }
+        });
+        glide.start();
     }
 
     private void addOverlay() {
@@ -198,6 +232,7 @@ public class CircadianService extends Service {
     @Override
     public void onDestroy() {
         h.removeCallbacksAndMessages(null);
+        if (glide != null) glide.cancel();
         clearOverlay();
         super.onDestroy();
     }

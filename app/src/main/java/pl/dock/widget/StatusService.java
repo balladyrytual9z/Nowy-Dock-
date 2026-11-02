@@ -164,10 +164,10 @@ public class StatusService extends Service {
                 if (pl.dock.widget.circadian.CircadianBridge.ACTION_NIGHT.equals(a)
                         || "pl.dock.widget.NIGHT_MODE_CHANGED".equals(a)) {
                     boolean isNight = intent.getBooleanExtra("isNight", false);
-                    // Wewnetrzny / wychodzacy sygnal: aktywuj profil nocny Circadian gdy trzeba
-                    if (isNight && Prefs.circadianAuto(ctx)
-                            && pl.dock.widget.circadian.CircadianBridge.isInstalled(ctx)) {
-                        pl.dock.widget.circadian.CircadianBridge.activateForNight(ctx);
+                    // Filtr steruje kafelkiem Night Shift; przy zmianie motywu tylko
+                    // odswiezamy wbudowana krzywa, jesli uzytkownik ja wlaczyl.
+                    if (isNight && Prefs.circadianAuto(ctx)) {
+                        pl.dock.widget.circadian.CircadianService.refresh(ctx);
                     }
                 }
             }

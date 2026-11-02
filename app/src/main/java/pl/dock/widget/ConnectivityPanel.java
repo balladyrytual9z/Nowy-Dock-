@@ -507,17 +507,8 @@ public class ConnectivityPanel extends LinearLayout {
 
             @Override
             public void onStopTrackingTouch(android.widget.SeekBar sb) {
-                int strength = Math.max(5, Math.min(80, sb.getProgress()));
-                try {
-                    if (pl.dock.widget.circadian.CircadianBridge.isInstalled(act)) {
-                        android.os.Bundle in = new android.os.Bundle();
-                        in.putInt("warmth", strength);
-                        act.getContentResolver().call(
-                                android.net.Uri.parse("content://com.circadiandisplay.app.state"),
-                                "set_warmth", null, in);
-                    }
-                } catch (Throwable ignored) {
-                }
+                // Caly mechanizm jest wbudowany w Docka - nowa sila zostala juz
+                // ustawiona na zywo w onProgressChanged (NightShift.refresh).
                 scheduleWarmthHide();
             }
         });

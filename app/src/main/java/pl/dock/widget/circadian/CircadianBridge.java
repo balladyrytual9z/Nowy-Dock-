@@ -1,80 +1,60 @@
-
 package pl.dock.widget.circadian;
 
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.net.Uri;
-import android.os.Bundle;
 
-/** Most do Circadian Display. Działa tylko gdy pakiet jest zainstalowany. */
+/**
+ * Wewnetrzny mostek Circadian - caly silnik (krzywa, nakladka, edytor) jest
+ * WBUDOWANY w Docka. Nie jest wymagana zadna zewnetrzna aplikacja.
+ * Kafel Night Shift w Centrum sterowania pozostaje jedynym "lataczem" filtra;
+ * krzywa Circadian z ustawien dziala rownolegle, ale ustapuje kafelkowi.
+ */
 public final class CircadianBridge {
-    public static final String PKG = "com.circadiandisplay.app";
-    public static final String AUTHORITY = "com.circadiandisplay.app.state";
-    /** Dock → Circadian (or internal): night mode changed. */
+
+    /** Dock -> Circadian (wewnatrz pakietu): zlecenie trybu nocnego. */
     public static final String ACTION_NIGHT = "pl.dock.widget.NIGHT_MODE_CHANGED";
-    /** Circadian Display → Dock: overlay / profile state flipped (extra isNight). */
+    /** Circadian -> Dock: stan nakladki (extra isNight). */
     public static final String ACTION_STATE_CHANGED = "pl.circadiandisplay.STATE_CHANGED";
 
+    // Silnik wbudowany - "zainstalowany" zawsze.
     public static boolean isInstalled(Context c) {
-        try {
-            c.getPackageManager().getPackageInfo(PKG, 0);
-            return true;
-        } catch (PackageManager.NameNotFoundException e) {
-            return false;
-        }
+        return true;
     }
 
+    // Zapewnia spujnosc z poprzednia wersja (zewnetrzna aplikacja): wlacza
+    // wbudowany silnik krzywej. Nie dotyka kafelka Night Shift.
     public static boolean activateForNight(Context c) {
-        if (!isInstalled(c)) {
-            // brak zewnetrznej aplikacji - wbudowany silnik Circadian w Docku
+        try {
             CircadianService.activateForNight(c);
             return true;
-        }
-        try {
-            Bundle b = c.getContentResolver().call(
-                    Uri.parse("content://" + AUTHORITY), "activate_for_night", null, null);
-            return b != null && b.getBoolean("ok", false);
         } catch (Throwable t) {
             return false;
         }
     }
 
+    /** Ustawia tryb nocny: u nas to wewnetrzny broadcast (bez zewnetrznego provider'a). */
     public static boolean setNightMode(Context c, boolean isNight) {
-        if (!isInstalled(c)) return false;
         try {
-            Bundle in = new Bundle();
-            in.putBoolean("isNight", isNight);
-            c.getContentResolver().call(Uri.parse("content://" + AUTHORITY),
-                    "set_night_mode", null, in);
-            Intent i = new Intent(ACTION_NIGHT).setPackage(PKG).putExtra("isNight", isNight);
-            c.sendBroadcast(i);
+            c.sendBroadcast(new Intent(ACTION_NIGHT)
+                    .setPackage(c.getPackageName())
+                    .putExtra("isNight", isNight));
             return true;
         } catch (Throwable t) {
             return false;
         }
     }
 
+    /** Otwiera wbudowany edytor krzywej (dawne "Circadian Display"). */
     public static Intent openApp(Context c) {
-        Intent i = c.getPackageManager().getLaunchIntentForPackage(PKG);
-        if (i != null) {
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            return i;
-        }
-        // fallback: wbudowany ekran ustawien krzywej
-        Intent embedded = new Intent(c, CircadianActivity.class);
-        embedded.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        return embedded;
+        Intent i = new Intent(c, CircadianActivity.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        return i;
     }
 
     public static Intent openSettingsIntent(Context c) {
         return openApp(c);
     }
 
-    private CircadianBridge() {}
+    private CircadianBridge() {
+    }
 }
-
-
-
-
-

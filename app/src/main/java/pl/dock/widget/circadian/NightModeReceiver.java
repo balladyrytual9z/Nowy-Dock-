@@ -1,4 +1,3 @@
-
 package pl.dock.widget.circadian;
 
 import android.content.BroadcastReceiver;
@@ -47,14 +46,12 @@ public class NightModeReceiver extends BroadcastReceiver {
 
         if (CircadianBridge.ACTION_NIGHT.equals(a)
                 || "pl.dock.widget.NIGHT_MODE_CHANGED".equals(a)) {
-            // Dock → Circadian: aktywuj profil nocny nakładki
-            if (isNight && Prefs.circadianAuto(c)) {
-                if (CircadianBridge.isInstalled(c)) {
-                    CircadianBridge.activateForNight(c);
-                } else {
-                    // brak zewnetrznej aplikacji - wlacz wbudowany silnik Docka
-                    CircadianService.activateForNight(c);
-                }
+            // Filtr Night Shift wlacza sie WYLACZNIE kafelkiem w Centrum sterowania
+            // (recznie albo "od zachodu do wschodu"). Zmiana motywu nie wymusza
+            // nakladki - tutaj tylko odswiezamy krzywa, jesli uzytkownik ja
+            // wlaczyl w Ustawieniach. Caly mechanizm jest wbudowany w Docka.
+            if (Prefs.circadianAuto(c)) {
+                CircadianService.refresh(c);
             }
         }
     }

@@ -135,6 +135,17 @@ public class NightShift {
             }
         } catch (Throwable ignored) {
         }
+        // JEDEN filtr naraz: wlaczony kafelek Night Shift ma pierwszenstwo nad
+        // krzywa Circadian; wylaczenie kafelka przywraca krzywa, jesli jest
+        // wlaczona w Ustawieniach.
+        try {
+            if ("off".equals(mode)) {
+                pl.dock.widget.circadian.CircadianService.refresh(c);
+            } else {
+                pl.dock.widget.circadian.CircadianService.stop(c);
+            }
+        } catch (Throwable ignored) {
+        }
     }
 
     public static void restore(Context c) {

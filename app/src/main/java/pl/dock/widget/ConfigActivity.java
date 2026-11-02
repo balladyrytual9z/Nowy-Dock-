@@ -1181,7 +1181,7 @@ public class ConfigActivity extends BaseActivity {
         }
         footer(col, "Wbudowany Circadian Display ustawia ciepło i przygaszenie ekranu wg krzywej z edytora powyżej "
                 + "(po włączeniu wraca też sam po restarcie urządzenia). Kafelek Night Shift w Centrum łączności "
-                + "to szybki filtr — oba działają niezależnie, możesz używać jednego albo obu.");
+                + "ma pierwszeństwo — gdy jest włączony, krzywa czeka na jego wyłączenie. Cały mechanizm jest wbudowany, bez instalowania osobnej aplikacji.");
         section(col, "Kopia zapasowa");
         g = group(col);
         g.addView(row(null, "Eksportuj ustawienia do pliku", "", true, p.accent, new View.OnClickListener() {
