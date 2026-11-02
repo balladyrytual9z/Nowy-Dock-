@@ -231,6 +231,7 @@ public class LauncherActivity extends BaseActivity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
+            dockSlideIn();
             applyBars();
             if (Prefs.wakeBounce(this) && !Prefs.reduceMotion(this)) {
                 playWakeBounce();
@@ -1253,20 +1254,14 @@ public class LauncherActivity extends BaseActivity {
                         rebuildAppPages();
                         break;
                     case 1:
-                        try {
-                            startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                    Uri.parse("package:" + it.pkg)));
-                        } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);
-                        }
+                        startSystemSmooth(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.parse("package:" + it.pkg)));
                         break;
                     case 2:
-                        try {
-                            Intent intent = new Intent(Intent.ACTION_UNINSTALL_PACKAGE);
-                            intent.setData(Uri.parse("package:" + it.pkg));
-                            intent.putExtra(Intent.EXTRA_RETURN_RESULT, true);
-                            startActivityForResult(intent, AppsGridPage.REQ_UNINSTALL);
-                        } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);
-                        }
+                        Intent intent = new Intent(Intent.ACTION_UNINSTALL_PACKAGE);
+                        intent.setData(Uri.parse("package:" + it.pkg));
+                        intent.putExtra(Intent.EXTRA_RETURN_RESULT, true);
+                        startSystemSmoothForResult(intent, AppsGridPage.REQ_UNINSTALL);
                         break;
                 }
             }
@@ -1308,6 +1303,95 @@ public class LauncherActivity extends BaseActivity {
         } catch (Throwable t) {
             Toast.makeText(this, "Nie można otworzyć tej aplikacji", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    // ------------------------------------------------- dok a ekrany systemowe
+    // Android celowo blokuje rysowanie ponad bezpiecznymi ekranami (Ustawienia,
+    // odinstalowanie, uprawnienia) - tego nie da sie obejsc bez roota. Zamiast
+    // naglego znikania doka robiimy zamierzone, plynne przejscie: dok "celowo"
+    // wyjezdza za krawedz przy otwieraniu ekranu systemowego i plynnie wraca
+    // po powrocie (iluzja intencjonalnego designu jak w iOS).
+    private void dockSlideIn() {
+        if (dock == null) return;
+        dock.animate().cancel();
+        if (Prefs.reduceMotion(this)) {
+            dock.setTranslationX(0f);
+            dock.setAlpha(1f);
+            return;
+        }
+        boolean left = Ui.dockLeft(this);
+        dock.setTranslationX(left ? -Ui.dp(this, 26) : Ui.dp(this, 26));
+        dock.setAlpha(0.4f);
+        dock.animate().translationX(0f).alpha(1f).setDuration(320)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator(1.4f))
+                .start();
+    }
+
+    /** Ekran systemowy (Ustawienia itp.): dok plynnie sie chowa, potem otwiera sie ekran. */
+    private void startSystemSmooth(final Intent i) {
+        if (dock == null || Prefs.reduceMotion(this)) {
+            try {
+                startActivity(i);
+                overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);
+            } catch (Throwable t) {
+                android.util.Log.w("Dock", "startSystemSmooth", t);
+                Toast.makeText(this, "Nie mozna otworzyc", Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+        final boolean left = Ui.dockLeft(this);
+        dock.animate().cancel();
+        dock.animate()
+                .translationX(left ? -Ui.dp(this, 40) : Ui.dp(this, 40))
+                .alpha(0f)
+                .setDuration(200)
+                .setInterpolator(new android.view.animation.AccelerateInterpolator())
+                .withEndAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            startActivity(i);
+                            overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);
+                        } catch (Throwable t) {
+                            android.util.Log.w("Dock", "startSystemSmooth", t);
+                            dockSlideIn();
+                        }
+                    }
+                })
+                .start();
+    }
+
+    /** Jak startSystemSmooth, ale z wynikiem (np. odinstalowanie aplikacji). */
+    private void startSystemSmoothForResult(final Intent i, final int req) {
+        if (dock == null || Prefs.reduceMotion(this)) {
+            try {
+                startActivityForResult(i, req);
+                overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);
+            } catch (Throwable t) {
+                android.util.Log.w("Dock", "startSystemSmoothForResult", t);
+            }
+            return;
+        }
+        final boolean left = Ui.dockLeft(this);
+        dock.animate().cancel();
+        dock.animate()
+                .translationX(left ? -Ui.dp(this, 40) : Ui.dp(this, 40))
+                .alpha(0f)
+                .setDuration(200)
+                .setInterpolator(new android.view.animation.AccelerateInterpolator())
+                .withEndAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            startActivityForResult(i, req);
+                            overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);
+                        } catch (Throwable t) {
+                            android.util.Log.w("Dock", "startSystemSmoothForResult", t);
+                            dockSlideIn();
+                        }
+                    }
+                })
+                .start();
     }
 
     private void openSettings() {
