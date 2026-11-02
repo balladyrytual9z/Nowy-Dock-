@@ -475,21 +475,31 @@ public class ConnectivityPanel extends LinearLayout {
         warmthRow.setPadding(dp(6), dp(2), dp(6), dp(2));
         warmthRow.setBackground(Ui.round(night ? 0x33FFFFFF : 0x14000000, 18, act));
 
-        TextView lbl = new TextView(act);
-        lbl.setText("Ciepło");
-        lbl.setTextSize(14);
-        lbl.setTypeface(null, Typeface.BOLD);
-        lbl.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
-        warmthRow.addView(lbl, new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+        // Ten sam suwak co w Ustawienia > Ekran > Night Shift:
+        // Chlodniejsze <-> Cieplejsze (jak temperatury kolorow w iOS)
+        TextView cool = new TextView(act);
+        cool.setText("Chłodniejsze");
+        cool.setTextSize(13);
+        cool.setTypeface(null, Typeface.BOLD);
+        cool.setTextColor(night ? 0xB3FFFFFF : 0xFF3C3C43);
+        warmthRow.addView(cool, new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
         warmthBar = new android.widget.SeekBar(act);
         warmthBar.setMax(80);
         warmthBar.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
         LayoutParams bp = new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        bp.leftMargin = dp(10);
-        bp.rightMargin = dp(6);
+        bp.leftMargin = dp(12);
+        bp.rightMargin = dp(12);
         warmthRow.addView(warmthBar, bp);
+
+        TextView warm = new TextView(act);
+        warm.setText("Cieplejsze");
+        warm.setTextSize(13);
+        warm.setTypeface(null, Typeface.BOLD);
+        warm.setTextColor(night ? 0xB3FFFFFF : 0xFF3C3C43);
+        warmthRow.addView(warm, new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
 
         warmthBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
             @Override

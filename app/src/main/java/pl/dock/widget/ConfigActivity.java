@@ -712,6 +712,7 @@ public class ConfigActivity extends BaseActivity {
     /** Główne kategorie ustawień (kolejność jak w iOS: łączność → ekran → wygląd → aplikacje → ogólne). */
     private static final String[] TOP_CATEGORIES = {
             "Połączenia",
+            "Ekran",
             "Ekran główny i Launcher",
             "Wygląd i dźwięk",
             "Aplikacje",
@@ -722,6 +723,10 @@ public class ConfigActivity extends BaseActivity {
     private String categoryForSection(String secName) {
         if (secName == null) return "Ogólne";
         String s = secName.toLowerCase();
+        // Ekran (Ekran i jasność, Night Shift)
+        if (s.equals("ekran i jasność") || s.equals("night shift")) {
+            return "Ekran";
+        }
         // Aplikacje najpierw (żeby „Ikona CarPlay…” nie wpadła do Połączeń)
         if (s.startsWith("aplikacje")
                 || s.contains("ikona carplay")
@@ -781,6 +786,17 @@ public class ConfigActivity extends BaseActivity {
             stroke.setStrokeWidth(Math.max(1.5f, size / 22f));
             c.drawArc(cx - r * 0.45f, cy - r * 0.15f, cx + r * 0.45f, cy + r * 0.55f, 200, 140, false, stroke);
             c.drawArc(cx - r * 0.7f, cy - r * 0.35f, cx + r * 0.7f, cy + r * 0.65f, 200, 140, false, stroke);
+        } else if ("Ekran".equals(cat)) {
+            bg = 0xFF32ADE6;
+            fill.setColor(bg);
+            c.drawCircle(cx, cy, r, fill);
+            fill.setColor(0xFFFFFFFF);
+            c.drawRoundRect(cx - r * 0.55f, cy - r * 0.45f, cx + r * 0.55f, cy + r * 0.25f, r * 0.12f, r * 0.12f, fill);
+            fill.setColor(bg);
+            c.drawRoundRect(cx - r * 0.46f, cy - r * 0.36f, cx + r * 0.46f, cy + r * 0.16f, r * 0.06f, r * 0.06f, fill);
+            fill.setColor(0xFFFFFFFF);
+            c.drawRoundRect(cx - r * 0.2f, cy + r * 0.3f, cx + r * 0.2f, cy + r * 0.38f, 2, 2, fill);
+            c.drawRoundRect(cx - r * 0.35f, cy + r * 0.44f, cx + r * 0.35f, cy + r * 0.5f, 2, 2, fill);
         } else if ("Ekran główny i Launcher".equals(cat)) {
             bg = 0xFF34C759; // zielony
             fill.setColor(bg);
@@ -1033,6 +1049,200 @@ public class ConfigActivity extends BaseActivity {
     // ---------- nowe wpisy ----------
     private void extraSections(LinearLayout col) {
         LinearLayout g;
+
+        // --- Ekran i jasność (jak w iOS) ---
+        section(col, "Ekran i jasność");
+        g = group(col);
+        g.addView(segRow("Wygląd", new String[]{"Jasny", "Ciemny"},
+                Look.night(this) ? 1 : 0, new OnSel() {
+                    @Override
+                    public void on(int i) {
+                        Prefs.setFollowSystem(ConfigActivity.this, false);
+                        Prefs.setMode(ConfigActivity.this, i == 1 ? "night" : "day");
+                        themeChanged();
+                    }
+                }));
+        sep(g);
+        boolean autoLook = Prefs.followSystem(this) || "time".equals(Prefs.mode(this));
+        g.addView(switchRow("Automatyczne", autoLook,
+                new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton b, boolean on) {
+                        if (on) {
+                            Prefs.setFollowSystem(ConfigActivity.this, true);
+                        } else {
+                            Prefs.setFollowSystem(ConfigActivity.this, false);
+                            Prefs.setMode(ConfigActivity.this,
+                                    Look.night(ConfigActivity.this) ? "night" : "day");
+                        }
+                        themeChanged();
+                    }
+                }));
+        if (autoLook) {
+            sep(g);
+            boolean duskTillDawn = Prefs.followSystem(this);
+            g.addView(row(null, "Od zmroku do świtu", duskTillDawn ? "✓" : "", false, p.text,
+                    new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            Prefs.setFollowSystem(ConfigActivity.this, true);
+                            themeChanged();
+                        }
+                    }));
+            sep(g);
+            g.addView(row(null, "Harmonogram własny",
+                    "time".equals(Prefs.mode(this)) ? "✓" : "", false, p.text,
+                    new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            Prefs.setFollowSystem(ConfigActivity.this, false);
+                            Prefs.setMode(ConfigActivity.this, "time");
+                            themeChanged();
+                        }
+                    }));
+            if ("time".equals(Prefs.mode(this))) {
+                sep(g);
+                g.addView(row(null, "Noc zaczyna się o", hhmm(Prefs.nightStart(this)), true,
+                        p.text, new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                pickTime(true);
+                            }
+                        }));
+                sep(g);
+                g.addView(row(null, "Noc kończy się o", hhmm(Prefs.nightEnd(this)), true,
+                        p.text, new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                pickTime(false);
+                            }
+                        }));
+            }
+        }
+        sep(g);
+        LinearLayout bri = new LinearLayout(this);
+        bri.setOrientation(LinearLayout.HORIZONTAL);
+        bri.setGravity(Gravity.CENTER_VERTICAL);
+        bri.setPadding(dp(16), dp(12), dp(16), dp(12));
+        bri.addView(text("☀️", 22, p.text, false));
+        SeekBar briBar = new SeekBar(this);
+        briBar.setMax(245);
+        try {
+            briBar.setProgress(Math.max(0, android.provider.Settings.System.getInt(
+                    getContentResolver(), android.provider.Settings.System.SCREEN_BRIGHTNESS) - 10));
+        } catch (Throwable t) {
+            briBar.setProgress(170);
+        }
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        blp.leftMargin = dp(14);
+        blp.rightMargin = dp(14);
+        bri.addView(briBar, blp);
+        bri.addView(text("🌙", 22, p.text, false));
+        briBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar sb, int prog, boolean fromUser) {
+                if (!fromUser) return;
+                try {
+                    if (!android.provider.Settings.System.canWrite(ConfigActivity.this)) {
+                        try {
+                            Intent wi = new Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                                    Uri.parse("package:" + getPackageName()));
+                            wi.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(wi);
+                        } catch (Throwable ignored) {
+                        }
+                        return;
+                    }
+                    android.provider.Settings.System.putInt(getContentResolver(),
+                            android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE,
+                            android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
+                    android.provider.Settings.System.putInt(getContentResolver(),
+                            android.provider.Settings.System.SCREEN_BRIGHTNESS,
+                            Math.max(10, prog + 10));
+                } catch (Throwable ignored) {
+                }
+            }
+            @Override
+            public void onStartTrackingTouch(SeekBar sb) {
+            }
+            @Override
+            public void onStopTrackingTouch(SeekBar sb) {
+            }
+        });
+        g.addView(bri);
+        footer(col, "Wygląd jasny lub ciemny, automatyczna zmiana wyglądu (od zmroku do świtu "
+                + "albo własny harmonogram) oraz jasność ekranu — jak w iOS.");
+
+        // --- Night Shift (podstrona jak w iOS) ---
+        section(col, "Night Shift");
+        g = group(col);
+        String nsMode = NightShift.mode(this);
+        g.addView(switchRow("Według harmonogramu", "sunset".equals(nsMode),
+                new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton b, boolean on) {
+                        NightShift.setMode(ConfigActivity.this, on ? "sunset" : "off");
+                        changed();
+                    }
+                }));
+        if ("sunset".equals(nsMode)) {
+            sep(g);
+            g.addView(row(null, "Od", "Zachód słońca", false, p.text, null));
+            sep(g);
+            g.addView(row(null, "Do", "Wschód słońca", false, p.text, null));
+        }
+        sep(g);
+        g.addView(switchRow("Włącz ręcznie do jutra", "on".equals(nsMode),
+                new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton b, boolean on) {
+                        NightShift.setMode(ConfigActivity.this, on ? "on" : "off");
+                        changed();
+                    }
+                }));
+        sep(g);
+        LinearLayout temp = new LinearLayout(this);
+        temp.setOrientation(LinearLayout.VERTICAL);
+        temp.setPadding(dp(16), dp(14), dp(16), dp(14));
+        temp.addView(text("Temperatura kolorów", 19, p.text, false));
+        LinearLayout trow = new LinearLayout(this);
+        trow.setOrientation(LinearLayout.HORIZONTAL);
+        trow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams trLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        trLp.topMargin = dp(10);
+        temp.addView(trow, trLp);
+        trow.addView(text("Chłodniejsze", 15, p.sub, false));
+        SeekBar tempBar = new SeekBar(this);
+        tempBar.setMax(80);
+        tempBar.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(this))));
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        tlp.leftMargin = dp(12);
+        tlp.rightMargin = dp(12);
+        trow.addView(tempBar, tlp);
+        trow.addView(text("Cieplejsze", 15, p.sub, false));
+        tempBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar sb, int prog, boolean fromUser) {
+                if (!fromUser) return;
+                int strength = Math.max(5, Math.min(80, prog));
+                Prefs.setNightShiftStrength(ConfigActivity.this, strength);
+                NightShift.refresh(ConfigActivity.this);
+            }
+            @Override
+            public void onStartTrackingTouch(SeekBar sb) {
+            }
+            @Override
+            public void onStopTrackingTouch(SeekBar sb) {
+            }
+        });
+        g.addView(temp);
+        footer(col, "Filtry przenoszą ekran na ciepniejsze barwy, żeby wieczorem mniej męczyły oczy. "
+                + "Kafelek Night Shift w Centrum łączności działa bez zmian: dotknięcie przełącza "
+                + "tryb (wyłączony → włączony → od zachodu do wschodu), a przytrzymanie pokazuje "
+                + "na dole ten sam suwak temperatury kolorów.");
 
         section(col, "Przycisk Home");
         g = group(col);
