@@ -59,9 +59,11 @@ public class Popups {
             boolean hwBlur = false;
             if (android.os.Build.VERSION.SDK_INT >= 31) {
                 try {
-                    android.view.Window dw = d.getWindow();
-                    dw.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
-                    dw.setBlurBehindRadius(Ui.dp(a, 30));
+                    android.view.Window w0 = d.getWindow();
+                    android.view.WindowManager.LayoutParams lp = w0.getAttributes();
+                    lp.flags |= android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND;
+                    lp.setBlurBehindRadius(Ui.dp(a, 30));
+                    w0.setAttributes(lp);
                     hwBlur = true;
                 } catch (Throwable ignored) {
                     hwBlur = false;
