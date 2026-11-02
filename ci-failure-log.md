@@ -1,4 +1,4 @@
-# CI failure log (run 41351518727)
+# CI failure log (run 41434447767)
 
 ## build.log
 
@@ -25,8 +25,8 @@ to this project's gradle.properties.
 > Task :app:preDebugBuild UP-TO-DATE
 > Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :app:checkKotlinGradlePluginConfigurationErrors
-> Task :app:generateDebugResValues
 > Task :app:checkDebugAarMetadata
+> Task :app:generateDebugResValues
 > Task :app:mapDebugSourceSetPaths
 > Task :app:generateDebugResources
 > Task :app:packageDebugResources
@@ -39,20 +39,20 @@ to this project's gradle.properties.
 > Task :app:javaPreCompileDebug
 > Task :app:mergeDebugShaders
 > Task :app:compileDebugShaders NO-SOURCE
-> Task :app:processDebugManifestForPackage
 > Task :app:generateDebugAssets UP-TO-DATE
 > Task :app:mergeDebugAssets
 > Task :app:compressDebugAssets
+> Task :app:processDebugManifestForPackage
 > Task :app:desugarDebugFileDependencies
 > Task :app:mergeDebugStartupProfile
 > Task :app:mergeDebugJniLibFolders
 > Task :app:mergeDebugNativeLibs NO-SOURCE
+> Task :app:checkDebugDuplicateClasses
 > Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
-> Task :app:checkDebugDuplicateClasses
-> Task :app:writeDebugSigningConfigVersions
 > Task :app:mergeLibDexDebug
+> Task :app:writeDebugSigningConfigVersions
 > Task :app:processDebugResources
 > Task :app:mergeExtDexDebug
 
@@ -70,18 +70,17 @@ w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widg
 w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/transport/SppTransport.kt:105:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
 
 > Task :app:compileDebugJavaWithJavac
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/Updater.java:113: error: unreported exception Exception; must be caught or declared to be thrown
-        byte[] apk = httpGet(apkUrl, 15000, 600000);
-                            ^
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/Updater.java:114: error: unreported exception Exception; must be caught or declared to be thrown
-        String actual = sha256(apk);
-                              ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/backup/BackupManager.java:34: error: cannot find symbol
+                        android.net.Uri.parse("content://" + CircadianBridge.AUTHORITY),
+                                                                            ^
+  symbol:   variable AUTHORITY
+  location: class CircadianBridge
 Note: Some input files use or override a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
-2 errors
+1 error
 
 > Task :app:compileDebugJavaWithJavac FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793568061523.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793617769508.json
 
 FAILURE: Build failed with an exception.
 
@@ -280,7 +279,7 @@ Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Com
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 
 
-BUILD FAILED in 34s
+BUILD FAILED in 43s
 30 actionable tasks: 29 executed, 1 up-to-date
 
 ## ci.log
