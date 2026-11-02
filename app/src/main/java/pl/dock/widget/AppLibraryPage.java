@@ -447,13 +447,17 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
 
         android.widget.ImageView iv = new android.widget.ImageView(ctx);
         android.graphics.Bitmap bmp = Icons.forEntry(ctx, app);
-        if (bmp != null) {
-            androidx.core.graphics.drawable.RoundedBitmapDrawable rd =
-                    androidx.core.graphics.drawable.RoundedBitmapDrawableFactory.create(ctx.getResources(), bmp);
-            rd.setCornerRadius(dp(12));
-            rd.setAntiAlias(true);
-            iv.setImageDrawable(rd);
-        }
+            if (bmp != null) {
+                android.graphics.Bitmap out = android.graphics.Bitmap.createBitmap(dp(48), dp(48), android.graphics.Bitmap.Config.ARGB_8888);
+                android.graphics.Canvas cv = new android.graphics.Canvas(out);
+                android.graphics.Paint pt = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG | android.graphics.Paint.FILTER_BITMAP_FLAG);
+                android.graphics.RectF rect = new android.graphics.RectF(0, 0, dp(48), dp(48));
+                cv.drawRoundRect(rect, dp(12), dp(12), pt);
+                pt.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN));
+                android.graphics.Rect src = new android.graphics.Rect(0, 0, bmp.getWidth(), bmp.getHeight());
+                cv.drawBitmap(bmp, src, rect, pt);
+                iv.setImageBitmap(out);
+            }
         row.addView(iv, new LinearLayout.LayoutParams(dp(48), dp(48)));
 
         TextView name = new TextView(ctx);
