@@ -245,6 +245,9 @@ public final class PanelTool {
         init(c);
         String s = Prefs.panelTools(c);
         if (s == null) return defaults(c);
+        s = s.trim();
+        // pusty zapis = przywroc domyslne narzedzia; panel nigdy nie jest calkiem pusty
+        if (s.length() == 0) return defaults(c);
         List<String> out = new ArrayList<String>();
         if (s.length() == 0) return out;
         for (String id : s.split(",")) {

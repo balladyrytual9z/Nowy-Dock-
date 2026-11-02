@@ -46,6 +46,8 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
     private boolean searchFocused = false;
     private final Map<String, Integer> categoryY = new LinkedHashMap<String, Integer>();
     private final Map<String, String> labels = new LinkedHashMap<String, String>();
+    private static final String LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#";
+    private final LinkedHashMap<String, Integer> letterY = new LinkedHashMap<String, Integer>();
 
     public AppLibraryPage(Context c) {
         super(c);
@@ -146,7 +148,7 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
 
         grid = new LinearLayout(ctx);
         grid.setOrientation(LinearLayout.VERTICAL);
-        grid.setPadding(dp(14) + extraL, dp(4), dp(28) + extraR, dp(24)); // right pad for letter bar
+        grid.setPadding(dp(14) + extraL, dp(4), dp(40) + extraR, dp(24)); // right pad for letter bar
         scrollView.addView(grid, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -160,16 +162,15 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         letterBar.setOrientation(LinearLayout.VERTICAL);
         letterBar.setGravity(Gravity.CENTER_HORIZONTAL);
         letterBar.setPadding(0, dp(8), dp(4), dp(8));
-        String letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#";
-        for (int i = 0; i < letters.length(); i++) {
-            final String letter = String.valueOf(letters.charAt(i));
+        for (int i = 0; i < LETTERS.length(); i++) {
+            final String letter = String.valueOf(LETTERS.charAt(i));
             TextView tv = new TextView(ctx);
             tv.setText(letter);
-            tv.setTextSize(10);
+            tv.setTextSize(13);
             tv.setTypeface(pl.dock.widget.ui.DockTheme.interMedium());
             tv.setTextColor(night ? 0xFF0A84FF : 0xFF007AFF);
             tv.setGravity(Gravity.CENTER);
-            tv.setPadding(dp(4), dp(1), dp(4), dp(1));
+            tv.setPadding(dp(6), dp(1), dp(6), dp(1));
             tv.setOnClickListener(new OnClickListener() {
                 @Override public void onClick(View v) {
                     scrollToLetter(letter);
@@ -177,7 +178,43 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
             });
             letterBar.addView(tv);
         }
-        LayoutParams lbLp = new LayoutParams(dp(22), ViewGroup.LayoutParams.MATCH_PARENT);
+        // iOS: przeciganie palcem po pasku = zywe przewijanie + efekt magnesu
+        // (wybrana litera powieksza sie i wysuwa w lewo)
+        letterBar.setOnTouchListener(new View.OnTouchListener() {
+            private int selected = -1;
+
+            @Override public boolean onTouch(View v, android.view.MotionEvent ev) {
+                int a = ev.getActionMasked();
+                int idx = -1;
+                float y = ev.getY();
+                for (int i = 0; i < letterBar.getChildCount(); i++) {
+                    View ch = letterBar.getChildAt(i);
+                    if (y >= ch.getTop() && y <= ch.getBottom()) { idx = i; break; }
+                }
+                if (a == android.view.MotionEvent.ACTION_DOWN
+                        || a == android.view.MotionEvent.ACTION_MOVE) {
+                    if (idx >= 0 && idx != selected) {
+                        if (selected >= 0) resetLetter(selected);
+                        selected = idx;
+                        TextView tv = (TextView) letterBar.getChildAt(idx);
+                        tv.setPivotX(tv.getWidth());
+                        tv.animate().scaleX(1.7f).scaleY(1.7f).translationX(-dp(12))
+                                .setDuration(90).start();
+                        tv.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
+                        scrollToLetter(String.valueOf(LETTERS.charAt(idx)));
+                    }
+                    return true;
+                }
+                if (a == android.view.MotionEvent.ACTION_UP
+                        || a == android.view.MotionEvent.ACTION_CANCEL) {
+                    if (selected >= 0) resetLetter(selected);
+                    selected = -1;
+                    return true;
+                }
+                return false;
+            }
+        });
+        LayoutParams lbLp = new LayoutParams(dp(34), ViewGroup.LayoutParams.MATCH_PARENT);
         lbLp.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
         lbLp.topMargin = dp(100);
         lbLp.rightMargin = extraR;
@@ -185,9 +222,22 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         addView(letterBar, lbLp);
     }
 
+    private void resetLetter(int i) {
+        if (letterBar == null || i < 0 || i >= letterBar.getChildCount()) return;
+        TextView tv = (TextView) letterBar.getChildAt(i);
+        tv.animate().scaleX(1f).scaleY(1f).translationX(0f).setDuration(130).start();
+    }
+
     private void scrollToLetter(String letter) {
         if (scrollView == null || grid == null) return;
-        // Find first category starting with letter
+        // najpierw lista: dokladna pozycja pierwszej aplikacji na dana litere
+        for (Map.Entry<String, Integer> e : letterY.entrySet()) {
+            if (letter.equals(e.getKey())) {
+                scrollView.smoothScrollTo(0, Math.max(0, e.getValue() - dp(24)));
+                return;
+            }
+        }
+        // fallback: kategorie
         for (Map.Entry<String, Integer> e : categoryY.entrySet()) {
             String name = e.getKey();
             if (name == null || name.isEmpty()) continue;
@@ -315,8 +365,6 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
         };
 
         categoryY.clear();
-        LinearLayout row = null;
-        int col = 0;
         for (Map.Entry<String, List<AppEntry>> e : categories.entrySet()) {
             if (e.getValue().isEmpty()) continue;
             // Search filter: match category name or any app label
@@ -334,46 +382,33 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
                 }
                 if (!match) continue;
             }
-            // Record approximate Y for letter index (after layout would be better; use index for now)
-            categoryY.put(e.getKey(), grid.getChildCount() * dp(140));
-            if (col == 0) {
-                row = new LinearLayout(ctx);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setGravity(Gravity.TOP);
-                LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                rlp.bottomMargin = dp(16);
-                grid.addView(row, rlp);
-            }
-            // Vertical wrapper: folder tile + label underneath (iOS style)
-            LinearLayout cell = new LinearLayout(ctx);
-            cell.setOrientation(LinearLayout.VERTICAL);
-            cell.setGravity(Gravity.CENTER_HORIZONTAL);
-
-            LibraryFolderView folder = new LibraryFolderView(ctx, e.getKey(), e.getValue(), night, fl);
-            folders.add(folder);
-            LinearLayout.LayoutParams folderLp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            cell.addView(folder, folderLp);
-
-            TextView label = new TextView(ctx);
-            label.setText(e.getKey());
-            label.setTextSize(13);
-            label.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-            label.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
-            label.setGravity(Gravity.CENTER);
-            label.setMaxLines(1);
-            label.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            label.setPadding(0, dp(6), 0, 0);
-            cell.addView(label, new LinearLayout.LayoutParams(
+            // naglowek kategorii - LISTA aplikacji pogrupowana na kategorie (jak w iOS)
+            TextView head = new TextView(ctx);
+            head.setText(e.getKey());
+            head.setTextSize(20);
+            head.setTypeface(pl.dock.widget.ui.DockTheme.interSemiBold());
+            head.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
+            head.setPadding(dp(4), dp(14), dp(4), dp(8));
+            grid.addView(head, new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-            LinearLayout.LayoutParams cellLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            if (col == 0) cellLp.rightMargin = dp(12);
-            row.addView(cell, cellLp);
-            if (editing) folder.setEditing(true);
-            col++;
-            if (col >= 2) col = 0;
+            LinearLayout row = null;
+            int col = 0;
+            for (final AppEntry app : e.getValue()) {
+                if (row == null || col >= 4) {
+                    row = new LinearLayout(ctx);
+                    row.setOrientation(LinearLayout.HORIZONTAL);
+                    row.setGravity(Gravity.TOP);
+                    LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                    rlp.bottomMargin = dp(10);
+                    grid.addView(row, rlp);
+                    col = 0;
+                }
+                row.addView(makeAppCell(app, fl), new LinearLayout.LayoutParams(
+                        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+                col++;
+            }
         }
         if (categories.isEmpty()) {
             TextView empty = new TextView(ctx);
@@ -383,7 +418,95 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
             empty.setPadding(0, dp(40), 0, 0);
             grid.addView(empty);
         }
+        // pozycje liter dla paska A-Z (dopiero po policzeniu layoutu)
+        post(measureLetters);
     }
+
+    // komorka aplikacji na liscie biblioteki: ikona + podpis (+ usuwanie w trybie edycji)
+    private View makeAppCell(final AppEntry app, final LibraryFolderView.Listener fl) {
+        FrameLayout cell = new FrameLayout(ctx);
+        cell.setTag(app);
+        LinearLayout col = new LinearLayout(ctx);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setGravity(Gravity.CENTER_HORIZONTAL);
+        col.setPadding(dp(4), dp(4), dp(4), dp(4));
+        android.widget.ImageView iv = new android.widget.ImageView(ctx);
+        iv.setImageBitmap(Icons.forEntry(ctx, app));
+        iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        col.addView(iv, new LinearLayout.LayoutParams(dp(56), dp(56)));
+        TextView tv = new TextView(ctx);
+        tv.setText(appLabel(app));
+        tv.setTextSize(11);
+        tv.setMaxLines(1);
+        tv.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        tv.setGravity(Gravity.CENTER);
+        tv.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
+        col.addView(tv, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        cell.addView(col, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        if (editing) {
+            // badge usuwania: bialy minus na czerwonym kole (jak w iOS)
+            TextView badge = new TextView(ctx);
+            badge.setText("\u2212");
+            badge.setTextSize(15);
+            badge.setTypeface(Typeface.DEFAULT_BOLD);
+            badge.setTextColor(0xFFFFFFFF);
+            badge.setGravity(Gravity.CENTER);
+            android.graphics.drawable.GradientDrawable bgd = new android.graphics.drawable.GradientDrawable();
+            bgd.setColor(0xFFFF3B30);
+            bgd.setCornerRadius(dp(12));
+            badge.setBackground(bgd);
+            FrameLayout.LayoutParams blp = new FrameLayout.LayoutParams(dp(24), dp(24),
+                    Gravity.TOP | Gravity.START);
+            cell.addView(badge, blp);
+            badge.setOnClickListener(new OnClickListener() {
+                @Override public void onClick(View v) {
+                    fl.onRemoveApp(app);
+                }
+            });
+        }
+
+        cell.setOnClickListener(new OnClickListener() {
+            @Override public void onClick(View v) {
+                fl.onAppTap(app);
+            }
+        });
+        cell.setOnLongClickListener(new OnLongClickListener() {
+            @Override public boolean onLongClick(View v) {
+                fl.onAppLongPress(v, app);
+                return true;
+            }
+        });
+        return cell;
+    }
+
+    // po layout: zapisz Y pierwszej aplikacji kazdej litery (pasek A-Z trafia dokladnie)
+    private final Runnable measureLetters = new Runnable() {
+        @Override public void run() {
+            letterY.clear();
+            if (grid == null) return;
+            int n = grid.getChildCount();
+            for (int i = 0; i < n; i++) {
+                View row = grid.getChildAt(i);
+                if (!(row instanceof LinearLayout)) continue;
+                LinearLayout rw = (LinearLayout) row;
+                for (int j = 0; j < rw.getChildCount(); j++) {
+                    View cell = rw.getChildAt(j);
+                    Object tag = cell.getTag();
+                    if (!(tag instanceof AppEntry)) continue;
+                    String lb = appLabel((AppEntry) tag);
+                    if (lb == null || lb.length() == 0) continue;
+                    char c0 = Character.toUpperCase(lb.charAt(0));
+                    String key = Character.isLetter(c0) ? String.valueOf(c0) : "#";
+                    if (!letterY.containsKey(key)) {
+                        letterY.put(key, row.getTop() + cell.getTop());
+                    }
+                }
+            }
+        }
+    };
 
     // Sugestie: do 4 najczesciej uzywanych aplikacji z ostatniego tygodnia
     private List<AppEntry> suggestions(List<AppEntry> all) {
@@ -563,6 +686,7 @@ public class AppLibraryPage extends FrameLayout implements EditModeController.Li
     public void setEditing(boolean on) {
         editing = on;
         for (LibraryFolderView f : folders) f.setEditing(on);
+        if (grid != null) rebuildFolders();
     }
 
     @Override

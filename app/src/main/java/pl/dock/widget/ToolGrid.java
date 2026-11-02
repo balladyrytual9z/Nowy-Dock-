@@ -339,7 +339,7 @@ public class ToolGrid extends ViewGroup {
             p.setStyle(Paint.Style.FILL);
             p.setTextAlign(Paint.Align.CENTER);
             p.setTextSize(14f * getResources().getDisplayMetrics().scaledDensity);
-            p.setColor(night ? 0xFF9A9AA0 : 0xFF6C6C70);
+            p.setColor(night ? 0xFFEBEBF0 : 0xFF3C3C43);
             cv.drawText("Brak narzędzi. Naciśnij Edytuj i dodaj własne.",
                     getWidth() / 2f, getHeight() / 2f + dp(5), p);
         }

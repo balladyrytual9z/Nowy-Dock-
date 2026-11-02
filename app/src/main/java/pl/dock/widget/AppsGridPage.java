@@ -73,6 +73,14 @@ public class AppsGridPage extends View implements EditModeController.Listener {
     private boolean longFired;
     private final Handler h = new Handler();
     private final int slop;
+    // dlugie przytrzymanie PUSTEGO tla = tryb edycji; anulowane po zdjeciu palca,
+    // zeby byle dotkniecie tla (jak teraz) nie wlaczalo trzesienia po 0,5 s
+    private final Runnable bgLongPress = new Runnable() {
+        @Override
+        public void run() {
+            if (!editMode && pressed < 0) enterEditMode();
+        }
+    };
 
     // Edit mode / wobble / drag-reorder
     private boolean editMode = false;
@@ -234,6 +242,21 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         return -1;
     }
 
+    // ikona przycieta do squircle z pelnym antyaliasingiem (BitmapShader);
+    // clipPath nie wygladza krawedzi na Androidzie 9, ikony mialy poszarpane brzegi
+    private void drawRoundedIcon(Canvas cv, Bitmap b, RectF rr) {
+        if (b == null || b.getWidth() <= 0 || b.getHeight() <= 0) return;
+        float rad = rr.width() * 0.225f;
+        android.graphics.BitmapShader sh = new android.graphics.BitmapShader(b,
+                android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP);
+        android.graphics.Matrix m = new android.graphics.Matrix();
+        m.setScale(rr.width() / b.getWidth(), rr.height() / b.getHeight());
+        sh.setLocalMatrix(m);
+        bmp.setShader(sh);
+        cv.drawRoundRect(rr, rad, rad, bmp);
+        bmp.setShader(null);
+    }
+
     @Override
     protected void onDraw(Canvas cv) {
         pill.setColor(night ? 0xB31E1E20 : 0xCCFFFFFF);
@@ -257,14 +280,8 @@ public class AppsGridPage extends View implements EditModeController.Listener {
 
             bmp.setAlpha(pressed == i && !dragActive ? 190 : 255);
             r.set(x + inset, y + inset, x + iconSz - inset, y + iconSz - inset);
-            // squircle jak w iOS: kazda ikona przycieta do rogow 22.5% szerokosci
-            float rad = r.width() * 0.225f;
-            clipPath.reset();
-            clipPath.addRoundRect(r, rad, rad, Path.Direction.CW);
-            cv.save();
-            cv.clipPath(clipPath);
-            cv.drawBitmap(b, null, r, bmp);
-            cv.restore();
+            // squircle z pelnym antyaliasingiem (BitmapShader, nie clipPath)
+            drawRoundedIcon(cv, b, r);
 
             float pw = it.textW + 24f * d * sc;
             float px = x + iconSz / 2f - pw / 2f;
@@ -294,13 +311,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
             float y = dragY - iconSz / 2f;
             bmp.setAlpha(230);
             r.set(x, y, x + iconSz, y + iconSz);
-            float radF = iconSz * 0.225f;
-            clipPath.reset();
-            clipPath.addRoundRect(r, radF, radF, Path.Direction.CW);
-            cv.save();
-            cv.clipPath(clipPath);
-            cv.drawBitmap(b, null, r, bmp);
-            cv.restore();
+            drawRoundedIcon(cv, b, r);
             // highlight target slot
             int target = hit(dragX, dragY);
             if (target >= 0 && target != dragIndex) {
@@ -505,14 +516,9 @@ public class AppsGridPage extends View implements EditModeController.Listener {
                     performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);
                 }
                 if (pressed < 0) {
-                    // long press empty space also enters edit
+                    // dlugie przytrzymanie pustego tla = tryb edycji (jak w Apple)
                     if (!editMode) {
-                        h.postDelayed(new Runnable() {
-                            @Override
-                            public void run() {
-                                enterEditMode();
-                            }
-                        }, ViewConfiguration.getLongPressTimeout());
+                        h.postDelayed(bgLongPress, ViewConfiguration.getLongPressTimeout());
                     }
                     return true;
                 }
@@ -562,9 +568,11 @@ public class AppsGridPage extends View implements EditModeController.Listener {
                     pressed = -1;
                     invalidate();
                 }
+                h.removeCallbacks(bgLongPress);
                 return true;
             case MotionEvent.ACTION_UP:
                 h.removeCallbacks(longPress);
+                h.removeCallbacks(bgLongPress);
                 if (editMode && dragActive && dragIndex >= 0) {
                     int target = hit(e.getX(), e.getY());
                     if (target >= 0 && target != dragIndex && target < items.size()) {
@@ -598,6 +606,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
                 return true;
             case MotionEvent.ACTION_CANCEL:
                 h.removeCallbacks(longPress);
+                h.removeCallbacks(bgLongPress);
                 pressed = -1;
                 dragActive = false;
                 dragIndex = -1;
@@ -612,6 +621,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         h.removeCallbacks(longPress);
+        h.removeCallbacks(bgLongPress);
         h.removeCallbacks(wobbleTick);
         EditModeController.get().removeListener(this);
     }

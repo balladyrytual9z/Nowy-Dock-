@@ -1,4 +1,3 @@
-
 package pl.dock.widget;
 
 import android.content.Context;
@@ -323,7 +322,7 @@ public class DockView extends View {
         for (int i = 0; i < 4; i++) {
             Bitmap b = icons[i];
             if (b == null) continue;
-            drawIcon(cv, b, cx - sz / 2f, iconTop(i), sz, sz, pressed == i ? 150 : 255);
+            drawRoundedIcon(cv, b, cx - sz / 2f, iconTop(i), sz, pressed == i ? 150 : 255);
         }
 
         // przycisk dolny: siatka -> symbol ekranu głównego
@@ -334,9 +333,21 @@ public class DockView extends View {
             drawIcon(cv, bGrid, cx - g / 2f, by - g / 2f, g, g, (int) (pa * (1f - bottomT)));
         }
         if (bottomT > 0.001f) {
+            // przycisk Home: domek jak w iOS, nie zwykly prostokat
             homePaint.setAlpha((int) (pa * bottomT));
-            rect.set(cx - g / 2f, by - g / 2f, cx + g / 2f, by + g / 2f);
-            cv.drawRoundRect(rect, 6f * d, 6f * d, homePaint);
+            homePaint.setStyle(Paint.Style.STROKE);
+            homePaint.setStrokeJoin(android.graphics.Paint.Join.ROUND);
+            float hs = g / 2f;
+            android.graphics.Path hp = new android.graphics.Path();
+            hp.moveTo(cx - hs, by - hs * 0.08f);
+            hp.lineTo(cx, by - hs);
+            hp.lineTo(cx + hs, by - hs * 0.08f);
+            hp.moveTo(cx - hs * 0.72f, by - hs * 0.02f);
+            hp.lineTo(cx - hs * 0.72f, by + hs);
+            hp.lineTo(cx + hs * 0.72f, by + hs);
+            hp.lineTo(cx + hs * 0.72f, by - hs * 0.02f);
+            hp.close();
+            cv.drawPath(hp, homePaint);
         }
     }
 
@@ -345,6 +356,22 @@ public class DockView extends View {
         bmpPaint.setAlpha(alpha);
         rect.set(l, t, l + w, t + h);
         cv.drawBitmap(b, null, rect, bmpPaint);
+    }
+
+    // ikona aplikacji pod zegarem: squircle z pelnym antyaliasingiem (BitmapShader)
+    private void drawRoundedIcon(Canvas cv, Bitmap b, float l, float t, float sz, int alpha) {
+        if (b == null || b.getWidth() <= 0 || b.getHeight() <= 0 || alpha <= 0) return;
+        bmpPaint.setAlpha(alpha);
+        rect.set(l, t, l + sz, t + sz);
+        float rad = sz * 0.225f;
+        android.graphics.BitmapShader sh = new android.graphics.BitmapShader(b,
+                android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP);
+        android.graphics.Matrix m = new android.graphics.Matrix();
+        m.setScale(sz / b.getWidth(), sz / b.getHeight());
+        sh.setLocalMatrix(m);
+        bmpPaint.setShader(sh);
+        cv.drawRoundRect(rect, rad, rad, bmpPaint);
+        bmpPaint.setShader(null);
     }
 
     // ------------------------------------------------------------ dotyk

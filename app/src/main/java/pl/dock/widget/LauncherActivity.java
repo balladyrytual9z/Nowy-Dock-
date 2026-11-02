@@ -447,7 +447,7 @@ public class LauncherActivity extends BaseActivity {
                 dock.setNightBlend(0f);
                 // Live liquid glass blur (throttled)
                 if ("glass".equals(Prefs.style(LauncherActivity.this)) && root != null
-                        && System.currentTimeMillis() - lastBlurAt > 80) {
+                        && System.currentTimeMillis() - lastBlurAt > 200) {
                     lastBlurAt = System.currentTimeMillis();
                     try {
                         Bitmap blur = LiveBlur.captureAndBlur(root, root.getWidth(), root.getHeight());
