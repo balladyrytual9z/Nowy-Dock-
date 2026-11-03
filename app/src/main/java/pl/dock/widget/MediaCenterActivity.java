@@ -31,6 +31,7 @@ public class MediaCenterActivity extends Activity implements MediaHub.Listener {
 
     private MediaHub.Track track = new MediaHub.Track();
     private MediaView view;
+    private DockView dock;
     private final Handler h = new Handler(Looper.getMainLooper());
     private final Runnable tick = new Runnable() {
         @Override
@@ -43,16 +44,72 @@ public class MediaCenterActivity extends Activity implements MediaHub.Listener {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN
-                | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        // NAPRAWA (ESSGOO): bez FLAG_FULLSCREEN (pasek statusu widoczny i wysuwalny).
+        // Okno pelnoekranowe, a dok rysujemy wewnatrz - jak w ConfigActivity.
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         view = new MediaView(this);
-        setContentView(view);
+
+        android.widget.FrameLayout frame = new android.widget.FrameLayout(this);
+        int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
+        android.widget.FrameLayout.LayoutParams vLp =
+                new android.widget.FrameLayout.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT);
+        if (Ui.dockLeft(this)) vLp.leftMargin = dockPx;
+        else vLp.rightMargin = dockPx;
+        frame.addView(view, vLp);
+        dock = new DockView(this);
+        dock.setListener(new DockView.Listener() {
+            @Override public void onHeader() {
+                startActivity(new Intent(MediaCenterActivity.this, ConnectivityActivity.class));
+            }
+            @Override public void onApp(int index) {
+                java.util.List<AppEntry> top = Prefs.top(MediaCenterActivity.this, 3);
+                if (index == 3) {
+                    Launch.carplay(MediaCenterActivity.this);
+                    finish();
+                } else if (index < top.size()) {
+                    Intent i = getPackageManager()
+                            .getLaunchIntentForPackage(top.get(index).pkg);
+                    if (i != null) {
+                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(i);
+                        finish();
+                    }
+                }
+            }
+            @Override public void onBottom() {
+                finish();
+            }
+            @Override public void onBottomLong() {
+            }
+        });
+        frame.addView(dock, new android.widget.FrameLayout.LayoutParams(dockPx,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                Ui.dockLeft(this) ? android.view.Gravity.START : android.view.Gravity.END));
+        setContentView(frame);
+    }
+
+    private void refreshDockData() {
+        if (dock == null) return;
+        java.util.List<AppEntry> top = Prefs.top(this, 3);
+        android.graphics.Bitmap[] ic = new android.graphics.Bitmap[4];
+        for (int i = 0; i < 3 && i < top.size(); i++) ic[i] = Icons.forEntry(this, top.get(i));
+        ic[3] = Icons.forEntry(this, Prefs.carplay(this));
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        String clock = String.format(java.util.Locale.US, "%02d:%02d",
+                cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE));
+        StatusCenter.Snap s = StatusCenter.get(this);
+        dock.setData(true, "glass".equals(Prefs.style(this)), clock, s,
+                Prefs.showVoltage(this), ic);
+        dock.setCarplayState(s.cp);
     }
 
     @Override
     protected void onStart() {
         super.onStart();
         MediaHub.get().attach(this, this);
+        refreshDockData();
         h.post(tick);
     }
 

@@ -20,6 +20,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.TextPaint;
 import android.text.TextUtils;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
@@ -47,19 +48,81 @@ public class NowPlayingActivity extends BaseActivity implements MediaHub.Listene
         night = Look.night(this);
         setTheme(android.R.style.Theme_Translucent_NoTitleBar);
         super.onCreate(b);
-        Ui.dockWindow(getWindow(), this);
+        // NAPRAWA (ESSGOO): pelne okno z dokiem rysowanym wewnatrz (wczesniej
+        // Ui.dockWindow zawezalo okno o 77 dp - pasek po boku pokazywal tlo
+        // systemu). Pasek statusu normalnie wysuwalny (bez immersive).
+        try {
+            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+        } catch (Throwable ignored) {
+        }
         root = new FrameLayout(this);
         root.setBackground(Ui.pageBg(this, night));
         pv = new PlayerView(this);
-        root.addView(pv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT));
+        FrameLayout.LayoutParams pvLp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
+        if (Ui.dockLeft(this)) pvLp.leftMargin = dockPx;
+        else pvLp.rightMargin = dockPx;
+        root.addView(pv, pvLp);
+        root.addView(buildDock(), new FrameLayout.LayoutParams(dockPx,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                Ui.dockLeft(this) ? Gravity.START : Gravity.END));
         setContentView(root);
+    }
+
+    private DockView dock;
+
+    private DockView buildDock() {
+        dock = new DockView(this);
+        dock.setListener(new DockView.Listener() {
+            @Override public void onHeader() {
+                // panel lacznosci jako osobne okno (overlay dziala tylko w launcherze)
+                startActivity(new Intent(NowPlayingActivity.this, ConnectivityActivity.class));
+            }
+            @Override public void onApp(int index) {
+                java.util.List<AppEntry> top = Prefs.top(NowPlayingActivity.this, 3);
+                if (index == 3) {
+                    Launch.carplay(NowPlayingActivity.this);
+                    finish();
+                } else if (index < top.size()) {
+                    Intent i = getPackageManager()
+                            .getLaunchIntentForPackage(top.get(index).pkg);
+                    if (i != null) {
+                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(i);
+                        finish();
+                    }
+                }
+            }
+            @Override public void onBottom() {
+                finish();
+            }
+            @Override public void onBottomLong() {
+            }
+        });
+        return dock;
+    }
+
+    private void refreshDockData() {
+        if (dock == null) return;
+        java.util.List<AppEntry> top = Prefs.top(this, 3);
+        android.graphics.Bitmap[] ic = new android.graphics.Bitmap[4];
+        for (int i = 0; i < 3 && i < top.size(); i++) ic[i] = Icons.forEntry(this, top.get(i));
+        ic[3] = Icons.forEntry(this, Prefs.carplay(this));
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        String clock = String.format(java.util.Locale.US, "%02d:%02d",
+                cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE));
+        StatusCenter.Snap s = StatusCenter.get(this);
+        dock.setData(night, "glass".equals(Prefs.style(this)), clock, s,
+                Prefs.showVoltage(this), ic);
+        dock.setCarplayState(s.cp);
     }
 
     @Override
     protected void onStart() {
         super.onStart();
         MediaHub.get().attach(this, this);
+        refreshDockData();
     }
 
     @Override
