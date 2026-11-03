@@ -70,26 +70,14 @@ public class ConfigActivity extends BaseActivity {
         night = Look.night(this);
         setTheme(night ? R.style.Dock_Night : R.style.Dock_Day);
         super.onCreate(b);
-        // NAPRAWA (ESSGOO/MT8163, Android 9): okno ustawien bylo wczesniej
-        // zwazone przez Ui.dockWindow (o 77 dp) i przesuniete, a pasek po boku
-        // nie nalezal do okna - widoczne bylo tlo pulpitu systemowego, bo
-        // launcher pod spodem byl wstrzymany w onStop(). Teraz okno jest
-        // pelnoekranowe, a dok rysujemy wewnatrz okna w build().
-        // SYSTEM_UI_FLAG_VISIBLE zeruje IMMERSIVE_STICKY z BaseActivity,
-        // wiec pasek statusu da sie normalnie wysunac (LAYOUT_FULLSCREEN tez znika).
+        // Pasek statusu domyslnie UKRYTY, wysuwalny gestem od gory
+        // (ten sam IMMERSIVE_STICKY co w launcherze). Po ~2 s od wysuniecia
+        // pasek sam sie chowa. W trybie dziennym jasne ikony paska.
         try {
-            View decor = getWindow().getDecorView();
-            if (night) {
-                decor.setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
-            } else {
-                decor.setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE
-                        | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-                        | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
-            }
-            getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN);
             getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL);
             getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
         } catch (Throwable ignored) {}
+        applyImmersive();
         p = Look.pal(night);
         StatusService.start(this);
         build();
@@ -877,7 +865,7 @@ public class ConfigActivity extends BaseActivity {
                 || s.contains("pasek stanu")) {
             return "Wygląd i dźwięk";
         }
-        // Reszta → Ogólne (Circadian, Kopia, Samochód i system, diagnostyka itd.)
+        // Reszta → Ogólne (Kopia, Samochód i system, diagnostyka itd.)
         return "Ogólne";
     }
 
@@ -1453,61 +1441,6 @@ public class ConfigActivity extends BaseActivity {
                 + "Przycisk sprawdza od razu – gdy pojawi się nowa wersja, pobierze ją "
                 + "i poprosi o potwierdzenie instalacji.");
 
-        section(col, "Circadian Display");
-        g = group(col);
-        g.addView(toggle("Wbudowana krzywa dobowa (ciepło + przyciemnienie ekranu)",
-                pl.dock.widget.circadian.CircadianPrefs.enabled(this), new BoolSetter() {
-            @Override
-            public void set(boolean v) {
-                pl.dock.widget.circadian.CircadianPrefs.setEnabled(ConfigActivity.this, v);
-                if (v && !pl.dock.widget.circadian.CircadianService.canDraw(ConfigActivity.this)) {
-                    Toast.makeText(ConfigActivity.this,
-                            "Nadaj Dockowi zgodę na wyświetlanie nad innymi aplikacjami.",
-                            Toast.LENGTH_LONG).show();
-                    try {
-                        startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                android.net.Uri.parse("package:" + getPackageName())));
-                    } catch (Throwable ignored) {}
-                }
-                pl.dock.widget.circadian.CircadianService.refresh(ConfigActivity.this);
-            }
-        }));
-        sep(g);
-        g.addView(row(null, "Edytor krzywej (profile pory dnia)", "", true, p.accent, new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                try {
-                    startActivity(new Intent(ConfigActivity.this,
-                            pl.dock.widget.circadian.CircadianActivity.class));
-                } catch (Throwable t) {
-                    Toast.makeText(ConfigActivity.this, "Nie udało się otworzyć edytora krzywej.", Toast.LENGTH_SHORT).show();
-                }
-            }
-        }));
-        if (pl.dock.widget.circadian.CircadianBridge.isInstalled(this)) {
-            sep(g);
-            g.addView(toggle("Automatycznie aktywuj profil Circadian przy trybie nocnym",
-                    Prefs.circadianAuto(this), new BoolSetter() {
-                @Override
-                public void set(boolean v) {
-                    Prefs.setCircadianAuto(ConfigActivity.this, v);
-                    if (v) {
-                        pl.dock.widget.circadian.CircadianBridge.setNightMode(
-                                ConfigActivity.this, Look.night(ConfigActivity.this));
-                    }
-                }
-            }));
-            g.addView(row(null, "Otwórz Circadian Display", "", true, p.accent, new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    android.content.Intent i = pl.dock.widget.circadian.CircadianBridge.openApp(ConfigActivity.this);
-                    if (i != null) startActivity(i);
-                }
-            }));
-        }
-        footer(col, "Wbudowany Circadian Display ustawia ciepło i przygaszenie ekranu wg krzywej z edytora powyżej "
-                + "(po włączeniu wraca też sam po restarcie urządzenia). Kafelek Night Shift w Centrum łączności "
-                + "ma pierwszeństwo — gdy jest włączony, krzywa czeka na jego wyłączenie. Cały mechanizm jest wbudowany, bez instalowania osobnej aplikacji.");
         section(col, "Kopia zapasowa");
         g = group(col);
         g.addView(row(null, "Eksportuj ustawienia do pliku", "", true, p.accent, new View.OnClickListener() {
@@ -1530,8 +1463,7 @@ public class ConfigActivity extends BaseActivity {
                 startActivityForResult(i, REQ_BACKUP_IMPORT);
             }
         }));
-        footer(col, "Kopia obejmuje listę aplikacji, widżety, tapetę, wygląd i wszystkie ustawienia Docka. "
-                + "Nie obejmuje pełnych danych Circadian Display — te mają własny eksport.");
+        footer(col, "Kopia obejmuje listę aplikacji, widżety, tapetę, wygląd i wszystkie ustawienia Docka.");
 
         section(col, "Telefon");
         g = group(col);
@@ -2152,5 +2084,26 @@ public class ConfigActivity extends BaseActivity {
                 changed();
             }
         });
+    }
+
+    private void applyImmersive() {
+        try {
+            int flags = View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN;
+            if (!night) {
+                flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            }
+            getWindow().getDecorView().setSystemUiVisibility(flags);
+        } catch (Throwable ignored) {}
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) applyImmersive();
     }
 }
