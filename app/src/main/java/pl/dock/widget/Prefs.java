@@ -861,14 +861,6 @@ public class Prefs {
         ed(c).putString("trusted", a.toString()).apply();
     }
 
-    public static boolean circadianAuto(Context c) {
-        return sp(c).getBoolean("circadian_auto", true);
-    }
-
-    public static void setCircadianAuto(Context c, boolean v) {
-        ed(c).putBoolean("circadian_auto", v).apply();
-    }
-
     public static String dspPkg(Context c) {
         String s = sp(c).getString("dsppkg", "");
         if (s.length() > 0) return s;
