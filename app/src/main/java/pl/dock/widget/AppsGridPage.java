@@ -245,14 +245,9 @@ public class AppsGridPage extends View implements EditModeController.Listener {
 
             bmp.setAlpha(pressed == i && !dragActive ? 190 : 255);
             r.set(x + inset, y + inset, x + iconSz - inset, y + iconSz - inset);
-            // squircle jak w iOS: kazda ikona przycieta do rogow 22.5% szerokosci
-            float rad = r.width() * 0.225f;
-            clipPath.reset();
-            clipPath.addRoundRect(r, rad, rad, Path.Direction.CW);
-            cv.save();
-            cv.clipPath(clipPath);
+            // ikony maja zaokraglone rogi wpisane w bitmape (Icons.compose),
+            // rysowanie bez przycinania = pelna plynnosc na slabym GPU
             cv.drawBitmap(b, null, r, bmp);
-            cv.restore();
 
             float pw = it.textW + 24f * d * sc;
             float px = x + iconSz / 2f - pw / 2f;
@@ -282,13 +277,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
             float y = dragY - iconSz / 2f;
             bmp.setAlpha(230);
             r.set(x, y, x + iconSz, y + iconSz);
-            float radF = iconSz * 0.225f;
-            clipPath.reset();
-            clipPath.addRoundRect(r, radF, radF, Path.Direction.CW);
-            cv.save();
-            cv.clipPath(clipPath);
             cv.drawBitmap(b, null, r, bmp);
-            cv.restore();
             // highlight target slot
             int target = hit(dragX, dragY);
             if (target >= 0 && target != dragIndex) {

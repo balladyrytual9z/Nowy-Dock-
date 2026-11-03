@@ -342,18 +342,33 @@ public class DockView extends View {
             drawIcon(cv, b, cx - sz / 2f, iconTop(i), sz, sz, pressed == i ? 150 : 255);
         }
 
-        // przycisk dolny: siatka -> symbol ekranu głównego
+        // przycisk dolny: ekran główny = jeden kwadrat z zaokrąglonymi rogami,
+        // strony aplikacji = siatka 9 kwadratow (3x3) jak w CarPlay; crossfade w czasie przejazdu
         float by = bottomCy();
         int pa = pressed == BOTTOM ? 150 : 255;
         float g = 20f * d;
         if (bottomT < 0.999f) {
-            drawIcon(cv, bGrid, cx - g / 2f, by - g / 2f, g, g, (int) (pa * (1f - bottomT)));
-        }
-        if (bottomT > 0.001f) {
-            // symbol ekranu głównego jak w CarPlay: jeden kwadrat z zaokrąglonymi rogami
-            homePaint.setAlpha((int) (pa * bottomT));
+            // jestesmy przy ekranie glownym: jeden zaokraglony kwadrat
+            homePaint.setAlpha((int) (pa * (1f - bottomT)));
             rect.set(cx - g / 2f, by - g / 2f, cx + g / 2f, by + g / 2f);
             cv.drawRoundRect(rect, 6f * d, 6f * d, homePaint);
+        }
+        if (bottomT > 0.001f) {
+            // jestesmy przy stronach aplikacji: siatka 9 kwadratow (3x3)
+            homePaint.setAlpha((int) (pa * bottomT));
+            homePaint.setStyle(Paint.Style.FILL);
+            float gap = g / 3f;
+            float q = gap * 0.62f;
+            float rr2 = q * 0.28f;
+            for (int gy = 0; gy < 3; gy++) {
+                for (int gx = 0; gx < 3; gx++) {
+                    float x0 = cx - g / 2f + gx * gap + (gap - q) / 2f;
+                    float y0 = by - g / 2f + gy * gap + (gap - q) / 2f;
+                    rect.set(x0, y0, x0 + q, y0 + q);
+                    cv.drawRoundRect(rect, rr2, rr2, homePaint);
+                }
+            }
+            homePaint.setStyle(Paint.Style.STROKE);
         }
     }
 
