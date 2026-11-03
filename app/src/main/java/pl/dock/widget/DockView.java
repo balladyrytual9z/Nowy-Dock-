@@ -350,21 +350,10 @@ public class DockView extends View {
             drawIcon(cv, bGrid, cx - g / 2f, by - g / 2f, g, g, (int) (pa * (1f - bottomT)));
         }
         if (bottomT > 0.001f) {
-            // przycisk Home: domek jak w iOS, nie zwykly prostokat
+            // symbol ekranu głównego jak w CarPlay: jeden kwadrat z zaokrąglonymi rogami
             homePaint.setAlpha((int) (pa * bottomT));
-            homePaint.setStyle(Paint.Style.STROKE);
-            homePaint.setStrokeJoin(android.graphics.Paint.Join.ROUND);
-            float hs = g / 2f;
-            android.graphics.Path hp = new android.graphics.Path();
-            hp.moveTo(cx - hs, by - hs * 0.08f);
-            hp.lineTo(cx, by - hs);
-            hp.lineTo(cx + hs, by - hs * 0.08f);
-            hp.moveTo(cx - hs * 0.72f, by - hs * 0.02f);
-            hp.lineTo(cx - hs * 0.72f, by + hs);
-            hp.lineTo(cx + hs * 0.72f, by + hs);
-            hp.lineTo(cx + hs * 0.72f, by - hs * 0.02f);
-            hp.close();
-            cv.drawPath(hp, homePaint);
+            rect.set(cx - g / 2f, by - g / 2f, cx + g / 2f, by + g / 2f);
+            cv.drawRoundRect(rect, 6f * d, 6f * d, homePaint);
         }
     }
 
