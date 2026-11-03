@@ -209,7 +209,9 @@ public class ConnectivityPanel extends LinearLayout {
             rail.addView(t, tlp);
             railTiles.add(t);
         }
-        LayoutParams rlp = new LayoutParams(dp(72), ViewGroup.LayoutParams.MATCH_PARENT);
+        // stala wysokosc 240dp = dokladnie wysokosc lewej kolumny (172 suwaki + 10 + 58 przyciski);
+        // MATCH_PARENT rozciagalo kolumne na caly ekran i panel mial wysokosc ekranu
+        LayoutParams rlp = new LayoutParams(dp(72), dp(240));
         rlp.leftMargin = dp(10);
         main.addView(rail, rlp);
 
@@ -346,8 +348,11 @@ public class ConnectivityPanel extends LinearLayout {
         return null;
     }
 
-    /** iOS-style staggered spring entrance for modules. */
+    /** iOS-style staggered spring entrance for modules. Odporna wersja:
+     *  jesli animacja nie wystartuje (slaby GPU / dziwny ROM), moduly i tak
+     *  staja sie widoczne - siatka bezpieczenstwa przywraca alpha po czasie. */
     private void playStaggerIn() {
+        if (staggerViews.isEmpty() || Prefs.reduceMotion(act)) return;
         long delay = 0;
         for (View v : staggerViews) {
             if (v == null) continue;
@@ -358,15 +363,36 @@ public class ConnectivityPanel extends LinearLayout {
             postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    fv.animate()
-                            .alpha(1f).translationY(0f)
-                            .setDuration(320)
-                            .setInterpolator(pl.dock.widget.ui.DockMotion.IOS_SPRING)
-                            .start();
+                    try {
+                        fv.animate()
+                                .alpha(1f).translationY(0f)
+                                .setDuration(320)
+                                .setInterpolator(pl.dock.widget.ui.DockMotion.IOS_SPRING)
+                                .start();
+                    } catch (Throwable e) {
+                        fv.setAlpha(1f);
+                        fv.setTranslationY(0f);
+                    }
                 }
             }, dl);
             delay += 55;
         }
+        // siatka bezpieczenstwa: po zakonczeniu calej sekwencji (+ zapas) sprawdz
+        // widocznosc; jesli jakis modul nadal jest przezroczysty, przywroc go na sztywno
+        final long deadline = delay + 700;
+        postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                for (View v : staggerViews) {
+                    if (v == null) continue;
+                    if (v.getAlpha() < 0.99f) {
+                        try { v.animate().cancel(); } catch (Throwable ignored) { }
+                        v.setAlpha(1f);
+                    }
+                    if (v.getTranslationY() != 0f) v.setTranslationY(0f);
+                }
+            }
+        }, deadline);
     }
 
     // ---------------------------------------------------------------- tryb edycji
