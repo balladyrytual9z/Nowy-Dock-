@@ -1,4 +1,4 @@
-# CI failure log (run 41670892308)
+# CI failure log (run 41671646558)
 
 ## build.log
 
@@ -33,8 +33,8 @@ to this project's gradle.properties.
 > Task :app:mergeDebugResources
 > Task :app:createDebugCompatibleScreenManifests
 > Task :app:extractDeepLinksDebug
-> Task :app:parseDebugLocalResources
 > Task :app:processDebugMainManifest
+> Task :app:parseDebugLocalResources
 > Task :app:processDebugManifest
 > Task :app:javaPreCompileDebug
 > Task :app:mergeDebugShaders
@@ -50,8 +50,8 @@ to this project's gradle.properties.
 > Task :app:mergeDebugNativeLibs NO-SOURCE
 > Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:validateSigningDebug
-> Task :app:mergeLibDexDebug
 > Task :app:writeDebugAppMetadata
+> Task :app:mergeLibDexDebug
 > Task :app:writeDebugSigningConfigVersions
 > Task :app:processDebugResources
 > Task :app:mergeExtDexDebug
@@ -83,24 +83,12 @@ w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widg
 /home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityActivity.java:103: error: package java.graphics does not exist
         java.graphics.Bitmap[] ic = new java.graphics.Bitmap[4];
                                                      ^
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/NowPlayingActivity.java:80: error: cannot find symbol
-                startActivity(new Intent(NowPlayingActivity.this, ConnectivityActivity.class));
-                                  ^
-  symbol: class Intent
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/NowPlayingActivity.java:88: error: cannot find symbol
-                    Intent i = getPackageManager()
-                    ^
-  symbol: class Intent
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/NowPlayingActivity.java:91: error: cannot find symbol
-                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                                   ^
-  symbol: variable Intent
 Note: Some input files use or override a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
-6 errors
+3 errors
 
 > Task :app:compileDebugJavaWithJavac FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793722133190.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793722349623.json
 
 FAILURE: Build failed with an exception.
 
