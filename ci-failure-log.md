@@ -1,4 +1,4 @@
-# CI failure log (run 41605754109)
+# CI failure log (run 41630103374)
 
 ## build.log
 
@@ -25,8 +25,8 @@ to this project's gradle.properties.
 > Task :app:preDebugBuild UP-TO-DATE
 > Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
 > Task :app:checkKotlinGradlePluginConfigurationErrors
-> Task :app:checkDebugAarMetadata
 > Task :app:generateDebugResValues
+> Task :app:checkDebugAarMetadata
 > Task :app:mapDebugSourceSetPaths
 > Task :app:generateDebugResources
 > Task :app:packageDebugResources
@@ -41,15 +41,15 @@ to this project's gradle.properties.
 > Task :app:compileDebugShaders NO-SOURCE
 > Task :app:generateDebugAssets UP-TO-DATE
 > Task :app:mergeDebugAssets
-> Task :app:processDebugManifestForPackage
 > Task :app:compressDebugAssets
+> Task :app:processDebugManifestForPackage
+> Task :app:checkDebugDuplicateClasses
 > Task :app:desugarDebugFileDependencies
 > Task :app:mergeDebugStartupProfile
-> Task :app:checkDebugDuplicateClasses
 > Task :app:mergeDebugJniLibFolders
+> Task :app:mergeLibDexDebug
 > Task :app:mergeDebugNativeLibs NO-SOURCE
 > Task :app:stripDebugDebugSymbols NO-SOURCE
-> Task :app:mergeLibDexDebug
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
 > Task :app:writeDebugSigningConfigVersions
@@ -70,15 +70,17 @@ w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widg
 w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/transport/SppTransport.kt:105:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
 
 > Task :app:compileDebugJavaWithJavac
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/DockView.java:365: error: variable x0 is already defined in method onDraw(Canvas)
-                    float x0 = cx - g / 2f + gx * gap + (gap - q) / 2f;
-                          ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/AppLibraryPage.java:463: error: cannot find symbol
+                new android.content.res.ColorStateList.valueOf(night ? 0x26FFFFFF : 0x14000000),
+                                                      ^
+  symbol:   class valueOf
+  location: class ColorStateList
 Note: Some input files use or override a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
 1 error
 
 > Task :app:compileDebugJavaWithJavac FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793695619012.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793706367650.json
 
 FAILURE: Build failed with an exception.
 
@@ -277,7 +279,7 @@ Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Com
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 
 
-BUILD FAILED in 39s
+BUILD FAILED in 40s
 30 actionable tasks: 29 executed, 1 up-to-date
 
 ## ci.log
