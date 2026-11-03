@@ -349,8 +349,21 @@ public class ConnectivityPanel extends LinearLayout {
             if (!Net.openTetherSettings(act)) unavailable();
             else host.close();
         } else if ("wifi".equals(id)) {
-            if (!Net.openWifiSettings(act)) unavailable();
-            else host.close();
+            if (longPress) {
+                if (!Net.openWifiSettings(act)) unavailable();
+                else host.close();
+            } else {
+                // najpierw sprobuj przeplaczyc Wi-Fi bezposrednio (Android 9 pozwala);
+                // jesli sie nie da - otworz ustawienia Wi-Fi jak wroadziej
+                boolean before = Net.wifiEnabled(act);
+                if (Net.setWifi(act, !before)) {
+                    refreshSoon();
+                } else if (!Net.openWifiSettings(act)) {
+                    unavailable();
+                } else {
+                    host.close();
+                }
+            }
         } else if ("bt".equals(id)) {
             if (longPress) {
                 Net.openBluetoothSettings(act);

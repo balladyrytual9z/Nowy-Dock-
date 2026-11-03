@@ -254,6 +254,8 @@ public final class PanelTool {
             id = id.trim();
             if (find(id) != null && !out.contains(id)) out.add(id);
         }
+        // stary/uszkodzony zapis z prawie zerem kafelkow = przywroc domyslne narzedzia
+        if (out.size() < 3) return defaults(c);
         return out;
     }
 
