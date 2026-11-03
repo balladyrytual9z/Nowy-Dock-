@@ -96,35 +96,42 @@ public class AppLibraryPage extends FrameLayout {
         int extraL = dockLeft ? dockInset : 0;
         int extraR = dockLeft ? 0 : dockInset;
 
-        // Title + iOS-style search bar
+        // jak w Bibliotece aplikacji iOS: na gorze sam pasek wyszukiwania
+        // (tytul strony jest teraz placeholderem tego pola)
         LinearLayout header = new LinearLayout(ctx);
         header.setOrientation(LinearLayout.VERTICAL);
-        header.setPadding(dp(16) + extraL, dp(12), dp(16) + extraR, dp(4));
-
-        title = new TextView(ctx);
-        title.setText("Biblioteka aplikacji");
-        title.setTextSize(28);
-        title.setTypeface(pl.dock.widget.ui.DockTheme.interSemiBold());
-        title.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
-        title.setGravity(Gravity.START);
-        title.setPadding(0, 0, 0, dp(10));
-        header.addView(title);
+        header.setPadding(dp(16) + extraL, dp(14), dp(16) + extraR, dp(6));
 
         // Search bar â opens inline filter
         final android.widget.EditText searchEt = new android.widget.EditText(ctx);
-        searchEt.setHint("Szukaj");
-        searchEt.setTextSize(16);
+        searchEt.setHint("Biblioteka aplikacji");
+        searchEt.setTextSize(17);
         searchEt.setTypeface(pl.dock.widget.ui.DockTheme.interRegular());
         searchEt.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
-        searchEt.setHintTextColor(night ? 0x99FFFFFF : 0x99666666);
+        searchEt.setHintTextColor(night ? 0x99FFFFFF : 0x996C6C70);
         searchEt.setSingleLine(true);
         searchEt.setBackground(new android.graphics.drawable.GradientDrawable() {{
-            setCornerRadius(dp(24));
-            setColor(night ? 0x4DFFFFFF : 0xCCFFFFFF);
-            setStroke(Math.max(1, (int) (0.5f * d)), 0x33FFFFFF);
+            setCornerRadius(dp(22));
+            setColor(night ? 0x33FFFFFF : 0xCCFFFFFF);
+            setStroke(Math.max(1, (int) (0.5f * d)), night ? 0x33FFFFFF : 0x2E000000);
         }});
+        // ikona lupy po lewej stronie pola (rysowana recznie, zero zasobow)
+        int msz = dp(20);
+        android.graphics.Bitmap mb = android.graphics.Bitmap.createBitmap(
+                msz, msz, android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas mc = new android.graphics.Canvas(mb);
+        android.graphics.Paint mp = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        mp.setStyle(android.graphics.Paint.Style.STROKE);
+        mp.setStrokeWidth(1.8f * d);
+        mp.setStrokeCap(android.graphics.Paint.Cap.ROUND);
+        mp.setColor(night ? 0x99FFFFFF : 0x993C3C43);
+        mc.drawCircle(msz * 0.40f, msz * 0.40f, msz * 0.26f, mp);
+        mc.drawLine(msz * 0.60f, msz * 0.60f, msz * 0.80f, msz * 0.80f, mp);
+        searchEt.setCompoundDrawablesWithIntrinsicBounds(
+                new android.graphics.drawable.BitmapDrawable(ctx.getResources(), mb), null, null, null);
+        searchEt.setCompoundDrawablePadding(dp(10));
         searchEt.setPadding(dp(14), dp(10), dp(14), dp(10));
-        searchEt.setMinimumHeight(dp(40));
+        searchEt.setMinimumHeight(dp(46));
         searchBar = searchEt;
         header.addView(searchEt, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -160,7 +167,7 @@ public class AppLibraryPage extends FrameLayout {
 
         LayoutParams scLp = new LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        scLp.topMargin = dp(100);
+        scLp.topMargin = dp(72);
         addView(scrollView, scLp);
 
         // AâZ letter index (iOS style)
@@ -222,7 +229,7 @@ public class AppLibraryPage extends FrameLayout {
         });
         LayoutParams lbLp = new LayoutParams(dp(34), ViewGroup.LayoutParams.MATCH_PARENT);
         lbLp.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
-        lbLp.topMargin = dp(100);
+        lbLp.topMargin = dp(72);
         lbLp.rightMargin = extraR;
         lbLp.leftMargin = extraL;
         addView(letterBar, lbLp);
@@ -237,7 +244,7 @@ public class AppLibraryPage extends FrameLayout {
         stickyHeader.setVisibility(GONE);
         LayoutParams shLp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
-        shLp.topMargin = dp(100);
+        shLp.topMargin = dp(72);
         addView(stickyHeader, shLp);
 
         // aktualizacja sticky przy przewijaniu listy
@@ -446,8 +453,15 @@ public class AppLibraryPage extends FrameLayout {
         LinearLayout row = new LinearLayout(ctx);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(16), dp(7), dp(16), dp(7));
+        row.setPadding(dp(16), dp(8), dp(16), dp(8));
         row.setTag(app);
+        // rozjasnienie przy dotknieciu (lekkie, bez ciezkiego ripple)
+        android.graphics.drawable.GradientDrawable rowMask = new android.graphics.drawable.GradientDrawable();
+        rowMask.setCornerRadius(dp(14));
+        rowMask.setColor(0x00000000);
+        row.setBackground(new android.graphics.drawable.RippleDrawable(
+                new android.content.res.ColorStateList.valueOf(night ? 0x26FFFFFF : 0x14000000),
+                null, rowMask));
 
         FrameLayout iconBox = new FrameLayout(ctx);
         android.widget.ImageView iv = new android.widget.ImageView(ctx);
