@@ -460,7 +460,7 @@ public class AppLibraryPage extends FrameLayout {
         rowMask.setCornerRadius(dp(14));
         rowMask.setColor(0x00000000);
         row.setBackground(new android.graphics.drawable.RippleDrawable(
-                new android.content.res.ColorStateList.valueOf(night ? 0x26FFFFFF : 0x14000000),
+                android.content.res.ColorStateList.valueOf(night ? 0x26FFFFFF : 0x14000000),
                 null, rowMask));
 
         FrameLayout iconBox = new FrameLayout(ctx);
