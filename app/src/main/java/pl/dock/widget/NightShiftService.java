@@ -4,9 +4,12 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.os.Build;
 import android.os.Handler;
@@ -27,7 +30,7 @@ public class NightShiftService extends Service {
     private static final long SUN_CHECK_MS = 60000L;  // sprawdzenie zachodu co minute
 
     private WindowManager wm;
-    private View overlay;
+    private FilterView overlay;
     private final Handler h = new Handler(Looper.getMainLooper());
     private android.animation.ValueAnimator anim;
     private float currentAlpha = 0f;   // aktualna widoczna sila filtru (0..1)
@@ -68,17 +71,21 @@ public class NightShiftService extends Service {
         return START_NOT_STICKY;
     }
 
-    // docelowa widocznosc filtru jako ulamek 0..1
+    /**
+     * Wartosc 5-80 z suwaka w Ustawieniach/Panelu -> ulamek 0..1.
+     * 5  -> 0.05  (ledwo cieply, ~6300 K)
+     * 40 -> 0.40  (domyslny, ~4780 K)
+     * 80 -> 0.80  (mocno cieply, ~3060 K)
+     */
     private float targetStrengthFraction() {
         int strength = Math.max(5, Math.min(80, Prefs.nightShiftStrength(this)));
-        return (strength / 100f) * 0.55f;
+        return strength / 100f;
     }
 
     private void applyFraction(float f) {
         currentAlpha = f;
         if (overlay != null) {
-            int a = Math.round(255f * Math.max(0f, Math.min(1f, f)));
-            overlay.setBackgroundColor(Color.argb(a, 255, 140, 40));
+            overlay.setWarmthFraction(f);
         }
     }
 
@@ -134,7 +141,7 @@ public class NightShiftService extends Service {
         try {
             if (wm == null) wm = (WindowManager) getSystemService(WINDOW_SERVICE);
             if (overlay == null) {
-                overlay = new View(this);
+                overlay = new FilterView(this);
                 int type = Build.VERSION.SDK_INT >= 26
                         ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                         : WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY;
@@ -178,5 +185,52 @@ public class NightShiftService extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         return null;
+    }
+
+    /**
+     * Dwie warstwy nakladki:
+     *  1) czarna - przyciemnienie (dim), skaluje sie z ulamkiem
+     *  2) kolor z kelwinow - cieplo (warmth), skaluje sie z ulamkiem
+     * Kolor liczony dynamicznie: 6500 K (neutralny) -> 2200 K (swieca).
+     * Zero alokacji w onDraw - malowane sa dwa pelne prostokaty.
+     */
+    private static final class FilterView extends View {
+
+        private static final float DIM_MAX  = 0.30f;
+        private static final float WARM_MAX = 0.50f;
+
+        private float warmth = 0f;
+        private final Paint dimPaint  = new Paint();
+        private final Paint warmPaint = new Paint();
+
+        FilterView(Context c) {
+            super(c);
+            dimPaint.setColor(0xFF000000);
+            warmPaint.setColor(0xFFFFB300);
+            setWillNotDraw(false);
+        }
+
+        void setWarmthFraction(float f) {
+            f = Math.max(0f, Math.min(1f, f));
+            if (Math.abs(f - warmth) < 0.0005f) return;
+            warmth = f;
+
+            double kelvin = ColorTemp.fractionToKelvin(f);
+            int[] rgb = ColorTemp.kelvinToRgb(kelvin);
+            warmPaint.setColor(Color.argb(255, rgb[0], rgb[1], rgb[2]));
+
+            dimPaint.setAlpha(Math.round(DIM_MAX  * f * 255f));
+            warmPaint.setAlpha(Math.round(WARM_MAX * f * 255f));
+            invalidate();
+        }
+
+        @Override
+        protected void onDraw(Canvas c) {
+            if (warmth <= 0f) return;
+            int w = getWidth();
+            int h = getHeight();
+            c.drawRect(0f, 0f, w, h, dimPaint);
+            c.drawRect(0f, 0f, w, h, warmPaint);
+        }
     }
 }
