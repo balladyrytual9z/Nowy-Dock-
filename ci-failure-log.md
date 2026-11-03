@@ -1,4 +1,4 @@
-# CI failure log (run 41630103374)
+# CI failure log (run 41670892308)
 
 ## build.log
 
@@ -42,21 +42,25 @@ to this project's gradle.properties.
 > Task :app:generateDebugAssets UP-TO-DATE
 > Task :app:mergeDebugAssets
 > Task :app:compressDebugAssets
-> Task :app:processDebugManifestForPackage
-> Task :app:checkDebugDuplicateClasses
 > Task :app:desugarDebugFileDependencies
 > Task :app:mergeDebugStartupProfile
+> Task :app:checkDebugDuplicateClasses
 > Task :app:mergeDebugJniLibFolders
-> Task :app:mergeLibDexDebug
+> Task :app:processDebugManifestForPackage
 > Task :app:mergeDebugNativeLibs NO-SOURCE
 > Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:validateSigningDebug
+> Task :app:mergeLibDexDebug
 > Task :app:writeDebugAppMetadata
 > Task :app:writeDebugSigningConfigVersions
 > Task :app:processDebugResources
 > Task :app:mergeExtDexDebug
 
 > Task :app:compileDebugKotlin
+w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/orchestration/ConnectionManager.kt:313:18 Variable 'n0' initializer is redundant
+w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/orchestration/ConnectionManager.kt:325:17 The value '-1' assigned to 'var n0: Int defined in pl.dock.widget.orchestration.ConnectionManager.scanAb' is never used
+w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/orchestration/PidScheduler.kt:214:18 Variable 'n0' initializer is redundant
+w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/orchestration/PidScheduler.kt:226:17 The value '-1' assigned to 'var n0: Int defined in pl.dock.widget.orchestration.PidScheduler.scanAb' is never used
 w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/transport/BleTransport.kt:113:40 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
 w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/transport/BleTransport.kt:184:34 This declaration overrides deprecated member but not marked as deprecated itself. Please add @Deprecated annotation or suppress. See https://youtrack.jetbrains.com/issue/KT-47902 for details
 w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/transport/BleTransport.kt:188:51 'getter for value: ByteArray!' is deprecated. Deprecated in Java
@@ -70,17 +74,33 @@ w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widg
 w: file:///home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/transport/SppTransport.kt:105:30 'getDefaultAdapter(): BluetoothAdapter!' is deprecated. Deprecated in Java
 
 > Task :app:compileDebugJavaWithJavac
-/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/AppLibraryPage.java:463: error: cannot find symbol
-                new android.content.res.ColorStateList.valueOf(night ? 0x26FFFFFF : 0x14000000),
-                                                      ^
-  symbol:   class valueOf
-  location: class ColorStateList
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityActivity.java:101: error: package java.graphics does not exist
+    private java.graphics.Bitmap[] dockIcons() {
+                         ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityActivity.java:103: error: package java.graphics does not exist
+        java.graphics.Bitmap[] ic = new java.graphics.Bitmap[4];
+                     ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/ConnectivityActivity.java:103: error: package java.graphics does not exist
+        java.graphics.Bitmap[] ic = new java.graphics.Bitmap[4];
+                                                     ^
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/NowPlayingActivity.java:80: error: cannot find symbol
+                startActivity(new Intent(NowPlayingActivity.this, ConnectivityActivity.class));
+                                  ^
+  symbol: class Intent
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/NowPlayingActivity.java:88: error: cannot find symbol
+                    Intent i = getPackageManager()
+                    ^
+  symbol: class Intent
+/home/runner/work/Nowy-Dock-/Nowy-Dock-/app/src/main/java/pl/dock/widget/NowPlayingActivity.java:91: error: cannot find symbol
+                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                   ^
+  symbol: variable Intent
 Note: Some input files use or override a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
-1 error
+6 errors
 
 > Task :app:compileDebugJavaWithJavac FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793706367650.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1793722133190.json
 
 FAILURE: Build failed with an exception.
 
@@ -279,7 +299,7 @@ Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Com
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 
 
-BUILD FAILED in 40s
+BUILD FAILED in 46s
 30 actionable tasks: 29 executed, 1 up-to-date
 
 ## ci.log
