@@ -410,7 +410,7 @@ public class ToolGrid extends ViewGroup {
         grabX = x - v.getLeft();
         grabY = y - v.getTop();
         v.animate().cancel();
-        pl.dock.widget.ui.DockMotion.springScale(v, 1.08f, pl.dock.widget.ui.DockMotion.STIFFNESS_HIGH, 0.7f);
+        v.animate().scaleX(1.08f).scaleY(1.08f).setDuration(120).start();
         v.setElevation(dp(6));   // iOS: kafelek unosci sie nad reszte
         performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
         if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
@@ -445,16 +445,13 @@ public class ToolGrid extends ViewGroup {
         if (it == null) return;
         final View v = it.view;
         v.setElevation(0f);
-        // sprezyna fizyczna jak w iOS: kafelek "wpada" na swoje miejsce z pedem
-        pl.dock.widget.ui.DockMotion.springX(v, 0f, pl.dock.widget.ui.DockMotion.STIFFNESS_LOW, 0.72f);
-        pl.dock.widget.ui.DockMotion.springY(v, 0f, pl.dock.widget.ui.DockMotion.STIFFNESS_LOW, 0.72f);
-        pl.dock.widget.ui.DockMotion.springScale(v, 1f, pl.dock.widget.ui.DockMotion.STIFFNESS_MEDIUM, 0.75f);
-        v.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                if (editing && items.contains(it)) startWobble(v);
-            }
-        }, 400);
+        v.animate().translationX(0f).translationY(0f).scaleX(1f).scaleY(1f)
+                .setDuration(180).withEndAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (editing && items.contains(it)) startWobble(v);
+                    }
+                }).start();
         host.onChanged(ids());
     }
 
@@ -564,12 +561,12 @@ public class ToolGrid extends ViewGroup {
                     cx - dia / 2f, cy - dia / 2f, cx + dia / 2f, cy + dia / 2f);
             p.setStyle(Paint.Style.FILL);
             p.setColor(fill);
-            Ui.drawSuper(cv, body, p, rad);
+            cv.drawRoundRect(body, rad, rad, p);
             // iOS 26 Liquid Glass: szklana krawedz (rim) dookola kafelka
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeWidth(1.2f * d);
             p.setColor(night ? 0x40FFFFFF : 0x80FFFFFF);
-            Ui.drawSuper(cv, body, p, rad);
+            cv.drawRoundRect(body, rad, rad, p);
             p.setStyle(Paint.Style.FILL);
             if (def.kind == PanelTool.K_APP) {
                 android.graphics.Bitmap ic = null;
@@ -595,9 +592,9 @@ public class ToolGrid extends ViewGroup {
             int a = e.getActionMasked();
             if (a == MotionEvent.ACTION_DOWN) {
                 performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);
-                pl.dock.widget.ui.DockMotion.press(this);
+                animate().scaleX(0.94f).scaleY(0.94f).setDuration(80).start();
             } else if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
-                pl.dock.widget.ui.DockMotion.release(this);
+                animate().scaleX(1f).scaleY(1f).setDuration(120).start();
             }
             return super.onTouchEvent(e);
         }

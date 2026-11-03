@@ -223,20 +223,6 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         return -1;
     }
 
-    // ikona przycieta do squircle z pelnym antyaliasingiem (BitmapShader);
-    // clipPath nie wygladza krawedzi na Androidzie 9, ikony mialy poszarpane brzegi
-    private void drawRoundedIcon(Canvas cv, Bitmap b, RectF rr) {
-        if (b == null || b.getWidth() <= 0 || b.getHeight() <= 0) return;
-        float rad = rr.width() * 0.225f;
-        android.graphics.BitmapShader sh = new android.graphics.BitmapShader(b,
-                android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP);
-        android.graphics.Matrix m = new android.graphics.Matrix();
-        m.setScale(rr.width() / b.getWidth(), rr.height() / b.getHeight());
-        sh.setLocalMatrix(m);
-        bmp.setShader(sh);
-        cv.drawRoundRect(rr, rad, rad, bmp);
-        bmp.setShader(null);
-    }
 
     @Override
     protected void onDraw(Canvas cv) {
@@ -259,8 +245,14 @@ public class AppsGridPage extends View implements EditModeController.Listener {
 
             bmp.setAlpha(pressed == i && !dragActive ? 190 : 255);
             r.set(x + inset, y + inset, x + iconSz - inset, y + iconSz - inset);
-            // squircle z pelnym antyaliasingiem (BitmapShader, nie clipPath)
-            drawRoundedIcon(cv, b, r);
+            // squircle jak w iOS: kazda ikona przycieta do rogow 22.5% szerokosci
+            float rad = r.width() * 0.225f;
+            clipPath.reset();
+            clipPath.addRoundRect(r, rad, rad, Path.Direction.CW);
+            cv.save();
+            cv.clipPath(clipPath);
+            cv.drawBitmap(b, null, r, bmp);
+            cv.restore();
 
             float pw = it.textW + 24f * d * sc;
             float px = x + iconSz / 2f - pw / 2f;
@@ -290,7 +282,13 @@ public class AppsGridPage extends View implements EditModeController.Listener {
             float y = dragY - iconSz / 2f;
             bmp.setAlpha(230);
             r.set(x, y, x + iconSz, y + iconSz);
-            drawRoundedIcon(cv, b, r);
+            float radF = iconSz * 0.225f;
+            clipPath.reset();
+            clipPath.addRoundRect(r, radF, radF, Path.Direction.CW);
+            cv.save();
+            cv.clipPath(clipPath);
+            cv.drawBitmap(b, null, r, bmp);
+            cv.restore();
             // highlight target slot
             int target = hit(dragX, dragY);
             if (target >= 0 && target != dragIndex) {

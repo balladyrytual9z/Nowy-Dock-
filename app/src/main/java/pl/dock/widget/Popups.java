@@ -52,24 +52,8 @@ public class Popups {
             }
         });
 
-        // Liquid Glass: na Androidzie 12+ (API 31+) prawdziwy, sprzetowy blur systemowy
-        // (FLAG_BLUR_BEHIND) - zero obciazenia CPU, reaguje na zycie. Starsze wersje:
-        // programowy snapshot z rozmyciem jak dotychczas.
+        // Liquid Glass: blurred screenshot under the panel
         if (blur) {
-            boolean hwBlur = false;
-            if (android.os.Build.VERSION.SDK_INT >= 31) {
-                try {
-                    android.view.Window w0 = d.getWindow();
-                    android.view.WindowManager.LayoutParams lp = w0.getAttributes();
-                    lp.flags |= android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND;
-                    lp.setBlurBehindRadius(Ui.dp(a, 30));
-                    w0.setAttributes(lp);
-                    hwBlur = true;
-                } catch (Throwable ignored) {
-                    hwBlur = false;
-                }
-            }
-            if (!hwBlur) {
             try {
                 View decor = a.getWindow().getDecorView();
                 int k = 4;
@@ -87,7 +71,6 @@ public class Popups {
                 root.addView(bg, new FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             } catch (Throwable ignored) {
-            }
             }
         }
 

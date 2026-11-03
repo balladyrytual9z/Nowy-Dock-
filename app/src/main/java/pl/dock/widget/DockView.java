@@ -263,7 +263,7 @@ public class DockView extends View {
                     new int[]{0x44FFFFFF, 0x10FFFFFF, 0x04FFFFFF, 0x22FFFFFF},
                     new float[]{0f, 0.25f, 0.7f, 1f}, Shader.TileMode.CLAMP));
             rect.set(l, t, rr, bt);
-            Ui.drawSuper(cv, rect, glassPaint, rad);
+            cv.drawRoundRect(rect, rad, rad, glassPaint);
             Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
             edge.setStyle(Paint.Style.STROKE);
             edge.setStrokeWidth(1.4f * d);
@@ -271,7 +271,7 @@ public class DockView extends View {
                     new int[]{0xCCFFFFFF, 0x44FFFFFF, 0x14FFFFFF, 0x55FFFFFF},
                     new float[]{0f, 0.3f, 0.75f, 1f}, Shader.TileMode.CLAMP));
             rect.set(l + d * 0.7f, t + d * 0.7f, rr - d * 0.7f, bt - d * 0.7f);
-            Ui.drawSuper(cv, rect, edge, rad - d * 0.7f);
+            cv.drawRoundRect(rect, rad - d * 0.7f, rad - d * 0.7f, edge);
         } else {
             // kolor docka w nocy: #131418; ramka jaśniejsza od lewego górnego rogu
             float nb = night ? 1f : blend;
@@ -279,7 +279,7 @@ public class DockView extends View {
             card.setShader(null);
             card.setColor(lerp(0xFFF2F2F5, 0xFF131418, nb));
             rect.set(l, t, rr, bt);
-            Ui.drawSuper(cv, rect, card, rad);
+            cv.drawRoundRect(rect, rad, rad, card);
             card.setStyle(Paint.Style.STROKE);
             card.setStrokeWidth(1.8f * d);
             boolean en = effNight();
@@ -288,7 +288,7 @@ public class DockView extends View {
                             : new int[]{0x99FFFFFF, 0x55808090, 0x22808090, 0x40808090},
                     new float[]{0f, 0.3f, 0.75f, 1f}, Shader.TileMode.CLAMP));
             rect.set(l + d, t + d, rr - d, bt - d);
-            Ui.drawSuper(cv, rect, card, rad - d);
+            cv.drawRoundRect(rect, rad - d, rad - d, card);
             card.setShader(null);
         }
 
@@ -339,7 +339,7 @@ public class DockView extends View {
         for (int i = 0; i < 4; i++) {
             Bitmap b = icons[i];
             if (b == null) continue;
-            drawRoundedIcon(cv, b, cx - sz / 2f, iconTop(i), sz, pressed == i ? 150 : 255);
+            drawIcon(cv, b, cx - sz / 2f, iconTop(i), sz, sz, pressed == i ? 150 : 255);
         }
 
         // przycisk dolny: siatka -> symbol ekranu głównego
@@ -375,21 +375,6 @@ public class DockView extends View {
         cv.drawBitmap(b, null, rect, bmpPaint);
     }
 
-    // ikona aplikacji pod zegarem: squircle z pelnym antyaliasingiem (BitmapShader)
-    private void drawRoundedIcon(Canvas cv, Bitmap b, float l, float t, float sz, int alpha) {
-        if (b == null || b.getWidth() <= 0 || b.getHeight() <= 0 || alpha <= 0) return;
-        bmpPaint.setAlpha(alpha);
-        rect.set(l, t, l + sz, t + sz);
-        float rad = sz * 0.225f;
-        android.graphics.BitmapShader sh = new android.graphics.BitmapShader(b,
-                android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP);
-        android.graphics.Matrix m = new android.graphics.Matrix();
-        m.setScale(sz / b.getWidth(), sz / b.getHeight());
-        sh.setLocalMatrix(m);
-        bmpPaint.setShader(sh);
-        Ui.drawSuper(cv, rect, bmpPaint, rad);
-        bmpPaint.setShader(null);
-    }
 
     // ------------------------------------------------------------ dotyk
     private int hit(float x, float y) {
