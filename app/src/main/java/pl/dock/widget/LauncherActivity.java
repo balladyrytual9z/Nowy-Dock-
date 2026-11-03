@@ -448,17 +448,9 @@ public class LauncherActivity extends BaseActivity {
                 // Nie ciemniej strony widżetów w trybie dziennym
                 bg.setNightBlend(0f);
                 dock.setNightBlend(0f);
-                // Live liquid glass blur (throttled)
-                if ("glass".equals(Prefs.style(LauncherActivity.this)) && root != null
-                        && System.currentTimeMillis() - lastBlurAt > 200) {
-                    lastBlurAt = System.currentTimeMillis();
-                    try {
-                        Bitmap blur = LiveBlur.captureAndBlur(root, root.getWidth(), root.getHeight());
-                        dock.setGlassBitmap(blur);
-                        dock.setGlassOrigin(dock.getLeft());
-                        dock.setRootSize(root.getWidth(), root.getHeight());
-                    } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);}
-                }
+                // Liquid glass: ZADNE przechwytywanie/rozmycie w trakcie przewijania
+                // (przechwytywanie calego ekranu + blur na watku UI tnilo gest na
+                // slabym GPU tabletu) - snapshot robimy dopiero po osiadnieciu strony
                 dotsTop.setAlpha(1f - t);
                 dotsApps.setAlpha(t);
                 int topCount = homeIdx + 2;
@@ -469,6 +461,7 @@ public class LauncherActivity extends BaseActivity {
             @Override
             public void onSettled(int index) {
                 saveLastPage(index);
+                refreshGlass();
             }
         });
 
@@ -1405,6 +1398,18 @@ public class LauncherActivity extends BaseActivity {
     }
 
     // ---------------------------------------------------------------- centrum łączności (szkło)
+    // Liquid glass: jeden snapshot rozmycia dopiero po osiadnieciu strony
+    private void refreshGlass() {
+        if (root == null || dock == null) return;
+        if (!"glass".equals(Prefs.style(this))) return;
+        try {
+            Bitmap blur = LiveBlur.captureAndBlur(root, root.getWidth(), root.getHeight());
+            dock.setGlassBitmap(blur);
+            dock.setGlassOrigin(dock.getLeft());
+            dock.setRootSize(root.getWidth(), root.getHeight());
+        } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);}
+    }
+
     private void toggleOverlay() {
         if (overlay != null) {
             hideOverlay(true);
