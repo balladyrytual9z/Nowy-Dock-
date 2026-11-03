@@ -10,11 +10,21 @@ public class Blur {
         return v < 0 ? 0 : (v > max ? max : v);
     }
 
-    public static void blur(Bitmap b, int radius, int passes) {
+    // Bufory robocze wielokrotnego uzytku - zero alokacji int[w*h]
+    // przy kazdym otwarciu panelu (mniejszy szum GC na stercie 128 MB).
+    private static int[] aBuf = null;
+    private static int[] tBuf = null;
+
+    public static synchronized void blur(Bitmap b, int radius, int passes) {
         int w = b.getWidth();
         int h = b.getHeight();
-        int[] a = new int[w * h];
-        int[] t = new int[w * h];
+        int n = w * h;
+        if (aBuf == null || aBuf.length < n) {
+            aBuf = new int[n];
+            tBuf = new int[n];
+        }
+        int[] a = aBuf;
+        int[] t = tBuf;
         b.getPixels(a, 0, w, 0, 0, w, h);
         for (int i = 0; i < passes; i++) {
             horizontal(a, t, w, h, radius);

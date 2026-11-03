@@ -61,6 +61,17 @@ class ConnectionDaemon(
         }
     }
 
+    /**
+     * Adapter BT wstal (STATE_ON po przejeciu stosu przez Zlink/CarPlay):
+     * reset backoffu + natychmiastowa proba reconnectu (zamiast czekac do 30 s).
+     */
+    fun kick() {
+        val addr = targetAddress ?: return
+        delayMs = INITIAL_DELAY_MS
+        if (job?.isActive == true) job?.cancel()
+        start(addr)
+    }
+
     fun stop() {
         _active.value = false
         job?.cancel()

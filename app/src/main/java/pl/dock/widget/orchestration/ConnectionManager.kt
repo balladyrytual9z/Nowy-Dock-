@@ -1,6 +1,10 @@
 package pl.dock.widget.orchestration
 
+import android.bluetooth.BluetoothAdapter
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.util.Log
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,6 +64,7 @@ class ConnectionManager(
     val uiState: StateFlow<VehicleUiState> = _uiState.asStateFlow()
 
     private var transport: ElmTransport? = null
+    private var btReceiver: BroadcastReceiver? = null
     private var session: ElmSession? = null
     private var scheduler: PidScheduler? = null
     private var daemon: ConnectionDaemon? = null
@@ -131,6 +136,7 @@ class ConnectionManager(
                 val d = ConnectionDaemon(t, scope)
                 daemon = d
                 d.start(address)
+                startBtWatch()
 
                 _uiState.value = _uiState.value.copy(
                     connected = true,
@@ -151,6 +157,7 @@ class ConnectionManager(
     }
 
     fun disconnect() {
+        stopBtWatch()
         scope.launch {
             scheduler?.shutdown()
             scheduler = null
@@ -171,6 +178,52 @@ class ConnectionManager(
 
     fun onAppForeground() {
         scheduler?.enterForeground()
+    }
+
+    /**
+     * Zlink (CarPlay) agresywnie przejmuje stos BT: adapter pada
+     * (STATE_TURNING_OFF/STATE_OFF), a wstaje dopiero po zestawieniu
+     * projekcji. Nasluch stanu adapteru pozwala parkowac odpytywanie
+     * PID w czasie awarii i wznawiac sesje ~1.5 s po powrocie BT
+     * zamiast czekac na kolejny tick backoffu (do 30 s).
+     */
+    private fun startBtWatch() {
+        if (btReceiver != null) return
+        val r = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context, intent: Intent) {
+                if (!BluetoothAdapter.ACTION_STATE_CHANGED.equals(intent.action)) return
+                when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1)) {
+                    BluetoothAdapter.STATE_TURNING_OFF, BluetoothAdapter.STATE_OFF -> {
+                        scheduler?.park()
+                        _uiState.value = _uiState.value.copy(
+                            lastError = "Bluetooth przejety (CarPlay/Zlink)"
+                        )
+                    }
+                    BluetoothAdapter.STATE_ON -> {
+                        scope.launch {
+                            delay(1500)   // settle po Zlinku - bez race condition
+                            if (session != null) {
+                                scheduler?.unpark()
+                                daemon?.kick()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        try {
+            appContext.registerReceiver(r, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
+            btReceiver = r
+        } catch (e: Exception) {
+            Log.w(TAG, "BT watch register failed: " + e.message)
+        }
+    }
+
+    private fun stopBtWatch() {
+        btReceiver?.let {
+            try { appContext.unregisterReceiver(it) } catch (ignored: Exception) {}
+        }
+        btReceiver = null
     }
 
     private fun handlePid(pid: String, raw: String) {
@@ -240,15 +293,60 @@ class ConnectionManager(
     }
 
     // --- minimal PID parsers ---
+    // RPM = hot path (10 Hz): skaner bez alokacji (zero replace/uppercase/substring)
     private fun parseRpm(raw: String): Int? {
-        val hex = raw.replace(" ", "").uppercase()
-        val i = hex.indexOf("410C")
-        if (i < 0 || hex.length < i + 8) return null
-        return try {
-            val a = hex.substring(i + 4, i + 6).toInt(16)
-            val b = hex.substring(i + 6, i + 8).toInt(16)
-            ((a * 256) + b) / 4
-        } catch (_: Exception) { null }
+        val ab = scanAb(raw, 4, 1, 0, 0xC)
+        return if (ab < 0) null else ab / 4
+    }
+
+    /** Nibble (0-15) albo -1 dla znaku spoza hex. */
+    private fun nib(c: Char): Int = when (c) {
+        in '0'..'9' -> c - '0'
+        in 'A'..'F' -> c - 'A' + 10
+        in 'a'..'f' -> c - 'a' + 10
+        else -> -1
+    }
+
+    /** Skaner 16-bit (A*256+B) za naglowkiem PID bez alokacji; -1 = brak. */
+    private fun scanAb(raw: String, h0: Int, h1: Int, h2: Int, h3: Int): Int {
+        val len = raw.length
+        var n0 = -1
+        var n1 = -1
+        var n2 = -1
+        var n3 = -1
+        var have = 0
+        var i = 0
+        while (i < len) {
+            val c = raw[i]
+            i++
+            if (c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '>') continue
+            val v = nib(c)
+            if (v < 0) {
+                n0 = -1; n1 = -1; n2 = -1; n3 = -1
+                have = 0
+                continue
+            }
+            n0 = n1; n1 = n2; n2 = n3; n3 = v
+            if (have < 4) {
+                have++
+                continue
+            }
+            if (n0 == h0 && n1 == h1 && n2 == h2 && n3 == h3) {
+                var ab = 0
+                var got = 0
+                while (i < len && got < 4) {
+                    val c2 = raw[i]
+                    i++
+                    if (c2 == ' ' || c2 == '\n' || c2 == '\r' || c2 == '\t' || c2 == '>') continue
+                    val v2 = nib(c2)
+                    if (v2 < 0) return -1
+                    ab = (ab shl 4) or v2
+                    got++
+                }
+                return if (got == 4) ab else -1
+            }
+        }
+        return -1
     }
 
     private fun parseByte(raw: String, header: String): Int? {
