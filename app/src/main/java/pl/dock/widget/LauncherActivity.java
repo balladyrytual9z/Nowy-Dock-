@@ -571,7 +571,8 @@ public class LauncherActivity extends BaseActivity {
 
                 @Override
                 public void onEmptyLong() {
-                    showWidgetPicker("s2");
+                    String w = stacksPage != null ? stacksPage.pendingWhere() : null;
+                    showWidgetPicker(w != null ? w : "s2");
                 }
             });
         }
