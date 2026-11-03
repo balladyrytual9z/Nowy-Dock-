@@ -124,7 +124,6 @@ public class LauncherActivity extends BaseActivity {
 
     private BroadcastReceiver statusReceiver;
     private BroadcastReceiver pkgReceiver;
-    private BroadcastReceiver nightModeReceiver;
     private final MediaHub.Listener mediaListener = new MediaHub.Listener() {
         @Override
         public void onTrack(MediaHub.Track t) {
@@ -847,14 +846,6 @@ public class LauncherActivity extends BaseActivity {
     }
 
     private void applyTheme() {
-        applyTheme(true);
-    }
-
-    /**
-     * @param notifyCircadian when false, skip outbound Circadian sync
-     *                        (incoming STATE_CHANGED already originated there)
-     */
-    private void applyTheme(boolean notifyCircadian) {
         bg.setStyle(Prefs.wallpaper(this), night);
         dotsTop.setLight(!night);
         dotsApps.setLight(!night);
@@ -874,11 +865,6 @@ public class LauncherActivity extends BaseActivity {
         }
         lastDockSig = "";
         refreshDock();
-        if (notifyCircadian
-                && Prefs.circadianAuto(this)
-                && pl.dock.widget.circadian.CircadianBridge.isInstalled(this)) {
-            pl.dock.widget.circadian.CircadianBridge.setNightMode(this, night);
-        }
     }
 
     // Plynne przejscie dzien/noc na CALYM ekranie: przezroczysty scrim narasta,
@@ -1010,42 +996,6 @@ public class LauncherActivity extends BaseActivity {
         p.addDataScheme("package");
         registerReceiver(pkgReceiver, p);
 
-        // Circadian Display ↔ Dock: natychmiastowa aktualizacja tapety / ikon
-        nightModeReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                String a = intent.getAction();
-                if (a == null) return;
-                boolean fromCircadian =
-                        pl.dock.widget.circadian.CircadianBridge.ACTION_STATE_CHANGED.equals(a)
-                        || intent.getBooleanExtra("from_circadian", false);
-                boolean isNight;
-                if (fromCircadian
-                        || pl.dock.widget.circadian.CircadianBridge.ACTION_NIGHT.equals(a)
-                        || "pl.dock.widget.NIGHT_MODE_CHANGED".equals(a)) {
-                    isNight = intent.getBooleanExtra("isNight", night);
-                } else {
-                    return;
-                }
-                if (isNight == night && !fromCircadian) return;
-                night = isNight;
-                Look.wasNight = isNight;
-                // from Circadian: nie wywołuj setNightMode ponownie (pętla)
-                applyTheme(!fromCircadian);
-                // odśwież panel łączności (przyciski day/night / Night Shift), jeśli otwarty
-                if (panel != null) {
-                    try {
-                        panel.update();
-                    } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);
-                    }
-                }
-            }
-        };
-        IntentFilter nf = new IntentFilter();
-        nf.addAction(pl.dock.widget.circadian.CircadianBridge.ACTION_STATE_CHANGED);
-        nf.addAction(pl.dock.widget.circadian.CircadianBridge.ACTION_NIGHT);
-        nf.addAction("pl.dock.widget.NIGHT_MODE_CHANGED");
-        registerReceiver(nightModeReceiver, nf);
     }
 
     private void unregisterReceivers() {
@@ -1061,12 +1011,6 @@ public class LauncherActivity extends BaseActivity {
         } catch (Throwable t) {
             android.util.Log.w("Dock", "unregister pkgReceiver", t);
         }
-        try {
-            if (nightModeReceiver != null) unregisterReceiver(nightModeReceiver);
-        } catch (Throwable t) {
-            android.util.Log.w("Dock", "unregister nightModeReceiver", t);
-        }
-        nightModeReceiver = null;
     }
 
     // ---------------------------------------------------------------- aplikacje
