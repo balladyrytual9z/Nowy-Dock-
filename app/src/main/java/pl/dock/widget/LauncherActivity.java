@@ -1198,6 +1198,13 @@ public class LauncherActivity extends BaseActivity {
         float pos = pager.position();
         assemblePages();
         pager.setPosition(Math.min(pos, pager.count() - 1));
+        // tryb edycji musi przetrwac odbudowe stron (usuwanie / przestawanie ikon):
+        // nowe strony dostaja go z powrotem, dopoki nie zamknie go tap w tlo
+        if (EditModeController.get().isEditing()) {
+            for (AppsGridPage p : appPages) {
+                p.enterEditMode();
+            }
+        }
     }
 
     // Edge scrolling: ikona przeciagnieta do krawedzi strony trafia na sasiednia strone
