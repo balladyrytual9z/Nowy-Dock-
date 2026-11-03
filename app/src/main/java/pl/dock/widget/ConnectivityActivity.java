@@ -91,7 +91,6 @@ public class ConnectivityActivity extends BaseActivity {
         java.util.Calendar cal = java.util.Calendar.getInstance();
         String clock = String.format(java.util.Locale.US, "%02d:%02d",
                 cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE));
-        java.graphics_placeholder();
         dock.setData(night, "glass".equals(Prefs.style(this)), clock, s,
                 Prefs.showVoltage(this), dockIcons());
         dock.setCarplayState(s.cp);
