@@ -185,13 +185,54 @@ public class Net {
         return openTetherSettings(c) ? "settings" : "fail";
     }
 
+    // Szuka eksportowanej aktywności ustawień prowadzącej wprost do ekranu hotspotu.
+    // Preferencja: nazwy z "wifi" (ekran hotspotu), potem z "settings", na końcu pozostałe.
+    private static String findTetherActivity(Context c, String pkg) {
+        try {
+            android.content.pm.PackageInfo pi = c.getPackageManager()
+                    .getPackageInfo(pkg, android.content.pm.PackageManager.GET_ACTIVITIES);
+            if (pi.activities == null) return null;
+            String best = null;
+            int bestScore = 0;
+            for (android.content.pm.ActivityInfo ai : pi.activities) {
+                if (!ai.exported) continue;
+                String n = ai.name == null ? "" : ai.name.toLowerCase(Locale.US);
+                if (!n.contains("tether") && !n.contains("hotspot") && !n.contains("wifiap")) continue;
+                if (n.contains("provision")) continue;
+                int score = n.contains("wifi") ? 3 : (n.contains("settings") ? 2 : 1);
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = ai.name;
+                }
+            }
+            return best;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private static boolean tryStart(Context c, String pkg, String cls) {
+        try {
+            Intent i = new Intent();
+            i.setClassName(pkg, cls);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            c.startActivity(i);
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    // Otwiera bezpośrednio ekran ustawień z przełącznikiem hotspotu (bez ekranów nadrzędnych).
     public static boolean openTetherSettings(Context c) {
-        // Priorytet 1: precyzyjny ekran Hotspot Wi-Fi (AOSP + MediaTek)
+        // Priorytet 1: wyszukaj aktywność ekranu hotspotu w ustawieniach systemu (działa też na OEM)
+        String cls = findTetherActivity(c, "com.android.settings");
+        if (cls != null && tryStart(c, "com.android.settings", cls)) return true;
+        // Priorytet 2: znane aliasy aktywności ekranu "Hotspot i tethering"
         String[][] direct = {
+            {"com.android.settings", "com.android.settings.Settings$WifiTetherSettingsActivity"},
+            {"com.android.settings", "com.android.settings.Settings$TetherSettingsActivity"},
             {"com.android.settings", "com.android.settings.Settings$WifiApSettingsActivity"},
-            {"com.android.settings", "com.android.settings.wifi.tether.WifiTetherSettings"},
-            {"com.android.settings", "com.android.settings.TetherSettings"},
-            {"com.mediatek.settings", "com.mediatek.settings.TetherSettings"},
         };
         for (String[] pair : direct) {
             try {
@@ -204,30 +245,36 @@ public class Net {
                 }
             } catch (Throwable ignored) {}
         }
-        // Priorytet 2: ukryty fragment settings
+        // Priorytet 3: systemowa akcja TETHER_SETTINGS (Android 9: ekran z przełącznikiem hotspotu)
         try {
-            Intent i = new Intent();
-            i.setClassName("com.android.settings", "com.android.settings.SubSettings");
-            i.putExtra(":settings:show_fragment",
-                    "com.android.settings.wifi.tether.WifiTetherSettings");
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            c.startActivity(i);
-            return true;
+            Intent i = new Intent("android.settings.TETHER_SETTINGS");
+            if (i.resolveActivity(c.getPackageManager()) != null) {
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                c.startActivity(i);
+                return true;
+            }
         } catch (Throwable ignored) {}
-        // Fallback: ACTION_TETHER_SETTINGS
-        Intent[] fallbacks = {
-            new Intent("android.settings.TETHER_SETTINGS"),
-            new Intent(Settings.ACTION_WIRELESS_SETTINGS),
+        // Priorytet 4: ukryty fragment w SubSettings
+        String[] frags = {
+                "com.android.settings.wifi.tether.WifiTetherSettings",
+                "com.android.settings.TetherSettings",
         };
-        for (Intent i : fallbacks) {
+        for (String f : frags) {
             try {
-                if (i.resolveActivity(c.getPackageManager()) == null) continue;
+                Intent i = new Intent();
+                i.setClassName("com.android.settings", "com.android.settings.SubSettings");
+                i.putExtra(":settings:show_fragment", f);
                 i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 c.startActivity(i);
                 return true;
             } catch (Throwable ignored) {}
         }
-        return false;
+        // Priorytet 5: ustawienia MediaTek (zwykle ekran nadrzędny — dopiero po AOSP)
+        String mtk = findTetherActivity(c, "com.mediatek.settings");
+        if (mtk != null && tryStart(c, "com.mediatek.settings", mtk)) return true;
+        if (tryStart(c, "com.mediatek.settings", "com.mediatek.settings.TetherSettings")) return true;
+        // Ostateczny fallback: ustawienia sieci bezprzewodowych
+        return startFirst(c, new Intent(Settings.ACTION_WIRELESS_SETTINGS));
     }
 
     // ---------------------------------------------------------------- skróty do ustawień / aplikacji
