@@ -362,9 +362,9 @@ public class DockView extends View {
             float rr2 = q * 0.28f;
             for (int gy = 0; gy < 3; gy++) {
                 for (int gx = 0; gx < 3; gx++) {
-                    float x0 = cx - g / 2f + gx * gap + (gap - q) / 2f;
-                    float y0 = by - g / 2f + gy * gap + (gap - q) / 2f;
-                    rect.set(x0, y0, x0 + q, y0 + q);
+                    float qx = cx - g / 2f + gx * gap + (gap - q) / 2f;
+                    float qy = by - g / 2f + gy * gap + (gap - q) / 2f;
+                    rect.set(qx, qy, qx + q, qy + q);
                     cv.drawRoundRect(rect, rr2, rr2, homePaint);
                 }
             }
