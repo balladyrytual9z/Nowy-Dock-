@@ -11,8 +11,8 @@ public class BootReceiver extends BroadcastReceiver {
         StatusService.start(context);
         // OBD core (czarna skrzynka + analityka) – usługa pierwszoplanowa IMPORTANCE_LOW
         pl.dock.widget.ObdCoreService.start(context);
-        // Wbudowany Circadian Display - przywroc krzywa dobowe po restarcie
-        pl.dock.widget.circadian.CircadianService.restore(context);
+        // Night Shift - przywroc filtr barwy po restarcie / aktualizacji
+        NightShift.restore(context);
     }
 }
 
