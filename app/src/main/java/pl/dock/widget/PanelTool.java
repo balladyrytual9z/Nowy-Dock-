@@ -225,18 +225,13 @@ public final class PanelTool {
 
     // ---------------------------------------------------------------- zapis układu
 
+    // Panel ma staly modul bazowy (suwaki, Night Shift, tryb wygladu, Wi-Fi/BT/hotspot),
+    // wiec domyslne dodatkowe narzedzia w siatce to tylko pozostale przelaczniki.
     public static List<String> defaults(Context c) {
         List<String> l = new ArrayList<String>();
-        l.add("conn");
-        if (Prefs.customBars(c)) {
-            l.add("vol");
-            l.add("bri");
-        }
         l.add("rotate");
         l.add("mute");
         l.add("loc");
-        if (Prefs.showNightShift(c)) l.add("nightshift");
-        if (Prefs.showModeButtons(c)) l.add("mode");
         return l;
     }
 
@@ -248,29 +243,12 @@ public final class PanelTool {
         // pusty zapis = przywroc domyslne narzedzia; panel nigdy nie jest calkiem pusty
         if (s.length() == 0) return defaults(c);
         List<String> out = new ArrayList<String>();
-        if (s.length() == 0) return out;
         for (String id : s.split(",")) {
             id = id.trim();
             if (find(id) != null && !out.contains(id)) out.add(id);
         }
-        // styl iOS: pojedyncze kafelki lacznosci zlacz w jedna grupe 2x2
-        int insertAt = -1;
-        int found = 0;
-        for (int i = 0; i < out.size(); ) {
-            String id = out.get(i);
-            if ("air".equals(id) || "hot".equals(id) || "wifi".equals(id) || "bt".equals(id)) {
-                if (insertAt < 0) insertAt = i;
-                out.remove(i);
-                found++;
-            } else {
-                i++;
-            }
-        }
-        if (found >= 2 && !out.contains("conn") && find("conn") != null) {
-            out.add(insertAt < 0 ? 0 : insertAt, "conn");
-        }
-        // stary/uszkodzony zapis z prawie zerem kafelkow = przywroc domyslne narzedzia
-        if (out.size() < 3) return defaults(c);
+        // stary/uszkodzony zapis bez kafelkow = przywroc domyslne narzedzia
+        if (out.isEmpty()) return defaults(c);
         return out;
     }
 

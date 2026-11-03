@@ -26,10 +26,11 @@ import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.List;
 
-// Centrum łączności w stylu iOS. Zawartość to siatka narzędzi (ToolGrid), którą można
-// układać po swojemu: przycisk „Edytuj” (albo długie przytrzymanie tła) włącza tryb edycji,
-// w którym kafelki można przeciągać, usuwać i dodawać nowe z listy narzędzi i skrótów do ustawień.
-// Używane w launcherze (nakładka) i jako okno zapasowe.
+// Centrum łączności w stylu iOS. Na górze stały moduł bazowy: suwak jasności i głośności,
+// pod nimi przełącznik Night Shift (włączony / wyłączony / automatyczny od zachodu do
+// wschodu słońca) i tryb wyglądu (dzienny / nocny / auto), po prawej trzy okrągłe
+// przełączniki: Wi-Fi / Bluetooth / hotspot. Pod spodem opcjonalna, edytowalna siatka
+// dodatkowych narzędzi (ToolGrid). Używane w launcherze (nakładka) i jako okno zapasowe.
 public class ConnectivityPanel extends LinearLayout {
 
     public interface Host {
@@ -45,7 +46,12 @@ public class ConnectivityPanel extends LinearLayout {
     private TextView btnEdit;
     private TextView btnAdd;
     private TextView note;
+    // narzedzia stalego modulu bazowego - nie moga sie powtarzac w edytowalnej siatce
+    private static final String[] BASE_IDS =
+            {"bri", "vol", "nightshift", "mode", "wifi", "bt", "hot", "conn"};
     private ModeSegment modeSeg;
+    private NightShiftButton nightBtn;
+    private final List<ToolGrid.Tile> railTiles = new ArrayList<ToolGrid.Tile>();
     private LinearLayout warmthRow;
     private android.widget.SeekBar warmthBar;
     private PillSlider volSlider;
@@ -114,7 +120,104 @@ public class ConnectivityPanel extends LinearLayout {
         addView(head, hp);
         staggerViews.add(head);
 
-        // siatka narzędzi
+        // ===== STALY MODUL BAZOWY (zawsze widoczny po otwarciu) =====
+        // suwak jasnosci | suwak glosnosci, pod nimi Night Shift + tryb wygladu,
+        // po prawej trzy okragle przelaczniki: Wi-Fi / Bluetooth / hotspot
+        LinearLayout main = new LinearLayout(act);
+        main.setOrientation(HORIZONTAL);
+
+        LinearLayout left = new LinearLayout(act);
+        left.setOrientation(VERTICAL);
+
+        LinearLayout sliders = new LinearLayout(act);
+        sliders.setOrientation(HORIZONTAL);
+        briSlider = new PillSlider(act, true, brightnessValue());
+        briSlider.setListener(new PillSlider.Listener() {
+            @Override
+            public void on(float v) {
+                setBrightness(v);
+            }
+
+            @Override
+            public void onLong() {
+                showWarmthSlider();   // jak w iOS: przytrzymanie jasnosci = cieplo ekranu
+            }
+        });
+        LayoutParams blp = new LayoutParams(0, dp(172), 1f);
+        blp.rightMargin = dp(6);
+        sliders.addView(briSlider, blp);
+        volSlider = new PillSlider(act, false, volumeValue());
+        volSlider.setListener(new PillSlider.Listener() {
+            @Override
+            public void on(float v) {
+                setVolume(v);
+            }
+
+            @Override
+            public void onLong() {
+                openAndClose("android.settings.SOUND_SETTINGS");
+            }
+        });
+        LayoutParams vlp = new LayoutParams(0, dp(172), 1f);
+        vlp.leftMargin = dp(6);
+        sliders.addView(volSlider, vlp);
+        left.addView(sliders);
+
+        // pod suwakami: przełącznik Night Shift + tryb dzienny/nocny/auto
+        LinearLayout btns = new LinearLayout(act);
+        btns.setOrientation(HORIZONTAL);
+        nightBtn = new NightShiftButton(act);
+        LayoutParams nlp = new LayoutParams(0, dp(58), 1f);
+        nlp.topMargin = dp(10);
+        nlp.rightMargin = dp(6);
+        btns.addView(nightBtn, nlp);
+        modeSeg = new ModeSegment(act);
+        LayoutParams mlp = new LayoutParams(0, dp(58), 1.25f);
+        mlp.topMargin = dp(10);
+        mlp.leftMargin = dp(6);
+        btns.addView(modeSeg, mlp);
+        left.addView(btns);
+
+        main.addView(left, new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        // prawa kolumna: trzy okragle przelaczniki jak w pierwszych wersjach
+        LinearLayout rail = new LinearLayout(act);
+        rail.setOrientation(VERTICAL);
+        ToolGrid.Host railHost = new ToolGrid.Host() {
+            @Override
+            public View create(PanelTool.Def d) {
+                return null;
+            }
+
+            @Override
+            public void onTool(PanelTool.Def d, boolean longPress) {
+                runTool(d, longPress);
+            }
+
+            @Override
+            public void onChanged(List<String> ids) {
+            }
+        };
+        String[] railIds = {"wifi", "bt", "hot"};
+        for (String rid : railIds) {
+            PanelTool.Def def = PanelTool.find(rid);
+            if (def == null) continue;
+            ToolGrid.Tile t = new ToolGrid.Tile(act, def, night, railHost, null);
+            LayoutParams tlp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+            tlp.topMargin = dp(3);
+            tlp.bottomMargin = dp(3);
+            rail.addView(t, tlp);
+            railTiles.add(t);
+        }
+        LayoutParams rlp = new LayoutParams(dp(72), ViewGroup.LayoutParams.MATCH_PARENT);
+        rlp.leftMargin = dp(10);
+        main.addView(rail, rlp);
+
+        addView(main, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        staggerViews.add(main);
+
+        // ===== siatka dodatkowych narzedzi (edytowalna) =====
         grid = new ToolGrid(act, night, new ToolGrid.Host() {
             @Override
             public View create(PanelTool.Def d) {
@@ -132,7 +235,18 @@ public class ConnectivityPanel extends LinearLayout {
                 update();
             }
         });
-        grid.setTools(PanelTool.load(act));
+        List<String> toolIds = PanelTool.load(act);
+        // narzedzia z stalego modulu bazowego nigdy nie duplikuja sie w siatce
+        for (int i = toolIds.size() - 1; i >= 0; i--) {
+            String tid = toolIds.get(i);
+            for (String bid : BASE_IDS) {
+                if (bid.equals(tid)) {
+                    toolIds.remove(i);
+                    break;
+                }
+            }
+        }
+        grid.setTools(toolIds);
         addView(grid, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         staggerViews.add(grid);
@@ -285,7 +399,12 @@ public class ConnectivityPanel extends LinearLayout {
     }
 
     private void openPicker() {
-        ToolPicker.show(act, night, grid.ids(), new ToolPicker.OnPick() {
+        // narzedzia stalego modulu bazowego pokazuj jako juz dodane (wyszarzone)
+        List<String> have = grid.ids();
+        for (String id : BASE_IDS) {
+            if (!have.contains(id)) have.add(id);
+        }
+        ToolPicker.show(act, night, have, new ToolPicker.OnPick() {
             @Override
             public void pick(String id) {
                 grid.addTool(id);
@@ -362,8 +481,17 @@ public class ConnectivityPanel extends LinearLayout {
             if (longPress) openAndClose("android.settings.AIRPLANE_MODE_SETTINGS");
             else toggleAirplane();
         } else if ("hot".equals(id)) {
-            if (!Net.openTetherSettings(act)) unavailable();
-            else host.close();
+            // hotspot: sprobuj przeplaczyc bezposrednio (jak w pierwszych wersjach);
+            // zwykla aplikacja na Androidzie 9 czesto nie moze - wtedy otwiera ustawienia
+            boolean before = Net.tethering(act);
+            String res = Net.setTethering(act, !before);
+            if ("ok".equals(res)) {
+                refreshSoon();
+            } else if ("settings".equals(res)) {
+                host.close();
+            } else {
+                unavailable();
+            }
         } else if ("wifi".equals(id)) {
             if (longPress) {
                 if (!Net.openWifiSettings(act)) unavailable();
@@ -665,10 +793,14 @@ public class ConnectivityPanel extends LinearLayout {
         if (volSlider != null) volSlider.setValue(volumeValue());
         if (briSlider != null) briSlider.setValue(brightnessValue());
         if (modeSeg != null) modeSeg.refreshSelection();
+        if (nightBtn != null) nightBtn.refresh();
+        for (int i = 0; i < railTiles.size(); i++) railTiles.get(i).refresh();
         if (note != null) {
-            boolean follow = Prefs.followSystem(act) && grid != null && grid.has("mode");
-            note.setText(follow ? "Wygląd automatyczny: od zachodu do wschodu słońca" : "");
-            note.setVisibility(follow ? VISIBLE : GONE);
+            boolean nsSun = "sunset".equals(NightShift.mode(act));
+            boolean follow = Prefs.followSystem(act);
+            note.setText(nsSun ? "Night Shift automatyczny: od zachodu do wschodu słońca"
+                    : (follow ? "Wygląd automatyczny: od zachodu do wschodu słońca" : ""));
+            note.setVisibility(note.getText().length() > 0 ? VISIBLE : GONE);
         }
     }
 
@@ -826,6 +958,136 @@ public class ConnectivityPanel extends LinearLayout {
                 if (!longFired && a == MotionEvent.ACTION_UP
                         && pr >= 0 && pr == hitIdx && pr < defs.length) {
                     runTool(defs[pr], false);
+                }
+                longFired = false;
+                return true;
+            }
+            return true;
+        }
+    }
+
+    // ------------------------------------------------- Night Shift: klik = cykl stanow,
+    // przytrzymanie = suwak ciepla ekranu (jak w iPhonie)
+    private class NightShiftButton extends View {
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final float d = getResources().getDisplayMetrics().density;
+        private String mode = "off";
+        private boolean on;
+        private boolean pressed;
+        private float downX, downY;
+        private boolean longFired;
+        private Runnable longPress;
+
+        NightShiftButton(Context c) {
+            super(c);
+            setClickable(true);
+            setContentDescription("Night Shift");
+            refresh();
+        }
+
+        void refresh() {
+            mode = NightShift.mode(act);
+            on = NightShift.isOn(act);
+            invalidate();
+        }
+
+        @Override
+        protected void onDraw(Canvas cv) {
+            float w = getWidth();
+            float h = getHeight();
+            float rad = 18f * d;
+            RectF track = new RectF(0, 0, w, h);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(night ? 0xF0606767 : 0xFFE4E4EA);
+            cv.drawRoundRect(track, rad, rad, p);
+            float pad = 3f * d;
+            RectF pill = new RectF(pad, pad, w - pad, h - pad);
+            if (on) {
+                p.setColor(0xFFFF9F0A);   // pomaranczowy iOS, gdy filtr jest aktywny
+                cv.drawRoundRect(pill, rad - 2f * d, rad - 2f * d, p);
+            }
+            if (pressed) {
+                p.setColor(0x22000000);
+                cv.drawRoundRect(pill, rad - 2f * d, rad - 2f * d, p);
+            }
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(1.2f * d);
+            p.setColor(0x44FFFFFF);
+            cv.drawRoundRect(track, rad, rad, p);
+            p.setStyle(Paint.Style.FILL);
+
+            int ink = on ? 0xFFFFFFFF : (night ? 0xFFFFFFFF : 0xFF1C1C1E);
+            // ikona slonca po lewej
+            float gcx = 25f * d;
+            PanelTool.glyph(cv, "sun", gcx, h / 2f - 2f * d, 12f * d, ink);
+
+            // etykieta aktualnego stanu + kropki stanow (jak w przelaczniku wygladu)
+            p.setTextAlign(Paint.Align.CENTER);
+            p.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+            float sd = getResources().getDisplayMetrics().scaledDensity;
+            p.setTextSize(14f * sd);
+            p.setColor(ink);
+            String label = "sunset".equals(mode) ? "Automatyczny"
+                    : ("on".equals(mode) ? "Włączony" : "Wyłączony");
+            float tcx = gcx + 12f * d + (w - gcx - 12f * d) / 2f;
+            cv.drawText(label, tcx, h / 2f - 1f * d, p);
+            float dotR = 2.2f * d;
+            float gap = 9f * d;
+            float x0 = tcx - gap;
+            int sel = "sunset".equals(mode) ? 2 : ("on".equals(mode) ? 1 : 0);
+            for (int i = 0; i < 3; i++) {
+                p.setColor(i == sel ? (on ? 0xFFFFFFFF : 0xFF0A84FF)
+                        : (night ? 0x66FFFFFF : 0x33000000));
+                cv.drawCircle(x0 + i * gap, h - 7f * d, dotR, p);
+            }
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent e) {
+            int a = e.getActionMasked();
+            if (a == MotionEvent.ACTION_DOWN) {
+                downX = e.getX();
+                downY = e.getY();
+                pressed = true;
+                longFired = false;
+                invalidate();
+                animate().scaleX(0.95f).scaleY(0.95f).setDuration(80).start();
+                performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
+                if (longPress != null) removeCallbacks(longPress);
+                longPress = new Runnable() {
+                    @Override
+                    public void run() {
+                        longFired = true;
+                        pressed = false;
+                        invalidate();
+                        performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+                        showWarmthSlider();
+                    }
+                };
+                postDelayed(longPress, 550);
+                return true;
+            }
+            if (a == MotionEvent.ACTION_MOVE && longPress != null
+                    && (Math.abs(e.getX() - downX) > 10f * d
+                    || Math.abs(e.getY() - downY) > 10f * d)) {
+                removeCallbacks(longPress);
+                longPress = null;
+            }
+            if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
+                if (longPress != null) {
+                    removeCallbacks(longPress);
+                    longPress = null;
+                }
+                animate().scaleX(1f).scaleY(1f).setDuration(120).start();
+                pressed = false;
+                invalidate();
+                if (!longFired && a == MotionEvent.ACTION_UP) {
+                    // cykl jak w iPhonie: wylaczony -> wlaczony -> od zachodu do wschodu
+                    String next = NightShift.nextMode(NightShift.mode(act));
+                    boolean ok = NightShift.setMode(act, next);
+                    refresh();
+                    if (!ok) host.close();   // brak zgody na nakladke
+                    else refreshSoon();
                 }
                 longFired = false;
                 return true;
