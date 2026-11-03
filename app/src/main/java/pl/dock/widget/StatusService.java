@@ -28,7 +28,6 @@ public class StatusService extends Service {
     private long lastBattery = 0;
     private Handler handler;
     private Runnable tick;
-    private BroadcastReceiver modeReceiver;
 
     public static void start(Context c) {
         try {
@@ -147,41 +146,6 @@ public class StatusService extends Service {
             }
         });
 
-        // Dwukierunkowa petla z Circadian Display:
-        //  pl.circadiandisplay.STATE_CHANGED  <- nakladka zglasza zmiane isNight
-        //  pl.dock.widget.NIGHT_MODE_CHANGED  -> Dock informuje nakladke / siebie
-        modeReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context ctx, Intent intent) {
-                String a = intent.getAction();
-                if (a == null) return;
-                if (pl.dock.widget.circadian.CircadianBridge.ACTION_STATE_CHANGED.equals(a)) {
-                    // Stan z aplikacji Circadian Display (Night Shift) - natychmiastowa synchronizacja UI
-                    boolean isNight = intent.getBooleanExtra("isNight", false);
-                    applyCircadianState(ctx, isNight);
-                    return;
-                }
-                if (pl.dock.widget.circadian.CircadianBridge.ACTION_NIGHT.equals(a)
-                        || "pl.dock.widget.NIGHT_MODE_CHANGED".equals(a)) {
-                    boolean isNight = intent.getBooleanExtra("isNight", false);
-                    // Filtr steruje kafelkiem Night Shift; przy zmianie motywu tylko
-                    // odswiezamy wbudowana krzywa, jesli uzytkownik ja wlaczyl.
-                    if (isNight && Prefs.circadianAuto(ctx)) {
-                        pl.dock.widget.circadian.CircadianService.refresh(ctx);
-                    }
-                }
-            }
-        };
-        IntentFilter modeFilter = new IntentFilter();
-        modeFilter.addAction(pl.dock.widget.circadian.CircadianBridge.ACTION_NIGHT);
-        modeFilter.addAction(pl.dock.widget.circadian.CircadianBridge.ACTION_STATE_CHANGED);
-        modeFilter.addAction("pl.dock.widget.NIGHT_MODE_CHANGED");
-        registerReceiver(modeReceiver, modeFilter);
-    }
-
-    /** Synchronizacja zmiany trybu nocnego: odswieza widzet (launcher odswieza sie sam). */
-    private void applyCircadianState(Context ctx, boolean isNight) {
-        DockWidget.updateAll(ctx);
     }
 
     private void goForeground() {
@@ -229,10 +193,6 @@ public class StatusService extends Service {
         if (bcastReceiver != null) {
             try { unregisterReceiver(bcastReceiver); } catch (Throwable ignored) {}
             bcastReceiver = null;
-        }
-        if (modeReceiver != null) {
-            try { unregisterReceiver(modeReceiver); } catch (Throwable ignored) {}
-            modeReceiver = null;
         }
         super.onDestroy();
     }
