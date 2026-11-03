@@ -287,7 +287,7 @@ public class ConnectivityPanel extends LinearLayout {
         post(new Runnable() {
             @Override
             public void run() {
-                playStaggerIn();
+                forceVisible();
             }
         });
     }
@@ -348,51 +348,18 @@ public class ConnectivityPanel extends LinearLayout {
         return null;
     }
 
-    /** iOS-style staggered spring entrance for modules. Odporna wersja:
-     *  jesli animacja nie wystartuje (slaby GPU / dziwny ROM), moduly i tak
-     *  staja sie widoczne - siatka bezpieczenstwa przywraca alpha po czasie. */
-    private void playStaggerIn() {
-        if (staggerViews.isEmpty() || Prefs.reduceMotion(act)) return;
-        long delay = 0;
+    // Wymuszona widocznosc wszystkich modulow panelu. Zero animowanych
+    // przezroczystosci na wejsciu: na niektorych urzadzeniach (slaby GPU)
+    // moduly zostawaly calkiem niewidoczne. Wejscie animuje tylko LauncherActivity
+    // (skala + zanik calego panelu), a tresc jest zawsze od razu widoczna.
+    private void forceVisible() {
         for (View v : staggerViews) {
             if (v == null) continue;
-            v.setAlpha(0f);
-            v.setTranslationY(dp(18));
-            final View fv = v;
-            final long dl = delay;
-            postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        fv.animate()
-                                .alpha(1f).translationY(0f)
-                                .setDuration(320)
-                                .setInterpolator(pl.dock.widget.ui.DockMotion.IOS_SPRING)
-                                .start();
-                    } catch (Throwable e) {
-                        fv.setAlpha(1f);
-                        fv.setTranslationY(0f);
-                    }
-                }
-            }, dl);
-            delay += 55;
+            try { v.animate().cancel(); } catch (Throwable ignored) { }
+            v.setAlpha(1f);
+            v.setTranslationY(0f);
+            v.setVisibility(VISIBLE);
         }
-        // siatka bezpieczenstwa: po zakonczeniu calej sekwencji (+ zapas) sprawdz
-        // widocznosc; jesli jakis modul nadal jest przezroczysty, przywroc go na sztywno
-        final long deadline = delay + 700;
-        postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                for (View v : staggerViews) {
-                    if (v == null) continue;
-                    if (v.getAlpha() < 0.99f) {
-                        try { v.animate().cancel(); } catch (Throwable ignored) { }
-                        v.setAlpha(1f);
-                    }
-                    if (v.getTranslationY() != 0f) v.setTranslationY(0f);
-                }
-            }
-        }, deadline);
     }
 
     // ---------------------------------------------------------------- tryb edycji
@@ -406,8 +373,14 @@ public class ConnectivityPanel extends LinearLayout {
         btnAdd.setScaleX(0.9f);
         btnAdd.setScaleY(0.9f);
         btnAdd.setVisibility(VISIBLE);
-        btnAdd.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(220)
-                .setInterpolator(pl.dock.widget.ui.DockMotion.IOS_SPRING).start();
+        try {
+            btnAdd.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(220)
+                    .setInterpolator(pl.dock.widget.ui.DockMotion.IOS_SPRING).start();
+        } catch (Throwable tr) {
+            btnAdd.setAlpha(1f);
+            btnAdd.setScaleX(1f);
+            btnAdd.setScaleY(1f);
+        }
     }
 
     public void exitEditMode() {
@@ -853,7 +826,18 @@ public class ConnectivityPanel extends LinearLayout {
             act.registerReceiver(rc, f);
         } catch (Throwable ignored) {
         }
-        update();
+        try {
+            update();
+        } catch (Throwable tr) {
+            android.util.Log.w("Dock", "panel update", tr);
+        }
+        forceVisible();
+        postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                forceVisible();
+            }
+        }, 800);
     }
 
     @Override
