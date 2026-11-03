@@ -114,9 +114,28 @@ class UfoClusterFullView(context: Context) : View(context) {
     private val needlePath = Path()
     private var lastFrameMs = 0L
 
-    init {
-        setLayerType(LAYER_TYPE_HARDWARE, null)
-    }
+    // ---------- Prealokacja: zero alokacji w onDraw ----------
+    // Wczesniej: RadialGradient + 2x LinearGradient + 4x Typeface.create
+    // przy KAZDEJ klatce (do 60 fps) = zanieczyszczenie sterty 128 MB i jank.
+    private val hudGlowShader = RadialGradient(520f, 150f, 120f,
+        0x400022AA, 0x000022AA, Shader.TileMode.CLAMP)
+    private val wingShaderNormal = LinearGradient(0f, 640f, 0f, 160f,
+        0x000055FF, BLUE_GLOW, Shader.TileMode.CLAMP)
+    private val wingShaderAlarm = LinearGradient(0f, 640f, 0f, 160f,
+        0x000055FF, RED, Shader.TileMode.CLAMP)
+    private val tfBold = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    private val tfBoldMono = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+
+    // cache tekstow rysowanych co klatke (drobne, ale 60x/s)
+    private var spdCache = "---"
+    private var spdCacheSrc = Int.MIN_VALUE
+    private var mphCache = false
+    private var voltText = "--- V"
+    private var voltSrc = Float.NaN
+
+    // Bez stalej warstwy HARDWARE: widok i tak przerysowuje sie co klatke
+    // (wskazowka), a FBO 1280x720 trzymaloby ~3.7 MB VRAM na Mali-T720
+    // bez zadnego zysku (raport ESSGOO: warstwy tylko na czas animacji).
 
     // ---------- API publiczne ----------
 
@@ -234,7 +253,14 @@ class UfoClusterFullView(context: Context) : View(context) {
         c.scale(scale, scale)
         drawDynamic(c)
         c.restore()
-        postInvalidateOnAnimation()
+        // Petla animacji TYLKO gdy trzeba: wskazowka jeszcze doleci
+        // albo jestesmy polaczeni (blink pasa REV). Offline z ustabilizowana
+        // tarcza = zero klatek = zero obciazenia GPU (Mali-T720).
+        if (connected || connecting || Math.abs(rpm - rpmTarget) > 1f) {
+            postInvalidateOnAnimation()
+        } else {
+            lastFrameMs = 0L
+        }
     }
 
     // ---------- Warstwa statyczna ----------
@@ -330,8 +356,13 @@ class UfoClusterFullView(context: Context) : View(context) {
     }
 
     private fun drawHud(c: Canvas) {
-        val spd = if (speedKmh < 0) "---" else
-            (if (useMph) (speedKmh * 0.621371f).toInt() else speedKmh).toString()
+        if (speedKmh != spdCacheSrc || useMph != mphCache) {
+            spdCacheSrc = speedKmh
+            mphCache = useMph
+            spdCache = if (speedKmh < 0) "---" else
+                (if (useMph) (speedKmh * 0.621371f).toInt() else speedKmh).toString()
+        }
+        val spd = spdCache
         pItalic.textSize = 96f
         pItalic.color = TICK
         pItalic.textAlign = Paint.Align.CENTER
@@ -367,8 +398,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         pItalic.color = if (vtec) CYAN else 0x2200E5FF
         c.drawText("VTEC", 700f, 90f, pItalic)
 
-        pFill.shader = RadialGradient(520f, 150f, 120f,
-            0x400022AA, 0x000022AA, Shader.TileMode.CLAMP)
+        pFill.shader = hudGlowShader
         c.drawOval(380f, 130f, 660f, 170f, pFill)
         pFill.shader = null
     }
@@ -404,14 +434,14 @@ class UfoClusterFullView(context: Context) : View(context) {
 
         pText.color = if (have) LCD_ON else LCD_OFF
         pText.textSize = 24f
-        pText.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        pText.typeface = tfBold
         pText.textAlign = Paint.Align.LEFT
         pFill.color = if (have) LCD_ON else LCD_OFF
         c.drawRect(540f, 300f, 564f, 324f, pFill)
         c.drawText(midLabel(key), 574f, 320f, pText)
 
         pMono.textSize = 58f
-        pMono.typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        pMono.typeface = tfBoldMono
         pMono.color = if (have) LCD_ON else LCD_OFF
         pMono.textAlign = Paint.Align.RIGHT
         val main = if (!have) "---" else fmtVal(v)
@@ -430,7 +460,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         val avgCnt = midAvgCount[key]
         pText.textAlign = Paint.Align.RIGHT
         pText.textSize = 24f
-        pText.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        pText.typeface = tfBold
         pText.color = BLUE_GLOW
         c.drawText(if (mx == null) "MAX: N/A" else "MAX: " + fmtVal(mx), 734f, 442f, pText)
         pText.color = if (have) Color.BLACK else LCD_OFF
@@ -460,9 +490,7 @@ class UfoClusterFullView(context: Context) : View(context) {
             "IAT" -> !v.isNaN() && v > 65f
             else -> false
         }
-        val col = if (alarm) RED else BLUE_GLOW
-        pFill.shader = LinearGradient(0f, 640f, 0f, 160f,
-            0x000055FF, col, Shader.TileMode.CLAMP)
+        pFill.shader = if (alarm) wingShaderAlarm else wingShaderNormal
         rectF.set(cx - halfT + 8f, 620f - (620f - 180f) * frac, cx + halfT - 8f, 620f)
         c.drawRect(rectF, pFill)
         pFill.shader = null
@@ -471,7 +499,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         pText.textAlign = if (left) Paint.Align.LEFT else Paint.Align.RIGHT
         pText.textSize = 22f
         pText.color = if (alarm) RED else TICK
-        pText.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        pText.typeface = tfBold
         val label = if (left) leftLoop[leftIndex] else rightLoop[rightIndex]
         val shown = midValue(label.replace("VOLTS", "VOLT"))
         c.drawText(label, innerX, 380f, pText)
@@ -490,13 +518,17 @@ class UfoClusterFullView(context: Context) : View(context) {
         val stale = System.currentTimeMillis() - lastDataMs > 5000 && lastDataMs > 0
         pText.textAlign = Paint.Align.CENTER
         pText.textSize = 26f
-        pText.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        pText.typeface = tfBold
         pText.color = if (stale) GRAY else GREEN
         c.drawText(if (!connected && !connecting) "OFFLINE" else
             if (connecting) "CONNECTING" else "OBD OK", 128f, 690f, pText)
         pText.textSize = 18f
         pText.color = TICK
-        c.drawText(if (voltage.isNaN()) "--- V" else String.format("%.1f V", voltage), 128f, 712f, pText)
+        if (!voltage.equals(voltSrc)) {
+            voltSrc = voltage
+            voltText = if (voltage.isNaN()) "--- V" else String.format("%.1f V", voltage)
+        }
+        c.drawText(voltText, 128f, 712f, pText)
 
         pText.textSize = 24f
         pText.color = TICK

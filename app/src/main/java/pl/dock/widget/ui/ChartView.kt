@@ -48,6 +48,9 @@ class ChartView(context: Context) : View(context) {
     }
     private val path = Path()
     private val fillPath = Path()
+    private var fillShader: LinearGradient? = null
+    private var shaderBottom = -1f
+    private var shaderAccent = Int.MIN_VALUE
 
     fun push(value: Float, timestamp: Long) {
         values[head] = value
@@ -124,10 +127,15 @@ class ChartView(context: Context) : View(context) {
         }
         fillPath.lineTo(w - 24f, bottom)
         fillPath.close()
-        fillPaint.shader = LinearGradient(0f, top, 0f, bottom,
-            (accentColor and 0x00FFFFFF) or 0x33000000,
-            (accentColor and 0x00FFFFFF) or 0x00000000,
-            Shader.TileMode.CLAMP)
+        if (fillShader == null || shaderBottom != bottom || shaderAccent != accentColor) {
+            shaderBottom = bottom
+            shaderAccent = accentColor
+            fillShader = LinearGradient(0f, top, 0f, bottom,
+                (accentColor and 0x00FFFFFF) or 0x33000000,
+                (accentColor and 0x00FFFFFF) or 0x00000000,
+                Shader.TileMode.CLAMP)
+        }
+        fillPaint.shader = fillShader
         c.drawPath(fillPath, fillPaint)
         linePaint.color = accentColor
         c.drawPath(path, linePaint)
