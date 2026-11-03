@@ -359,13 +359,23 @@ public class LauncherActivity extends BaseActivity {
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
         root = new FrameLayout(this);
         // zaokrąglone rogi ekranu jak w CarPlay
-        root.setClipToOutline(true);
-        root.setOutlineProvider(new ViewOutlineProvider() {
-            @Override
-            public void getOutline(View v, Outline o) {
-                o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), Ui.dp(LauncherActivity.this, 26));
-            }
-        });
+        // NAPRAWA (ESSGOO/MT8163, Android 9): setClipToOutline(true) z Outline
+        // liczonym z getWidth()/getHeight() przy pierwszym pomiarze (0x0)
+        // przycinalo cale drzewo widokow - wlacznie z overlayem panelu
+        // lacznosci - do pustego prostokata. Na API < 30 nie ustawiamy
+        // clipowania w ogole; na nowszych guard na wymiary > 0.
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            root.setClipToOutline(true);
+            root.setOutlineProvider(new ViewOutlineProvider() {
+                @Override
+                public void getOutline(View v, Outline o) {
+                    if (v.getWidth() > 0 && v.getHeight() > 0) {
+                        o.setRoundRect(0, 0, v.getWidth(), v.getHeight(),
+                                Ui.dp(LauncherActivity.this, 26));
+                    }
+                }
+            });
+        }
         getWindow().setBackgroundDrawable("system".equals(Prefs.wallpaper(this))
                 ? new ColorDrawable(Color.TRANSPARENT) : new ColorDrawable(Color.BLACK));
 
@@ -1508,6 +1518,19 @@ public class LauncherActivity extends BaseActivity {
         panel.animate().scaleX(1f).scaleY(1f).translationY(0f)
                 .setDuration(Prefs.reduceMotion(this) ? 0 : 280)
                 .setInterpolator(new android.view.animation.OvershootInterpolator(0.9f))
+                .withEndAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        // NAPRAWA: wymuszony re-layout po animacji - na MT8163
+                        // pierwszy pomiar panelu w animowanej overlay potrafil
+                        // wyjsc 0x0 i tresc nigdy sie nie rysowala.
+                        if (panel != null) {
+                            panel.requestLayout();
+                            panel.invalidate();
+                        }
+                        if (overlay != null) overlay.invalidate();
+                    }
+                })
                 .start();
     }
 
