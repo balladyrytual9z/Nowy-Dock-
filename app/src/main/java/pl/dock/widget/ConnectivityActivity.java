@@ -98,9 +98,9 @@ public class ConnectivityActivity extends BaseActivity {
         setContentView(root);
     }
 
-    private java.graphics.Bitmap[] dockIcons() {
+    private android.graphics.Bitmap[] dockIcons() {
         List<AppEntry> top = Prefs.top(this, 3);
-        java.graphics.Bitmap[] ic = new java.graphics.Bitmap[4];
+        android.graphics.Bitmap[] ic = new android.graphics.Bitmap[4];
         for (int i = 0; i < 3 && i < top.size(); i++) ic[i] = Icons.forEntry(this, top.get(i));
         ic[3] = Icons.forEntry(this, Prefs.carplay(this));
         return ic;
