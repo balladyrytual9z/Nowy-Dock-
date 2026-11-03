@@ -11,6 +11,7 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.graphics.Outline;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
@@ -19,6 +20,7 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewOutlineProvider;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -81,7 +83,22 @@ public class ConnectivityPanel extends LinearLayout {
         setBackground(Ui.popupBg(a, night));
         setPadding(dp(12), dp(12), dp(12), dp(10));
         setClickable(true);
-        setElevation(dp(12));
+
+        // NAPRAWA (ESSGOO/MT8163, Android 9): setElevation na LinearLayout
+        // z GradientDrawable bez dzialajacego OutlineProvider wymuszal warstwe
+        // cienia, ktorej compositor Mali-T720 nie kompozytowal poprawnie -
+        // panel byl VISIBLE, ale calkowicie przezroczysty. Zamiast cienia:
+        // jawny outline z alpha 0 (brak warstwy cienia) + warstwa SOFTWARE
+        // na czas otwarcia (LauncherActivity/panel wraca do NONE po 400 ms).
+        setOutlineProvider(new ViewOutlineProvider() {
+            @Override
+            public void getOutline(View v, Outline o) {
+                o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), dp(34));
+                o.setAlpha(0f);   // brak cienia -> brak zepsutej warstwy
+            }
+        });
+        setClipToOutline(true);
+        setLayerType(View.LAYER_TYPE_SOFTWARE, null);
         build();
     }
 
@@ -838,6 +855,43 @@ public class ConnectivityPanel extends LinearLayout {
                 forceVisible();
             }
         }, 800);
+
+        // Diagnostyka renderowania (logcat, tag CC_PANEL), po pierwszym layout:
+        // rozmiary powinny byc niezerowe; w=0 wskazuje problem pomiaru,
+        // alpha=0 problem animacji/warstwy.
+        postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    android.util.Log.w("CC_PANEL", "self w=" + getWidth()
+                            + " h=" + getHeight()
+                            + " alpha=" + getAlpha()
+                            + " vis=" + getVisibility()
+                            + " children=" + getChildCount()
+                            + " layer=" + getLayerType());
+                    for (int i = 0; i < getChildCount(); i++) {
+                        View ch = getChildAt(i);
+                        android.util.Log.w("CC_PANEL", "  child[" + i + "] "
+                                + ch.getClass().getSimpleName()
+                                + " w=" + ch.getWidth() + " h=" + ch.getHeight()
+                                + " alpha=" + ch.getAlpha() + " vis=" + ch.getVisibility());
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+        }, 300);
+
+        // Po animacji otwarcia wracamy do warstwy domyslnej - render SOFTWARE
+        // gwarantuje pierwszy poprawny frame na Mali-T720, a bez stalego bufora
+        // SW przerysowania (suwaki) chodza plynniej.
+        postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (isAttachedToWindow()) {
+                    setLayerType(View.LAYER_TYPE_NONE, null);
+                }
+            }
+        }, 400);
     }
 
     @Override
