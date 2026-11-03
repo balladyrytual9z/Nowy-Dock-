@@ -369,14 +369,19 @@ public final class PanelTool {
         if (g == null) g = "gear";
 
         switch (g) {
-            case "wifi":
-                rc.set(cx - s, cy - s * 0.55f, cx + s, cy + s * 0.85f);
-                cv.drawArc(rc, 210, 120, false, p);
-                rc.set(cx - s * 0.62f, cy - s * 0.3f, cx + s * 0.62f, cy + s * 0.65f);
-                cv.drawArc(rc, 210, 120, false, p);
+            case "wifi": {
+                // Wi-Fi jak w referencji: 3 luki nad wypelniona kropka (wspolsrodkowe)
+                float fy = cy + s * 0.42f;
+                p.setStyle(Paint.Style.STROKE);
+                float[] rr = {s * 0.36f, s * 0.66f, s * 0.96f};
+                for (float R : rr) {
+                    rc.set(cx - R, fy - R, cx + R, fy + R);
+                    cv.drawArc(rc, 212, 116, false, p);
+                }
                 p.setStyle(Paint.Style.FILL);
-                cv.drawCircle(cx, cy + s * 0.3f, sw * 0.9f, p);
+                cv.drawCircle(cx, fy, sw * 0.9f, p);
                 break;
+            }
             case "bt":
                 pa.moveTo(cx, cy - s);
                 pa.lineTo(cx, cy + s);
@@ -391,26 +396,40 @@ public final class PanelTool {
                 cv.drawPath(pa, p);
                 break;
             case "air":
-                pa.moveTo(cx - s, cy);
-                pa.lineTo(cx + s * 0.2f, cy - s * 0.15f);
-                pa.lineTo(cx + s, cy);
-                pa.lineTo(cx + s * 0.2f, cy + s * 0.15f);
+                // wypelniona sylwetka samolotu (jak w referencji): nos, skrzydla, stateczniki
+                pa.moveTo(cx, cy - s);
+                pa.lineTo(cx + s * 0.15f, cy - s * 0.45f);
+                pa.lineTo(cx + s * 0.95f, cy + s * 0.1f);
+                pa.lineTo(cx + s * 0.95f, cy + s * 0.32f);
+                pa.lineTo(cx + s * 0.15f, cy + s * 0.02f);
+                pa.lineTo(cx + s * 0.28f, cy + s * 0.68f);
+                pa.lineTo(cx + s * 0.28f, cy + s * 0.88f);
+                pa.lineTo(cx, cy + s * 0.6f);
+                pa.lineTo(cx - s * 0.28f, cy + s * 0.88f);
+                pa.lineTo(cx - s * 0.28f, cy + s * 0.68f);
+                pa.lineTo(cx - s * 0.15f, cy + s * 0.02f);
+                pa.lineTo(cx - s * 0.95f, cy + s * 0.32f);
+                pa.lineTo(cx - s * 0.95f, cy + s * 0.1f);
+                pa.lineTo(cx - s * 0.15f, cy - s * 0.45f);
                 pa.close();
                 p.setStyle(Paint.Style.FILL);
                 cv.drawPath(pa, p);
-                p.setStyle(Paint.Style.STROKE);
-                cv.drawLine(cx - s * 0.6f, cy - s * 0.7f, cx + s * 0.1f, cy - s * 0.1f, p);
-                cv.drawLine(cx - s * 0.6f, cy + s * 0.7f, cx + s * 0.1f, cy + s * 0.1f, p);
                 break;
-            case "hot":
-                cv.drawCircle(cx, cy, s * 0.3f, p);
-                rc.set(cx - s * 0.7f, cy - s * 0.7f, cx + s * 0.7f, cy + s * 0.7f);
-                cv.drawArc(rc, 200, 140, false, p);
-                rc.set(cx - s, cy - s, cx + s, cy + s);
-                cv.drawArc(rc, 200, 140, false, p);
-                rc.set(cx - s * 0.7f, cy - s * 0.7f, cx + s * 0.7f, cy + s * 0.7f);
-                cv.drawArc(rc, 20, 140, false, p);
+            case "hot": {
+                // ogniwa lancucha jak w ikonie tetheringu: dwie poziome kapsulki
+                // zachodzace na siebie, prawa na wierzchu, obrysy bez przerw
+                float hh = s * 0.3f;      // pol wysokosci ogniwa (dl. do wys. ~2:1)
+                float aa = s * 0.62f;     // pol dlugosci ogniwa
+                float off = aa * 0.6f;   // przesuniecie srodkow (zachodza na srodku)
+                float oldSw = p.getStrokeWidth();
+                p.setStrokeWidth(sw * 0.62f);
+                rc.set(cx - off - aa, cy - hh, cx - off + aa, cy + hh);
+                cv.drawRoundRect(rc, hh, hh, p);   // lewe ogniwo
+                rc.set(cx + off - aa, cy - hh, cx + off + aa, cy + hh);
+                cv.drawRoundRect(rc, hh, hh, p);   // prawe ogniwo na wierzchu
+                p.setStrokeWidth(oldSw);
                 break;
+            }
             case "rotate": {
                 float R = s * 0.95f;
                 rc.set(cx - R, cy - R, cx + R, cy + R);
@@ -425,6 +444,8 @@ public final class PanelTool {
             }
             case "speaker":
                 speaker(cv, cx, cy, s, -s * 0.25f, p);
+                rc.set(cx - s * 0.45f, cy - s * 0.28f, cx + s * 0.35f, cy + s * 0.28f);
+                cv.drawArc(rc, -50, 100, false, p);
                 rc.set(cx - s * 0.35f, cy - s * 0.55f, cx + s * 0.45f, cy + s * 0.55f);
                 cv.drawArc(rc, -50, 100, false, p);
                 rc.set(cx - s * 0.2f, cy - s * 0.95f, cx + s * 0.85f, cy + s * 0.95f);
