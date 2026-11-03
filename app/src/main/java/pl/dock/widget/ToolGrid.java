@@ -548,26 +548,16 @@ public class ToolGrid extends ViewGroup {
             if (dia < 24f * d) dia = Math.min(w, h) * 0.7f;
             float cx = w / 2f;
             float cy = h / 2f;
-            // styl iOS 18 Control Center: aktywne = bialy kafelek + kolorowy glyph,
-            // nieaktywne = polprzezroczyste tlo + bialy glyph
+            // klasyczne centrum sterowania iOS: okragle kafelki,
+            // aktywne = kolor (niebieski/zielony/czerwony), nieaktywne = polszare
             int fill = def.kind == PanelTool.K_APP ? 0x00000000
                     : on ? PanelTool.onColor(def)
-                    : (night ? 0x33FFFFFF : 0xFFE4E4EA);
+                    : (night ? 0x33FFFFFF : 0x2E3C3C43);
             int ink = def.kind == PanelTool.K_APP ? 0xFFFFFFFF
                     : (on ? 0xFFFFFFFF : (night ? 0xFFFFFFFF : 0xFF3C3C43));
-            // iOS 18: kafelek to squircle (zaokraglony prostokat), nie kolo
-            float rad = dia * 0.32f;
-            android.graphics.RectF body = new android.graphics.RectF(
-                    cx - dia / 2f, cy - dia / 2f, cx + dia / 2f, cy + dia / 2f);
             p.setStyle(Paint.Style.FILL);
             p.setColor(fill);
-            cv.drawRoundRect(body, rad, rad, p);
-            // iOS 26 Liquid Glass: szklana krawedz (rim) dookola kafelka
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(1.2f * d);
-            p.setColor(night ? 0x40FFFFFF : 0x80FFFFFF);
-            cv.drawRoundRect(body, rad, rad, p);
-            p.setStyle(Paint.Style.FILL);
+            cv.drawCircle(cx, cy, dia / 2f, p);
             if (def.kind == PanelTool.K_APP) {
                 android.graphics.Bitmap ic = null;
                 try {

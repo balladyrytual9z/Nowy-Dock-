@@ -32,6 +32,7 @@ public final class PanelTool {
     public static final int K_BRIGHT = 3;    // suwak jasności (1 x 2)
     public static final int K_MODE = 4;      // Jasny / Ciemny / Auto (3 x 1)
     public static final int K_APP = 5;       // skrót do aplikacji (id = "app:pakiet")
+    public static final int K_GROUP = 6;     // grupa łączności 2x2 jak w iOS (samolotowy/hotspot/Wi-Fi/BT)
 
     public static final String CAT_TOOLS = "Narzędzia";
     public static final String CAT_SETTINGS = "Skróty do ustawień";
@@ -84,6 +85,7 @@ public final class PanelTool {
         tool("vol", "Głośność", "speaker", K_VOLUME, 1, 2);
         tool("bri", "Jasność", "sun", K_BRIGHT, 1, 2);
         tool("mode", "Wygląd", "half", K_MODE, 3, 1);
+        tool("conn", "Łączność", "wifi", K_GROUP, 2, 2);
 
         sc("s_settings", "Ustawienia", "gear", "android.settings.SETTINGS");
         sc("s_wifi", "Ustawienia Wi-Fi", "wifi", "android.settings.WIFI_SETTINGS");
@@ -225,10 +227,7 @@ public final class PanelTool {
 
     public static List<String> defaults(Context c) {
         List<String> l = new ArrayList<String>();
-        l.add("air");
-        l.add("hot");
-        l.add("wifi");
-        l.add("bt");
+        l.add("conn");
         if (Prefs.customBars(c)) {
             l.add("vol");
             l.add("bri");
@@ -253,6 +252,22 @@ public final class PanelTool {
         for (String id : s.split(",")) {
             id = id.trim();
             if (find(id) != null && !out.contains(id)) out.add(id);
+        }
+        // styl iOS: pojedyncze kafelki lacznosci zlacz w jedna grupe 2x2
+        int insertAt = -1;
+        int found = 0;
+        for (int i = 0; i < out.size(); ) {
+            String id = out.get(i);
+            if ("air".equals(id) || "hot".equals(id) || "wifi".equals(id) || "bt".equals(id)) {
+                if (insertAt < 0) insertAt = i;
+                out.remove(i);
+                found++;
+            } else {
+                i++;
+            }
+        }
+        if (found >= 2 && !out.contains("conn") && find("conn") != null) {
+            out.add(insertAt < 0 ? 0 : insertAt, "conn");
         }
         // stary/uszkodzony zapis z prawie zerem kafelkow = przywroc domyslne narzedzia
         if (out.size() < 3) return defaults(c);

@@ -50,6 +50,7 @@ public class ConnectivityPanel extends LinearLayout {
     private android.widget.SeekBar warmthBar;
     private PillSlider volSlider;
     private PillSlider briSlider;
+    private ConnGroup connGroup;
     private BroadcastReceiver rc;
     private boolean editMode = false;
     private final List<View> staggerViews = new ArrayList<View>();
@@ -212,6 +213,21 @@ public class ConnectivityPanel extends LinearLayout {
         if (d.kind == PanelTool.K_MODE) {
             modeSeg = new ModeSegment(act);
             return modeSeg;
+        }
+        if (d.kind == PanelTool.K_GROUP) {
+            // grupa lacznosci 2x2 jak w iOS: samolotowy / hotspot / Wi-Fi / Bluetooth
+            String[] gids = {"air", "hot", "wifi", "bt"};
+            int n = 0;
+            for (String gid : gids) if (PanelTool.find(gid) != null) n++;
+            if (n == 0) return null;
+            PanelTool.Def[] defs = new PanelTool.Def[n];
+            int k = 0;
+            for (String gid : gids) {
+                PanelTool.Def gd = PanelTool.find(gid);
+                if (gd != null) defs[k++] = gd;
+            }
+            connGroup = new ConnGroup(act, defs);
+            return connGroup;
         }
         return null;
     }
@@ -645,6 +661,7 @@ public class ConnectivityPanel extends LinearLayout {
     // ---------------------------------------------------------------- stan
     public void update() {
         if (grid != null) grid.refreshTiles();
+        if (connGroup != null) connGroup.refresh();
         if (volSlider != null) volSlider.setValue(volumeValue());
         if (briSlider != null) briSlider.setValue(brightnessValue());
         if (modeSeg != null) modeSeg.refreshSelection();
@@ -691,6 +708,130 @@ public class ConnectivityPanel extends LinearLayout {
         } catch (Throwable ignored) {
         }
         rc = null;
+    }
+
+    // ------------------------------------------------- grupa lacznosci 2x2 jak w Control Center iOS
+    // (tryb samolotowy / hotspot / Wi-Fi / Bluetooth w jednym zaokraglonym module)
+    private class ConnGroup extends View {
+        private final PanelTool.Def[] defs;
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF r = new RectF();
+        private final float d = getResources().getDisplayMetrics().density;
+        private final boolean[] on = new boolean[4];
+        private int pressed = -1;
+        private boolean longFired;
+        private float downX, downY;
+        private Runnable longPress;
+
+        ConnGroup(Context c, PanelTool.Def[] defs) {
+            super(c);
+            this.defs = defs;
+            setClickable(true);
+            setContentDescription("Łączność");
+        }
+
+        void refresh() {
+            for (int i = 0; i < defs.length; i++) on[i] = PanelTool.isOn(act, defs[i]);
+            invalidate();
+        }
+
+        private int cols() {
+            return defs.length <= 2 ? 1 : 2;
+        }
+
+        private int hit(float x, float y) {
+            int n = defs.length;
+            if (n <= 1) return 0;
+            int c = cols();
+            int rows = (n + c - 1) / c;
+            int col = (int) Math.max(0, Math.min(c - 1, x / (getWidth() / (float) c)));
+            int row = (int) Math.max(0, Math.min(rows - 1, y / (getHeight() / (float) rows)));
+            return Math.min(n - 1, row * c + col);
+        }
+
+        @Override
+        protected void onDraw(Canvas cv) {
+            float w = getWidth();
+            float h = getHeight();
+            int n = defs.length;
+            // modul w tle: polprzezroczysty zaokraglony prostokat jak w iOS
+            float mod = 22f * d;
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(night ? 0x2E787880 : 0x1E787880);
+            r.set(0, 0, w, h);
+            cv.drawRoundRect(r, mod, mod, p);
+
+            int c = cols();
+            int rows = (n + c - 1) / c;
+            float cw = w / c;
+            float ch = h / rows;
+            float dia = Math.min(cw, ch) - 12f * d;
+            if (dia < 20f * d) dia = Math.max(10f * d, Math.min(cw, ch) * 0.8f);
+            for (int i = 0; i < n; i++) {
+                int col = i % c;
+                int row = i / c;
+                float cx = cw * col + cw / 2f;
+                float cy = ch * row + ch / 2f;
+                p.setStyle(Paint.Style.FILL);
+                p.setColor(on[i] ? PanelTool.onColor(defs[i]) : (night ? 0x33FFFFFF : 0x2E3C3C43));
+                cv.drawCircle(cx, cy, dia / 2f, p);
+                if (i == pressed) {
+                    p.setColor(0x22000000);
+                    cv.drawCircle(cx, cy, dia / 2f, p);
+                }
+                int ink = on[i] ? 0xFFFFFFFF : (night ? 0xFFFFFFFF : 0xFF3C3C43);
+                PanelTool.glyph(cv, defs[i].glyph, cx, cy, dia * 0.32f, ink);
+            }
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent e) {
+            int a = e.getActionMasked();
+            if (a == MotionEvent.ACTION_DOWN) {
+                downX = e.getX();
+                downY = e.getY();
+                pressed = hit(downX, downY);
+                longFired = false;
+                performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
+                invalidate();
+                if (longPress != null) removeCallbacks(longPress);
+                // dlugie przytrzymanie = tryb edycji, jak przy pozostalych kafelkach
+                longPress = new Runnable() {
+                    @Override
+                    public void run() {
+                        longFired = true;
+                        pressed = -1;
+                        invalidate();
+                        performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+                        enterEditMode();
+                    }
+                };
+                postDelayed(longPress, 550);
+                return true;
+            }
+            if (a == MotionEvent.ACTION_MOVE && longPress != null
+                    && (Math.abs(e.getX() - downX) > 10f * d || Math.abs(e.getY() - downY) > 10f * d)) {
+                removeCallbacks(longPress);
+                longPress = null;
+            }
+            if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
+                if (longPress != null) {
+                    removeCallbacks(longPress);
+                    longPress = null;
+                }
+                int pr = pressed;
+                int hitIdx = hit(e.getX(), e.getY());
+                pressed = -1;
+                invalidate();
+                if (!longFired && a == MotionEvent.ACTION_UP
+                        && pr >= 0 && pr == hitIdx && pr < defs.length) {
+                    runTool(defs[pr], false);
+                }
+                longFired = false;
+                return true;
+            }
+            return true;
+        }
     }
 
     // ------------------------------------------------- jeden przycisk wygladu: klik = nastepny stan
@@ -834,7 +975,7 @@ public class ConnectivityPanel extends LinearLayout {
             this.sun = sun;
             this.value = Math.max(0f, Math.min(1f, v));
             this.night = Look.night(c);
-            this.tint = sun ? 0xFFFFFFFF : 0xFF0A84FF;
+            this.tint = 0xFFFFFFFF;   // jak w iOS: biale wypelnienie obu suwakow
             setContentDescription(sun ? "Jasność ekranu" : "Głośność");
         }
 
@@ -878,7 +1019,7 @@ public class ConnectivityPanel extends LinearLayout {
             float cx = w / 2f;
             float cy = h - 28f * d;
             boolean dim = value < 0.05f;
-            int ink = dim ? 0xFF8E8E93 : (sun ? 0xFF1C1C1E : 0xFFFFFFFF);
+            int ink = dim ? 0xFF8E8E93 : (sun ? 0xFF1C1C1E : 0xFF8E8E93);
             p.setStrokeCap(Paint.Cap.ROUND);
             p.setStrokeWidth(2.6f * d);
             if (sun) {
