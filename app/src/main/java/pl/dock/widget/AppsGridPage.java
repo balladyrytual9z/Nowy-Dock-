@@ -73,12 +73,16 @@ public class AppsGridPage extends View implements EditModeController.Listener {
     private boolean longFired;
     private final Handler h = new Handler();
     private final int slop;
-    // dlugie przytrzymanie PUSTEGO tla = tryb edycji; anulowane po zdjeciu palca,
-    // zeby byle dotkniecie tla (jak teraz) nie wlaczalo trzesienia po 0,5 s
+    // dlugie przytrzymanie PUSTEGO tla = tryb edycji (jak w Apple).
+    // Tryb jest TRWALY: znaczki minus zostaja po zdjeciu palca, a zamyka sie go
+    // dopiero kolejnym kliknieciem (tap) w puste tlo. Przewijanie stron dziala.
     private final Runnable bgLongPress = new Runnable() {
         @Override
         public void run() {
-            if (!editMode && pressed < 0) enterEditMode();
+            if (!editMode && pressed < 0) {
+                enterEditMode();
+                exitSuppressed = true;   // ten gest wlaczyl tryb: jego puszczenie nie zamyka
+            }
         }
     };
 
@@ -87,6 +91,8 @@ public class AppsGridPage extends View implements EditModeController.Listener {
     private int dragIndex = -1;
     private float dragX, dragY;
     private boolean dragActive = false;
+    // ten gest wlaczyl tryb edycji: puszczenie palca NIE zamyka trybu (zamyka dopiero tap w tlo)
+    private boolean exitSuppressed = false;
     private long lastEdge = 0;   // debounce zmiany strony przy dragowaniu do krawedzi
 
     private final Runnable longPress = new Runnable() {
@@ -96,6 +102,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
                 longFired = true;
                 performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
                 enterEditMode();
+                exitSuppressed = true;   // ten gest wlaczyl tryb: jego puszczenie nie zamyka
                 // still notify listener so context menu can appear if desired
                 if (listener != null) {
                     listener.onLong(items.get(pressed));
@@ -196,15 +203,15 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         float r = 10f * d * sc;
         float cx = x + r;
         float cy = y + r;
+        // bialy przycisk z minusem jak w iOS (zamiast czerwonego plusa)
         badgePaint.setStyle(Paint.Style.FILL);
-        badgePaint.setColor(0xFFFF3B30); // iOS red
+        badgePaint.setColor(0xE6FFFFFF);
         cv.drawCircle(cx, cy, r, badgePaint);
-        badgePaint.setColor(0xFFFFFFFF);
+        badgePaint.setColor(0xFF1C1C1E);
         badgePaint.setStyle(Paint.Style.STROKE);
         badgePaint.setStrokeWidth(2.2f * d * sc);
         float arm = r * 0.45f;
         cv.drawLine(cx - arm, cy, cx + arm, cy, badgePaint);
-        cv.drawLine(cx, cy - arm, cx, cy + arm, badgePaint);
     }
 
     private int hitRemoveBadge(float x, float y) {
@@ -469,6 +476,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
                 downX = e.getX();
                 downY = e.getY();
                 longFired = false;
+                exitSuppressed = false;
                 if (editMode) {
                     int badge = hitRemoveBadge(downX, downY);
                     if (badge >= 0) {
@@ -534,7 +542,12 @@ public class AppsGridPage extends View implements EditModeController.Listener {
                     pressed = -1;
                     invalidate();
                 }
-                h.removeCallbacks(bgLongPress);
+                // tylko wyrazisty ruch anuluje dlugie przytrzymanie tla;
+                // drobne drzenie palca nie przerywa gestu
+                if (Math.abs(e.getX() - downX) > slop
+                        || Math.abs(e.getY() - downY) > slop) {
+                    h.removeCallbacks(bgLongPress);
+                }
                 return true;
             case MotionEvent.ACTION_UP:
                 h.removeCallbacks(longPress);
@@ -561,9 +574,12 @@ public class AppsGridPage extends View implements EditModeController.Listener {
                         showRemoveDialog(badgeIndex);
                         return true;
                     }
-                    if (p < 0) {
+                    // tap w puste tlo zamyka tryb edycji, ALE nie ten gest,
+                    // ktory tryb wlaczyl (dlugie przytrzymanie tla)
+                    if (p < 0 && !exitSuppressed) {
                         EditModeController.get().setEditing(false);
                     }
+                    exitSuppressed = false;
                     return true;
                 }
                 if (p >= 0 && !longFired && p < items.size() && listener != null) {
@@ -573,6 +589,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
             case MotionEvent.ACTION_CANCEL:
                 h.removeCallbacks(longPress);
                 h.removeCallbacks(bgLongPress);
+                exitSuppressed = false;
                 pressed = -1;
                 dragActive = false;
                 dragIndex = -1;

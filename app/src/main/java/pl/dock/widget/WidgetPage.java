@@ -336,6 +336,15 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
     }
 
     @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        // po odbudowie pagera strona wraca do drzewa widokow: odzyskaj rejestracje
+        // w globalnym trybie edycji, zeby strony widzetow i aplikacji wskazywaly ten sam stan
+        EditModeController.get().addListener(this);
+        if (EditModeController.get().isEditing() && !editMode) enterEditMode();
+    }
+
+    @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         h.removeCallbacks(longPress);
