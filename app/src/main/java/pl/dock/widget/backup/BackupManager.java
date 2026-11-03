@@ -26,16 +26,6 @@ public final class BackupManager {
             prefs.put(e.getKey(), String.valueOf(e.getValue()));
         }
         root.put("prefs", prefs);
-        // Wbudowany Circadian (krzywa dobowe) - bezposrednio z magazynu Docka,
-        // bez zadnej zewnetrznej aplikacji ani provider'a.
-        try {
-            SharedPreferences csp = pl.dock.widget.circadian.CircadianPrefs.sp(c);
-            JSONObject circ = new JSONObject();
-            for (Map.Entry<String, ?> e : csp.getAll().entrySet()) {
-                circ.put(e.getKey(), String.valueOf(e.getValue()));
-            }
-            root.put("circadian", circ);
-        } catch (Throwable ignored) {}
         return root.toString(2);
     }
 
@@ -79,16 +69,6 @@ public final class BackupManager {
                 }
             }
             ed.apply();
-            JSONObject circ = root.optJSONObject("circadian");
-            if (circ != null) {
-                SharedPreferences.Editor ce = pl.dock.widget.circadian.CircadianPrefs.sp(c).edit();
-                ce.clear();
-                for (Iterator<String> it = circ.keys(); it.hasNext(); ) {
-                    String k = it.next();
-                    ce.putString(k, circ.getString(k));
-                }
-                ce.apply();
-            }
             Prefs.version++;
             return true;
         } catch (Throwable t) {
