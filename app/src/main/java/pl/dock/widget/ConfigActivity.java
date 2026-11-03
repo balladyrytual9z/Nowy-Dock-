@@ -26,6 +26,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -69,19 +70,25 @@ public class ConfigActivity extends BaseActivity {
         night = Look.night(this);
         setTheme(night ? R.style.Dock_Night : R.style.Dock_Day);
         super.onCreate(b);
-        // Allow system navigation bar / home gesture so user can pull the system bar
+        // NAPRAWA (ESSGOO/MT8163, Android 9): okno ustawien bylo wczesniej
+        // zwazone przez Ui.dockWindow (o 77 dp) i przesuniete, a pasek po boku
+        // nie nalezal do okna - widoczne bylo tlo pulpitu systemowego, bo
+        // launcher pod spodem byl wstrzymany w onStop(). Teraz okno jest
+        // pelnoekranowe, a dok rysujemy wewnatrz okna w build().
+        // SYSTEM_UI_FLAG_VISIBLE zeruje IMMERSIVE_STICKY z BaseActivity,
+        // wiec pasek statusu da sie normalnie wysunac (LAYOUT_FULLSCREEN tez znika).
         try {
-            getWindow().getDecorView().setSystemUiVisibility(
-                    android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                            | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+            View decor = getWindow().getDecorView();
+            if (night) {
+                decor.setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+            } else {
+                decor.setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE
+                        | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                        | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+            }
             getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        } catch (Throwable ignored) {}
-        Ui.dockWindow(getWindow(), this);
-        // Ensure the activity window does not swallow system gestures
-        try {
             getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL);
-            getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL);
-            // Keep NOT_TOUCH_MODAL so touches outside (dock area) can pass, but allow system UI
+            getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
         } catch (Throwable ignored) {}
         p = Look.pal(night);
         StatusService.start(this);
@@ -711,7 +718,107 @@ public class ConfigActivity extends BaseActivity {
 
         extraSections(col);
         finishLayout(col, title, sv);
-        setContentView(sv);
+
+        // ---------- NAPRAWA: pelnoekranowy FrameLayout z dokiem wewnatrz okna ----------
+        final boolean dockLeft = Ui.dockLeft(this);
+        final int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
+
+        FrameLayout frame = new FrameLayout(this);
+        frame.setBackground(Ui.pageBg(this, night));
+
+        // 1) tresc ustawien odsunieta od doku (ta sama szerokosc co wczesniej)
+        FrameLayout.LayoutParams svLp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        if (dockLeft) svLp.leftMargin = dockPx;
+        else svLp.rightMargin = dockPx;
+        frame.addView(sv, svLp);
+
+        // 2) dok po wlasciwej stronie, zawsze widoczny i klikalny
+        final DockView dock = new DockView(this);
+        FrameLayout.LayoutParams dockLp = new FrameLayout.LayoutParams(
+                dockPx, ViewGroup.LayoutParams.MATCH_PARENT,
+                dockLeft ? Gravity.START : Gravity.END);
+        frame.addView(dock, dockLp);
+
+        dock.setListener(new DockView.Listener() {
+            @Override public void onHeader() {
+                // panel lacznosci jako osobne okno (overlay dziala tylko w launcherze)
+                startActivity(new Intent(ConfigActivity.this, ConnectivityActivity.class));
+            }
+            @Override public void onApp(int index) {
+                List<AppEntry> top = Prefs.top(ConfigActivity.this, 3);
+                if (index == 3) {
+                    Launch.carplay(ConfigActivity.this);
+                    finish();
+                } else if (index < top.size()) {
+                    Intent i = getPackageManager()
+                            .getLaunchIntentForPackage(top.get(index).pkg);
+                    if (i != null) {
+                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(i);
+                        finish();
+                    }
+                }
+            }
+            @Override public void onBottom() {
+                finish();   // powrot do launchera (Home)
+            }
+            @Override public void onBottomLong() {
+                // recents niedostepne z ustawien - celowo
+            }
+        });
+
+        refreshConfigDock(dock);
+        StatusCenter.setOnChange(new Runnable() {
+            @Override public void run() {
+                refreshConfigDock(boundDock);
+            }
+        });
+        // zegar doku: odswiezenie co 30 s (postDelayed na samym widoku, bez
+        // Handlera; petla konczy sie, gdy boundDock == null po onStop)
+        dock.postDelayed(new Runnable() {
+            @Override public void run() {
+                if (boundDock != null) {
+                    refreshConfigDock(boundDock);
+                    boundDock.postDelayed(this, 30000);
+                }
+            }
+        }, 30000);
+
+        setContentView(frame);
+    }
+
+    // ---------- dane doka w ustawieniach ----------
+    private DockView boundDock;
+
+    private void refreshConfigDock(DockView dock) {
+        if (dock == null) return;
+        boundDock = dock;
+        StatusCenter.Snap s = StatusCenter.get(this);
+        List<AppEntry> top = Prefs.top(this, 3);
+        android.graphics.Bitmap[] ic = new android.graphics.Bitmap[4];
+        for (int i = 0; i < 3 && i < top.size(); i++) {
+            ic[i] = Icons.forEntry(this, top.get(i));
+        }
+        ic[3] = Icons.forEntry(this, Prefs.carplay(this));
+
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        String clockText = String.format(java.util.Locale.US, "%02d:%02d",
+                cal.get(java.util.Calendar.HOUR_OF_DAY),
+                cal.get(java.util.Calendar.MINUTE));
+
+        dock.setData(night, "glass".equals(Prefs.style(this)),
+                clockText, s, Prefs.showVoltage(this), ic);
+        dock.setCarplayState(s.cp);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // zwolnij statyczny listener StatusCenter - launcher rejestruje
+        // swoj w onStart, wiec po powrocie odswiezanie doka wraca bez zmian
+        StatusCenter.setOnChange(null);
+        boundDock = null;
     }
 
     // ---------- hierarchia: kategorie główne (styl iOS) -> podsekcje ----------
