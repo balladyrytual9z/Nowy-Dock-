@@ -41,6 +41,8 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
     private boolean longFired;
     private WidgetEntry pressEntry;
     private boolean editMode = false;
+    private String pendingWhere;
+    private final int[] colCounts;
     private final List<View> widgetViews = new ArrayList<View>();
     private final Runnable longPress = new Runnable() {
         @Override
@@ -51,7 +53,7 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
             if (pressEntry != null) {
                 cb.onMenu(pressEntry);
             } else {
-                enterEditMode();
+                pendingWhere = whereAt(downX, downY);
                 cb.onEmptyLong();
             }
         }
@@ -62,6 +64,7 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
         this.wheres = wheres;
         this.cards = cards;
         this.sel = new int[wheres.length];
+        this.colCounts = new int[wheres.length];
         d = c.getResources().getDisplayMetrics().density;
         slop = ViewConfiguration.get(c).getScaledTouchSlop();
         setWillNotDraw(false);
@@ -71,6 +74,11 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
 
     public void setCallbacks(Callbacks c) {
         cb = c;
+    }
+
+    // kolumna ostatniego przytrzymania pustego tla (dla pickera w LauncherActivity)
+    public String pendingWhere() {
+        return pendingWhere;
     }
 
     public void setNight(boolean n) {
@@ -86,12 +94,15 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
         removeAllViews();
         widgetViews.clear();
         for (int i = 0; i < sel.length; i++) sel[i] = 0;
+        for (int i = 0; i < colCounts.length; i++) colCounts[i] = 0;
     }
 
     public void addWidget(WidgetEntry e, View v) {
         v.setTag(e);
         addView(v);
         widgetViews.add(v);
+        int cIdx = colOf(e.where);
+        if (cIdx >= 0) colCounts[cIdx]++;
         if (editMode) {
             startWobble(v);
             // badge handled in draw or overlay if needed
@@ -153,6 +164,18 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
         return -1;
     }
 
+    // kolumna, w ktorej lezy punkt (ze strefa zapasu na kropki); null gdy poza kolumnami
+    private String whereAt(float x, float y) {
+        int w = getWidth();
+        int hh = getHeight();
+        for (int c = 0; c < wheres.length; c++) {
+            RectF rc = colRect(c, w, hh);
+            if (x >= rc.left - 10f * d && x <= rc.right + 28f * d
+                    && y >= rc.top - 10f * d && y <= rc.bottom + 10f * d) return wheres[c];
+        }
+        return null;
+    }
+
     private List<View> inCol(int col) {
         List<View> out = new ArrayList<View>();
         for (int i = 0; i < getChildCount(); i++) {
@@ -170,6 +193,7 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
         }
         for (int c = 0; c < wheres.length; c++) {
             List<View> l = inCol(c);
+            colCounts[c] = l.size();
             if (sel[c] >= l.size()) sel[c] = 0;
             for (int k = 0; k < l.size(); k++) {
                 l.get(k).setVisibility(k == sel[c] ? VISIBLE : GONE);
@@ -196,10 +220,6 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
     }
 
     // ---------------------------------------------------------------- układ
-    private float padL() {
-        return 16f * d;
-    }
-
     // kwadratowe widżety jak w CarPlay, wyśrodkowane w pionie – z insetem na dock
     private RectF colRect(int c, int w, int hh) {
         int n = wheres.length;
@@ -249,15 +269,17 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
         int w = getWidth();
         int hh = getHeight();
         super.dispatchDraw(cv);
-        // kropki przełączania widżetów w kolumnie
+        // kropki przełączania widżetów w kolumnie (kolor wg trybu, licznik z cache)
+        int act = night ? 0xFFFFFFFF : 0xFF111114;
+        int inact = night ? 0x66FFFFFF : 0x66111114;
         for (int c = 0; c < wheres.length; c++) {
-            int n = inCol(c).size();
+            int n = colCounts[c];
             if (n < 2) continue;
             RectF rc = colRect(c, w, hh);
             float x = rc.right + 14f * d;
             float y0 = rc.centerY() - (n - 1) * 8f * d;
             for (int k = 0; k < n; k++) {
-                paint.setColor(k == sel[c] ? 0xFFFFFFFF : 0x66FFFFFF);
+                paint.setColor(k == sel[c] ? act : inact);
                 cv.drawCircle(x, y0 + k * 16f * d, 3.6f * d, paint);
             }
         }
@@ -279,7 +301,7 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
         int w = getWidth();
         int hh = getHeight();
         for (int c = 0; c < wheres.length; c++) {
-            if (inCol(c).size() < 2) continue;
+            if (colCounts[c] < 2) continue;
             RectF rc = colRect(c, w, hh);
             if (x >= rc.right + 2f * d && x <= rc.right + 28f * d && y >= rc.top && y <= rc.bottom) {
                 return wheres[c];
@@ -318,13 +340,17 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
     public boolean onTouchEvent(MotionEvent e) {
         switch (e.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
-                if (!cards && pressEntry == null) return true;
                 return true;
             case MotionEvent.ACTION_UP:
                 h.removeCallbacks(longPress);
                 if (!longFired) {
                     String w = dotsAt(e.getX(), e.getY());
-                    if (w != null) cycle(w);
+                    if (w != null) {
+                        cycle(w);
+                    } else if (editMode && entryAt(e.getX(), e.getY()) == null) {
+                        // tap w puste tlo zamyka tryb edycji (jak na stronach aplikacji)
+                        EditModeController.get().setEditing(false);
+                    }
                 }
                 return true;
             case MotionEvent.ACTION_CANCEL:
@@ -355,6 +381,7 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
     // ---------------------------------------------------------------- pusty kafelek "+"
     private class EmptyTile extends View {
         final String where;
+        private final Paint plus = new Paint(Paint.ANTI_ALIAS_FLAG);
 
         EmptyTile(Context c, String where) {
             super(c);
@@ -372,13 +399,12 @@ public class WidgetPage extends ViewGroup implements EditModeController.Listener
         protected void onDraw(Canvas cv) {
             float cx = getWidth() / 2f;
             float cy = getHeight() / 2f;
-            Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(3f * d);
-            p.setStrokeCap(Paint.Cap.ROUND);
-            p.setColor(night ? 0x88FFFFFF : 0x88000000);
-            cv.drawLine(cx - 14 * d, cy - 20 * d, cx + 14 * d, cy - 20 * d, p);
-            cv.drawLine(cx, cy - 34 * d, cx, cy - 6 * d, p);
+            plus.setStyle(Paint.Style.STROKE);
+            plus.setStrokeWidth(3f * d);
+            plus.setStrokeCap(Paint.Cap.ROUND);
+            plus.setColor(night ? 0x88FFFFFF : 0x88000000);
+            cv.drawLine(cx - 14 * d, cy - 20 * d, cx + 14 * d, cy - 20 * d, plus);
+            cv.drawLine(cx, cy - 34 * d, cx, cy - 6 * d, plus);
             text.setColor(night ? 0xAAFFFFFF : 0xAA000000);
             text.setTextAlign(Paint.Align.CENTER);
             text.setTypeface(Typeface.DEFAULT);

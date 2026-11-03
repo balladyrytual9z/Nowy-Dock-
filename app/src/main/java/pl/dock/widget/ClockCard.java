@@ -4,6 +4,7 @@ package pl.dock.widget;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.RectF;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
@@ -17,6 +18,7 @@ public class ClockCard extends View implements NightAware {
     private final float d;
     private boolean night = true;
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF rc = new RectF();
     private final Handler h = new Handler(Looper.getMainLooper());
     private final Runnable tick = new Runnable() {
         @Override
@@ -59,9 +61,12 @@ public class ClockCard extends View implements NightAware {
 
     @Override
     protected void onDraw(Canvas cv) {
+        // karta jak w pozostalych widzetach (Data, Kalendarz, Zachod slonca)
+        rc.set(0, 0, getWidth(), getHeight());
+        Ui.ringCard(cv, rc, 30f * d, 1.5f * d, night, false);
         float cx = getWidth() / 2f;
         float cy = getHeight() / 2f;
-        float r = Math.min(getWidth(), getHeight()) / 2f - 14f * d;
+        float r = Math.min(getWidth(), getHeight()) / 2f - 26f * d;
         if (r <= 0) return;
         int col = night ? 0xFFFFFFFF : 0xFF111114;
         p.setColor(col);

@@ -238,7 +238,7 @@ public class CardWidgets {
         }
     }
 
-    // ------------------------------------------------------------ pogoda (bez karty)
+    // ------------------------------------------------------------ pogoda
     public static class WeatherCard extends Base {
         public WeatherCard(Context c) {
             super(c);
@@ -274,6 +274,7 @@ public class CardWidgets {
 
         @Override
         protected void onDraw(Canvas cv) {
+            card(cv);
             float w = getWidth();
             float h = getHeight();
             if (!WeatherData.ok) {
@@ -282,7 +283,7 @@ public class CardWidgets {
                         false, Paint.Align.CENTER);
                 return;
             }
-            float pad = w * 0.02f;
+            float pad = w * 0.08f;
             text(cv, WeatherData.city, pad, h * 0.10f, 26, fg(), true, Paint.Align.LEFT);
             text(cv, Math.round(WeatherData.temp) + "°", pad, h * 0.34f, 70, fg(), true,
                     Paint.Align.LEFT);
