@@ -146,7 +146,6 @@ public class LauncherActivity extends BaseActivity {
         BtDevice.init(this);
         buildUi();
         StatusService.start(this);
-        startNavOverlay();
         Updater.scheduleCheck(this);
         NightShift.restore(this);
         updateClockText();
@@ -382,17 +381,6 @@ public class LauncherActivity extends BaseActivity {
     }
 
     // ---------------------------------------------------------------- budowa interfejsu
-    // Nakladka CarPlay nad Organic Maps. Startuje tylko, gdy uzytkownik dal
-    // zgode "Rysuj nad innymi aplikacjami" (Ustawienia -> Mapy).
-    private void startNavOverlay() {
-        try {
-            if (android.provider.Settings.canDrawOverlays(this)) {
-                startService(new Intent(this, pl.dock.widget.maps.NavOverlayService.class));
-            }
-        } catch (Throwable ignored) {
-        }
-    }
-
     private void buildUi() {
         builtLeft = Ui.dockLeft(this);
         boolean left = builtLeft;
@@ -1621,17 +1609,7 @@ public class LauncherActivity extends BaseActivity {
             });
             l = mc;
         }
-        if (rt == null) {
-            final pl.dock.widget.maps.NavCard nc = new pl.dock.widget.maps.NavCard(this);
-            nc.setOnLongClickListener(new View.OnLongClickListener() {
-                @Override
-                public boolean onLongClick(View x) {
-                    showWidgetPicker("hr");
-                    return true;
-                }
-            });
-            rt = nc;
-        }
+        if (rt == null) rt = new HomeSections.Slot(this, "hr", cb);
         for (View v : new View[]{l, rt}) {
             if (v.getTag() instanceof WidgetEntry) {
                 final WidgetEntry we = (WidgetEntry) v.getTag();

@@ -19,8 +19,12 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.BoundingBox;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
+import org.osmdroid.views.Projection;
+import org.osmdroid.views.overlay.MapEventsOverlay;
+import org.osmdroid.views.overlay.Polyline;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import pl.dock.widget.AppEntry;
@@ -47,6 +51,13 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
     private DockView dock;
     private Controls controls;
     private boolean hasFix;
+    private boolean centeredOnce;
+    private boolean hasDest;
+    private GeoPoint dest;
+    private Polyline destLine;
+    private DestOverlay destOverlay;
+    private float destDistM = -1f;
+    private float destBearing = -1f;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -82,6 +93,25 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
                 if (Prefs.mapFollow(this)) loc.enableFollowLocation();
             }
             map.getOverlays().add(loc);
+            destLine = new Polyline();
+            destLine.setColor(night ? 0xFF0A84FF : 0xFF0A6CFF);
+            destLine.setWidth(6f * getResources().getDisplayMetrics().density);
+            map.getOverlays().add(destLine);
+            destOverlay = new DestOverlay();
+            map.getOverlays().add(destOverlay);
+            // dlugie przytrzymanie na mapie = cel podrozy
+            map.getOverlays().add(new MapEventsOverlay(new org.osmdroid.events.MapEventsReceiver() {
+                @Override
+                public boolean singleTapConfirmedHelper(GeoPoint p) {
+                    return false;
+                }
+
+                @Override
+                public boolean longPressHelper(GeoPoint p) {
+                    setDestination(p);
+                    return true;
+                }
+            }));
             restoreCenter();
             root.addView(map, new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -187,6 +217,7 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
         else if (id == 4) toggleLayer();
         else if (id == 5) toggleOnline();
         else if (id == 6) downloadAround();
+        else if (id == 7) openSearch();
     }
 
     private void toggleFollow() {
@@ -283,7 +314,179 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
     @Override
     public void onLocation(double lat, double lon, float bearing, float speedMs, boolean hasFix) {
         this.hasFix = hasFix;
+        // Auto-centrowanie TYLKO na swiezym fix'ie GPS (stara "ostatnia znana
+        // pozycja" nie jest podstawa do skoku - wtedy mapa by znikala).
+        if (!centeredOnce && hasFix && map != null
+                && System.currentTimeMillis() - MapState.get(this).lastFixAt() < 15000L) {
+            centeredOnce = true;
+            try {
+                map.getController().setCenter(new GeoPoint(lat, lon));
+                map.getController().setZoom(13d);
+            } catch (Throwable ignored) {
+            }
+        }
+        if (hasDest && dest != null && hasFix && map != null) {
+            try {
+                GeoPoint here = new GeoPoint(lat, lon);
+                destDistM = (float) here.distanceToAsDouble(dest);
+                destBearing = (float) here.bearingTo(dest);
+                List<GeoPoint> pts = new ArrayList<GeoPoint>();
+                pts.add(here);
+                pts.add(dest);
+                destLine.setPoints(pts);
+            } catch (Throwable ignored) {
+            }
+        }
         invalidateControls();
+    }
+
+    // ------------------------------------------------------------ cel / wyszukiwanie
+
+    private void setDestination(GeoPoint p) {
+        if (p == null || map == null) return;
+        dest = p;
+        hasDest = true;
+        destDistM = -1f;
+        destBearing = -1f;
+        if (destLine != null) destLine.setPoints(new ArrayList<GeoPoint>());
+        if (destOverlay != null) destOverlay.invalidate();
+        invalidateControls();
+        Toast.makeText(this, "Cel ustawiony — dotknij paska CEL, aby usunąć",
+                Toast.LENGTH_SHORT).show();
+    }
+
+    private void clearDestination() {
+        hasDest = false;
+        dest = null;
+        destDistM = -1f;
+        destBearing = -1f;
+        if (destLine != null) destLine.setPoints(new ArrayList<GeoPoint>());
+        if (destOverlay != null) destOverlay.invalidate();
+        invalidateControls();
+    }
+
+    // Wyszukiwanie adresow / miejsc przez Nominatim (otwarte mapy OSM).
+    private void openSearch() {
+        try {
+            final android.widget.EditText et = new android.widget.EditText(this);
+            et.setSingleLine(true);
+            et.setHint("np. Warszawa, ul. Marszałkowska…");
+            new android.app.AlertDialog.Builder(this)
+                    .setTitle("Szukaj miejsca")
+                    .setView(et)
+                    .setPositiveButton("Szukaj", new android.content.DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(android.content.DialogInterface d, int w) {
+                            search(et.getText().toString().trim());
+                        }
+                    })
+                    .setNegativeButton("Anuluj", null)
+                    .show();
+        } catch (Throwable tr) {
+            Toast.makeText(this, "Wyszukiwanie niedostępne", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void search(final String q) {
+        if (q.length() == 0) return;
+        final String url;
+        try {
+            url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q="
+                    + java.net.URLEncoder.encode(q, "UTF-8");
+        } catch (Throwable tr) {
+            return;
+        }
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    final List<String> names = new ArrayList<String>();
+                    final List<GeoPoint> pts = new ArrayList<GeoPoint>();
+                    java.net.HttpURLConnection c = null;
+                    try {
+                        java.net.URL u = new java.net.URL(url);
+                        c = (java.net.HttpURLConnection) u.openConnection();
+                        c.setRequestProperty("User-Agent", "pl.dock.widget/1.0 (car launcher)");
+                        c.setConnectTimeout(8000);
+                        c.setReadTimeout(8000);
+                        java.io.InputStream is = c.getInputStream();
+                        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+                        byte[] buf = new byte[4096];
+                        int n;
+                        while ((n = is.read(buf)) > 0) bos.write(buf, 0, n);
+                        String json = new String(bos.toByteArray(), "UTF-8");
+                        org.json.JSONArray arr = new org.json.JSONArray(json);
+                        for (int i = 0; i < arr.length(); i++) {
+                            org.json.JSONObject o = arr.getJSONObject(i);
+                            names.add(o.optString("display_name", "?"));
+                            pts.add(new GeoPoint(o.optDouble("lat", 0), o.optDouble("lon", 0)));
+                        }
+                    } finally {
+                        if (c != null) c.disconnect();
+                    }
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            showResults(names, pts);
+                        }
+                    });
+                } catch (Throwable tr) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(NavigatorActivity.this,
+                                    "Brak wyników lub brak internetu", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
+    private void showResults(final List<String> names, final List<GeoPoint> pts) {
+        if (names.isEmpty() || map == null) {
+            Toast.makeText(this, "Brak wyników", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Wyniki")
+                .setItems(names.toArray(new String[0]),
+                        new android.content.DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(android.content.DialogInterface d, int which) {
+                                if (map == null) return;
+                                GeoPoint p = pts.get(which);
+                                map.getController().setCenter(p);
+                                map.getController().setZoom(15d);
+                                setDestination(p);
+                            }
+                        })
+                .setNegativeButton("Anuluj", null)
+                .show();
+    }
+
+    /** Znacznik celu na mapie: niebieskie kolo z biala kropka. */
+    private class DestOverlay extends org.osmdroid.views.overlay.Overlay {
+        @Override
+        public void draw(Canvas c, MapView mapView, boolean shadow) {
+            if (shadow || !hasDest || dest == null) return;
+            try {
+                android.graphics.Point sc = mapView.getProjection().toPixels(dest, null);
+                float d = getResources().getDisplayMetrics().density;
+                Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+                p.setStyle(Paint.Style.FILL);
+                p.setColor(0xFF0A84FF);
+                c.drawCircle(sc.x, sc.y, 9f * d, p);
+                p.setStyle(Paint.Style.STROKE);
+                p.setStrokeWidth(3f * d);
+                p.setColor(0xFFFFFFFF);
+                c.drawCircle(sc.x, sc.y, 9f * d, p);
+                p.setStyle(Paint.Style.FILL);
+                p.setColor(0xFFFFFFFF);
+                c.drawCircle(sc.x, sc.y, 3.5f * d, p);
+            } catch (Throwable ignored) {
+            }
+        }
     }
 
     @Override
@@ -387,7 +590,8 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
             boolean topo = "topo".equals(Prefs.mapStyle(getContext()));
             boolean follow = Prefs.mapFollow(getContext());
             return new String[]{"Zamknij", "+", "−", follow ? "Śledź: ON" : "Śledź: OFF",
-                    topo ? "Teren" : "Ulice", online ? "Net: ON" : "Net: OFF", "Pobierz okolice"};
+                    topo ? "Teren" : "Ulice", online ? "Net: ON" : "Net: OFF", "Pobierz okolice",
+                    "Szukaj"};
         }
 
         @Override
@@ -416,6 +620,33 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
             pt.setColor(night ? 0xCC000000 : 0xE6FFFFFF);
             cv.drawRoundRect(sr, 14f * d, 14f * d, pt);
             txt(cv, fix ? "GPS OK" : "GPS…", sr, fix ? 0xFF30D158 : 0xFFFF9F0A, 13f);
+            // pasek celu na dole (dotknij -> usun cel)
+            if (hasDest) {
+                RectF dr = destRect();
+                pt.setStyle(Paint.Style.FILL);
+                pt.setColor(night ? 0xCC000000 : 0xE6FFFFFF);
+                cv.drawRoundRect(dr, 14f * d, 14f * d, pt);
+                pt.setStyle(Paint.Style.STROKE);
+                pt.setStrokeWidth(1.5f * d);
+                pt.setColor(0xFF0A84FF);
+                cv.drawRoundRect(dr, 14f * d, 14f * d, pt);
+                String ct;
+                if (destDistM >= 0) {
+                    String dd = destDistM >= 1000
+                            ? String.format(java.util.Locale.US, "%.1f km", destDistM / 1000f)
+                            : String.format(java.util.Locale.US, "%.0f m", destDistM);
+                    ct = "CEL  " + dd + "  ↑  " + Math.round(destBearing) + "°";
+                } else {
+                    ct = "CEL  (czekam na GPS)";
+                }
+                txt(cv, ct, dr, 0xFF0A84FF, 11f);
+            }
+        }
+
+        private RectF destRect() {
+            float m = 10f * d;
+            float h = 42f * d;
+            return new RectF(m, getHeight() - h - 10f * d, getWidth() - m, getHeight() - 10f * d);
         }
 
         private void txt(Canvas cv, String s, RectF rr, int color, float size) {
@@ -431,6 +662,12 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
         @Override
         public boolean onTouchEvent(MotionEvent e) {
             int a = e.getActionMasked();
+            if (hasDest && destRect().contains(e.getX(), e.getY())) {
+                if (a == MotionEvent.ACTION_UP) {
+                    NavigatorActivity.this.clearDestination();
+                }
+                return true;
+            }
             int idx = -1;
             String[] lab = labels();
             for (int i = 0; i < lab.length; i++) {

@@ -83,6 +83,13 @@ public class ConnectivityPanel extends LinearLayout {
         setBackground(Ui.popupBg(a, night));
         setPadding(dp(12), dp(12), dp(12), dp(10));
         setClickable(true);
+        // NAPRAWA (ESSGOO/MT8163, Android 9): na API < 30 cala tresc panelu
+        // rysujemy warstwa SOFTWARE. Bez tego zlozony content (suwaki, kafelki,
+        // clipPath w PillSlider) bywa pusty na tym GPU. Na nowszych zostawiamy
+        // hardware (clip bez problemow).
+        if (android.os.Build.VERSION.SDK_INT < 30) {
+            setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        }
 
         // NAPRAWA (ESSGOO/MT8163, Android 9) - czesc 2: dokladnie ten sam blad,
         // ktory zostal juz naprawiony dla roota w LauncherActivity.
@@ -393,8 +400,11 @@ public class ConnectivityPanel extends LinearLayout {
     public void enterEditMode() {
         if (editMode) return;
         editMode = true;
-        grid.setEditing(true);
         btnEdit.setText("Gotowe");
+        try {
+            if (grid != null) grid.setEditing(true);
+        } catch (Throwable ignored) {
+        }
         btnAdd.setAlpha(0f);
         btnAdd.setScaleX(0.9f);
         btnAdd.setScaleY(0.9f);
@@ -412,8 +422,11 @@ public class ConnectivityPanel extends LinearLayout {
     public void exitEditMode() {
         if (!editMode) return;
         editMode = false;
-        grid.setEditing(false);
         btnEdit.setText("Edytuj");
+        try {
+            if (grid != null) grid.setEditing(false);
+        } catch (Throwable ignored) {
+        }
         btnAdd.animate().alpha(0f).scaleX(0.9f).scaleY(0.9f).setDuration(180)
                 .withEndAction(new Runnable() {
                     @Override
