@@ -88,7 +88,6 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
         });
         addView(tap, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         restoreCenter();
-        PolandAutoDownload.maybeStart(c, map);
     }
 
     private void restoreCenter() {
