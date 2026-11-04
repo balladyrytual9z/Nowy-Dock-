@@ -9,6 +9,12 @@ Launcher Android (`pl.dock.widget`) dla tabletu samochodowego (Honda,
 SoC **MT8163**, heap ok. **128 MB**). Cechy: dock z ikonami, panel
 łączności, OBD przez SPP/BLE (ELM327), nakładka CarPlay nad Organic Maps.
 
+> ### 🔴 TWARDY WYMÓG: ma działać na **Androidzie 9 = API 28**
+>
+> Tablet docelowy: **ESSGO** (head unit, Android 9). Każda zmiana musi
+> to zachować. **NIE podnosić `minSdk` powyżej 28 ani `targetSdk`
+> powyżej 28.** Pułapki i checklista → sekcja 2a.
+
 - `namespace` / `applicationId`: `pl.dock.widget`
 - `minSdk 26`, `targetSdk 28` (celowo stary — zachowanie nakładek),
   `compileSdk 35`
@@ -44,6 +50,40 @@ Root `build.gradle` trzyma wersje wtyczek; `settings.gradle` ma
 `.openhands/hooks/quality_gate.sh` uruchamia `test` + `assembleDebug`
 przy zatrzymaniu agenta — lokalnie padnie, bo brak Gradle. Nie jest to
 błąd kodu.
+
+## 2a. Android 9 (API 28) — twardy cel i pułapki
+
+Ma chodzić na: **ESSGO head unit, Android 9**, SoC MT8163
+(GPU **Mali-T720**), ~128 MB heap.
+
+Sprawdzone — jest OK:
+- SDK OM ma `minSdk = 21` (`propMinSdkVersion`), więc API 28 jest w zakresie
+- `FOREGROUND_SERVICE` **jest** zadeklarowany (wymagany od Android 9)
+- `SYSTEM_ALERT_WINDOW` (nakładki) — jest
+- Java 17 + desugaring nie zależą od wersji Androida: D8 desugaruje
+  bajtkod do DEX pod `minSdk 26`
+- `compileSdk` jest **tylko kompilacyjny** i nie wpływa na działanie
+  na API 28
+
+Pułapki — potwierdzić, zanim cokolwiek wdrożymy na urządzenie:
+- **ABI — największe ryzyko.** Tanie head unity często mają **32-bitowy
+  userspace** mimo 64-bitowego SoC. Jeśli AAR SDK nie zawiera
+  `armeabi-v7a`, apka padnie na `UnsatisfiedLinkError`. Lokalne buildy
+  kontrolne SDK robi się z `-Parm64`, więc **samo `-Parm64` to za mało**.
+  Ustalić architekturę: `adb shell getprop ro.product.cpu.abi`.
+  Domyślny build wydaniowy SDK pakuje 4 ABI — potwierdzić w konkretnym AAR.
+- **Vulkan.** Mali-T720 **nie wspiera Vulkan** — renderer OM musi zejść
+  na OpenGL ES. Vulkan w OM jest opcjonalny
+  (`enableVulkanDiagnostics=OFF`), ale na tym GPU trzeba to potwierdzić
+  na żywym urządzeniu.
+- **Cleartext HTTP** jest blokowany dla `targetSdk >= 28`. osmdroid i OM
+  używają HTTPS — nie otwierać wyjątku `usesCleartextTraffic`.
+- **Lokalizacja w tle.** `ACCESS_BACKGROUND_LOCATION` istnieje od API 29 —
+  na Androidzie 9 go **nie** dodawać. Nawigacja w tle wymaga własnego
+  foreground service z notyfikacją (README SDK mówi wprost, że to
+  obowiązek hosta).
+- **Pamięć.** 128 MB heap — tekstury i kafle OM renderuje natywnie,
+  nie alokować ich po stronie Javy.
 
 ## 3. Stos mapowy (stan obecny)
 
@@ -109,7 +149,8 @@ ze źródeł (`git submodule update --init --recursive`, CMake, **NDK 29**,
 | `compileSdk` = `propCompileSdkVersion` = **37** | wymusza `aarMetadata.minCompileSdk` |
 | `androidResources.noCompress += ["png","mwm","ttf","packed_polygons.bin"]` | natywny silnik czyta mapy **losowym dostępem**; spakowane = crash |
 | AndroidX `lifecycle`/`recyclerview`/`fragment` (jako `api`) | wchodzą tranzytywnie |
-| minSdk 21 | masz 26 ✔ |
+| minSdk 21 | masz 26 ✔ — **API 28 (Android 9) jest w zakresie** |
+| **ABI z `armeabi-v7a`** | jeśli tablet ma 32-bitowy userspace → sekcja 2a |
 | NDK 29 / JDK 21 | tylko przy budowaniu SDK ze źródeł |
 
 Kontrakt integracji (z README SDK — trzymaj się go):
@@ -131,7 +172,10 @@ Kontrakt integracji (z README SDK — trzymaj się go):
   `noCompress`. Bez dodawania zależności SDK (jeszcze jej nie ma).
 - **Faza 1** — podbić AGP + `compileSdk 37` + doinstalować
   `platforms;android-37` w CI, dodać `app.organicmaps.sdk:sdk` i
-  `:maps-world`, przyciąć `abiFilters` do `armeabi-v7a`+`arm64-v8a`.
+  `:maps-world`. `abiFilters` dopasować do realnego tabletu —
+  **najpierw ustalić jego ABI** (sekcja 2a); `armeabi-v7a` musi zostać,
+  jeśli userspace jest 32-bitowy. `minSdk`/`targetSdk` **bez zmian**
+  (26/28) — to wymóg Androida 9.
 - **Faza 2** — `OrganicMaps.init()` + `MapView`/`MapController` w launcherze.
 - **Faza 3** — offline search, pobieranie regionów, routing.
 - **Faza 4** — `NavData`/`NavOverlayService` zasilane **z SDK**;
