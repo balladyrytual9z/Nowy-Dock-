@@ -224,7 +224,11 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
             centeredOnce = true;
             try {
                 map.getController().setCenter(new GeoPoint(lat, lon));
-                map.getController().setZoom(13d);
+                // NIE zmieniamy zooma — zostaje na poziomie 6 (cala Polska).
+                // Skok na zoom 13 (albo jakikolwiek wyzszy) czysci kafle
+                // i bez internetu/offline mapa znika na bialo.
+                // Uzytkownik widzi swoja lokalizacje na ogolnym tle,
+                // a w NavigatorActivity moze przyblizyc recznie.
             } catch (Throwable ignored) {
             }
         }
