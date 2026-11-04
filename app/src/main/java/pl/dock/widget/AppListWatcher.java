@@ -49,6 +49,7 @@ public final class AppListWatcher extends BroadcastReceiver {
 
     public static void notifyChanged(Context c) {
         Icons.invalidate();
+        Prefs.invalidateDiplayPkg();
         try {
             DockWidget.updateAll(c);
         } catch (Throwable ignored) {}
@@ -75,6 +76,7 @@ public final class AppListWatcher extends BroadcastReceiver {
                 || Intent.ACTION_PACKAGE_REMOVED.equals(action)
                 || Intent.ACTION_PACKAGE_REPLACED.equals(action)) {
             Icons.invalidate();
+            Prefs.invalidateDiplayPkg();
             try {
                 DockWidget.updateAll(context);
             } catch (Throwable ignored) {}

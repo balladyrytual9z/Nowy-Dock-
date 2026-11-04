@@ -548,6 +548,8 @@ public class Prefs {
     }
 
     // ---------- status CarPlay (aplikacja DiPlay) ----------
+    private static volatile String diplayResolved;
+
     public static boolean cpShow(Context c) {
         return sp(c).getBoolean("cpshow", true);
     }
@@ -561,12 +563,24 @@ public class Prefs {
     public static String diplayPkg(Context c) {
         String s = sp(c).getString("cppkg", "");
         if (s.length() > 0) return s;
-        String f = pkgByLabel(c, "DiPlay");
-        return f != null ? f : "com.shihab.diplay";
+        String r = diplayResolved;
+        if (r != null) return r;
+        synchronized (Prefs.class) {
+            if (diplayResolved != null) return diplayResolved;
+            String f = pkgByLabel(c, "DiPlay");
+            diplayResolved = f != null ? f : "com.shihab.diplay";
+            return diplayResolved;
+        }
     }
 
     public static void setDiplayPkg(Context c, String v) {
         ed(c).putString("cppkg", v).apply();
+        diplayResolved = null;
+    }
+
+    /** Wywoływane z AppListWatcher, gdy lista pakietów się zmieniła. */
+    public static void invalidateDiplayPkg() {
+        diplayResolved = null;
     }
 
     public static boolean cpUseSession(Context c) {
