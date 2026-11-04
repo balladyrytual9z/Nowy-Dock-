@@ -512,6 +512,47 @@ public class ConfigActivity extends BaseActivity {
         footer(col, "Widżety systemowe dodajesz długim dotknięciem ekranu głównego "
                 + "albo kafelka „Dodaj widżet” na stronie widżetów.");
 
+        // --- Mapy (offline) ---
+        section(col, "Mapy (offline)");
+        g = group(col);
+        g.addView(segRow("Styl mapy", new String[]{"Ulice", "Teren"},
+                "topo".equals(Prefs.mapStyle(this)) ? 1 : 0, new OnSel() {
+                    @Override
+                    public void on(int i) {
+                        Prefs.setMapStyle(ConfigActivity.this, i == 1 ? "topo" : "mapnik");
+                    }
+                }));
+        sep(g);
+        g.addView(toggle("Pobieraj nowe mapy z internetu", Prefs.mapOnline(this),
+                new BoolSetter() {
+                    @Override
+                    public void set(boolean v) {
+                        Prefs.setMapOnline(ConfigActivity.this, v);
+                    }
+                }));
+        sep(g);
+        g.addView(toggle("Podążaj za pozycją GPS", Prefs.mapFollow(this), new BoolSetter() {
+            @Override
+            public void set(boolean v) {
+                Prefs.setMapFollow(ConfigActivity.this, v);
+            }
+        }));
+        sep(g);
+        g.addView(row(Icons.builtin(this, "nav"), "Otwórz nawigację", "", true, p.accent,
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        try {
+                            startActivity(new Intent(ConfigActivity.this,
+                                    pl.dock.widget.maps.NavigatorActivity.class));
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }));
+        footer(col, "Mapy działają offline z pobranych kafli. Gdy tablet jest online, "
+                + "włącz „Pobieraj nowe mapy z internetu” i użyj w Nawigacji przycisku "
+                + "„Pobierz okolice”, aby zapisać obszar.");
+
         // --- Łączność ---
         section(col, "Łączność");
         g = group(col);

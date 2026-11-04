@@ -55,6 +55,7 @@ public class LauncherActivity extends BaseActivity {
     private static final int HOST_ID = 4217;
     private static final int REQ_BIND = 31;
     private static final int REQ_CONFIG = 32;
+    private static final int REQ_LOC = 77;
 
     private FrameLayout root;
     private BackgroundView bg;
@@ -136,6 +137,8 @@ public class LauncherActivity extends BaseActivity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         pl.dock.widget.ui.DockTheme.loadFonts(this);
+        pl.dock.widget.maps.MapConfig.init(this);
+        ensureLocationPermission();
         night = Look.night(this);
         builtScale = Prefs.uiScale(this);
         awm = AppWidgetManager.getInstance(this);
@@ -165,6 +168,19 @@ public class LauncherActivity extends BaseActivity {
                     navigateToPage(pageF);
                 }
             }, 250);
+        }
+    }
+
+    // Uprawnienie do lokalizacji jest potrzebne mapie offline (GPS).
+    // Android 9 (API 28) wymaga zapytania w czasie dzialania.
+    private void ensureLocationPermission() {
+        try {
+            if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION},
+                        REQ_LOC);
+            }
+        } catch (Throwable ignored) {
         }
     }
 
@@ -1567,7 +1583,19 @@ public class LauncherActivity extends BaseActivity {
                 showWidgetPicker(where);
             }
         };
-        if (l == null) l = new HomeSections.Slot(this, "hl", cb);
+        if (l == null) {
+            // Domyslnie lewy slot to mapa offline (jak mapa w CarPlay).
+            // Przytrzymanie pozwala podmienic na inny widzet.
+            final pl.dock.widget.maps.MapCard mc = new pl.dock.widget.maps.MapCard(this);
+            mc.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View x) {
+                    showWidgetPicker("hl");
+                    return true;
+                }
+            });
+            l = mc;
+        }
         if (rt == null) rt = new HomeSections.Slot(this, "hr", cb);
         for (View v : new View[]{l, rt}) {
             if (v.getTag() instanceof WidgetEntry) {
@@ -1604,6 +1632,8 @@ public class LauncherActivity extends BaseActivity {
                 v = new CardWidgets.CalendarCard(this);
             } else if (e.id == -7) {
                 v = new CardWidgets.WorldClockCard(this);
+            } else if (e.id == -8) {
+                v = new pl.dock.widget.maps.MapCard(this);
             }
             if (v != null) {
                 ((NightAware) v).setNight(night);
@@ -1624,9 +1654,9 @@ public class LauncherActivity extends BaseActivity {
         if (where.startsWith("s") && stacksPage == null) return;
         PackageManager pm = getPackageManager();
         final List<String> labels = new ArrayList<String>();
-        final int[] builtIns = {-1, -2, -3, -4, -5, -6, -7};
+        final int[] builtIns = {-1, -2, -3, -4, -5, -6, -7, -8};
         String[] bn = {"Zegar analogowy", "Odtwarzane", "Pogoda", "Zachód słońca", "Data",
-                "Kalendarz", "Zegary świata"};
+                "Kalendarz", "Zegary świata", "Mapy (offline)"};
         for (String s : bn) labels.add(s);
         final PackageManager pmf = pm;
         final List<AppWidgetProviderInfo> sorted =

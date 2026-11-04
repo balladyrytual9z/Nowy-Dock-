@@ -22,6 +22,10 @@
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- Nawigacja offline: GPS nie jest wymagany do instalacji, ale urzadzenie go ma.
+         Pozycje pobieramy z ACCESS_FINE_LOCATION (juz zadeklarowane wyzej). -->
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+
     <application
         android:icon="@drawable/ic_launcher"
         android:label="Dock"
@@ -83,6 +87,22 @@
             android:launchMode="singleTop"
             android:excludeFromRecents="true"
             android:exported="false" />
+
+        <!-- Nawigacja offline (OpenStreetMap / osmdroid). Osobna ikona w launcherze
+             systemowym (emblemat mapy) - uruchamia mapy bezposrednio. -->
+        <activity
+            android:name=".maps.NavigatorActivity"
+            android:label="Mapy"
+            android:icon="@drawable/ic_maps"
+            android:launchMode="singleTask"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:configChanges="orientation|screenSize|keyboardHidden|density|uiMode|fontScale"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
 
         <activity
             android:name=".AppsActivity"

@@ -954,6 +954,53 @@ public class Prefs {
         ed(c).putString("paneltools", v).apply();
     }
 
+    // ---------- mapy offline (osmdroid) ----------
+    // "map_online" = dokladanie kafli z internetu (gdy tablet jest online).
+    // Domyslnie WYLACZONE: mapy dzialaja z pobranego wczesniej obszaru (offline).
+    public static boolean mapOnline(Context c) {
+        return sp(c).getBoolean("map_online", false);
+    }
+
+    public static void setMapOnline(Context c, boolean v) {
+        ed(c).putBoolean("map_online", v).apply();
+    }
+
+    // ostatnia pozycja/zoom mapy - zeby po powrocie mapa wracala w to samo miejsce
+    public static String mapLastLat(Context c) {
+        return sp(c).getString("map_lat", "");
+    }
+
+    public static String mapLastLon(Context c) {
+        return sp(c).getString("map_lon", "");
+    }
+
+    public static float mapLastZoom(Context c) {
+        return sp(c).getFloat("map_zoom", 16f);
+    }
+
+    public static void setMapLast(Context c, double lat, double lon, float zoom) {
+        ed(c).putString("map_lat", String.valueOf(lat))
+                .putString("map_lon", String.valueOf(lon))
+                .putFloat("map_zoom", zoom).apply();
+    }
+
+    // wybrany styl kafli: "mapnik" (ulice) albo "topo" (teren)
+    public static String mapStyle(Context c) {
+        return sp(c).getString("map_style", "mapnik");
+    }
+
+    public static void setMapStyle(Context c, String v) {
+        ed(c).putString("map_style", v).apply();
+    }
+
+    // auto-zoom i podazanie za pozycja GPS (jak w CarPlay)
+    public static boolean mapFollow(Context c) {
+        return sp(c).getBoolean("map_follow", true);
+    }
+
+    public static void setMapFollow(Context c, boolean v) {
+        ed(c).putBoolean("map_follow", v).apply();
+    }
 }
 
 
