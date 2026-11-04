@@ -11,6 +11,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import pl.dock.widget.blackbox.AppDatabase
@@ -23,6 +24,8 @@ import pl.dock.widget.orchestration.ConnectionManager
  * Fix: instancja AppDatabase jest zamykana po odczycie (brak wycieku).
  */
 class EReportActivity : Activity() {
+
+    private val scope = MainScope()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,7 +72,7 @@ class EReportActivity : Activity() {
         root.addView(shareBtn)
         setContentView(root)
 
-        MainScope().launch {
+        scope.launch {
             val s = manager.uiState.first()
             val confirmed = Dtc.parse(manager.rawRequest("03"), pending = false)
             val pending = Dtc.parse(manager.rawRequest("07"), pending = true)
@@ -126,4 +129,9 @@ class EReportActivity : Activity() {
         }
 
     private fun f(v: Float): String = if (v.isNaN()) "-" else String.format("%.1f", v)
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
+    }
 }
