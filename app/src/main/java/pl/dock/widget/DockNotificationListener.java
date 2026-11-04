@@ -13,6 +13,13 @@ public class DockNotificationListener extends NotificationListenerService {
     private static volatile String removedKey = "";
     private static volatile long removedTs;
 
+    /**
+     * Bumped on every change in the active-notification set. UI caches badge
+     * counts keyed on this value instead of calling getActiveNotifications()
+     * in onDraw() for every icon (was 15 full scans/frame on MT8163).
+     */
+    public static volatile long countsVersion = 0L;
+
     public static boolean connected() {
         return instance != null;
     }
@@ -70,6 +77,7 @@ public class DockNotificationListener extends NotificationListenerService {
     public void onListenerConnected() {
         instance = this;
         removedKey = "";
+        countsVersion++;
         MediaHub.get().onListenerEvent();
         notifyStatus();
     }
@@ -82,6 +90,7 @@ public class DockNotificationListener extends NotificationListenerService {
     @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
         if (sbn != null && sbn.getKey() != null && sbn.getKey().equals(removedKey)) removedKey = "";
+        countsVersion++;
         MediaHub.get().onListenerEvent();
         notifyStatus();
     }
@@ -91,6 +100,7 @@ public class DockNotificationListener extends NotificationListenerService {
         // w chwili zdarzenia lista aktywnych może jeszcze zawierać usuwane powiadomienie
         removedKey = sbn == null || sbn.getKey() == null ? "" : sbn.getKey();
         removedTs = System.currentTimeMillis();
+        countsVersion++;
         MediaHub.get().onListenerEvent();
         notifyStatus();
     }
