@@ -1,3 +1,4 @@
+Test systemu agentowego
 # Dock 2.0 (CarPlay Launcher) + Honda OBD Discovery
 
 Android launcher for car tablets (API 26+, target 28 / Android 9 Automotive).  
@@ -85,3 +86,8 @@ Debug keystore: `app/dock-debug.p12` (alias `dock`, password `dockdock`) if pres
 ## CI
 
 `.github/workflows/build-release.yml` - Java 17, Gradle 8.9, assembleDebug + GitHub Release.
+
+## Notatka (AI)
+
+Ten wpis został dodany automatycznie przez agenta OpenHands w ramach zadania testowego.
+Zmiana nie wpływa na działanie aplikacji ani na proces budowania APK.

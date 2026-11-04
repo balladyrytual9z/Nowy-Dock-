@@ -449,7 +449,6 @@ public class AppLibraryPage extends FrameLayout {
     }
 
     // wiersz aplikacji: zaokraglona ikona po lewej + nazwa po prawej (jak w Ustawieniach iOS)
-    // wiersz aplikacji: zaokraglona ikona po lewej + nazwa po prawej (jak w Ustawieniach iOS)
     private View makeAppRow(final AppEntry app, final LibraryFolderView.Listener fl) {
         LinearLayout row = new LinearLayout(ctx);
         row.setOrientation(LinearLayout.HORIZONTAL);

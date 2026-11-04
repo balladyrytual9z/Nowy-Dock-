@@ -63,7 +63,7 @@ public class Updater {
         SharedPreferences sp = app.getSharedPreferences("dock.update", 0);
         long now = System.currentTimeMillis();
         if (now - sp.getLong("last_check", 0) < CHECK_INTERVAL_MS) return;
-        sp.edit().putLong("last_check", now).commit();
+        sp.edit().putLong("last_check", now).apply();
         busy = true;
         new Thread(new Runnable() {
             @Override
@@ -94,7 +94,7 @@ public class Updater {
         }
         final Context app = c.getApplicationContext();
         app.getSharedPreferences("dock.update", 0).edit()
-                .putLong("last_check", System.currentTimeMillis()).commit();
+                .putLong("last_check", System.currentTimeMillis()).apply();
         busy = true;
         toast(app, "Sprawdzam aktualizacje…");
         new Thread(new Runnable() {
@@ -185,7 +185,7 @@ public class Updater {
             if (!pm.canRequestPackageInstalls()) {
                 // NIE zuzyczaj przerwy 6 h: gdy uzytkownik cofnie sie bez nadania
                 // zgody, przy nastepnym starcie/WiFi spróbuj od razu ponownie
-                c.getSharedPreferences("dock.update", 0).edit().putLong("last_check", 0L).commit();
+                c.getSharedPreferences("dock.update", 0).edit().putLong("last_check", 0L).apply();
                 toast(c, "Aktualizacja gotowa - zezwol na instalacje aplikacji Dock");
                 try {
                     Intent i = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);

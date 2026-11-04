@@ -59,6 +59,8 @@ public class AppsGridPage extends View implements EditModeController.Listener {
 
     private final float d;
     private final List<Item> items = new ArrayList<Item>();
+    private int[] badgeCache = new int[0];
+    private long badgeVersion = -1L;
     private Listener listener;
     private boolean night = true;
     private final Paint pill = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -129,6 +131,8 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         items.clear();
         items.addAll(list);
         this.night = night;
+        if (badgeCache.length < items.size()) badgeCache = new int[items.size()];
+        badgeVersion = -1L;   // force refresh on next onDraw
         measureLabels();
         invalidate();
     }
@@ -235,6 +239,20 @@ public class AppsGridPage extends View implements EditModeController.Listener {
     protected void onDraw(Canvas cv) {
         pill.setColor(night ? 0xB31E1E20 : 0xCCFFFFFF);
         text.setColor(night ? 0xFFFFFFFF : 0xFF111114);
+
+        // Odświeżamy liczniki powiadomień tylko gdy zmienił się zbiór —
+        // wcześniej getActiveNotifications() leciał dla każdej z 15 ikon
+        // przy każdym onDraw (realny jank na MT8163).
+        if (badgeVersion != DockNotificationListener.countsVersion) {
+            badgeVersion = DockNotificationListener.countsVersion;
+            int n = Math.min(items.size(), badgeCache.length);
+            for (int i = 0; i < n; i++) {
+                Item it = items.get(i);
+                badgeCache[i] = (it.pkg != null && it.pkg.length() > 0)
+                        ? DockNotificationListener.notificationCount(it.pkg) : 0;
+            }
+        }
+
         for (int i = 0; i < items.size(); i++) {
             if (dragActive && i == dragIndex) continue; // drawn floating later
             Item it = items.get(i);
@@ -270,7 +288,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
                     drawRemoveBadge(cv, x, y);
                 }
             } else if (!editMode && it.pkg != null && it.pkg.length() > 0) {
-                int count = DockNotificationListener.notificationCount(it.pkg);
+                int count = i < badgeCache.length ? badgeCache[i] : 0;
                 if (count > 0) {
                     drawNotifBadge(cv, x + iconSz, y, count);
                 }

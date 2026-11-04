@@ -14,7 +14,6 @@ import android.view.View;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.ViewConfiguration;
-import pl.dock.widget.ui.SpinnerView;
 
 // Dock w launcherze: te same wymiary co widżet (zegar, statusy, napięcie, bateria telefonu, ikony, przycisk dolny).
 // Rysowany jednym widokiem; odświeżany tylko przy zmianie danych.
@@ -71,8 +70,10 @@ public class DockView extends View {
             if (listener != null) listener.onBottomLong();
         }
     };
-    private SpinnerView spinner;
     private boolean cpReconnecting;
+    private long cpSpinnerStart = 0L;
+    private final Paint spinnerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF spinnerRect = new RectF();
 
     public DockView(Context c) {
         super(c);
@@ -94,31 +95,12 @@ public class DockView extends View {
     }
 
     public void setCarplayState(int cpState) {
-        ensureSpinner();
         boolean reconnecting = (cpState == CarplayState.PHONE);
+        if (reconnecting && !cpReconnecting) {
+            cpSpinnerStart = System.currentTimeMillis();
+        }
         cpReconnecting = reconnecting;
-        if (spinner != null) {
-            spinner.setVisibility(reconnecting ? VISIBLE : GONE);
-            int fg = effNight() ? 0xFFFFFFFF : 0xFF111111;
-            spinner.setColor(CarplayState.color(cpState, fg));
-            if (reconnecting) spinner.bringToFront();
-        }
         invalidate();
-    }
-
-    private void ensureSpinner() {
-        if (spinner == null) {
-            spinner = new SpinnerView(getContext());
-            // SpinnerView is drawn manually in onDraw when needed; keep as helper only
-        }
-    }
-
-    private void layoutSpinner() {
-        if (spinner == null) return;
-        float sz = 42f * d;
-        int l = (int) (cx() - sz / 2);
-        int t = (int) iconTop(3);
-        spinner.layout(l, t, (int) (l + sz), (int) (t + sz));
     }
 
     private boolean effNight() {
@@ -339,7 +321,12 @@ public class DockView extends View {
         for (int i = 0; i < 4; i++) {
             Bitmap b = icons[i];
             if (b == null) continue;
+            if (i == 3 && cpReconnecting) continue;   // spinner zastępuje ikonę CP
             drawIcon(cv, b, cx - sz / 2f, iconTop(i), sz, sz, pressed == i ? 150 : 255);
+        }
+        if (cpReconnecting) {
+            drawSpinnerRing(cv, cx, iconTop(3) + sz / 2f, sz * 0.35f);
+            postInvalidateOnAnimation();   // wiruje ~1 obrót/s, dopóki PHONE
         }
 
         // przycisk dolny: ekran główny = jeden kwadrat z zaokrąglonymi rogami,
@@ -377,6 +364,25 @@ public class DockView extends View {
         bmpPaint.setAlpha(alpha);
         rect.set(l, t, l + w, t + h);
         cv.drawBitmap(b, null, rect, bmpPaint);
+    }
+
+    /** Wirujący pierścień (iOS "reconnecting") rysowany inline zamiast dziecka View. */
+    private void drawSpinnerRing(Canvas cv, float cx, float cy, float r) {
+        int fg = effNight() ? 0xFFFFFFFF : 0xFF111111;
+        float ang = ((System.currentTimeMillis() - cpSpinnerStart) % 1000L) * 0.36f;
+        spinnerPaint.setStyle(Paint.Style.STROKE);
+        spinnerPaint.setStrokeWidth(3.0f * d);
+        spinnerPaint.setStrokeCap(Paint.Cap.ROUND);
+        spinnerRect.set(cx - r, cy - r, cx + r, cy + r);
+        for (int i = 0; i < 8; i++) {
+            int alpha = Math.min(255, 40 + i * 25);
+            spinnerPaint.setColor((fg & 0x00FFFFFF) | (alpha << 24));
+            cv.save();
+            cv.rotate(ang + i * 45f, cx, cy);
+            cv.drawArc(spinnerRect, -18f, 22f, false, spinnerPaint);
+            cv.restore();
+        }
+        spinnerPaint.setStyle(Paint.Style.FILL);
     }
 
 

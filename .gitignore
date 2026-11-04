@@ -1,0 +1,31 @@
+# Android / Gradle build outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+.gradle/
+build/
+captures/
+local.properties
+.cxx/
+.externalNativeBuild/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+
+# OS / logs
+.DS_Store
+Thumbs.db
+*.log
+
+# Repo-specific cruft (zrzut calego projektu nie nalezy do repo)
+/project.zip
+
+# UWAGA: app/dock-debug.p12 jest celowo trzymany w repo - stabilny podpis
+# APK w CI ("update bez odinstalowania"). Docelowo przeniesc go do sekretu
+# CI (base64) i usunac z historii - patrz zalecenie w PR.

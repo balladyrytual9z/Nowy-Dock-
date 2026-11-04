@@ -85,4 +85,7 @@ dependencies {
     // Mapy dzialaja bez internetu (kafle z pamieci), a przy podlaczonym
     // internecie dokladaja/odswiezaja obszar.
     implementation 'org.osmdroid:osmdroid-android:6.1.18'
+
+    // Testy jednostkowe (JVM) - parser ELM327 i logika czysta, bez Androida.
+    testImplementation 'junit:junit:4.13.2'
 }
