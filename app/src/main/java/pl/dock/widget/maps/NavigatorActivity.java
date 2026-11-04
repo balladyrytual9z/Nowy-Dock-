@@ -312,7 +312,8 @@ private void toggleFollow() {
             centeredOnce = true;
             try {
                 map.getController().setCenter(new GeoPoint(lat, lon));
-                map.getController().setZoom(13d);
+                // zachowujemy obecny zoom — nie skaczemy na 13 zeby nie
+                // wyczyscic kafli na slabym laczu/offline.
             } catch (Throwable ignored) {
             }
         }
@@ -533,6 +534,7 @@ private void toggleFollow() {
                     | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                     | View.SYSTEM_UI_FLAG_FULLSCREEN;
             if (!Look.night(this)) flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN);
             getWindow().getDecorView().setSystemUiVisibility(flags);
         } catch (Throwable ignored) {
         }
