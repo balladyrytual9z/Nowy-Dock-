@@ -49,8 +49,10 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
     private MapView map;
     private MyLocationNewOverlay loc;
     private DockView dock;
-    private Controls controls;
+    private ChromeView chrome;
     private boolean hasFix;
+    private float currentSpeedMs;
+    private float currentBearing;
     private boolean centeredOnce;
     private boolean hasDest;
     private GeoPoint dest;
@@ -119,12 +121,10 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
             map = null;
         }
 
-        // warstwa przyciskow (rysowana, jak reszta UI Docka)
-        controls = new Controls(this);
-        FrameLayout.LayoutParams clp = new FrameLayout.LayoutParams(
-                Ui.dp(this, 132), ViewGroup.LayoutParams.MATCH_PARENT,
-                Ui.dockLeft(this) ? Gravity.END : Gravity.START);
-        root.addView(controls, clp);
+        // CarPlay-style chrome overlay
+        chrome = new ChromeView(this);
+        root.addView(chrome, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         // dock Docka po wlasciwej stronie
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
@@ -208,19 +208,7 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
         });
     }
 
-    // akcje z warstwy przyciskow
-    private void clickControl(int id) {
-        if (id == 0) finish();
-        else if (id == 1 && map != null) map.getController().zoomIn();
-        else if (id == 2 && map != null) map.getController().zoomOut();
-        else if (id == 3) toggleFollow();
-        else if (id == 4) toggleLayer();
-        else if (id == 5) toggleOnline();
-        else if (id == 6) downloadAround();
-        else if (id == 7) openSearch();
-    }
-
-    private void toggleFollow() {
+private void toggleFollow() {
         boolean f = !Prefs.mapFollow(this);
         Prefs.setMapFollow(this, f);
         if (loc != null) {
@@ -308,12 +296,14 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
     }
 
     private void invalidateControls() {
-        if (controls != null) controls.invalidate();
+        if (chrome != null) chrome.invalidate();
     }
 
     @Override
     public void onLocation(double lat, double lon, float bearing, float speedMs, boolean hasFix) {
         this.hasFix = hasFix;
+        this.currentSpeedMs = speedMs;
+        this.currentBearing = bearing;
         // Auto-centrowanie TYLKO na swiezym fix'ie GPS (stara "ostatnia znana
         // pozycja" nie jest podstawa do skoku - wtedy mapa by znikala).
         if (!centeredOnce && hasFix && map != null
@@ -557,74 +547,155 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
      * Pionowa kolumna duzych, czytelnych przyciskow po przeciwnej stronie docka.
      * Rysowana recznie (bez XML/AndroidX), dotyk wykrywany po obszarze.
      */
-    private class Controls extends View {
+    // CarPlay-style chrome: przezroczyste elementy nakladane na mape
+    private class ChromeView extends View {
+
+        private static final int BTN_CLOSE = 0;
+        private static final int BTN_ZOOM_IN = 1;
+        private static final int BTN_ZOOM_OUT = 2;
+        private static final int BTN_FOLLOW = 3;
+        private static final int BTN_LAYER = 4;
+        private static final int BTN_ONLINE = 5;
+        private static final int BTN_SEARCH = 6;
 
         private final float d;
         private final Paint pt = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint tx = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final RectF r = new RectF();
         private int pressed = -1;
 
-        Controls(android.content.Context c) {
+        ChromeView(Context c) {
             super(c);
             d = c.getResources().getDisplayMetrics().density;
-            setContentDescription("Sterowanie mapą");
+            setContentDescription("Nawigacja CarPlay");
         }
 
-        private float itemH() {
-            return 62f * d;
+        private float btnColX() {
+            boolean left = Ui.dockLeft(getContext());
+            float w = 48f * d;
+            float margin = 8f * d;
+            return left ? getWidth() - w - margin : margin;
         }
 
-        private float top() {
-            return 88f * d;
+        private float btnColY() {
+            int n = 7;
+            float total = n * (36f * d) + (n - 1) * (6f * d);
+            return (getHeight() - total) / 2f;
         }
 
         private RectF rectFor(int i) {
-            float m = 10f * d;
-            float y = top() + i * (itemH() + 10f * d);
-            return new RectF(m, y, getWidth() - m, y + itemH());
+            float x = btnColX();
+            float y = btnColY() + i * (42f * d);
+            return new RectF(x, y, x + 48f * d, y + 36f * d);
+        }
+
+        private RectF topBarRect() {
+            return new RectF(0, 0, getWidth(), 48f * d);
+        }
+
+        private float speedCx() {
+            boolean left = Ui.dockLeft(getContext());
+            float dockP = Ui.dp(getContext(), Ui.DOCK_OFFSET_DP);
+            return left ? dockP + 62f * d : getWidth() - dockP - 62f * d;
+        }
+
+        private float speedCy() {
+            return 52f * d + 60f * d;
+        }
+
+        private float speedR() {
+            return 34f * d;
+        }
+
+        private RectF destCardRect() {
+            float m = 12f * d;
+            float w = 220f * d;
+            float h = 44f * d;
+            float y = getHeight() - h - m;
+            boolean left = Ui.dockLeft(getContext());
+            float x = left ? (Ui.dp(getContext(), Ui.DOCK_OFFSET_DP) + 12f * d) : 12f * d;
+            return new RectF(x, y, x + w, y + h);
         }
 
         private String[] labels() {
-            boolean online = Prefs.mapOnline(getContext());
-            boolean topo = "topo".equals(Prefs.mapStyle(getContext()));
             boolean follow = Prefs.mapFollow(getContext());
-            return new String[]{"Zamknij", "+", "−", follow ? "Śledź: ON" : "Śledź: OFF",
-                    topo ? "Teren" : "Ulice", online ? "Net: ON" : "Net: OFF", "Pobierz okolice",
-                    "Szukaj"};
+            return new String[]{
+                    "X",
+                    "+",
+                    "-",
+                    follow ? "Sledz" : "Sledz",
+                    "Mapa",
+                    "Net",
+                    "Szukaj"
+            };
         }
 
         @Override
         protected void onDraw(Canvas cv) {
-            super.onDraw(cv);
-            String[] lab = labels();
-            for (int i = 0; i < lab.length; i++) {
+            // === top bar (ETA/dystans/kompas) ===
+            RectF tb = topBarRect();
+            pt.setStyle(Paint.Style.FILL);
+            pt.setColor(night ? 0xCC000000 : 0xCCF5F5F7);
+            cv.drawRect(tb, pt);
+
+            // lewa: dystans do celu lub predkosc
+            String topLeft;
+            if (hasDest && destDistM >= 0) {
+                String dd = destDistM >= 1000
+                        ? String.format(java.util.Locale.US, "%.1f km", destDistM / 1000f)
+                        : String.format(java.util.Locale.US, "%.0f m", destDistM);
+                topLeft = "↑  " + dd;
+            } else if (hasFix) {
+                int kph = Math.round(currentSpeedMs * 3.6f);
+                topLeft = String.valueOf(kph) + " km/h";
+            } else {
+                topLeft = "GPS…";
+            }
+            drawText(cv, topLeft, tb.left + 14f * d, tb.centerY(),
+                    hasFix ? 0xFF30D158 : 0xFFFF9F0A, 13f, Paint.Align.LEFT);
+
+            // prawa: strzalka kierunku (kompas)
+            float ccx = tb.right - 30f * d;
+            float ccy = tb.centerY();
+            drawCompass(cv, ccx, ccy, currentBearing);
+
+            // === kolo predkosci (Waze / CarPlay) ===
+            float scx = speedCx();
+            float scy = speedCy();
+            float sr = speedR();
+            pt.setStyle(Paint.Style.FILL);
+            pt.setColor(0xCC000000);
+            cv.drawCircle(scx, scy, sr, pt);
+            pt.setStyle(Paint.Style.STROKE);
+            pt.setStrokeWidth(2f * d);
+            pt.setColor(0xFFFFFFFF);
+            cv.drawCircle(scx, scy, sr, pt);
+            int kph = hasFix ? Math.round(currentSpeedMs * 3.6f) : 0;
+            drawText(cv, String.valueOf(kph), scx, scy - 5f * d, 0xFFFFFFFF, 36f, Paint.Align.CENTER);
+            drawText(cv, "km/h", scx, scy + 15f * d, 0xFF909090, 10f, Paint.Align.CENTER);
+
+            // === przyciski (plywajace pigułki) ===
+            String[] labs = labels();
+            for (int i = 0; i < labs.length; i++) {
                 RectF rr = rectFor(i);
-                boolean act = (i == 3 && Prefs.mapFollow(getContext()))
-                        || (i == 5 && Prefs.mapOnline(getContext()));
+                boolean act = (i == BTN_FOLLOW && Prefs.mapFollow(getContext()))
+                        || (i == BTN_ONLINE && Prefs.mapOnline(getContext()))
+                        || (i == BTN_LAYER && "topo".equals(Prefs.mapStyle(getContext())));
                 pt.setStyle(Paint.Style.FILL);
-                pt.setColor(pressed == i ? (night ? 0xFF2C2C2E : 0xFFD8DCE6)
-                        : (night ? 0xCC1C1C1E : 0xE6FFFFFF));
+                pt.setColor(pressed == i ? 0xFF2C2C2E : 0xCC202020);
                 cv.drawRoundRect(rr, 16f * d, 16f * d, pt);
                 pt.setStyle(Paint.Style.STROKE);
                 pt.setStrokeWidth(1.5f * d);
-                pt.setColor(act ? 0xFF0A84FF : (night ? 0x33FFFFFF : 0x22000000));
+                pt.setColor(act ? 0xFF0A84FF : 0x33FFFFFF);
                 cv.drawRoundRect(rr, 16f * d, 16f * d, pt);
-                txt(cv, lab[i], rr, act ? 0xFF0A84FF : (night ? 0xFFFFFFFF : 0xFF10131A),
-                        i == 6 ? 11f : 14f);
+                drawText(cv, labs[i], rr.centerX(), rr.centerY() - 1f * d,
+                        act ? 0xFF0A84FF : 0xCCFFFFFF, 11f, Paint.Align.CENTER);
             }
-            // status GPS u gory
-            RectF sr = new RectF(10f * d, 34f * d, getWidth() - 10f * d, 34f * d + 44f * d);
-            boolean fix = hasFix;
-            pt.setStyle(Paint.Style.FILL);
-            pt.setColor(night ? 0xCC000000 : 0xE6FFFFFF);
-            cv.drawRoundRect(sr, 14f * d, 14f * d, pt);
-            txt(cv, fix ? "GPS OK" : "GPS…", sr, fix ? 0xFF30D158 : 0xFFFF9F0A, 13f);
-            // pasek celu na dole (dotknij -> usun cel)
+
+            // === karta celu (dol-lewo) ===
             if (hasDest) {
-                RectF dr = destRect();
+                RectF dr = destCardRect();
                 pt.setStyle(Paint.Style.FILL);
-                pt.setColor(night ? 0xCC000000 : 0xE6FFFFFF);
+                pt.setColor(0xCC000000);
                 cv.drawRoundRect(dr, 14f * d, 14f * d, pt);
                 pt.setStyle(Paint.Style.STROKE);
                 pt.setStrokeWidth(1.5f * d);
@@ -635,66 +706,94 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
                     String dd = destDistM >= 1000
                             ? String.format(java.util.Locale.US, "%.1f km", destDistM / 1000f)
                             : String.format(java.util.Locale.US, "%.0f m", destDistM);
-                    ct = "CEL  " + dd + "  ↑  " + Math.round(destBearing) + "°";
+                    ct = "↑  " + dd + "  " + Math.round(destBearing) + "°";
                 } else {
-                    ct = "CEL  (czekam na GPS)";
+                    ct = "↑  Cel  (czekam na GPS)";
                 }
-                txt(cv, ct, dr, 0xFF0A84FF, 11f);
+                drawText(cv, ct, dr.centerX(), dr.centerY(), 0xFF0A84FF, 12f, Paint.Align.CENTER);
             }
         }
 
-        private RectF destRect() {
-            float m = 10f * d;
-            float h = 42f * d;
-            return new RectF(m, getHeight() - h - 10f * d, getWidth() - m, getHeight() - 10f * d);
-        }
-
-        private void txt(Canvas cv, String s, RectF rr, int color, float size) {
+        private void drawText(Canvas cv, String s, float x, float cy, int color, float size, Paint.Align align) {
             tx.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-            tx.setTextAlign(Paint.Align.CENTER);
+            tx.setTextAlign(align);
             tx.setTextSize(size * d);
             tx.setColor(color);
             Paint.FontMetrics fm = tx.getFontMetrics();
-            float cy = rr.centerY() - (fm.ascent + fm.descent) / 2f;
-            cv.drawText(s, rr.centerX(), cy, tx);
+            cv.drawText(s, x, cy - (fm.ascent + fm.descent) / 2f, tx);
+        }
+
+        private void drawCompass(Canvas cv, float cx, float cy, float bearingDeg) {
+            cv.save();
+            cv.rotate(bearingDeg, cx, cy);
+            android.graphics.Path p = new android.graphics.Path();
+            p.moveTo(cx, cy - 14f * d);
+            p.lineTo(cx - 7f * d, cy + 6f * d);
+            p.lineTo(cx + 7f * d, cy + 6f * d);
+            p.close();
+            pt.setStyle(Paint.Style.FILL);
+            pt.setColor(0xFFFF3B30);
+            cv.drawPath(p, pt);
+            p.reset();
+            p.moveTo(cx, cy + 14f * d);
+            p.lineTo(cx - 7f * d, cy - 6f * d);
+            p.lineTo(cx + 7f * d, cy - 6f * d);
+            p.close();
+            pt.setColor(0xFF909090);
+            cv.drawPath(p, pt);
+            cv.restore();
         }
 
         @Override
         public boolean onTouchEvent(MotionEvent e) {
             int a = e.getActionMasked();
-            if (hasDest && destRect().contains(e.getX(), e.getY())) {
-                if (a == MotionEvent.ACTION_UP) {
-                    NavigatorActivity.this.clearDestination();
-                }
-                return true;
-            }
             int idx = -1;
-            String[] lab = labels();
-            for (int i = 0; i < lab.length; i++) {
+            String[] labs = labels();
+            for (int i = 0; i < labs.length; i++) {
                 if (rectFor(i).contains(e.getX(), e.getY())) {
                     idx = i;
                     break;
                 }
             }
+            boolean onDest = hasDest && destCardRect().contains(e.getX(), e.getY());
             if (a == MotionEvent.ACTION_DOWN) {
-                pressed = idx;
-                invalidate();
-                return true;
+                pressed = onDest ? -2 : idx;
+                if (pressed >= 0) invalidate();
+                return onDest || idx >= 0;
             }
             if (a == MotionEvent.ACTION_UP) {
                 int was = pressed;
                 pressed = -1;
                 invalidate();
-                if (idx >= 0 && idx == was) {
-                    clickIndex(idx);
+                if (onDest) {
+                    NavigatorActivity.this.clearDestination();
+                    return true;
                 }
-                return true;
+                if (idx >= 0 && idx == was) {
+                    handleButton(idx);
+                    return true;
+                }
+                return false;
             }
-            return true;
+            if (a == MotionEvent.ACTION_MOVE) {
+                int np = (onDest || idx >= 0) ? idx : -1;
+                if (np != pressed) { pressed = np; invalidate(); }
+                return pressed >= 0;
+            }
+            if (a == MotionEvent.ACTION_CANCEL) {
+                pressed = -1; invalidate(); return false;
+            }
+            return false;
         }
 
-        private void clickIndex(int i) {
-            NavigatorActivity.this.clickControl(i);
+        private void handleButton(int i) {
+            if (i == BTN_CLOSE) finish();
+            else if (i == BTN_ZOOM_IN && map != null) map.getController().zoomIn();
+            else if (i == BTN_ZOOM_OUT && map != null) map.getController().zoomOut();
+            else if (i == BTN_FOLLOW) toggleFollow();
+            else if (i == BTN_LAYER) toggleLayer();
+            else if (i == BTN_ONLINE) toggleOnline();
+            else if (i == BTN_SEARCH) openSearch();
         }
     }
 }
