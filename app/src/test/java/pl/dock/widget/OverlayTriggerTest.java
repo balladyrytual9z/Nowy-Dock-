@@ -1,4 +1,4 @@
-successfully downloaded text file (SHA: e1670b232fe541ec46d02e8f4ad2a3307a2ea088)package pl.dock.widget;
+package pl.dock.widget;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -54,7 +54,8 @@ public class OverlayTriggerTest {
     @Test
     public void downwardSwipe_isNotSwipeUp() {
         // palec przesunięty w DÓŁ - dy ujemne
-        assertFalse(OverlayTrigger.isSwipeUp(500, 700, 200, 80, 500));
+     
+   assertFalse(OverlayTrigger.isSwipeUp(500, 700, 200, 80, 500));
     }
 
     @Test
@@ -99,7 +100,8 @@ public class OverlayTriggerTest {
     public void noFollow_placesPanelBesideDock() {
         assertEquals(128, OverlayTrigger.panelX(600, 500, 1200, 120, true, false, 8));
         // dok po prawej -> panel przy lewej krawędzi
-        assertEquals(8, OverlayTrigger.panelX(600, 500, 1200, 120, false, false, 8));
+        assertEquals(8, OverlayTrigger.panelX(600, 500, 1
+200, 120, false, false, 8));
     }
 
     @Test

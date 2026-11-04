@@ -1,4 +1,4 @@
-successfully downloaded text file (SHA: 2007dd02c93bb9324447002742ef2639d3915362)name: Build and publish CarPlay Launcher
+name: Build and publish CarPlay Launcher
 
 on:
   push:
@@ -58,7 +58,8 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Locate Android SDK and install required packages
+      - name: Locate Android SDK and install required
+ packages
         shell: bash
         run: |
           set -euo pipefail
@@ -107,7 +108,8 @@ jobs:
               } >> "$GITHUB_STEP_SUMMARY"
             fi
           done
-          if [ "$FOUND" = "0" ]; then
+          if [ "$FOUND" = "0
+" ]; then
             echo "### Brak raportow testow z bledami" >> "$GITHUB_STEP_SUMMARY"
             echo "Prawdopodobny blad kompilacji - patrz ogon logu ponizej." >> "$GITHUB_STEP_SUMMARY"
           fi
