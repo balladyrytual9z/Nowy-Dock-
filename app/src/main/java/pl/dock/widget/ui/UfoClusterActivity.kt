@@ -52,8 +52,17 @@ class UfoClusterActivity : Activity() {
         // akcje footer + gesty (tapniecie predkosciomierza: km/h <-> mph)
         cluster.onOpenDtc = { startActivity(Intent(this, DtcManagerActivity::class.java)) }
         cluster.onSaveEvent = {
-            // ZAPISZ EVENT: ostatnie 30 s telemetrii z bufora czarnej skrzynki
-            ObdCoreService.start(this)
+            // ZAPISZ EVENT (NAPRAWA): przycisk musial faktycznie zapisac
+            // ostatnie ~30 s telemetrii do czarnej skrzynki. Wczesniej
+            // tylko startowal usluge i pokazywal toast. Teraz wysyla
+            // akcje SAVE_EVENT do ObdCoreService, ktory robi flush bufora.
+            val i = Intent(this, ObdCoreService::class.java)
+            i.action = ObdCoreService.ACTION_SAVE_EVENT
+            try {
+                startForegroundService(i)
+            } catch (e: Exception) {
+                try { startService(i) } catch (ignored: Exception) {}
+            }
             Toast.makeText(this, "EVENT: zapisano telemetrie (30 s)", Toast.LENGTH_SHORT).show()
         }
         cluster.onSwapUi = {

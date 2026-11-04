@@ -28,6 +28,21 @@ class MaintenanceActivity : Activity() {
     private lateinit var body: TextView
     private var currentKm = 0L
 
+    // NAPRAWA "ZAPISZ I PRZELICZ nie zapisuje": EditText zapisywal dopiero
+    // przy utracie fokusu, a klik przycisku na dotyku nie odbiera fokusu -
+    // wpisane km wracaly po przeliczeniu do starych wartosci. Rejestrujemy
+    // jawne savery i zapisujemy WSZYSTKIE pola przed przeliczeniem + w onPause.
+    private val fieldSavers = ArrayList<() -> Unit>()
+
+    private fun saveAllFields() {
+        for (s in fieldSavers) s()
+    }
+
+    override fun onPause() {
+        saveAllFields()
+        super.onPause()
+    }
+
     private val items = arrayOf(
         Triple("olej", "Olej + filtr", 10000L),
         Triple("filtr", "Filtr powietrza", 30000L),
@@ -122,6 +137,10 @@ class MaintenanceActivity : Activity() {
                         refresh()
                     }
                 }
+                fieldSavers.add {
+                    val v = text.toString().toLongOrNull() ?: 0L
+                    sp().edit().putLong(key, v).apply()
+                }
             })
             addView(TextView(this@MaintenanceActivity).apply {
                 text = "Interwal (km):"
@@ -139,6 +158,10 @@ class MaintenanceActivity : Activity() {
                         sp().edit().putLong(key + "_int", v).apply()
                         refresh()
                     }
+                }
+                fieldSavers.add {
+                    val v = text.toString().toLongOrNull() ?: defaultInterval(key)
+                    sp().edit().putLong(key + "_int", v).apply()
                 }
             })
             statusViews[key] = TextView(this@MaintenanceActivity).apply {
@@ -179,6 +202,10 @@ class MaintenanceActivity : Activity() {
                         refresh()
                     }
                 }
+                fieldSavers.add {
+                    val v = text.toString().toLongOrNull() ?: 0L
+                    sp().edit().putLong("base_km", v).apply()
+                }
             })
             addView(Button(this@MaintenanceActivity).apply {
                 text = "ZAPISZ I PRZELICZ"
@@ -189,7 +216,9 @@ class MaintenanceActivity : Activity() {
                     cornerRadius = 16f
                     setColor(Color.parseColor("#0A84FF"))
                 }
-                setOnClickListener { refresh() }
+                // NAPRAWA: najpierw jawny zapis WSZYSTKICH pol (klik na dotyku
+                // nie odbiera fokusu z EditText), dopiero potem przeliczenie
+                setOnClickListener { saveAllFields(); refresh() }
             })
         }
 

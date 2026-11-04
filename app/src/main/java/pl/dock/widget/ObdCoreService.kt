@@ -65,6 +65,14 @@ class ObdCoreService : Service() {
         /** ACC watchdog: prog napiecia [V] */
         private const val ACC_LOW_V = 12.0f
 
+        /**
+         * NAPRAWA "ZAPISZ EVENT": akcja intentu z przycisku w zegarach UFO.
+         * Wczesniej przycisk tylko startowal usluge i nic nie zapisywal;
+         * teraz wymusza flush calego bufora czarnej skrzynki (~30 s telemetrii)
+         * do bazy jako jedno zdarzenie MANUAL_EVENT.
+         */
+        const val ACTION_SAVE_EVENT = "pl.dock.widget.action.SAVE_EVENT"
+
         @Volatile var running = false
             private set
 
@@ -118,7 +126,17 @@ class ObdCoreService : Service() {
         Log.i(TAG, "ObdCoreService created (WAL db + NanoServer :" + NanoServer.DEFAULT_PORT + ")")
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_SAVE_EVENT) {
+            try {
+                recorder.flush("MANUAL_EVENT")
+                Log.i(TAG, "SAVE_EVENT: reczny zapis bufora czarnej skrzynki")
+            } catch (e: Exception) {
+                Log.w(TAG, "SAVE_EVENT failed: " + e.message)
+            }
+        }
+        return START_STICKY
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
