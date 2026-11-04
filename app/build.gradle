@@ -72,6 +72,15 @@ android {
         abortOnError false
         checkReleaseBuilds false
     }
+
+    testOptions {
+        // Testy JVM moga ladowac klasy ze statycznymi polami Androida
+        // (np. PanelTool ma statyczny Paint) - stub zwraca wartosci
+        // domyslne zamiast rzucac wyjatek "not mocked".
+        unitTests {
+            returnDefaultValues = true
+        }
+    }
 }
 
 dependencies {
@@ -83,7 +92,7 @@ dependencies {
     // Mapy offline (OpenStreetMap) - silnik kafli osmdroid. Czysty AAR,
     // bez zaleznosci i bez AndroidX, wiec nie ciagnie nic dodatkowego.
     // Mapy dzialaja bez internetu (kafle z pamieci), a przy podlaczonym
-    // internecie dokladaja/odswiezaja obszar.
+    // internecie dokladaja odswiezaja obszar.
     implementation 'org.osmdroid:osmdroid-android:6.1.18'
 
     // Testy jednostkowe (JVM) - parser ELM327 i logika czysta, bez Androida.

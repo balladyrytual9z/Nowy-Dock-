@@ -49,7 +49,7 @@ public class ConnectivityPanel extends LinearLayout {
     private TextView btnAdd;
     private TextView note;
     // narzedzia stalego modulu bazowego - nie moga sie powtarzac w edytowalnej siatce
-    private static final String[] BASE_IDS =
+    static final String[] BASE_IDS =
             {"bri", "vol", "nightshift", "mode", "wifi", "bt", "hot", "conn"};
     private ModeSegment modeSeg;
     private NightShiftButton nightBtn;
@@ -61,7 +61,6 @@ public class ConnectivityPanel extends LinearLayout {
     private ConnGroup connGroup;
     private BroadcastReceiver rc;
     private boolean editMode = false;
-    private final List<View> staggerViews = new ArrayList<View>();
     private final Runnable refreshLater = new Runnable() {
         @Override
         public void run() {
@@ -71,6 +70,23 @@ public class ConnectivityPanel extends LinearLayout {
 
     private int dp(float v) {
         return Ui.dp(act, v);
+    }
+
+    /** Czysta logika (testowalna na JVM): wyczyść z listy narzędzi te z module bazowego. */
+    static List<String> withoutBaseTools(List<String> ids) {
+        List<String> out = new ArrayList<String>();
+        if (ids == null) return out;
+        for (String id : ids) {
+            boolean base = false;
+            for (String bid : BASE_IDS) {
+                if (bid.equals(id)) {
+                    base = true;
+                    break;
+                }
+            }
+            if (!base) out.add(id);
+        }
+        return out;
     }
 
     public ConnectivityPanel(Activity a, boolean night, Host host) {
@@ -83,26 +99,20 @@ public class ConnectivityPanel extends LinearLayout {
         setBackground(Ui.popupBg(a, night));
         setPadding(dp(12), dp(12), dp(12), dp(10));
         setClickable(true);
-        // NAPRAWA (ESSGOO/MT8163, Android 9): na API < 30 cala tresc panelu
-        // rysujemy warstwa SOFTWARE. Bez tego zlozony content (suwaki, kafelki,
-        // clipPath w PillSlider) bywa pusty na tym GPU. Na nowszych zostawiamy
-        // hardware (clip bez problemow).
-        if (android.os.Build.VERSION.SDK_INT < 30) {
-            setLayerType(View.LAYER_TYPE_SOFTWARE, null);
-        }
-
-        // NAPRAWA (ESSGOO/MT8163, Android 9) - czesc 2: dokladnie ten sam blad,
-        // ktory zostal juz naprawiony dla roota w LauncherActivity.
-        // setClipToOutline(true) z Outline liczonym z getWidth()/getHeight()
-        // przy pierwszym pomiarze (0x0) przycinal CALY panel do pustego
-        // prostokata - panel byl VISIBLE, ale obciety do zera (widac bylo tylko
-        // przyciemniajacy overlay, bo on nalezy do innego drzewa widokow).
-        // Na API < 30 nie ustawiamy clipowania w ogole; na nowszych guard na
-        // wymiary > 0. Clip nie jest wizualnie potrzebny - zaokraglone tlo
-        // rysuje GradientDrawable z Ui.popupBg.
-        // Warstwy SOFTWARE tez juz nie wymuszamy: panel nie uzywa setElevation,
-        // wiec nie ma cienia do zlozenia, a przelaczanie warstwy w trakcie
-        // animacji otwarcia czyscilo bufor na Mali-T720.
+        // NAPRAWA (root cause): żadnej warstwy SOFTWARE na całym panelu.
+        // Wcześniej panel był rysowany warstwą SOFTWARE (API < 30), a każda
+        // klatka animacji otwarcia i każdy invalidate suwaków/przełączników
+        // re-renderował całą tę warstwę na CPU tabletu. DockView, ClockCard
+        // i pozostałe widoki launchera to te same custom Canvas views na tym
+        // samym GPU i działają bez warstwy SOFTWARE - panel też ma rysować
+        // normalnie, hardware.
+        //
+        // setClipToOutline z Outline liczonym z getWidth()/getHeight() przy
+        // pierwszym pomiarze (0x0) przycinał CAŁY panel do pustego prostokata
+        // (panel VISIBLE, ale obcięty do zera). Na API < 30 nie ustawiamy
+        // clipowania w ogole; na nowszych guard na wymiary > 0. Clip nie jest
+        // wizualnie potrzebny - zaokrąglone tło rysuje GradientDrawable
+        // z Ui.popupBg.
         if (android.os.Build.VERSION.SDK_INT >= 30) {
             setOutlineProvider(new ViewOutlineProvider() {
                 @Override
@@ -151,7 +161,6 @@ public class ConnectivityPanel extends LinearLayout {
         hp.leftMargin = dp(6);
         hp.bottomMargin = dp(10);
         addView(head, hp);
-        staggerViews.add(head);
 
         // ===== STALY MODUL BAZOWY (zawsze widoczny po otwarciu) =====
         // suwak jasnosci | suwak glosnosci, pod nimi Night Shift + tryb wygladu,
@@ -250,7 +259,6 @@ public class ConnectivityPanel extends LinearLayout {
 
         addView(main, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
-        staggerViews.add(main);
 
         // ===== siatka dodatkowych narzedzi (edytowalna) =====
         grid = new ToolGrid(act, night, new ToolGrid.Host() {
@@ -272,19 +280,10 @@ public class ConnectivityPanel extends LinearLayout {
         });
         List<String> toolIds = PanelTool.load(act);
         // narzedzia z stalego modulu bazowego nigdy nie duplikuja sie w siatce
-        for (int i = toolIds.size() - 1; i >= 0; i--) {
-            String tid = toolIds.get(i);
-            for (String bid : BASE_IDS) {
-                if (bid.equals(tid)) {
-                    toolIds.remove(i);
-                    break;
-                }
-            }
-        }
+        toolIds = withoutBaseTools(toolIds);
         grid.setTools(toolIds);
         addView(grid, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
-        staggerViews.add(grid);
 
         // długie przytrzymanie tła = tryb edycji
         setOnLongClickListener(new OnLongClickListener() {
@@ -316,13 +315,6 @@ public class ConnectivityPanel extends LinearLayout {
         note.setPadding(dp(6), dp(6), 0, dp(4));
         note.setVisibility(GONE);
         addView(note);
-
-        post(new Runnable() {
-            @Override
-            public void run() {
-                forceVisible();
-            }
-        });
     }
 
     // własne widoki dla suwaków i przełącznika wyglądu; reszta to zwykłe kafelki
@@ -379,20 +371,6 @@ public class ConnectivityPanel extends LinearLayout {
             return connGroup;
         }
         return null;
-    }
-
-    // Wymuszona widocznosc wszystkich modulow panelu. Zero animowanych
-    // przezroczystosci na wejsciu: na niektorych urzadzeniach (slaby GPU)
-    // moduly zostawaly calkiem niewidoczne. Wejscie animuje tylko LauncherActivity
-    // (skala + zanik calego panelu), a tresc jest zawsze od razu widoczna.
-    private void forceVisible() {
-        for (View v : staggerViews) {
-            if (v == null) continue;
-            try { v.animate().cancel(); } catch (Throwable ignored) { }
-            v.setAlpha(1f);
-            v.setTranslationY(0f);
-            v.setVisibility(VISIBLE);
-        }
     }
 
     // ---------------------------------------------------------------- tryb edycji
@@ -870,13 +848,6 @@ public class ConnectivityPanel extends LinearLayout {
         } catch (Throwable tr) {
             android.util.Log.w("Dock", "panel update", tr);
         }
-        forceVisible();
-        postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                forceVisible();
-            }
-        }, 800);
 
         // Diagnostyka renderowania (logcat, tag CC_PANEL), po pierwszym layout:
         // rozmiary powinny byc niezerowe; w=0 wskazuje problem pomiaru,
@@ -1344,14 +1315,13 @@ public class ConnectivityPanel extends LinearLayout {
             p.setColor(night ? 0x33FFFFFF : 0x14000000);
             cv.drawRoundRect(r, rad, rad, p);
             p.setStyle(Paint.Style.FILL);
-            // White fill from bottom
-            int save = cv.save();
-            Path clip = new Path();
-            clip.addRoundRect(r, rad, rad, Path.Direction.CW);
-            cv.clipPath(clip);
+            // White fill from bottom. NAPRAWA: zamiast cv.clipPath (jedyne
+            // clipPath w calej aplikacji; na Mali-T720/Android 9 wypelnieie
+            // przez clip potrafilo nie narysowac sie w ogole) rysujemy
+            // bezposrednio zaokraglony prostokat wypelnienia.
             p.setColor(tint);
-            cv.drawRect(0, h * (1f - value), w, h, p);
-            cv.restoreToCount(save);
+            r.set(0, h * (1f - value), w, h);
+            cv.drawRoundRect(r, rad, rad, p);
 
             // Icon at bottom (iOS style) – gray when value ~0
             float cx = w / 2f;
@@ -1449,5 +1419,3 @@ public class ConnectivityPanel extends LinearLayout {
         }
     }
 }
-
-
