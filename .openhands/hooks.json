@@ -1,0 +1,13 @@
+{
+  "stop": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "command": "bash .openhands/hooks/quality_gate.sh",
+          "timeout": 300
+        }
+      ]
+    }
+  ]
+}
