@@ -11,6 +11,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
@@ -44,6 +45,10 @@ class ObdDiscoveryActivity : Activity() {
     private lateinit var manager: ConnectionManager
     private lateinit var statusTv: TextView
     private lateinit var dataTv: TextView
+    private lateinit var connIcon: android.widget.ImageView
+    private lateinit var connText: TextView
+    private lateinit var connBtn: Button
+    private var lastState: pl.dock.widget.repository.VehicleUiState? = null
     private val scope = MainScope()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,10 +78,47 @@ class ObdDiscoveryActivity : Activity() {
             setTextColor(Color.parseColor("#E5E5EA"))
             setPadding(0, 16, 0, 0)
         }
+
+        // Ikona polaczenia na wierzchu: zielona kropka + "OBD OK" gdy adapter
+        // jest podlaczony, bursztynowa "CONNECTING", szara "OFFLINE".
+        val connRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(0, 20, 0, 4)
+        }
+        connIcon = android.widget.ImageView(this)
+        connRow.addView(connIcon, LinearLayout.LayoutParams(28, 28))
+        connText = TextView(this).apply {
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            setPadding(12, 0, 0, 0)
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
+        connRow.addView(connText)
+        // Przycisk polaczenia z adapterem - NA WIERZCHU ekranu OBD (obok statusu).
+        // POLACZ laczy z zapamietanym adapterem; ROZLACZ zamyka sesje.
+        connBtn = Button(this).apply {
+            isAllCaps = false
+            textSize = 13f
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                cornerRadius = 18f
+                setColor(Color.parseColor("#0A84FF"))
+            }
+            setOnClickListener { onConnButton() }
+            layoutParams = LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+            ).apply { leftMargin = 12 }
+        }
+        connRow.addView(connBtn)
         root.addView(statusTv)
+        root.addView(connRow)
 
         // nawigacja do modulow
         val nav = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        nav.addView(navBtn("SKANUJ ADAPTERY (SPP / BLE)") {
+            startActivity(Intent(this, ObdAdapterScanActivity::class.java))
+        })
         nav.addView(navBtn("UFO CLUSTER (ZEGARY)") {
             startActivity(Intent(this, UfoClusterActivity::class.java))
         })
@@ -163,6 +205,32 @@ class ObdDiscoveryActivity : Activity() {
             .show()
     }
 
+    /**
+     * Przycisk polaczenia z adapterem na gorze ekranu OBD.
+     * POLACZ laczy z zapamietanym adapterem (MAC z ustawien), ROZLACZ zamyka sesje.
+     * Bez zapamietanego adaptera odsyla do skanera (SPP / BLE).
+     */
+    private fun onConnButton() {
+        val s = lastState
+        if (s?.connected == true) {
+            manager.disconnect()
+            return
+        }
+        if (s?.connecting == true) {
+            Toast.makeText(this, "Trwa laczenie z adapterem...", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val p = getSharedPreferences("obd_settings", MODE_PRIVATE)
+        val mac = p.getString("adapter_mac", "")?.trim().orEmpty()
+        if (mac.isEmpty()) {
+            Toast.makeText(this, "Najpierw wybierz adapter (SKANUJ ADAPTERY)",
+                Toast.LENGTH_LONG).show()
+            startActivity(Intent(this, ObdAdapterScanActivity::class.java))
+            return
+        }
+        manager.connect(mac, p.getBoolean("prefer_ble", false))
+    }
+
     private fun navBtn(label: String, onClick: () -> Unit): Button =
         Button(this).apply {
             text = label
@@ -180,6 +248,28 @@ class ObdDiscoveryActivity : Activity() {
         }
 
     private fun render(s: pl.dock.widget.repository.VehicleUiState) {
+        lastState = s
+        // ikona polaczenia na wierzchu (zielony / bursztynowy / szary status)
+        val color = when {
+            s.connected -> Color.parseColor("#30D158")
+            s.connecting -> Color.parseColor("#FF9F0A")
+            else -> Color.parseColor("#8E8E93")
+        }
+        connIcon.setImageBitmap(dot(color))
+        connText.text = when {
+            s.connecting -> "CONNECTING..."
+            s.connected -> "OBD OK"
+            else -> "OFFLINE"
+        }
+        connText.setTextColor(color)
+        // przycisk na wierzchu: POLACZ / ROZLACZ (+ stan "laczenie")
+        connBtn.text = when {
+            s.connecting -> "LACZENIE..."
+            s.connected -> "ROZLACZ"
+            else -> "POLACZ Z ADAPTEREM"
+        }
+        (connBtn.background as GradientDrawable).setColor(
+            if (s.connected) Color.parseColor("#FF453A") else Color.parseColor("#0A84FF"))
         statusTv.text = when {
             s.connecting -> "Laczenie..."
             s.connected -> "Polaczono - " + s.adapterName
@@ -208,6 +298,21 @@ class ObdDiscoveryActivity : Activity() {
             appendLine("Wtrysk (2101): " + fmt(s.injectionMs) + " ms")
         }
         ObdWidgetProvider.push(this, s.rpm, s.speedKmh, s.voltage, s.connected)
+    }
+
+    /** Kolorowa kropka statusu polaczenia (cache po kolorze - bez alokacji na klatke). */
+    private val dotCache = HashMap<Int, android.graphics.Bitmap>()
+
+    private fun dot(color: Int): android.graphics.Bitmap {
+        dotCache[color]?.let { return it }
+        val size = 64
+        val b = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val cv = android.graphics.Canvas(b)
+        val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        p.color = color
+        cv.drawCircle(size / 2f, size / 2f, size / 2f - 4f, p)
+        dotCache[color] = b
+        return b
     }
 
     private fun fmt(v: Float): String = if (v.isNaN()) "-" else String.format("%.1f", v)

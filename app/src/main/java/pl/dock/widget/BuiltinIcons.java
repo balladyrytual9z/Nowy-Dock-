@@ -58,7 +58,8 @@ public class BuiltinIcons {
             new Def("info", "Informacje"),
             new Def("airdrop", "AirDrop"),
             new Def("appstore", "Sklep z aplikacjami"),
-            new Def("obdgear", "OBD (zÄbatka z autem)")
+            new Def("obdgear", "OBD (zÄbatka z autem)"),
+            new Def("honda", "Honda OBD")
     };
 
     private static Context appCtx;
@@ -417,6 +418,17 @@ public class BuiltinIcons {
             c.drawCircle(50 * u, 50 * u, 28 * u, s(PURPLE, 5 * u));
             c.drawCircle(50 * u, 37 * u, 3.8f * u, f(PURPLE));
             c.drawLine(50 * u, 47 * u, 50 * u, 66 * u, s(PURPLE, 6 * u));
+        } else if ("honda".equals(id)) {
+            // Emblemat Hondy: zaokraglona tarcza + zwezone "H" (biale, z czerwonym
+            // akcentem) - czytelne na ciemnym kaflu, w stylu reszty ikon Docka.
+            Paint red = f(0xFFE60012);
+            c.drawRoundRect(rc(u, 27, 19, 73, 81), 20 * u, 20 * u, red);
+            Paint white = f(0xFFFFFFFF);
+            c.drawRoundRect(rc(u, 32, 24, 68, 76), 16 * u, 16 * u, white);
+            Paint bar = s(0xFFE60012, 8f * u);
+            c.drawLine(41 * u, 33 * u, 41 * u, 67 * u, bar);
+            c.drawLine(59 * u, 33 * u, 59 * u, 67 * u, bar);
+            c.drawLine(41 * u, 50 * u, 59 * u, 50 * u, bar);
         }
     }
 

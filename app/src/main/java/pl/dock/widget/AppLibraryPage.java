@@ -315,7 +315,8 @@ public class AppLibraryPage extends FrameLayout {
                     boolean isObd = "obd".equals(it.action);
                     tool.pkg = it.settings ? "dock:settings" : (isObd ? "dock:obd" : "dock:carplay");
                     tool.mode = "builtin";
-                    tool.iconPkg = it.settings ? "settings" : (isObd ? "obdgear" : "carplay");
+                    // OBD w launcherze nosi ikone Hondy (zgodnie ze specyfikacja)
+                    tool.iconPkg = it.settings ? "settings" : (isObd ? "honda" : "carplay");
                     labels.put(tool.pkg, it.label);
                     categories.get("Narzędzia").add(tool);
                     continue;

@@ -79,4 +79,10 @@ dependencies {
     // Kotlin + Coroutines for OBD transport / session (MVVM isolation)
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
+
+    // Mapy offline (OpenStreetMap) - silnik kafli osmdroid. Czysty AAR,
+    // bez zaleznosci i bez AndroidX, wiec nie ciagnie nic dodatkowego.
+    // Mapy dzialaja bez internetu (kafle z pamieci), a przy podlaczonym
+    // internecie dokladaja/odswiezaja obszar.
+    implementation 'org.osmdroid:osmdroid-android:6.1.18'
 }

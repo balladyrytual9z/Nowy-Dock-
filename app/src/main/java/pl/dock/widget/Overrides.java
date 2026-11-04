@@ -30,7 +30,7 @@ public class Overrides {
 
         if (l.equals("obd") || l.contains("obd2") || l.contains("torque")
                 || l.contains("car scanner") || l.contains("carinfo"))
-            return new O(label, "obdgear");
+            return new O(label, "honda");
 
         if (l.equals("chrome") || l.equals("brave") || l.contains("przeglądark")
                 || l.contains("przegladark") || l.equals("browser") || l.equals("firefox"))

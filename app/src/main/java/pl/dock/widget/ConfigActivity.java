@@ -512,6 +512,59 @@ public class ConfigActivity extends BaseActivity {
         footer(col, "Widżety systemowe dodajesz długim dotknięciem ekranu głównego "
                 + "albo kafelka „Dodaj widżet” na stronie widżetów.");
 
+        // --- Mapy (offline) ---
+        section(col, "Mapy (offline)");
+        g = group(col);
+        g.addView(segRow("Styl mapy", new String[]{"Ulice", "Teren"},
+                "topo".equals(Prefs.mapStyle(this)) ? 1 : 0, new OnSel() {
+                    @Override
+                    public void on(int i) {
+                        Prefs.setMapStyle(ConfigActivity.this, i == 1 ? "topo" : "mapnik");
+                    }
+                }));
+        sep(g);
+        g.addView(toggle("Pobieraj nowe mapy z internetu", Prefs.mapOnline(this),
+                new BoolSetter() {
+                    @Override
+                    public void set(boolean v) {
+                        Prefs.setMapOnline(ConfigActivity.this, v);
+                    }
+                }));
+        sep(g);
+        g.addView(toggle("Podążaj za pozycją GPS", Prefs.mapFollow(this), new BoolSetter() {
+            @Override
+            public void set(boolean v) {
+                Prefs.setMapFollow(ConfigActivity.this, v);
+            }
+        }));
+        sep(g);
+        g.addView(row(Icons.builtin(this, "nav"), "Pobierz mapę regionu", "offline", true, p.accent,
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        try {
+                            startActivity(new Intent(ConfigActivity.this,
+                                    pl.dock.widget.maps.MapDownloadActivity.class));
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }));
+        sep(g);
+        g.addView(row(Icons.builtin(this, "nav"), "Otwórz nawigację", "", true, p.accent,
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        try {
+                            startActivity(new Intent(ConfigActivity.this,
+                                    pl.dock.widget.maps.NavigatorActivity.class));
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }));
+        footer(col, "Mapy działają offline z pobranych kafli. „Pobierz mapę regionu” zapisuje "
+                + "cały region (np. Mazowsze) raz przy hotspotcie; w Nawigacji możesz dodatkowo "
+                + "dociągnąć okolicę przyciskiem „Pobierz okolice”.");
+
         // --- Łączność ---
         section(col, "Łączność");
         g = group(col);
@@ -739,8 +792,12 @@ public class ConfigActivity extends BaseActivity {
                     Launch.carplay(ConfigActivity.this);
                     finish();
                 } else if (index < top.size()) {
-                    Intent i = getPackageManager()
-                            .getLaunchIntentForPackage(top.get(index).pkg);
+                    String p = top.get(index).pkg;
+                    if (Launch.openDockTool(ConfigActivity.this, p)) {
+                        finish();
+                        return;
+                    }
+                    Intent i = getPackageManager().getLaunchIntentForPackage(p);
                     if (i != null) {
                         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         startActivity(i);
@@ -1629,6 +1686,7 @@ public class ConfigActivity extends BaseActivity {
 
     private String appLabel(String pkg) {
         if (pkg == null || pkg.length() == 0) return "—";
+        if (Prefs.isVirtual(pkg)) return Prefs.labelFor(this, pkg);
         try {
             PackageManager pm = getPackageManager();
             return pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString();

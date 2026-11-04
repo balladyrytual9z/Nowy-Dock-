@@ -225,7 +225,9 @@ public class Prefs {
         saveApps(c, l);
     }
 
-    // 3 górne aplikacje wg użycia w całym launcherze (ostatnio / najczęściej)
+    // 3 górne aplikacje wg użycia w całym launcherze (ostatnio / najczęściej).
+    // Wliczamy tez narzedzia Docka (OBD, Ustawienia) jako pseudo-pakiety, dzieki
+    // czemu pojawiaja sie w dok-u, gdy kierowca czesto z nich korzysta.
     public static List<AppEntry> top(Context c, int n) {
         PackageManager pm = c.getPackageManager();
         String cp = diplayPkg(c);
@@ -236,8 +238,8 @@ public class Prefs {
                     || e.pkg.equals("com.android.settings")) {
                 continue;
             }
-            if (!isAppSelected(c, e.pkg)) continue;
-            if (pm.getLaunchIntentForPackage(e.pkg) != null) ok.add(e);
+            if (!isVirtual(e.pkg) && !isAppSelected(c, e.pkg)) continue;
+            if (isVirtual(e.pkg) || pm.getLaunchIntentForPackage(e.pkg) != null) ok.add(e);
         }
         final boolean byCount = "count".equals(sortMode(c));
         Collections.sort(ok, new Comparator<AppEntry>() {
@@ -271,7 +273,24 @@ public class Prefs {
         return ok.size() > n ? new ArrayList<AppEntry>(ok.subList(0, n)) : ok;
     }
 
-    // każde uruchomienie aplikacji z launchera trafia do statystyk (wpis powstaje sam)
+    // narzedzia Docka udawane jako aplikacje (OBD / Ustawienia) - brak pakietu systemowego
+    public static boolean isVirtual(String pkg) {
+        return "dock:obd".equals(pkg) || "dock:settings".equals(pkg);
+    }
+
+    private static void describeVirtual(AppEntry e, String pkg) {
+        e.pkg = pkg;
+        e.mode = "builtin";
+        if ("dock:obd".equals(pkg)) {
+            e.iconPkg = "honda";
+        } else {
+            e.iconPkg = "settings";
+        }
+    }
+
+    // każde uruchomienie aplikacji z launchera trafia do statystyk (wpis powstaje sam).
+    // Dla narzedzi Docka (dock:obd / dock:settings) wpis jest odtwarzany z ikona/nazwa,
+    // gdyz nie maja pakietu systemowego do odczytania.
     public static synchronized void recordPkg(Context c, String pkg) {
         if (pkg == null || pkg.length() == 0) return;
         List<AppEntry> l = apps(c);
@@ -280,6 +299,7 @@ public class Prefs {
             if (e.pkg.equals(pkg)) {
                 e.count++;
                 e.last = now;
+                if (isVirtual(pkg)) describeVirtual(e, pkg);
                 saveApps(c, l);
                 return;
             }
@@ -289,18 +309,34 @@ public class Prefs {
         e.pkg = pkg;
         e.count = 1;
         e.last = now;
-        try {
-            PackageManager pm = c.getPackageManager();
-            String label = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString();
-            Overrides.O o = Overrides.match(label);
-            if (o != null) {
-                e.mode = "builtin";
-                e.iconPkg = o.icon;
+        if (isVirtual(pkg)) {
+            describeVirtual(e, pkg);
+        } else {
+            try {
+                PackageManager pm = c.getPackageManager();
+                String label = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString();
+                Overrides.O o = Overrides.match(label);
+                if (o != null) {
+                    e.mode = "builtin";
+                    e.iconPkg = o.icon;
+                }
+            } catch (Throwable ignored) {
             }
-        } catch (Throwable ignored) {
         }
         l.add(e);
         saveApps(c, l);
+    }
+
+    public static String labelFor(Context c, String pkg) {
+        if ("dock:obd".equals(pkg)) return "Honda OBD";
+        if ("dock:settings".equals(pkg)) return "Ustawienia";
+        if ("dock:carplay".equals(pkg)) return "CarPlay";
+        try {
+            PackageManager pm = c.getPackageManager();
+            return pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString();
+        } catch (Throwable t) {
+            return pkg != null ? pkg : "";
+        }
     }
 
     // ---------- widżety launchera ----------
@@ -918,6 +954,53 @@ public class Prefs {
         ed(c).putString("paneltools", v).apply();
     }
 
+    // ---------- mapy offline (osmdroid) ----------
+    // "map_online" = dokladanie kafli z internetu (gdy tablet jest online).
+    // Domyslnie WYLACZONE: mapy dzialaja z pobranego wczesniej obszaru (offline).
+    public static boolean mapOnline(Context c) {
+        return sp(c).getBoolean("map_online", false);
+    }
+
+    public static void setMapOnline(Context c, boolean v) {
+        ed(c).putBoolean("map_online", v).apply();
+    }
+
+    // ostatnia pozycja/zoom mapy - zeby po powrocie mapa wracala w to samo miejsce
+    public static String mapLastLat(Context c) {
+        return sp(c).getString("map_lat", "");
+    }
+
+    public static String mapLastLon(Context c) {
+        return sp(c).getString("map_lon", "");
+    }
+
+    public static float mapLastZoom(Context c) {
+        return sp(c).getFloat("map_zoom", 16f);
+    }
+
+    public static void setMapLast(Context c, double lat, double lon, float zoom) {
+        ed(c).putString("map_lat", String.valueOf(lat))
+                .putString("map_lon", String.valueOf(lon))
+                .putFloat("map_zoom", zoom).apply();
+    }
+
+    // wybrany styl kafli: "mapnik" (ulice) albo "topo" (teren)
+    public static String mapStyle(Context c) {
+        return sp(c).getString("map_style", "mapnik");
+    }
+
+    public static void setMapStyle(Context c, String v) {
+        ed(c).putString("map_style", v).apply();
+    }
+
+    // auto-zoom i podazanie za pozycja GPS (jak w CarPlay)
+    public static boolean mapFollow(Context c) {
+        return sp(c).getBoolean("map_follow", true);
+    }
+
+    public static void setMapFollow(Context c, boolean v) {
+        ed(c).putBoolean("map_follow", v).apply();
+    }
 }
 
 
