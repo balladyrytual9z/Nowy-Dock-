@@ -1,3 +1,4 @@
+Test systemu agentowego
 # Dock 2.0 (CarPlay Launcher) + Honda OBD Discovery
 
 Android launcher for car tablets (API 26+, target 28 / Android 9 Automotive).  
