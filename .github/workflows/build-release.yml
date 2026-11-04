@@ -58,8 +58,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Locate Android SDK and install required
- packages
+      - name: Locate Android SDK and install required packages
         shell: bash
         run: |
           set -euo pipefail
@@ -108,8 +107,7 @@ jobs:
               } >> "$GITHUB_STEP_SUMMARY"
             fi
           done
-          if [ "$FOUND" = "0
-" ]; then
+          if [ "$FOUND" = "0" ]; then
             echo "### Brak raportow testow z bledami" >> "$GITHUB_STEP_SUMMARY"
             echo "Prawdopodobny blad kompilacji - patrz ogon logu ponizej." >> "$GITHUB_STEP_SUMMARY"
           fi
