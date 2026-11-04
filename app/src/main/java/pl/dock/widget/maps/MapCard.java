@@ -2,7 +2,6 @@ package pl.dock.widget.maps;
 
 import android.content.Context;
 import android.content.Intent;
-import android.widget.Toast;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
@@ -120,14 +119,7 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
 
     private void openNav() {
         try {
-            Intent i = getContext().getPackageManager()
-                    .getLaunchIntentForPackage(OmAccessibilityService.OM_PACKAGE);
-            if (i == null) {
-                Toast.makeText(getContext(),
-                        "Zainstaluj Organic Maps, aby korzystać z nawigacji",
-                        Toast.LENGTH_LONG).show();
-                return;
-            }
+            Intent i = new Intent(getContext(), NavigatorActivity.class);
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
             getContext().startActivity(i);
         } catch (Throwable ignored) {
