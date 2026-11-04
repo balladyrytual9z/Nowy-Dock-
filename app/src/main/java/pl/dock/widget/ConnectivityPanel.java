@@ -84,21 +84,30 @@ public class ConnectivityPanel extends LinearLayout {
         setPadding(dp(12), dp(12), dp(12), dp(10));
         setClickable(true);
 
-        // NAPRAWA (ESSGOO/MT8163, Android 9): setElevation na LinearLayout
-        // z GradientDrawable bez dzialajacego OutlineProvider wymuszal warstwe
-        // cienia, ktorej compositor Mali-T720 nie kompozytowal poprawnie -
-        // panel byl VISIBLE, ale calkowicie przezroczysty. Zamiast cienia:
-        // jawny outline z alpha 0 (brak warstwy cienia) + warstwa SOFTWARE
-        // na czas otwarcia (LauncherActivity/panel wraca do NONE po 400 ms).
-        setOutlineProvider(new ViewOutlineProvider() {
-            @Override
-            public void getOutline(View v, Outline o) {
-                o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), dp(34));
-                o.setAlpha(0f);   // brak cienia -> brak zepsutej warstwy
-            }
-        });
-        setClipToOutline(true);
-        setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        // NAPRAWA (ESSGOO/MT8163, Android 9) - czesc 2: dokladnie ten sam blad,
+        // ktory zostal juz naprawiony dla roota w LauncherActivity.
+        // setClipToOutline(true) z Outline liczonym z getWidth()/getHeight()
+        // przy pierwszym pomiarze (0x0) przycinal CALY panel do pustego
+        // prostokata - panel byl VISIBLE, ale obciety do zera (widac bylo tylko
+        // przyciemniajacy overlay, bo on nalezy do innego drzewa widokow).
+        // Na API < 30 nie ustawiamy clipowania w ogole; na nowszych guard na
+        // wymiary > 0. Clip nie jest wizualnie potrzebny - zaokraglone tlo
+        // rysuje GradientDrawable z Ui.popupBg.
+        // Warstwy SOFTWARE tez juz nie wymuszamy: panel nie uzywa setElevation,
+        // wiec nie ma cienia do zlozenia, a przelaczanie warstwy w trakcie
+        // animacji otwarcia czyscilo bufor na Mali-T720.
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            setOutlineProvider(new ViewOutlineProvider() {
+                @Override
+                public void getOutline(View v, Outline o) {
+                    if (v.getWidth() > 0 && v.getHeight() > 0) {
+                        o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), dp(34));
+                        o.setAlpha(0f);   // brak cienia -> brak zepsutej warstwy
+                    }
+                }
+            });
+            setClipToOutline(true);
+        }
         build();
     }
 
@@ -868,7 +877,9 @@ public class ConnectivityPanel extends LinearLayout {
                             + " alpha=" + getAlpha()
                             + " vis=" + getVisibility()
                             + " children=" + getChildCount()
-                            + " layer=" + getLayerType());
+                            + " layer=" + getLayerType()
+                            + " clip=" + getClipToOutline()
+                            + " elevation=" + getElevation());
                     for (int i = 0; i < getChildCount(); i++) {
                         View ch = getChildAt(i);
                         android.util.Log.w("CC_PANEL", "  child[" + i + "] "
@@ -880,18 +891,6 @@ public class ConnectivityPanel extends LinearLayout {
                 }
             }
         }, 300);
-
-        // Po animacji otwarcia wracamy do warstwy domyslnej - render SOFTWARE
-        // gwarantuje pierwszy poprawny frame na Mali-T720, a bez stalego bufora
-        // SW przerysowania (suwaki) chodza plynniej.
-        postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                if (isAttachedToWindow()) {
-                    setLayerType(View.LAYER_TYPE_NONE, null);
-                }
-            }
-        }, 400);
     }
 
     @Override
