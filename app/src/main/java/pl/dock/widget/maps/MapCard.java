@@ -2,6 +2,7 @@ package pl.dock.widget.maps;
 
 import android.content.Context;
 import android.content.Intent;
+import android.widget.Toast;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
@@ -42,6 +43,7 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
     private boolean hasFix;
     private float speedMs;
     private boolean started;
+    private boolean centeredOnce;
 
     public MapCard(Context c) {
         super(c);
@@ -118,8 +120,15 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
 
     private void openNav() {
         try {
-            Intent i = new Intent(getContext(), NavigatorActivity.class);
-            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            Intent i = getContext().getPackageManager()
+                    .getLaunchIntentForPackage(OmAccessibilityService.OM_PACKAGE);
+            if (i == null) {
+                Toast.makeText(getContext(),
+                        "Zainstaluj Organic Maps, aby korzystać z nawigacji",
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
             getContext().startActivity(i);
         } catch (Throwable ignored) {
         }
@@ -215,7 +224,24 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
     public void onLocation(double lat, double lon, float bearing, float speedMs, boolean hasFix) {
         this.hasFix = hasFix;
         this.speedMs = speedMs;
+        if (!centeredOnce && hasFix && map != null && !hasSavedPosition()) {
+            centeredOnce = true;
+            try {
+                map.getController().setCenter(new GeoPoint(lat, lon));
+                map.getController().setZoom(15d);
+            } catch (Throwable ignored) {
+            }
+        }
         invalidate();
+    }
+
+    private boolean hasSavedPosition() {
+        try {
+            Context c = getContext();
+            return Prefs.mapLastLat(c).length() > 0 && Prefs.mapLastLon(c).length() > 0;
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     // ---- rysowanie nakladki (naglowek + pigulka predkosci) ----
