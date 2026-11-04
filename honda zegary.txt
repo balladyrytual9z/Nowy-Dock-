@@ -1,0 +1,147 @@
+Zaprojektowanie stylistyki zegarów Hondy Civic VIII („UFO”) z myślą o 9-calowym ekranie IPS LCD (1280×720) oraz układzie MediaTek MT8163 (GPU Mali-T720, Android 9) wymaga odejścia od czystej czerni AMOLED na rzecz kontrastu strukturalnego i akcelerowanych renderów gradientowych. Ekran IPS o gęstości ok. 163 PPI przy podświetleniu krawędziowym LCD ma tendencję do "świecenia" czerni w nocy, dlatego kluczem jest nadanie tłu celowej głębi oraz wyostrzenie krawędzi wskaźników.
+1. Paleta Kolorów i Kontrastu pod Ekran IPS (Anti-Washout Palette)
+Aby uniknąć efektu szarej, wyblakłej czerni spowodowanej podświetleniem matrycy LCD, zamiast #000000 stosujemy wielowarstwowy odcień ciemnego grafitu i granatu (Deep Slate/Cosmic Navy). Optycznie ukrywa to świecenie matrycy i nadaje zestawowi wskaźników głębię obudowy zegarów.
++-------------------------------------------------------------------------+
+| PALETA BARW (IPS TUNED)                                                 |
++-------------------------------------------------------------------------+
+| Tło Główne (Base Slate):       #0A0D14  (Ciemny grafitowo-granatowy)   |
+| Tło Wewnątrz Zegarów (Pod):    #05070B  (Głęboki granatowy cień)        |
+| Ramki i Pierścienie Metalic:   #2A3448  --->  #141B29 (Gradient)        |
+| Neon Główny (Glow Blue):       #0055FF  (Wysokosaturowany niebieski)     |
+| Neon Akcent (Ice Cyan):        #00E5FF  (Jasny błękit dla krawędzi)     |
+| Cyfry i Podziałka (Amber/White): #FFFEEA  (Ciepła, podświetlana biel)     |
+| Czerwona Strefa (Alert Red):   #FF0033  (Jaskrawa czerwień o wysokim C)  |
+| Ekran LCD MID (Background):    #6B7C80  (Kontrastowa matryca)           |
++-------------------------------------------------------------------------+
+
+2. Anatomia Wskaźników na Matrycy IPS (Struktura 3D)
+Na matrycach IPS brak idealnej czerni nadrabiamy wyraźnym odseparowaniem elementów za pomocą Gradientowych Pierścieni Metalicznych (Metallic Rims) oraz krawędzi vectorowych o wysokiej ostrości.
+       /-----------------------------------------\
+      /     [Outer Rim: Gradient #2A3448-#141B29] \
+     |    /-------------------------------------\  |
+     |   |   [Aura Ring: Electric Blue #0055FF]  | |
+     |   |  /---------------------------------\  | |
+     |   | | [Scale & Ticks: Warm White #FFFEEA]| | |
+     |   | |                                   | | |
+     |   | |          [NEEDLE / POINTER]       | | |
+     |   | |                                   | | |
+     |   |  \---------------------------------/  | |
+     |    \-------------------------------------/  |
+      \-----------------------------------------/
+
+Wykończenie elementów:
+ * Zewnętrzna Ramka (Outer Rim): Cienki okrąg lub łuk (2dp stroke) z gradientem od #3B4861 (góra) do #101622 (dół), dający efekt fizycznej ramki obudowy w desce rozdzielczej.
+ * Pierścień Poświaty (Aura Ring): Zamiast rozmytego tła, stosujemy twardy inner-glow usytuowany bezpośrednio pod podziałką zegara (#0055FF z kryciem 80%).
+ * Podziałki i Cyfry: Grubość linii podziałki nie może być mniejsza niż 1.5dp (główne kreski 2.5dp). Na ekranie 720p cieńsze linie (1px) znikają lub stają się poszarpane (aliasing).
+ * Wskazówki (Needles): Biały element wewnętrzny z cienką (1dp) obwódką o jaskrawym błękitnym odcieniu (#00E5FF), zapewniający pełną czytelność nawet przy mocnym słońcu.
+3. Optymalizacja Pod GPU Mali-T720 i Pamięć 128 MB RAM (Android 9)
+Tablet ESSGOO dysponuje ograniczonym limitem pamięci Java Heap (128 MB) oraz jednostką Mali-T720. Dynamiczne rozmycie bitmapowe (BlurMaskFilter) doprowadzi do spadków płynności poniżej 15 FPS.
+Architektura Renderowania w Canvas Androida:
++-------------------------------------------------------------------------+
+| WARSTWA STATYCZNA (Cache w Hardware Bitmap)                             |
+| - Tło zestawu (#0A0D14)                                                 |
+| - Metaliczne pierścienie zegarów                                        |
+| - Statyczne tarcze, podziałki i cyfry                                   |
+| - Tło panelu LCD MID                                                    |
++-------------------------------------------------------------------------+
+                                    │
+                                    ▼ (Renderowane raz przy start)
++-------------------------------------------------------------------------+
+| WARSTWA DYNAMICZNA (Draw na żywo - 30 do 60 FPS)                        |
+| - Wskazówka obrotomierza / suwaki łukowe                                |
+| - Dynamiczne cyfry HUD (Speedometer)                                    |
+| - Wartości i wykresy pikselowe na wyświetlaczu LCD MID                   |
++-------------------------------------------------------------------------+
+
+ * Zastosowanie RadialGradient zamiast Blur: Zamiast nakładać filtry rozmycia na warstwy (co obciąża Mali-T720), używamy akcelerowanych sprzętowo obiektów android.graphics.RadialGradient i LinearGradient zdefiniowanych w kodzie jako stałe shaders.
+ * Recykling Obiektów: Żadnego tworzenia obiektów Paint, Path ani String wewnątrz metody onDraw(Canvas canvas). Wszystkie obiekty rysowania muszą być zainicjowane podczas startu aplikacji (wzorce pamięciowe dla 128 MB Heap Limit).
+4. Wygląd Ekranu LCD MID w Centrum Obrotomierza (IPS Optimized)
+Ekran LCD w centrum obrotomierza ma imitować monochromatyczny wyświetlacz. Na ekranie IPS uzyskuje się to poprzez podwyższenie kontrastu tła matrycy.
++---------------------------------------------------------+
+|  RAMKA: Wyrazista obwódka #2A3448 (Radius: 6dp)         |
+|  TŁO MATRYCY: #5E6F73 (Jasnoszary z nutą cyjanu)        |
+|  PIKSELE AKTYWNE: #0D1517 (Prawie czarny, pełne krycie) |
+|  PIKSELE INAKTYWNE: #526266 (Subtelny cień siatki)      |
++---------------------------------------------------------+
+|  EXAMPLE DISPLAY:                                       |
+|  [Ikona Auto]   307 km                                  |
+|  -----------------------------------------------------  |
+|  km  A  216.7                                           |
+|  +---------------------------------------------------+  |
+|  | 15°C   19 1256                                    |  | (Biały prostokąt)
+|  +---------------------------------------------------+  |
++---------------------------------------------------------+
+
+ * Kontrast Tekstu: Piksele aktywne (#0D1517) tworzą niemal 100% kontrast w stosunku do tła matrycy (#5E6F73), co gwarantuje zerowe smużenie na ekranie IPS i czytelność z odległości kierowcy.
+ * Dolna Sekcja (Odo/Temp): Umieszczona w białym/srebrzystym prostokącie (#E2E8E4) z czarnymi cyframi (#000000) – replika oryginalnego wyświetlacza z Civica VIII.
+5. Dzienny i Nocny Tryb Pracy (NOAA Sunset/Sunrise Engine)
+Z uwagi na brak czujnika światła w tablecie ESSGOO, aplikacja musi automatycznie przeliczać jasność i paletę barw UI na podstawie współrzędnych GPS i zegara systemowego (algorytm pozycji słońca NOAA).
++-------------------------------------------------------------------------+
+| TRYB DZIENNY (Sun Exposure Mode)                                        |
+| - Tło: #121722 (Lekko jaśniejsze, neutralizujące refleksy na szybie)    |
+| - Cyfry i Wskazówki: #FFFFFF (Jaskrawa, czysta biel)                    |
+| - Poświata Neonów: Wyłączona lub zredukowana na rzecz ostrych krawędzi  |
+| - Jasność Ekranu Systemowego: 100%                                      |
++-------------------------------------------------------------------------+
+                                    │
+                                    ▼ (Automatyczne przejście o zmierzchu)
++-------------------------------------------------------------------------+
+| TRYB NOCNY (Night Cruise Mode)                                          |
+| - Tło: #05070B (Głęboka czern granatowa, ograniczająca oślepianie)      |
+| - Cyfry: #FFFDE7 (Ciepły bursztyn/biel)                                |
+| - Poświata Neonów: Aktywna niebieska poświata (#0055FF)                 |
+| - Jasność Ekranu Systemowego: Przyciemnienie do ~30-40%                 |
++-------------------------------------------------------------------------+
+
+6. Wymiary i Siatka Układu (Layout Grid 1280×720)
+0px                                640px                              1280px
++------------------------------------+------------------------------------+ 0px
+|  [HUD SPEED: H=160px]                                                   |
+|  Prędkość cyfrowa, wskaźniki REV / ECO (Soczewka #0022AA)               |
++-------------------------------------------------------------------------+ 160px
+| [WING ARC LEWY]     |    [CENTRALNY OBROTOMIERZ]    | [WING ARC PRAWY]  |
+| Temp / Boost / Volts|    Średnica: 440px            | Paliwo / TPS      |
+| W: 180px, H: 480px  |    Zintegrowany LCD MID       | W: 180px, H: 480px|
+|                     |    Wiersze danych OBD         |                   |
++---------------------+-------------------------------+-------------------+ 640px
+|  [BARKA STATUSOWA / FOOTER: H=80px]                                     |
+|  Kontrolki ostrzegawcze, status połączenia OBD Bluetooth, zegar         |
++-------------------------------------------------------------------------+ 720px
+
+Parametry Rysowania (DPI-scaled dla 9" 720p):
+ * Średnica Głównego Obrotomierza: 440px (zainstalowany dokładnie w środku dolnej sekcji).
+ * Grubość Wskazówki: 4px u podstawy, 2px na szczycie.
+ * Rozmiar Czcionki Prędkościomierza (HUD): 96sp (Bold Italic).
+ * Rozmiar Czcionki Skali Obrotomierza: 28sp (Bold Italic).
+ * Rozmiar Czcionki LCD MID: 16sp dla danych, 20sp dla przebiegu.
+Jasne, zróbmy z tego konkretny, przejrzysty wzorzec UI, który opisuje działanie i wygląd tego środkowego ekraniku LCD. Możesz ten opis bezpośrednio przekazać osobie programującej interfejs.
+Standard Uniwersalnego Ekranu LCD (Wskaźnik Jedno-Parametrowy)
+Wygląd bazuje dokładnie na oryginalnym monochromatycznym wyświetlaczu LCD umieszczonym wewnątrz centralnego obrotomierza. Ekran podzielony jest na trzy wyraźne strefy pionowe.
+1. Górna Strefa – Odczyt Chwilowy (Main Realtime Area)
+ * Nagłówek (Górna linia):
+   * Po lewej stronie: Dedykowana ikona pikselowa przedstawiająca mierzony parametr (np. ikona turbiny dla doładowania, termometr dla temperatury, akumulator dla napięcia).
+   * Obok ikony: Nazwa parametru pisana wielkimi literami w stylu retro matrycy LCD (np. BOOST, OIL TEMP, VOLTAGE).
+ * Wartość Główna (Środek górnej strefy):
+   * Duże, bardzo wyraziste cyfry wyświetlające aktualną wartość z OBD2 w czasie rzeczywistym.
+   * Tuż obok cyfr: Jednostka pomiaru (np. BAR, °C, V, kPa).
+2. Pozioma Linia Podziału (Separator)
+ * Cienki, ciemny pasek pikselowy przechodzący przez całą szerokość ekranu LCD, wyraźnie odcinający bieżący odczyt od sekcji statystyk pod spodem.
+3. Dolna Strefa – Panel Statystyk (Dedykowana Ramka)
+Ta część jest wyodrębniona w postaci jasnego prostokątnego pola z delikatnie zaokrąglonymi rogami (dokładnie tak jak dolne pole ze zdjęć, gdzie fabrycznie wyświetla się temperatura zewnętrzna oraz przebieg całkowity).
+ * Lewa strona dolnego pola:
+   * Powtórzony symbol jednostki oraz znacznik wybranego przedziału czasowego (np. BAR / 5m, °C / TRIP lub V / 1h).
+   * Pozwala kierowcy od razu wiedzieć, z jakiego okresu liczone są statystyki po prawej stronie.
+ * Prawa strona dolnego pola (Rozbita na dwa wiersze):
+   * Górny wiersz (Wartość Maksymalna - MAX):
+     * Pokazuje najwyższą zarejestrowaną wartość parametru w wybranym przedziale czasu.
+     * Kolorystyka: Niebieski Neon (dokładnie ten sam odcień niebieskiej poświaty i gradientu, który świeci wokół obrotomierza i prędkościomierza).
+   * Dolny wiersz (Wartość Średnia - AVG):
+     * Pokazuje wyliczoną wartość średnią z tego samego okresu.
+     * Kolorystyka: Ciepły Bursztyn / Podświetlana Biel (dokładnie ten sam odcień, z którego wykonane są cyfry skali i podziałka obrotomierza).
+Zasada Działania i Interakcji
+ * Konfiguracja Czasowa Statystyk:
+   * Domyślnie zakres czasu dla wartości MAX oraz AVG można ustawić w menu lub zmieniać kliknięciem w dolny panel (np. Ostatnie 60 sekund, Ostatnie 5 minut, Od odpalenia, Trasa A/B).
+ * Spójność Wizualna w Aplikacji:
+   * Każdy kolejny wskaźnik OBD dodany do aplikacji (temperatura spalin, ciśnienie oleju, korekty paliwowe) zachowuje ten sam układ – zmienia się tylko ikona, nazwa, przeliczane wartości i jednostka, dzięki czemu cały interfejs wygląda w 100% jak fabryczny system Hondy.
+Czy w dolnym panelu chcesz mieć też możliwość szybkiego zresetowania wartości średniej i maksymalnej przytrzymaniem palca?
+

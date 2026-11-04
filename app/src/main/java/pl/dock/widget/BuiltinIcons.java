@@ -58,7 +58,8 @@ public class BuiltinIcons {
             new Def("info", "Informacje"),
             new Def("airdrop", "AirDrop"),
             new Def("appstore", "Sklep z aplikacjami"),
-            new Def("obdgear", "OBD (zÄbatka z autem)")
+            new Def("obdgear", "OBD (zÄbatka z autem)"),
+            new Def("honda", "Honda OBD")
     };
 
     private static Context appCtx;
@@ -417,6 +418,20 @@ public class BuiltinIcons {
             c.drawCircle(50 * u, 50 * u, 28 * u, s(PURPLE, 5 * u));
             c.drawCircle(50 * u, 37 * u, 3.8f * u, f(PURPLE));
             c.drawLine(50 * u, 47 * u, 50 * u, 66 * u, s(PURPLE, 6 * u));
+        } else if ("honda".equals(id)) {
+            // Emblemat Hondy: zwezony "H" w ramce (orientacyjna, wektorowa interpretacja)
+            Paint frame = s(0xFFE60012, 6.5f * u);
+            Path outer = new Path();
+            outer.moveTo(30 * u, 20 * u);
+            outer.lineTo(70 * u, 20 * u);
+            outer.lineTo(62 * u, 80 * u);
+            outer.lineTo(38 * u, 80 * u);
+            outer.close();
+            c.drawPath(outer, frame);
+            Paint bar = s(0xFFE60012, 9 * u);
+            c.drawLine(42 * u, 31 * u, 42 * u, 69 * u, bar);
+            c.drawLine(58 * u, 31 * u, 58 * u, 69 * u, bar);
+            c.drawLine(42 * u, 50 * u, 58 * u, 50 * u, bar);
         }
     }
 

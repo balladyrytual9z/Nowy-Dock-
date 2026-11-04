@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import pl.dock.widget.blackbox.AppDatabase
 import pl.dock.widget.blackbox.BlackBoxRecorder
@@ -112,6 +113,7 @@ class ObdCoreService : Service() {
         health = MechanicalHealthMonitor(Prefs.sp(this))
         nano.start()
         startForeground(NOTIF_ID, buildNotification("Dock OBD core aktywny"))
+        autoConnect()
         observeTelemetry()
         Log.i(TAG, "ObdCoreService created (WAL db + NanoServer :" + NanoServer.DEFAULT_PORT + ")")
     }
@@ -200,6 +202,27 @@ class ObdCoreService : Service() {
                         Log.w(TAG, "Mode 06 poll failed: " + e.message)
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * Automatyczne polaczenie z zapamietanym adapterem (pref "adapter_mac"
+     * + transport "prefer_ble"). Uruchamiane przy starcie uslugi w tle, gdy
+     * zapamietany jest adres MAC. Bez zapamietanego adresu nic nie robimy.
+     */
+    private fun autoConnect() {
+        val mac = obdPrefs.getString("adapter_mac", "")?.trim().orEmpty()
+        if (mac.isEmpty()) return
+        val preferBle = obdPrefs.getBoolean("prefer_ble", false)
+        scope.launch {
+            delay(1500)   // settle po BOOT_COMPLETED / starcie radia
+            val st = manager.uiState.value
+            if (st.connected || st.connecting) return@launch   // sesja juz zyje
+            try {
+                manager.connect(mac, preferBle)
+            } catch (e: Exception) {
+                Log.w(TAG, "autoConnect failed: " + e.message)
             }
         }
     }

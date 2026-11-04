@@ -65,6 +65,12 @@ public class Icons {
 
     private static Bitmap buildEntry(Context c, AppEntry e, String fm) {
         try {
+            // narzedzia Docka (dock:obd / dock:settings) nie maja pakietu systemowego -
+            // zawsze rysujemy wbudowana ikone, nawet dla wpisu bez mode="builtin"
+            if (Prefs.isVirtual(e.pkg)) {
+                String id = "dock:obd".equals(e.pkg) ? "honda" : "settings";
+                return compose(BuiltinIcons.render(id, S), true, fm);
+            }
             if ("builtin".equals(e.mode) && e.iconPkg.length() > 0) {
                 return compose(BuiltinIcons.render(e.iconPkg, S), true, fm);
             }

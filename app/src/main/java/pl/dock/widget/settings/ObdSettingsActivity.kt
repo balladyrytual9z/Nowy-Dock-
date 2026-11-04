@@ -175,10 +175,33 @@ class ObdSettingsActivity : Activity() {
     private fun buildConnPage(): View {
         val p = page(); val b = pageBody(p)
         b.addView(header("Polaczenie adaptera"))
+        b.addView(caption("Skanuj i sparuj nowe urzadzenie (Bluetooth Classic + BLE), " +
+            "wybierz adapter i ustaw go jako domyslny."))
+        val scan = Button(this@ObdSettingsActivity).apply {
+            text = "SKANUJ ADAPTERY (SPP / BLE)"
+            textSize = 13f
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                cornerRadius = 16f
+                setColor(Color.parseColor("#0A84FF"))
+            }
+            setOnClickListener {
+                startActivity(android.content.Intent(
+                    this@ObdSettingsActivity, pl.dock.widget.ObdAdapterScanActivity::class.java))
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = 4; bottomMargin = 8 }
+        }
+        b.addView(scan)
         b.addView(caption("Preferowany transport (zmiana zadziala przy nastepnym polaczeniu)"))
         b.addView(toggleBtn("prefer_ble", "Bluetooth LE"))
         b.addView(caption("Adres MAC adaptera zapamietany przez ConnectionManager"))
         b.addView(numField("adapter_mac", "np. 00:1D:A5:..."))
+        b.addView(caption("Stale wiazanie: ponawiaj polaczenie tylko z zapamietanym adapterem"))
+        b.addView(toggleBtn("pair_lock", "Stale wiazanie z adapterem"))
         b.addView(caption("Ochrona przed rozruchem: blokada zapytan przy V < 11 V / 1-450 RPM"))
         b.addView(toggleBtn("cranking_protect", "Ochrona rozruchu"))
         return p

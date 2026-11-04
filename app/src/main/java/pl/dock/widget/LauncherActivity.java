@@ -835,7 +835,7 @@ public class LauncherActivity extends BaseActivity {
 
     private String appLabelSafe(String pkg) {
         if ("dock:settings".equals(pkg)) return "Ustawienia";
-        if ("dock:obd".equals(pkg)) return "OBD";
+        if ("dock:obd".equals(pkg)) return "Honda OBD";
         if ("dock:carplay".equals(pkg)) return "CarPlay";
         try {
             return getPackageManager().getApplicationLabel(
@@ -1094,10 +1094,11 @@ public class LauncherActivity extends BaseActivity {
         cp.builtinId = "carplay";
         cp.action = "carplay";
         out.add(cp);
-        // ikona OBD (DiPlay/CarPlay filtro wala wlasny pakiet, wiec dodajemy ja recznie)
+        // ikona OBD (DiPlay/CarPlay filtruje wlasny pakiet, wiec dodajemy ja recznie)
+        // Aplikacja OBD w launcherze ma ikone Hondy i otwiera ekran Honda OBD Discovery.
         AppsGridPage.Item obd = new AppsGridPage.Item();
-        obd.label = "OBD";
-        obd.builtinId = "obdgear";
+        obd.label = "Honda OBD";
+        obd.builtinId = "honda";
         obd.action = "obd";
         out.add(obd);
         out.addAll(apps);
@@ -1117,8 +1118,10 @@ public class LauncherActivity extends BaseActivity {
                 public void onTap(AppsGridPage.Item it) {
                     if (EditModeController.get().isEditing()) return;
                     if (it.settings) {
+                        Prefs.recordPkg(LauncherActivity.this, "dock:settings");  // liczy sie do 4 ikon doka
                         openSettings();
                     } else if ("obd".equals(it.action)) {
+                        Prefs.recordPkg(LauncherActivity.this, "dock:obd");  // liczy sie do 4 ikon doka
                         try {
                             startActivity(new Intent(LauncherActivity.this,
                                     pl.dock.widget.ObdDiscoveryActivity.class));
@@ -1228,8 +1231,10 @@ public class LauncherActivity extends BaseActivity {
         // narzedzia systemowe z Biblioteki (dock:...) - Ustawienia, OBD, CarPlay
         if (pkg != null && pkg.startsWith("dock:")) {
             if ("dock:settings".equals(pkg)) {
+                Prefs.recordPkg(this, pkg);   // liczy sie do 4 ikon doka
                 openSettings();
             } else if ("dock:obd".equals(pkg)) {
+                Prefs.recordPkg(this, pkg);   // liczy sie do 4 ikon doka
                 try {
                     startActivity(new Intent(this, pl.dock.widget.ObdDiscoveryActivity.class));
                     overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);

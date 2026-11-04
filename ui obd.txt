@@ -1,0 +1,3414 @@
+HONDA OBD DISCOVERY
+
+Kompletny dokument techniczny UI/UX i instrukcja implementacji na Androidzie 9
+
+Wersja 1.0 · Android 9 / API 28 · Kotlin · ekran referencyjny 1280 × 720
+
+Dokument jest przeznaczony dla programisty Androida lub agenta AI, który ma zbudować interfejs od podstaw. Traktujemy ten projekt jako całkowicie niezależny. Nie wolno przenosić do niego kodu, architektury ani założeń z innych aplikacji.
+
+Zasady interpretacji
+
+* Wymaganie zatwierdzone – należy je wdrożyć zgodnie z opisem.
+* Wartość źródłowa – wartość lub przykład występujący w materiale; jeśli nie został ostatecznie zatwierdzony, nie należy traktować go jako niezmiennego.
+* Nierozstrzygnięte – materiał nie daje jednoznacznej odpowiedzi. Nie wolno po cichu wymyślać decyzji.
+* Ograniczenie Androida 9 – jeśli platforma nie gwarantuje danego zachowania, należy zachować zamierzony efekt możliwie najbliższym wykonalnym rozwiązaniem.
+
+CZĘŚĆ I. FUNDAMENT PROJEKTU
+
+1. Cel i zakres
+
+Aplikacja ma posiadać dwa główne tryby interfejsu:
+
+* Honda OEM UFO Cluster – cyfrowy zestaw wskaźników inspirowany fabrycznym zestawem zegarów Hondy Civic UFO.
+* CarPlay Dashboard – nowoczesny, minimalistyczny interfejs inspirowany stylistyką Apple CarPlay, z kartami, listą parametrów, wykresami i modułami diagnostycznymi.
+
+Oba tryby korzystają z tych samych danych diagnostycznych i ustawień pojazdu, ale mają osobne układy wizualne.
+
+Interfejs musi być funkcjonalny, a nie tylko dekoracyjny. Każdy wyświetlany parametr ma być powiązany z rzeczywistym źródłem danych. Każdy przycisk musi wykonywać określoną akcję. Każdy ekran musi obsługiwać brak danych, utratę połączenia i błędy.
+
+Zakres tej instrukcji
+
+Obejmuje:
+
+* strukturę i wygląd ekranów;
+* rozmieszczenie elementów;
+* kolory, typografię i wymiary;
+* zachowanie wskaźników;
+* gesty i przyciski;
+* animacje;
+* wykresy;
+* ustawienia;
+* tryb dzień/noc;
+* Split-Screen;
+* zachowanie po zgaszeniu silnika;
+* widżet Androida;
+* nakładki i gesty globalne;
+* architekturę UI;
+* wymagania wydajnościowe;
+* integrację UI z warstwą danych;
+* testy odbiorcze.
+
+Nie jest to kompletna specyfikacja protokołu ELM327, wszystkich PID-ów, obliczeń diagnostycznych ani algorytmów Virtual Dyno. Te elementy muszą być dostarczone przez osobne moduły, ale UI musi mieć jasno zdefiniowane punkty integracji.
+
+2. Platforma docelowa
+
+Parametr	Wymaganie
+System	Android 9
+API docelowe działania	API 28
+Język	Kotlin
+Orientacja główna	Landscape
+Rozdzielczość referencyjna	1280 × 720 px
+Typ urządzenia	Android head unit
+GPU referencyjne	Mali-T720
+Procesor referencyjny	MediaTek MT8163
+Usługi Google	Aplikacja nie może ich wymagać
+Renderowanie zegarów	Custom View + Canvas
+Pozostałe ekrany	Natywne widoki Androida
+
+Można budować projekt przy użyciu nowszego compileSdk, ale wszystkie funkcje muszą działać na Androidzie 9. Każde API wprowadzone po API 28 musi mieć warunek wersji i alternatywę.
+
+2.1. Układ współrzędnych
+
+Dla głównego zegara należy stosować wirtualną przestrzeń projektową 1280 × 720.
+
+Wszystkie elementy rysowane na Canvas muszą być pozycjonowane względem tej przestrzeni. Wymiary referencyjne nie mogą być przypadkowo traktowane jako dp.
+
+Przy zmianie rozmiaru okna:
+
+* pobierz aktualną szerokość i wysokość widoku;
+* oblicz skalę względem 1280 × 720;
+* zachowaj proporcje projektu;
+* przelicz pozycje i rozmiary;
+* unikaj rozciągania tarczy w jednym kierunku;
+* przelicz ponownie po zmianie rozmiaru okna lub wejściu w Split-Screen.
+
+Jeśli proporcje ekranu są inne niż referencyjne, należy zastosować kontrolowane skalowanie lub letterboxing.
+
+3. Architektura UI
+
+Podział odpowiedzialności:
+
+Moduł	Zadanie
+MainActivity	Główny kontener aplikacji i przełączanie trybów
+UfoClusterView	Rysowanie zegarów Honda UFO
+CarPlayDashboard	Główny ekran CarPlay
+LeftDock	Nawigacja po modułach
+ParameterList	Lista parametrów OBD
+ChartView	Wykresy pojedyncze i wieloparametrowe
+Settings	Ustawienia aplikacji
+DtcManager	Prezentacja kodów błędów
+TripAndFuel	Dane tras i spalania
+VirtualDyno	Prezentacja pomiarów mocy i momentu
+BlackBox	Lista zdarzeń i odtwarzanie telemetrii
+UiViewModel	Stan i akcje interfejsu
+DataRepository	Dostarczanie danych do UI
+
+3.1. Zasada separacji
+
+Widoki nie mogą samodzielnie wykonywać komunikacji Bluetooth ani wysyłać komend OBD.
+
+Prawidłowy przepływ:
+
+OBD / moduł danych → Repository → ViewModel → UI
+
+Przepływ akcji użytkownika:
+
+UI → ViewModel → odpowiedni moduł → wynik → ViewModel → UI
+
+Przykładowo przycisk kasowania DTC nie może sam wysyłać komendy diagnostycznej. Powinien wywołać akcję clearDtc(), a następnie czekać na wynik. Interfejs pokazuje sukces dopiero po potwierdzeniu przez warstwę diagnostyczną.
+
+3.2. Stany interfejsu
+
+Każdy ekran powinien obsługiwać przynajmniej następujące stany:
+
+* Loading
+* Connecting
+* Connected
+* Offline
+* StaleData
+* Error
+* EngineRunning
+* EngineOff
+* Day
+* Night
+* SplitScreen
+
+Brak danych nie może być przedstawiany jako wartość 0.
+
+Przykład:
+
+* poprawny pomiar napięcia: 13.8 V;
+* brak pomiaru: ---;
+* brak statystyk: N/A;
+* stary pomiar: wartość z oznaczeniem nieaktualności.
+
+Każdy odczyt powinien zawierać timestamp, jednostkę, status jakości i informację o dostępności.
+
+4. Wydajność i zasady renderowania
+
+Docelowy cel to płynne 60 FPS, przy czym stabilne 30 FPS jest minimalnym akceptowalnym poziomem podczas większego obciążenia.
+
+4.1. Canvas
+
+W UfoClusterView należy:
+
+* używać sprzętowej akceleracji Canvas;
+* cache’ować nieruchome elementy tarczy;
+* oddzielić warstwę statyczną od dynamicznej;
+* nie tworzyć obiektów w onDraw();
+* nie wykonywać operacji Bluetooth, SQLite ani obliczeń diagnostycznych w onDraw();
+* nie blokować głównego wątku;
+* ograniczać liczbę przezroczystych warstw;
+* stosować gradienty zamiast ciężkich efektów rozmycia.
+
+Elementy statyczne:
+
+* tło;
+* ramki;
+* podziałki;
+* cyfry;
+* nieruchome etykiety;
+* obramowania LCD.
+
+Elementy dynamiczne:
+
+* wskazówka;
+* wartości cyfrowe;
+* łuki;
+* REV;
+* wykres MID;
+* animacje alertów.
+
+4.2. Płynność odczytów
+
+Częstotliwość renderowania nie może być uzależniona bezpośrednio od częstotliwości odpowiedzi adaptera OBD.
+
+Należy zastosować interpolację zależną od czasu:
+
+V_{render}=V_{render}+\alpha(V_{target}-V_{render})
+
+Wartość alpha powinna zależeć od czasu między klatkami, a nie od liczby wywołań onDraw().
+
+Jeśli dane przestają przychodzić, interfejs ma oznaczyć je jako nieaktualne. Nie wolno bez końca animować wskazówki w kierunku starej wartości.
+
+CZĘŚĆ II. TRYB HONDA OEM UFO CLUSTER
+
+5. Ogólny układ zegarów
+
+Tryb UFO ma przypominać fabryczny zestaw wskaźników Hondy Civic VIII UFO, ale prezentować dane cyfrowo i w sposób płynny.
+
+Główny układ 1280 × 720 px dzieli się na trzy poziome obszary:
+
+Obszar	Zakres	Wysokość
+HUD	Y = 0–160	160 px
+Główna tarcza i boczne wskaźniki	Y = 160–640	480 px
+Footer	Y = 640–720	80 px
+
+Elementy główne:
+
+* HUD prędkościomierza i REV na górze;
+* centralny obrotomierz o średnicy 440 px;
+* kwadratowy LCD MID wewnątrz obrotomierza;
+* lewy i prawy boczny łuk;
+* dolny pasek statusu.
+
+6. Paleta kolorystyczna UFO
+
+Element	Kolor
+Tło główne	#0A0D14
+Wnętrze tarczy	#05070B
+Metaliczne ramki	#2A3448 → #141B29
+Niebieska poświata	#0055FF
+Cyjanowy akcent	#00E5FF
+Podziałki i cyfry	#FFFEEA
+Czerwone alerty	#FF0033
+Tło LCD MID	#5E6F73
+Aktywne piksele LCD	#0D1517
+Nieaktywne piksele LCD	#526266
+Jasny panel statystyk	#E2E8E4
+
+W materiale źródłowym podkreślono, że czysta czerń może powodować niepożądany efekt poświaty podświetlenia krawędziowego matrycy IPS. Dlatego główne tło ma być ciemnym granatowo-grafitowym odcieniem, a nie jednolitym #000000.
+
+7. Centralny obrotomierz
+
+Wymaganie zatwierdzone
+
+7.1. Geometria
+
+* Średnica: 440 px.
+* Środek: X = 640 px, Y = 400 px.
+* Tarcza musi być idealnie wycentrowana względem ekranu.
+* Wskazówka ma być czytelna na tle metalicznego pierścienia.
+* Obrotomierz jest głównym wizualnym elementem ekranu.
+
+7.2. Cyfry i podziałki
+
+Cyfry skali 1–8:
+
+* krój pochylony Italic/Slanted;
+* cyfry pochylone w prawo;
+* nie obracać cyfr radialnie zgodnie z kątem tarczy;
+* kolor #FFFEEA.
+
+Podziałki:
+
+Rodzaj	Interwał
+Główne	co 1000 RPM
+Średnie	co 500 RPM
+Małe	co 100 RPM
+
+Parametry głównych podziałek:
+
+* grubość: 2.5 dp;
+* długość: 14 px;
+* kolor: #FFFEEA.
+
+7.3. Wskazówka i Redline
+
+Wskazówka:
+
+* jasna, dobrze widoczna;
+* z błękitnym akcentem/obwódką;
+* animowana płynnie;
+* nie może przeskakiwać przy aktualizacji odczytu OBD.
+
+Po wejściu w strefę Redline:
+
+* wskazówka przechodzi na kolor #FF0033;
+* aura pierścienia płynnie zmienia się z niebieskiej na czerwoną;
+* alert nie może zasłaniać cyfr skali.
+
+Próg Redline musi być konfigurowalny w Ustawieniach. W rozmowie rozważano wartości 6300 i 6500 RPM, ale końcowa decyzja wskazuje na możliwość zmiany progu przez użytkownika, a nie na jeden niezmienny parametr.
+
+8. Kwadratowy ekran LCD MID
+
+To jeden z najdokładniej opisanych elementów całego interfejsu.
+
+Geometria zatwierdzona
+
+8.1. Wymiary i pozycja
+
+Parametr	Wartość
+Szerokość	220 px
+Wysokość	220 px
+Lewy górny narożnik	(530, 290)
+Prawy dolny narożnik	(750, 510)
+Obramowanie	2 dp
+Kolor obramowania	#2A3448
+Zaokrąglenie	0 dp
+
+Ekran ma być idealnym kwadratem. Nie stosować zaokrąglonych narożników.
+
+8.2. Podział wewnętrzny
+
+BOOST
+
+0.8
+
+BAR
+
+BAR / 5m
+
+MAX: 1.2
+
+AVG: 0.4
+
+Schemat poglądowy podziału LCD MID, nie makieta finalnej grafiki.
+
+Ekran ma trzy sekcje:
+
+Sekcja	Wysokość
+Górna – odczyt chwilowy	110 px
+Separator	2 px
+Dolna – panel statystyk	108 px
+
+8.3. Górna strefa
+
+Nagłówek:
+
+* ikona parametru 24 × 24 px;
+* nazwa parametru 12sp Bold;
+* tekst wielkimi literami;
+* kolor #0D1517;
+* margines górny 8 px;
+* margines lewy 10 px.
+
+Przykładowe nazwy:
+
+* BOOST
+* OIL TEMP
+* VOLTAGE
+* ECT
+* TPS
+* IAT
+* LTFT
+
+Wartość główna:
+
+* 38sp;
+* Monospace Bold;
+* kolor #0D1517;
+* jednostka 14sp Bold;
+* odstęp między cyframi a jednostką: 4 px;
+* wartość wyrównana do prawej lub wyśrodkowana zgodnie z układem.
+
+8.4. Separator
+
+* pozioma linia przez całą szerokość LCD;
+* wysokość 2 px;
+* kolor #2A3448 lub #0D1517;
+* położenie Y = 400 px.
+
+8.5. Dolna strefa – MAX i AVG
+
+Jasny prostokąt:
+
+* 204 × 96 px;
+* pozycja: X = 538–742 px;
+* pozycja: Y = 408–504 px;
+* tło #E2E8E4;
+* narożniki ostre, bez radius.
+
+Lewa część:
+
+* opis interwału;
+* 10sp Regular;
+* kolor czarny;
+* przykłady: BAR / 5m, °C / TRIP, V / 1h.
+
+Prawa część:
+
+* dwa wiersze;
+* MAX: [wartość] – 12sp Bold, kolor #0055FF;
+* AVG: [wartość] – 12sp Bold, kolor #000000 lub bursztynowy #D4A000.
+
+8.6. Interakcje LCD
+
+Gest	Działanie
+Krótki tap	Przejście do następnego parametru
+Long press ponad 1,5 s na dolnym panelu	Reset MAX i AVG aktualnego parametru
+
+Początkowa pętla parametrów opisana w materiale:
+
+BOOST → ECT → VOLTAGE → TPS → IAT → LTFT → BOOST
+
+W przypadku braku danych:
+
+* główna wartość: ---;
+* MAX: N/A;
+* AVG: N/A;
+* aktywne piksele przygaszone do #526266.
+
+8.7. Wykres w MID
+
+W późniejszej części rozmowy doprecyzowano, że pozycja MID może prezentować nie tylko wartość cyfrową, ale także wykres.
+
+Wykres ma mieć:
+
+* gładką linię wektorową;
+* wypełnienie pod linią w stylu pikselowym;
+* historię 30 sekund;
+* możliwość przypisania wykresu do pozycji w pętli MID.
+
+Lista pozycji nie może być ograniczona do kilku parametrów wpisanych na stałe. Użytkownik ma mieć możliwość wyboru wszystkich parametrów, które aplikacja faktycznie udostępnia. Każdy parametr powinien mieć własną ikonę wektorową 24 × 24 px i polską etykietę.
+
+9. Górny HUD
+
+9.1. Prędkościomierz cyfrowy
+
+* obszar Y = 0–160 px;
+* rozmiar 96sp;
+* Bold Italic;
+* cyfry bez zer wiodących;
+* przykład: 54 km/h, nie 054 km/h.
+
+9.2. Wskaźnik biegu
+
+Wskaźnik biegu znajduje się obok cyfrowej prędkości.
+
+Ma prezentować:
+
+* biegi 1–6;
+* N dla neutralnego;
+* rozmiar regulowany w Ustawieniach.
+
+Jeśli aplikacja nie posiada wiarygodnego źródła biegu, nie może wyświetlać zgadywanej wartości jako pewnego pomiaru.
+
+9.3. Pasek REV
+
+Bezpośrednio nad prędkościomierzem znajduje się zwarty pasek:
+
+[REV SEGMENTS] ECO VTEC
+
+Pasek REV składa się z 10 segmentów:
+
+Segmenty	Kolor
+1–4	Błękitne
+5–8	Zielone
+9–10	Bursztynowe
+
+Segmenty zapalają się progresywnie wraz ze wzrostem RPM.
+
+W materiale źródłowym opisano następujące zakresy:
+
+* 4200–5100 RPM;
+* 5100–6000 RPM;
+* 6000–6250 RPM;
+* 6300 RPM i więcej – cały pasek pulsuje czerwono aż do odcięcia przy 6700 RPM.
+
+Te wartości należy traktować jako źródłowe ustawienia konfiguracyjne, nie jako uniwersalne wartości dla każdego profilu silnika.
+
+9.4. ECO
+
+Wskaźnik ECO włącza się, gdy jednocześnie spełnione są warunki:
+
+* TPS poniżej 18%;
+* MAP poniżej 48 kPa;
+* RPM poniżej 2800.
+
+Kolor: zielony #30D158.
+
+9.5. VTEC
+
+Wskaźnik VTEC włącza się po przekroczeniu sztywnego progu 5200 RPM, zgodnie z końcową decyzją źródłowej rozmowy.
+
+Kolor: cyjan #00E5FF.
+
+Należy pamiętać, że jest to wskaźnik wyliczany przez aplikację na podstawie reguły, a nie automatycznie potwierdzony sygnał rzeczywistego przełączenia mechanizmu VTEC.
+
+9.6. Soczewka pod prędkością
+
+Pod cyframi prędkości znajduje się subtelny efekt eliptycznej soczewki:
+
+* kolor #0022AA;
+* krycie 25%;
+* delikatny gradient;
+* bez mocnego rozmycia.
+
+9.7. Akcja tapnięcia prędkościomierza
+
+Akcja ma być konfigurowalna:
+
+* reset Trip;
+* zmiana jednostek km/h ↔ mph;
+* brak akcji;
+* szybkie kasowanie DTC.
+
+Nie przypisywać kilku działań do jednego krótkiego tapnięcia.
+
+10. Boczne łuki – Wing Arcs
+
+10.1. Geometria
+
+Każdy łuk:
+
+* 180 × 480 px;
+* lewy i prawy po bokach centralnego obrotomierza;
+* grubość linii 8 dp;
+* płynny, jednolity suwak;
+* bez podziałek i poprzecznych kresek.
+
+Do renderowania wykorzystać SweepGradient.
+
+10.2. Wartość i etykieta
+
+Wartość liczbowa i jednostka znajdują się po wewnętrznej stronie łuku, od strony środka ekranu.
+
+Przykład:
+
+ECT 92.0 °C
+
+10.3. Parametry lewego łuku
+
+Pętla:
+
+ECT → MAP/BOOST → VOLTS
+
+10.4. Parametry prawego łuku
+
+Pętla:
+
+FUEL → TPS → IAT → LTFT
+
+10.5. Interakcje
+
+Gest	Działanie
+Tap	Następny parametr w pętli
+Long press ponad 1 s	Menu szybkiego przypisania parametru
+
+10.6. Skala
+
+Dla wartości jednokierunkowych:
+
+* minimum na dole;
+* maksimum na górze;
+* wartość nominalna w środkowym obszarze skali.
+
+Dla parametrów dwukierunkowych, np. BOOST:
+
+* zero znajduje się w połowie wysokości;
+* podciśnienie wypełnia łuk od środka w dół;
+* dodatnie doładowanie wypełnia łuk od środka w górę.
+
+10.7. Kolory alarmowe
+
+Łuk zmienia kolor na #FF0033 po przekroczeniu skonfigurowanego progu.
+
+Przykładowe progi źródłowe:
+
+Parametr	Próg alarmowy
+ECT	powyżej 102°C
+VOLTS	poniżej 11.8 V lub powyżej 14.8 V
+LTFT	powyżej +10% lub poniżej −10%
+IAT	powyżej 65°C
+
+Progi muszą być edytowalne w Ustawieniach.
+
+11. Footer UFO
+
+Footer ma dokładnie 80 px wysokości i zajmuje obszar Y = 640–720.
+
+Pięć sektorów od lewej do prawej:
+
+Sektor	Element	Działanie
+1	Check Engine / DTC	Otwiera szczegóły błędu
+2	ZAPISZ EVENT	Zapisuje telemetrię
+3	SWAP UI	Przełącza UFO ↔ CarPlay
+4	Zębatka	Otwiera ustawienia
+5	OBD status / voltage	Pokazuje stan połączenia i napięcie
+
+11.1. Check Engine
+
+Wyświetla:
+
+* kontrolkę Check Engine;
+* kod DTC;
+* krótki polski opis.
+
+Przykład:
+
+P0303 – Wypadanie zapłonu cyl. 3
+
+Tap otwiera modal szczegółów.
+
+11.2. ZAPISZ EVENT
+
+Zapisuje ostatnie 30 sekund telemetrii.
+
+Przycisk ma być dyskretny, bez agresywnej czerwonej ramki.
+
+11.3. SWAP UI
+
+Przełącza pomiędzy trybem UFO i CarPlay.
+
+Przejście ma być płynne, bez restartowania aplikacji i utraty stanu.
+
+11.4. Status OBD
+
+Możliwe stany:
+
+Stan	Kolor	Etykieta
+Połączono	Zielony #30D158	OBD OK
+Łączenie	Bursztynowy #FF9F0A	CONNECTING…
+Offline	Szary #8E8E93	OFFLINE
+
+11.5. Modal DTC
+
+Modal zawiera:
+
+* kod błędu;
+* polski opis;
+* dostępne szczegóły;
+* przycisk KASUJ DTC.
+
+Kasowanie uruchamia wybraną animację DTC. Modal zamyka się po zakończeniu operacji, a UI odświeża status dopiero po otrzymaniu wyniku z modułu diagnostycznego.
+
+CZĘŚĆ III. TRYB APPLE CARPLAY DASHBOARD
+
+12. Ogólna koncepcja
+
+Tryb CarPlay ma być nowoczesnym pulpitem samochodowym. Nie jest kopią interfejsu Apple ani aplikacją CarPlay. Jest to samodzielny ekran diagnostyczny, którego styl wizualny ma nawiązywać do ergonomii i estetyki CarPlay.
+
+Główne cechy:
+
+* ciemny grafitowy motyw;
+* duże, czytelne karty;
+* pionowy dock po lewej;
+* przewijane moduły;
+* parametry OBD;
+* dynamiczne wykresy;
+* szybki dostęp do diagnostyki;
+* możliwość personalizacji układu.
+
+13. Paleta kolorystyczna
+
+Element	Kolor
+Tło pulpitu	#121212
+Karty	#1C1C1E
+Obramowania	#2C2C2E
+Apple Blue	#0A84FF
+Apple Green	#30D158
+Apple Orange	#FF9F0A
+Apple Red	#FF453A
+Tekst pomocniczy	#8E8E93
+
+Wymagania dotyczące kart:
+
+* radius: 16 dp;
+* obramowanie: 1 dp;
+* tło: #1C1C1E;
+* subtelny kontrast z tłem ekranu;
+* bez ciężkich cieni i rozmyć.
+
+Akcent kolorystyczny ma być konfigurowalny:
+
+* Apple Classic Blue – #0A84FF;
+* Sport Type-R Red – #FF3B30;
+* Civic Emerald Green – #30D158.
+
+14. Główny układ Dashboard
+
+Podstawowy podział:
+
+LIVE DATA
+
+2450
+
+RPM
+
+ENGINE STATUS
+
+NORMAL
+
+OBD connected
+
+VIRTUAL DYNO
+
+— KM
+
+Power
+
+DTC
+
+0
+
+Active errors
+
+Schemat struktury dashboardu – docelowy układ należy dostosować do rzeczywistych proporcji ekranu.
+
+Główne założenie: lewy dock pozostaje stały, a prawy obszar roboczy zmienia zawartość zależnie od wybranego modułu.
+
+15. Left Dock
+
+Szerokość referencyjna: około 110 dp.
+
+Dock:
+
+* pionowy;
+* po lewej stronie;
+* stale widoczny;
+* z dużymi ikonami;
+* z aktywnym zaznaczeniem;
+* z przewijaną listą modułów;
+* z dolną, nieruchomą sekcją skrótów.
+
+Aktywna zakładka:
+
+* zaokrąglona pigułka;
+* kolor akcentu;
+* biała ikona;
+* wyraźne odróżnienie od pozostałych pozycji.
+
+15.1. Moduły docka
+
+W materiale źródłowym występują następujące moduły:
+
+* Overview
+* Live Data
+* Multi-Select
+* Multi-Graph
+* Misfire Lab
+* DTC Manager
+* Virtual Dyno
+* Trip / Fuel
+* Black Box
+* Best Runs
+* Maintenance
+* Ustawienia
+
+Nie wszystkie muszą być widoczne jednocześnie. Lista ma być przewijana.
+
+15.2. Dolna sekcja docka
+
+Na dole docka znajdują się:
+
+* QUICK BUTTON;
+* USTAWIENIA;
+* HOME.
+
+Sekcja ma być przytwierdzona do dołu i nie może przewijać się razem z listą modułów.
+
+15.3. QUICK BUTTON
+
+Użytkownik wybiera jedną akcję:
+
+* ZAPISZ EVENT;
+* wymuś reconnect OBD;
+* szybkie kasowanie DTC;
+* przełącz motyw.
+
+Wybrana akcja ma być opisana czytelnym tekstem. Nie może być niejednoznaczna.
+
+16. Overview – ekran główny
+
+Ekran Overview ma prezentować najważniejsze informacje bez konieczności przechodzenia do poszczególnych modułów.
+
+Układ bazowy:
+
+* jedna większa karta po lewej;
+* dwie mniejsze karty po prawej, ułożone pionowo.
+
+Przykładowe karty:
+
+* szybki odczyt RPM / SPEED;
+* Virtual Dyno;
+* Misfire Lab;
+* DTC & DIAG;
+* status akumulatora i napięcia;
+* podstawowe parametry silnika.
+
+Każda karta ma:
+
+* ikonę;
+* nagłówek wielkimi literami;
+* aktualną wartość;
+* jednostkę;
+* opcjonalny status;
+* opcjonalną ikonę rozwinięcia ↗.
+
+Tapnięcie karty otwiera pełny ekran odpowiedniego modułu.
+
+16.1. Personalizacja kart
+
+Użytkownik może:
+
+* zmieniać kolejność kart;
+* zamieniać moduły miejscami;
+* wybierać moduły widoczne na Overview;
+* przeciągać karty metodą Drag & Drop.
+
+Zmiany muszą być zapisywane trwale.
+
+16.2. Animacja interakcji
+
+Po dotknięciu karty:
+
+* karta delikatnie zmniejsza się do 97–98% skali;
+* po zwolnieniu wraca do 100%;
+* aktywne zaznaczenie ma być widoczne;
+* bez przesadnego efektu sprężynowania.
+
+17. Lista parametrów OBD i Multi-Select
+
+To kluczowy element interfejsu.
+
+Po lewej stronie obszaru roboczego znajduje się lista parametrów. Po prawej – wykresy wybranych parametrów.
+
+Każdy element listy zawiera:
+
+* ikonę;
+* nazwę parametru;
+* aktualną wartość;
+* jednostkę;
+* status;
+* opcjonalny przycisk rozwinięcia.
+
+17.1. Status parametru
+
+Status	Kolor	Znaczenie
+Normal	#30D158	W normie
+Powyżej	#FF9F0A	Powyżej zakresu
+Poniżej	#0A84FF	Poniżej zakresu
+Krytyczny	#FF453A	Wartość krytyczna
+Brak danych	Neutralny	Brak wiarygodnego odczytu
+
+Nie wolno przypisywać statusu Normal, jeśli nie ma wartości ani zdefiniowanego zakresu referencyjnego.
+
+17.2. Zaznaczanie
+
+* Tapnięcie parametru zaznacza go.
+* Kolejne tapnięcie odznacza go.
+* Zaznaczony parametr ma podświetloną ramkę w kolorze akcentu.
+* Odpowiadający mu wykres pojawia się po prawej.
+* Odznaczenie usuwa jego wykres.
+
+Limit: maksymalnie cztery parametry.
+
+Uwaga dotycząca piątego wyboru: w materiale rozważano dwa zachowania: FIFO, czyli usunięcie najstarszego zaznaczenia, albo zignorowanie piątego wyboru i pokazanie komunikatu. Nie ma jednoznacznego końcowego rozstrzygnięcia. Nie należy udawać, że jest to zatwierdzona decyzja. Zachowanie powinno być konfigurowalne, a domyślne rozwiązanie jawnie zapisane w implementacji.
+
+17.3. Auto-Sort by Anomaly
+
+Opcjonalna funkcja:
+
+* parametr, który wyszedł poza normę, zostaje przeniesiony na początek listy;
+* kolejność pozostałych parametrów pozostaje stabilna;
+* użytkownik może wyłączyć tę funkcję w Ustawieniach.
+
+17.4. Rozwinięcie parametru
+
+Ikona ↗ otwiera ekran pojedynczego parametru na całej dostępnej przestrzeni roboczej.
+
+18. Dynamiczna matryca wykresów
+
+Wykresy znajdują się po prawej stronie listy parametrów.
+
+Matryca zmienia się dynamicznie w zależności od liczby zaznaczonych pozycji.
+
+Liczba parametrów	Układ
+1	Jeden wykres na całym obszarze
+2	Dwa wykresy pionowo
+3	Jeden duży u góry, dwa mniejsze obok siebie na dole
+4	Siatka 2 × 2
+
+18.1. Wykres pojedynczy
+
+Wykres ma:
+
+* nazwę parametru;
+* wartość bieżącą;
+* jednostkę;
+* min;
+* max;
+* avg;
+* status normy;
+* oś czasu;
+* linię pomiarową;
+* subtelne wypełnienie pod linią.
+
+18.2. Styl wykresów
+
+* gładkie krzywe Béziera;
+* cienka, czytelna linia;
+* wypełnienie gradientowe pod wykresem;
+* krycie wypełnienia około 20%;
+* czytelne osie;
+* minimalna liczba elementów dekoracyjnych.
+
+Nie stosować ciężkich efektów blur.
+
+18.3. Scrubber
+
+Użytkownik może dotknąć wykresu i przesuwać palcem po osi czasu.
+
+Interfejs pokazuje:
+
+* pionową linię crosshair;
+* wartość w wybranym punkcie;
+* czas pomiaru;
+* jednostkę.
+
+18.4. Zakres osi czasu
+
+Użytkownik może wybrać:
+
+* 30 sekund;
+* 1 minutę;
+* 5 minut;
+* całą trasę.
+
+18.5. Tryby wykresów
+
+W materiale opisano dwa tryby:
+
+* Dwa wykresy ułożone pionowo.
+* Jeden wykres z dwiema nałożonymi liniami.
+
+18.6. Eksport
+
+Przycisk eksportu zapisuje aktualny wykres do PNG.
+
+Eksport ma obejmować:
+
+* obszar wykresu;
+* legendę;
+* nazwę parametrów;
+* jednostki;
+* czasowy zakres danych.
+
+Nie może zapisywać samego pustego tła.
+
+19. Multi-Overlay Chart
+
+Multi-Overlay umożliwia prezentowanie kilku parametrów na jednym wspólnym wykresie.
+
+Wymagania:
+
+* wspólna oś X;
+* osobna linia dla każdego parametru;
+* indywidualny kolor;
+* legenda;
+* możliwość wyboru parametrów;
+* czytelne rozróżnienie jednostek i skali.
+
+Pod wykresem znajduje się AI/System Analyser Correlation Ribbon.
+
+Jego zadaniem jest prezentowanie opisu korelacji między parametrami w języku polskim.
+
+Przykładowo może prezentować komunikat dostarczony przez moduł analityczny, który opisuje zależność między obciążeniem silnika, korektami paliwowymi i temperaturą.
+
+UI nie może samodzielnie wymyślać diagnozy. Ma prezentować tekst zwrócony przez moduł analityczny wraz z odpowiednim statusem.
+
+20. Dzień/noc w CarPlay
+
+CarPlay ma automatycznie przełączać jasny i ciemny motyw.
+
+W głównym interfejsie nie dodawać ręcznego przełącznika dzień/noc.
+
+Zasady:
+
+* tło i karty zmieniają kolor;
+* tekst pozostaje czytelny;
+* kolory statusów zachowują swoje znaczenie;
+* kolor akcentu użytkownika pozostaje aktywny;
+* przejście między motywami ma być płynne.
+
+Szczegóły działania silnika NOAA opisuję w dalszej części dokumentu.
+
+CZĘŚĆ IV. MODUŁY FUNKCJONALNE CARPLAY
+
+21. DTC Manager
+
+Ekran DTC Manager służy do prezentacji i obsługi kodów usterek.
+
+21.1. Lista błędów
+
+Każdy błąd jest osobną kartą zawierającą:
+
+* kod DTC;
+* polski opis;
+* status błędu;
+* datę lub czas wykrycia;
+* przycisk rozwinięcia;
+* przycisk kasowania.
+
+Przykładowy układ:
+
+P0303
+
+Confirmed
+
+Wypadanie zapłonu – cylinder 3
+
+Szczegóły diagnostyczne i dane Freeze Frame
+
+KASUJ TEN BŁĄD
+
+21.2. Freeze Frame
+
+Po rozwinięciu błędu należy wyświetlić dostępne dane zamrożonej ramki:
+
+* RPM;
+* Vehicle Speed;
+* ECT;
+* Fuel System Status;
+* Engine Load;
+* LTFT;
+* pozostałe wartości, jeśli zostały udostępnione przez moduł diagnostyczny.
+
+Nie wyświetlać parametrów jako zerowych, jeśli Freeze Frame nie zawiera danego pola.
+
+21.3. Podpowiedź serwisowa
+
+Każdy kod może posiadać podpowiedź serwisową z lokalnej bazy wiedzy Hondy.
+
+Ważne: podpowiedź ma być oznaczona jako sugestia kontroli, a nie pewna diagnoza.
+
+21.4. Kasowanie DTC
+
+Dostępne akcje:
+
+* KASUJ TEN BŁĄD;
+* KASUJ WSZYSTKIE DTC.
+
+Kasowanie jest wykonywane przez warstwę diagnostyczną, z użyciem odpowiedniej procedury OBD.
+
+UI:
+
+* blokuje ponowne kliknięcie przycisku na czas operacji;
+* pokazuje stan wykonywania;
+* uruchamia wybraną animację;
+* czeka na odpowiedź;
+* pokazuje wynik;
+* odświeża listę błędów.
+
+Nie wolno wyświetlać komunikatu sukcesu przed potwierdzeniem.
+
+22. Misfire Lab
+
+Moduł służy do monitorowania wypadania zapłonów.
+
+22.1. Główny ekran
+
+Cztery pionowe słupki:
+
+* Cylinder 1;
+* Cylinder 2;
+* Cylinder 3;
+* Cylinder 4.
+
+Każdy słupek zawiera:
+
+* numer cylindra;
+* licznik wykrytych zdarzeń;
+* status;
+* wizualizację liczby zdarzeń.
+
+Źródłowe mapowanie MID:
+
+Cylinder	MID
+1	A2
+2	A3
+3	A4
+4	A5
+
+22.2. Korelacja
+
+Moduł może prezentować zdarzenia na osi czasu oraz porównywać je z:
+
+* Engine Load;
+* ignition timing;
+* STFT;
+* LTFT.
+
+UI ma wyświetlać dane dostarczone przez moduł diagnostyczny. Nie może samodzielnie tworzyć wniosków o przyczynie wypadania zapłonu.
+
+22.3. Monitorowanie w tle
+
+W źródłowej specyfikacji założono ciągłe monitorowanie danych Mode $06.
+
+Oznacza to, że moduł nie może przestać zbierać danych tylko dlatego, że użytkownik przejdzie na inny ekran.
+
+23. Virtual Dyno
+
+Moduł prezentuje szacowaną moc i moment obrotowy silnika.
+
+23.1. Wykres
+
+* moc w KM;
+* moment obrotowy w Nm;
+* wspólna siatka wykresu;
+* dwie osie Y;
+* KM po lewej;
+* Nm po prawej.
+
+23.2. Korekcja
+
+W materiale przewidziano automatyczną korekcję SAE/DIN na podstawie IAT/MAP.
+
+UI ma pokazywać:
+
+* wynik;
+* zastosowany rodzaj korekcji;
+* status obliczeń;
+* ewentualny brak danych wejściowych.
+
+Wynik i korekcja muszą pochodzić z modułu obliczeniowego, nie z widoku.
+
+23.3. Automatyczne uruchomienie pomiaru
+
+Źródłowe warunki uruchomienia:
+
+* TPS powyżej 88%;
+* RPM powyżej 2500;
+* ●	lub 4. bieg.
+
+Interfejs powinien mieć stany:
+
+* Oczekiwanie na warunki.
+* Pomiar uzbrojony.
+* Rejestracja.
+* Zakończenie.
+* Błąd lub brak danych.
+
+Główna karta pokazuje wykres live. Pełny ekran pokazuje szczegóły próby, wynik i dostępne parametry środowiskowe.
+
+24. Performance Timer i Best Runs
+
+24.1. Automatyczne pomiary
+
+Wymagane pomiary:
+
+* 0–50 km/h;
+* 0–100 km/h;
+* 60–100 km/h;
+* 100–150 km/h;
+* 1/4 mili – 402 m.
+
+Każdy pomiar ma być zapisywany oddzielnie.
+
+24.2. Wizualny sygnalizator
+
+Sekwencja:
+
+* czerwony;
+* żółty;
+* zielony – START.
+
+24.3. Best Runs
+
+Ekran prezentuje najlepsze przejazdy w formie listy lub tabeli.
+
+Wymagania:
+
+* rodzaj pomiaru;
+* wynik;
+* data;
+* dostępne szczegóły;
+* możliwość usunięcia pojedynczego przejazdu gestem Swipe-to-delete.
+
+25. Maintenance
+
+Moduł serwisowy ma prezentować terminy i przebiegi obsługowe.
+
+25.1. Liczniki eksploatacyjne
+
+Wymagane pozycje:
+
+* olej silnikowy;
+* świece zapłonowe;
+* płyn hamulcowy;
+* olej skrzyni biegów.
+
+Każda pozycja zawiera:
+
+* pozostały przebieg lub czas;
+* status;
+* przycisk ZRESETUJ PO WYMIANIE.
+
+Reset jest ręczny i nie może następować automatycznie na podstawie samego odczytu OBD.
+
+25.2. Analizy dodatkowe
+
+Dwie pozycje:
+
+* analiza luzów zaworowych;
+* analiza uślizgu sprzęgła.
+
+Statusy:
+
+* NORMAL;
+* INSPEKCJA.
+
+Każdy status musi mieć opis wyjaśniający, na podstawie jakich danych został wygenerowany.
+
+25.3. Dodatkowe sekcje
+
+* stan ładowania i alternatora;
+* dobowe spadki napięcia;
+* czas pracy silnika od ostatniego kasowania DTC.
+
+26. Black Box – rejestrator telemetrii
+
+Moduł przechowuje zdarzenia ręczne i automatyczne.
+
+26.1. Bufor
+
+Źródłowy materiał przewiduje kołowy bufor ostatnich 300 ramek danych i zapis 30 sekund telemetrii poprzedzającej zdarzenie.
+
+Dane są przechowywane w pamięci operacyjnej do czasu wystąpienia zdarzenia, a następnie zapisywane lokalnie.
+
+26.2. Zdarzenie automatyczne
+
+Źródłowy warunek:
+
+\Delta V > 35\text{ km/h w czasie poniżej }1.5\text{ s}
+
+Po wykryciu warunku należy zapisać ostatnie 30 sekund telemetrii.
+
+26.3. Lista zdarzeń
+
+Każdy wpis zawiera:
+
+* datę;
+* godzinę;
+* typ zdarzenia;
+* skrót danych;
+* czas trwania;
+* możliwość otwarcia odtwarzacza.
+
+26.4. Odtwarzacz
+
+Odtwarzacz ma:
+
+* suwak osi czasu;
+* możliwość przewijania;
+* odtwarzanie zarejestrowanych wartości;
+* prezentację wybranych parametrów;
+* możliwość powrotu do listy zdarzeń.
+
+26.5. Zapis ręczny
+
+Przycisk ZAPISZ EVENT zapisuje ostatnie 30 sekund danych.
+
+To samo działanie ma być dostępne z przycisku Quick Button.
+
+27. Trip & Fuel
+
+Moduł ma trzy niezależne rejestry tras.
+
+27.1. Trasa bieżąca
+
+* resetowana automatycznie po zgaszeniu silnika;
+* pokazuje aktualną trasę;
+* dostępna na głównym ekranie.
+
+27.2. Trasa A
+
+* resetowana ręcznie;
+* przechowuje dane niezależnie od trasy bieżącej.
+
+27.3. Trasa B / Dziennik Tankowania
+
+* resetowana po wprowadzeniu nowego tankowania;
+* służy do obserwowania zużycia paliwa pomiędzy tankowaniami.
+
+27.4. Dane trasy
+
+Każda karta może prezentować:
+
+* dystans;
+* czas;
+* średnie spalanie;
+* chwilowe spalanie;
+* koszt;
+* Eco Score.
+
+27.5. Chwilowe spalanie
+
+Zasada:
+
+* podczas jazdy: L/100 km;
+* na postoju: L/h.
+
+Automatyczne przełączanie można wyłączyć w Ustawieniach.
+
+27.6. Cena paliwa
+
+Cena paliwa jest konfigurowana ręcznie przez użytkownika w PLN/L.
+
+27.7. E-RAPORT
+
+Po zgaszeniu silnika pojawia się dyskretny przycisk E-RAPORT.
+
+Raport zawiera:
+
+* dystans;
+* czas;
+* średnie spalanie;
+* koszt;
+* Eco Score.
+
+Raport ma pozostać dostępny do czasu ponownego uruchomienia silnika lub odcięcia zasilania, a nie tylko przez krótki, sztywny timer.
+
+CZĘŚĆ V. USTAWIENIA I PERSONALIZACJA
+
+28. Struktura Ustawień
+
+Ustawienia mają być podzielone na pięć zakładek. Nie należy umieszczać wszystkich opcji na jednej nieuporządkowanej liście.
+
+Zakładka	Nazwa
+1	Połączenie & OBD
+2	Wygląd & Interfejs
+3	Dźwięki & Ostrzeżenia
+4	Profil Pojazdu & Paliwo
+5	Logi, Eksport & Backup
+
+Każda opcja musi posiadać:
+
+* nazwę;
+* krótki opis;
+* aktualną wartość;
+* zakres możliwych wartości, jeśli dotyczy;
+* walidację;
+* domyślną wartość;
+* informację, czy wymaga ponownego uruchomienia.
+
+Zmiany powinny być zapisywane trwale.
+
+29. Zakładka 1 – Połączenie & OBD
+
+Elementy:
+
+* Skanuj i sparuj nowe urządzenie.
+* Lista sparowanych adapterów.
+* Wybór adaptera.
+* Stałe wiązanie z adapterem (MAC).
+* Automatyczne ponawianie połączenia.
+* Status adaptera.
+* Terminal AT/OBD.
+* Wybór protokołu/adaptera.
+* Ustawienia źródła dźwięku i Audio Focus.
+
+29.1. Skanowanie adaptera
+
+Osobny ekran ma pokazywać:
+
+* nazwę urządzenia;
+* adres MAC, jeśli system udostępnia;
+* rodzaj transportu Bluetooth Classic lub BLE;
+* status sparowania;
+* status połączenia.
+
+Przyciski:
+
+* SKANUJ PONOWNIE;
+* POŁĄCZ;
+* ROZŁĄCZ;
+* USTAW JAKO DOMYŚLNY.
+
+29.2. Stałe wiązanie
+
+Przełącznik:
+
+Stałe wiązanie z adapterem
+
+Jeżeli jest aktywny, aplikacja ponawia połączenie wyłącznie z zapamiętanym adapterem. Nie powinna automatycznie przeskakiwać na inne urządzenie.
+
+29.3. Stany skanowania i połączenia
+
+Należy odróżniać:
+
+* brak wymaganych uprawnień;
+* Bluetooth wyłączony;
+* skanowanie;
+* znalezione urządzenie;
+* parowanie;
+* łączenie;
+* połączono;
+* błąd.
+
+29.4. Terminal diagnostyczny
+
+Konsola ma umożliwiać:
+
+* wysyłanie komend AT;
+* wysyłanie komend OBD;
+* prezentację surowych odpowiedzi;
+* prezentację czasu wykonania;
+* historię operacji.
+
+Każda komenda ma mieć timestamp i status.
+
+Terminal musi być wyraźnie oznaczony jako tryb zaawansowany. Nie może umożliwiać niebezpiecznych operacji zapisu do ECU bez osobnej kontroli bezpieczeństwa.
+
+30. Zakładka 2 – Wygląd & Interfejs
+
+Wymagane ustawienia:
+
+30.1. Tryb startowy
+
+* uruchamiaj zawsze UFO;
+* uruchamiaj zawsze CarPlay;
+* przywracaj ostatnio używany tryb.
+
+30.2. Motyw CarPlay
+
+* Apple Classic Blue;
+* Sport Type-R Red;
+* Civic Emerald Green.
+
+30.3. Pętla LCD MID
+
+Użytkownik ma możliwość:
+
+* dodawania parametrów;
+* usuwania parametrów;
+* zmiany kolejności;
+* ustawienia trybu cyfrowego;
+* ustawienia trybu wykresu.
+
+Nie ograniczać listy do kilku wpisanych na stałe wartości. Dostępne mają być wszystkie parametry udostępniane przez aplikację.
+
+30.4. Wing Arcs
+
+Osobna konfiguracja lewego i prawego łuku:
+
+* parametr;
+* kolejność;
+* zakres;
+* próg ostrzeżenia;
+* próg krytyczny;
+* zachowanie po zgaszeniu silnika.
+
+30.5. HUD
+
+* rozmiar wskaźnika biegu;
+* próg Redline;
+* akcja tapnięcia prędkościomierza;
+* widoczność wskaźnika ECO;
+* widoczność wskaźnika VTEC.
+
+30.6. Animacje
+
+* rodzaj animacji DTC;
+* automatyczny test zegarów;
+* przycisk URUCHOM TEST ZEGARÓW TERAZ.
+
+Test zegarów powinien być uruchamiany świadomie, z ostrzeżeniem, aby pojazd stał.
+
+30.7. Karty CarPlay
+
+* wybór modułów;
+* zmiana kolejności;
+* włączanie/wyłączanie Auto-Sort;
+* wybór stylu karty: płaski lub z subtelnym cieniem.
+
+31. Zakładka 3 – Dźwięki & Ostrzeżenia
+
+Opcje:
+
+* globalne włączanie/wyłączanie dźwięków;
+* gong OEM;
+* Shift Light;
+* alerty krytyczne;
+* wybór Audio Ducking;
+* wybór STREAM_NOTIFICATION;
+* wybór plików WAV/OGG;
+* użycie ToneGenerator;
+* progi ECT;
+* progi napięcia;
+* progi LTFT;
+* automatyczne L/100 km ↔ L/h.
+
+31.1. Dźwięki
+
+Preferowany charakter:
+
+* łagodny podwójny gong OEM Honda;
+* osobny sygnał Shift Light;
+* osobny sygnał alertu krytycznego.
+
+Pliki WAV/OGG mogą być wybierane z katalogu:
+
+/Honda_OBD_Audio/
+
+Alternatywnie dźwięk może być generowany przez ToneGenerator.
+
+31.2. Audio Focus
+
+Użytkownik wybiera:
+
+Tryb 1 – Audio Ducking
+
+* STREAM_MUSIC;
+* AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK;
+* muzyka zostaje przyciszona na czas sygnału.
+
+Tryb 2 – bez ingerencji w muzykę
+
+* STREAM_NOTIFICATION;
+* brak przyciszania muzyki.
+
+W źródłowej specyfikacji nie przewidziano osobnego kierowania dźwięku wyłącznie do przedniego lewego głośnika.
+
+32. Zakładka 4 – Profil Pojazdu & Paliwo
+
+W materiale przewidziano gotowe profile:
+
+Profil	Masa źródłowa
+Civic VIII 1.4 i-VTEC L13Z1	1250 kg
+Civic VIII 1.8 R18A2	1310 kg
+Civic VIII Type-R FN2	1350 kg
+
+Użytkownik ma również móc ustawić:
+
+* własną masę;
+* wymiary kół;
+* parametry potrzebne do obliczeń hamowni;
+* cenę paliwa w PLN/L.
+
+Ważne: masa w profilu jest wartością źródłową. Nie należy automatycznie zakładać, że odpowiada rzeczywistej masie konkretnego egzemplarza samochodu.
+
+33. Zakładka 5 – Logi, Eksport & Backup
+
+Wymagane funkcje:
+
+* eksport CSV;
+* eksport kopii bazy Room na USB;
+* automatyczny eksport po podłączeniu USB;
+* eksport konfiguracji config.json;
+* import konfiguracji config.json;
+* reset statystyk;
+* status retencji danych;
+* konfiguracja custom PID przez config.json.
+
+33.1. Eksport USB
+
+Nie zakładać stałej ścieżki urządzenia USB.
+
+Na Androidzie 9 należy korzystać z mechanizmów Storage Access Framework, np.:
+
+* ACTION_CREATE_DOCUMENT;
+* ACTION_OPEN_DOCUMENT_TREE.
+
+Użytkownik wybiera lokalizację, a aplikacja zapisuje pliki w udostępnionym katalogu.
+
+Jeżeli nośnik zostanie odłączony w trakcie zapisu, UI ma pokazać błąd i nie oznaczać eksportu jako zakończonego.
+
+CZĘŚĆ VI. ZACHOWANIE SYSTEMOWE
+
+34. Tryb dzień/noc – NOAA Sunset Engine
+
+W materiale źródłowym przyjęto, że stacja nie ma fizycznego czujnika natężenia światła.
+
+Aplikacja ma obliczać porę dnia na podstawie:
+
+* współrzędnych GPS;
+* zegara systemowego;
+* algorytmu NOAA.
+
+Jeśli GPS nie jest dostępny, należy korzystać z ostatniej znanej pozycji i aktualnego czasu systemowego.
+
+34.1. CarPlay
+
+* automatyczny motyw jasny/ciemny;
+* brak ręcznego przełącznika w głównym interfejsie;
+* płynne przejście;
+* zachowanie koloru akcentu.
+
+34.2. UFO – dzień
+
+Źródłowe ustawienia:
+
+* tło #121722;
+* jasne elementy tarczy;
+* wyłączona neonowa poświata;
+* ostre krawędzie wektorowe.
+
+34.3. UFO – noc
+
+* tło #05070B;
+* ciepła skala #FFFDE7;
+* aktywne pierścienie #0055FF;
+* ograniczona intensywność efektów.
+
+34.4. Ważna niejednoznaczność: jasność ekranu
+
+W materiale występuje opis automatycznego przyciemnienia ekranu do około 35%, ale później pojawia się również założenie, aby nie ingerować w systemową jasność Androida.
+
+Nie można traktować obu założeń jako równocześnie zatwierdzonych.
+
+Bezpieczna implementacja podstawowa:
+
+* zmieniaj kolory i jasność treści interfejsu;
+* nie wymuszaj systemowej jasności ekranu;
+* pozostaw ewentualną kontrolę jasności jako osobną opcję do zatwierdzenia.
+
+35. Stan silnika – Engine OFF
+
+W materiale przyjęto następujące warunki:
+
+Engine OFF:
+
+* RPM = 0;
+* napięcie poniżej 12.4 V;
+* warunki utrzymują się ponad 2 sekundy.
+
+Engine RUNNING:
+
+* RPM powyżej 500;
+* napięcie powyżej 13.2 V.
+
+To są reguły źródłowe, a nie uniwersalny standard wykrywania pracy każdego pojazdu. Muszą być konfigurowalne lub przynajmniej możliwe do zmiany w module logiki.
+
+35.1. Zachowanie po zgaszeniu
+
+Po wykryciu Engine OFF:
+
+* wskazówki płynnie opadają do zera;
+* lewy łuk przechodzi domyślnie na VOLTAGE;
+* prawy łuk przechodzi domyślnie na AVG_TRIP_FUEL;
+* pojawia się dyskretny przycisk E-RAPORT;
+* raport trasy pozostaje dostępny.
+
+Przypisania łuków w stanie Engine OFF mają być konfigurowalne.
+
+35.2. Po ponownym uruchomieniu
+
+* wskazówki wracają do aktualnych wartości;
+* łuki wracają do konfiguracji jazdy;
+* E-RAPORT znika;
+* UI nie przełącza się automatycznie do launchera Androida.
+
+36. Split-Screen / Multi-Window
+
+Po wejściu w Android Multi-Window:
+
+* tryb UFO zostaje wyłączony;
+* aplikacja przełącza się na CarPlay;
+* lewy dock zostaje przeniesiony na dół;
+* dolny dock ma około 50 dp;
+* zawartość przechodzi do jednej przewijanej kolumny;
+* wykresy układają się responsywnie;
+* wszystkie moduły pozostają dostępne.
+
+Po powrocie do pełnego ekranu:
+
+* można przywrócić poprzedni tryb UFO;
+* należy odtworzyć zaznaczenia parametrów;
+* należy zachować aktualny stan wykresów;
+* nie wolno tracić konfiguracji kart.
+
+Wymiary elementów muszą być przeliczane po zmianie rozmiaru okna.
+
+37. Brak blokowania wygaszania ekranu
+
+W źródłowym materiale wskazano, że aplikacja nie powinna na sztywno blokować wygaszania ekranu przez FLAG_KEEP_SCREEN_ON.
+
+Nie należy dodawać tej flagi jako domyślnego zachowania.
+
+CZĘŚĆ VII. WIDŻET, OVERLAY I INTEGRACJA Z ANDROIDEM 9
+
+38. Widżet Androida
+
+Widżet ma być wizualnie zgodny z kartami CarPlay.
+
+38.1. Wygląd
+
+* tło #1C1C1E;
+* radius 16 dp;
+* obramowanie #2C2C2E;
+* automatyczny motyw dzień/noc;
+* wartości duże i czytelne;
+* jednostki mniejsze od wartości.
+
+38.2. Personalizacja
+
+Użytkownik wybiera 3 lub 4 parametry spośród wszystkich parametrów dostępnych w aplikacji.
+
+Widżet nie może ograniczać wyboru do sztywnej, zamkniętej listy.
+
+38.3. Odświeżanie
+
+W materiale założono odświeżanie co 100 ms, czyli około 10 FPS.
+
+Ograniczenie Androida 9: klasyczny AppWidget oparty na RemoteViews nie gwarantuje tak częstego odświeżania. Nie należy budować rozwiązania, które próbuje wymuszać aktualizacje co 100 ms przez ciągłe wywoływanie updateAppWidget().
+
+Wykonalny podział:
+
+* aktywny interfejs aplikacji: płynne aktualizacje;
+* klasyczny widżet: bezpieczny, wolniejszy interwał;
+* usługa w tle: utrzymywanie połączenia i stanu danych;
+* kliknięcie widżetu: otwarcie właściwego ekranu aplikacji.
+
+Żądanie 100 ms należy traktować jako cel wizualny dla aktywnego UI, nie jako gwarancję systemowego widżetu.
+
+39. Usługa w tle i automatyczne połączenie
+
+Usługa ma:
+
+* utrzymywać połączenie z adapterem OBD;
+* odbierać dane;
+* utrzymywać status;
+* aktualizować widżet w granicach możliwości Androida;
+* reagować na ponowne wybudzenie radia.
+
+Po uruchomieniu radia:
+
+* odbiornik systemowy wykrywa zdarzenie startowe;
+* aplikacja uruchamia właściwą usługę;
+* usługa próbuje połączyć się z adapterem;
+* odczyty są aktualizowane;
+* pełny interfejs nie musi się otwierać.
+
+Po utracie adaptera aplikacja ponawia próby połączenia. W materiale źródłowym wskazano kontynuację prób także po upływie 3 minut, z maksymalnym odstępem ponawiania 30 sekund.
+
+UI powinien prezentować stan OFFLINE lub RECONNECTING, bez zasłaniania całego ekranu modalem.
+
+40. Globalny overlay i gesty
+
+W materiale przewidziano niewidoczną nakładkę systemową:
+
+* TYPE_APPLICATION_OVERLAY;
+* zerowe krycie;
+* działanie nad innymi aplikacjami;
+* rozpoznawanie gestów;
+* możliwość przełączenia na UFO lub CarPlay.
+
+Wymieniono gesty wykonywane jednym, dwoma lub trzema palcami od dołu ekranu.
+
+40.1. Ograniczenie techniczne
+
+Android nie gwarantuje, że niewidoczna nakładka może jednocześnie:
+
+* obserwować wszystkie dotknięcia na całym ekranie;
+* rozpoznawać gesty;
+* przepuszczać wszystkie pozostałe dotknięcia bez żadnego wpływu na aplikację pod spodem.
+
+Jeśli overlay przechwytuje MotionEvent, może ograniczać interakcje z aplikacją pod spodem. Jeśli nie przechwytuje dotyku, sam nie otrzymuje strumienia zdarzeń do rozpoznania gestu.
+
+40.2. Wykonalna implementacja
+
+Należy zastosować jeden z wariantów:
+
+Wariant A – gest w aplikacji
+
+* gest rozpoznawany tylko w obrębie aplikacji;
+* bez uprawnień overlay;
+* bez wpływania na inne aplikacje.
+
+Wariant B – ograniczony obszar gestu
+
+* niewielki obszar przy dolnej krawędzi;
+* overlay odbiera dotyk wyłącznie w tym obszarze;
+* użytkownik może włączyć lub wyłączyć funkcję.
+
+Wariant C – globalny overlay z kompromisem
+
+* jawne uprawnienie systemowe;
+* określony obszar przechwytywania;
+* informacja o ograniczeniu dotyku w tym obszarze.
+
+Nie wolno implementować pozornie bezstratnego globalnego przechwytywania gestów.
+
+40.3. Uprawnienia
+
+TYPE_APPLICATION_OVERLAY wymaga SYSTEM_ALERT_WINDOW.
+
+Użytkownik musi nadać odpowiednie uprawnienie w systemie. Aplikacja nie może zakładać, że otrzyma je automatycznie.
+
+CZĘŚĆ VIII. WYMAGANIA ANDROID 9 / API 28
+
+41. Manifest i uprawnienia
+
+Aplikacja ma działać na Androidzie 9. Należy uważać na różnice pomiędzy API 28 i nowszymi wersjami Androida.
+
+41.1. Bluetooth
+
+Dla Androida 9 używać uprawnień właściwych dla tej wersji:
+
+* BLUETOOTH;
+* BLUETOOTH_ADMIN;
+* ACCESS_FINE_LOCATION – jeśli wymagane do skanowania;
+* ACCESS_COARSE_LOCATION – zależnie od sposobu skanowania.
+
+BLUETOOTH_SCAN i BLUETOOTH_CONNECT są uprawnieniami z Androida 12 / API 31. Nie mogą być wymagane do działania na Androidzie 9.
+
+Jeżeli projekt ma być kompilowany również dla nowszych Androidów, należy warunkować uprawnienia według wersji systemu.
+
+41.2. Usługa pierwszego planu
+
+Dla usługi działającej w tle należy uwzględnić:
+
+* deklarację usługi;
+* FOREGROUND_SERVICE;
+* powiadomienie usługi;
+* obsługę lifecycle;
+* bezpieczne zatrzymanie i ponowne uruchomienie.
+
+41.3. Autostart
+
+Odbiornik BOOT_COMPLETED może inicjować usługę po uruchomieniu systemu.
+
+Należy uwzględnić różnice implementacji producentów urządzeń.
+
+41.4. Overlay
+
+* SYSTEM_ALERT_WINDOW;
+* TYPE_APPLICATION_OVERLAY;
+* kontrola przyznanego uprawnienia;
+* ekran wyjaśniający użytkownikowi, po co aplikacja potrzebuje nakładki.
+
+41.5. Multi-Window
+
+Android 9 obsługuje Multi-Window. Aplikacja ma reagować na zmianę rozmiaru okna i przełączać układ UI.
+
+41.6. USB
+
+Do zapisu na USB preferować Storage Access Framework.
+
+Nie zakładać stałej ścieżki typu /storage/usb0.
+
+42. Wymagania dotyczące bibliotek i zależności
+
+Nie stosować bibliotek, które wymagają Androida nowszego niż API 28, chyba że istnieje sprawdzony fallback.
+
+Priorytet:
+
+* natywne Android Views;
+* Kotlin;
+* Canvas;
+* RecyclerView;
+* ConstraintLayout lub FrameLayout;
+* ViewModel;
+* Room dla danych lokalnych;
+* SharedPreferences dla prostych ustawień.
+
+Własne wykresy należy rysować w Canvas, jeśli biblioteka wykresowa powoduje nadmierne zużycie pamięci lub spadki FPS.
+
+43. Zasady pamięci
+
+Na urządzeniu docelowym należy szczególnie uważać na:
+
+* duże bitmapy;
+* cache bitmapowe;
+* niepotrzebne obiekty;
+* nadmiarowe widoki;
+* animacje wielu elementów naraz;
+* duże bufory wykresów;
+* wycieki kontekstu Activity.
+
+Wszystkie bitmapy cache muszą być zwalniane, kiedy przestają być potrzebne.
+
+CZĘŚĆ IX. KONTRAKTY DANYCH I ZASADY INTEGRACJI
+
+44. Modele danych wymagane przez UI
+
+Każdy widok musi otrzymywać dane w ujednoliconym formacie.
+
+Poniżej minimalny kontrakt, który należy uzgodnić pomiędzy programistą UI i programistą modułu OBD.
+
+44.1. LiveReading
+
+Pojedynczy odczyt:
+
+Pole	Typ / znaczenie
+id	Identyfikator parametru
+value	Wartość liczbowa
+unit	Jednostka
+timestamp	Czas pomiaru
+quality	Jakość danych
+status	Status parametru
+displayPrecision	Liczba miejsc po przecinku
+min	Minimum, jeśli dostępne
+max	Maksimum, jeśli dostępne
+avg	Średnia, jeśli dostępna
+
+44.2. ConnectionState
+
+Pole	Znaczenie
+adapterName	Nazwa adaptera
+transportType	Bluetooth Classic / BLE
+state	Connecting / Connected / Offline / Error
+lastResponseAt	Czas ostatniej odpowiedzi
+errorCode	Kod błędu
+message	Opis błędu
+
+44.3. EngineState
+
+Pole	Znaczenie
+rpm	Obroty silnika
+voltage	Napięcie
+isEngineRunning	Stan silnika
+gearEstimate	Szacowany bieg, jeśli dostępny
+
+44.4. ParameterStatus
+
+Możliwe statusy:
+
+* NORMAL;
+* ABOVE;
+* BELOW;
+* CRITICAL;
+* UNKNOWN.
+
+Dodatkowo:
+
+* opis progu;
+* komunikat;
+* informacja o źródle statusu.
+
+44.5. DtcItem
+
+* code;
+* polishDescription;
+* status;
+* detectedAt;
+* freezeFrame;
+* serviceHint;
+* clearable.
+
+44.6. ChartSeries
+
+* parameterId;
+* samples;
+* timestamp;
+* value;
+* unit;
+* color;
+* min;
+* max;
+* avg.
+
+44.7. TripSummary
+
+* distance;
+* duration;
+* avgFuel;
+* currentFuel;
+* costPLN;
+* ecoScore.
+
+44.8. UiPreferences
+
+* activeMode;
+* theme;
+* accent;
+* dockItems;
+* selectedParameters;
+* chartLayout;
+* widgetParameters;
+* konfiguracja MID;
+* konfiguracja Wing Arcs;
+* progi alertów;
+* ustawienia animacji.
+
+45. Zasady prezentowania danych
+
+* Nie zastępuj braku danych zerem.
+* Nie pokazuj starej wartości jako aktualnej.
+* Nie przypisuj statusu Normal bez podstawy.
+* Nie wyświetlaj niepotwierdzonego wyniku kasowania DTC jako sukcesu.
+* Nie obliczaj norm diagnostycznych bez zdefiniowanych reguł.
+* Nie generuj fikcyjnych danych do wykresów.
+* Nie pokazuj szacowanego biegu jako pewnego pomiaru.
+* Każdy pomiar musi mieć timestamp.
+* Każdy parametr musi mieć jednostkę.
+* Każdy błąd musi mieć możliwość zaprezentowania stanu i komunikatu.
+
+45.1. Przykład zachowania przy utracie danych
+
+Jeżeli ostatni odczyt ECT wynosił 92°C, ale moduł diagnostyczny przestał odpowiadać, UI nie może bez końca prezentować 92°C jako bieżącej temperatury.
+
+Powinno:
+
+* oznaczyć odczyt jako nieaktualny;
+* wyświetlić odpowiedni status;
+* przestać animować wartość jako świeżą;
+* zachować ostatnią wartość tylko wtedy, gdy jest wyraźnie oznaczona jako historyczna.
+
+CZĘŚĆ X. TESTY I KRYTERIA ODBIORU
+
+46. Testy UFO Cluster
+
+Test	Warunek zaliczenia
+Geometria	Wszystkie elementy mieszczą się w 1280 × 720
+Obrotomierz	Średnica 440 px
+LCD MID	Dokładnie 220 × 220 px w układzie referencyjnym
+Footer	Wysokość 80 px
+HUD	Prędkość bez zer wiodących
+REV	Segmenty zapalają się progresywnie
+Redline	Wskazówka i aura zmieniają kolor
+LCD tap	Zmienia parametr
+LCD long press	Resetuje MAX/AVG
+Wing Arc tap	Zmienia parametr
+Wing Arc long press	Otwiera wybór parametru
+Brak danych	Pokazuje — i N/A
+DTC	Otwiera szczegóły błędu
+ZAPISZ EVENT	Uruchamia zapis telemetrii
+SWAP UI	Przełącza tryb bez utraty stanu
+
+47. Testy CarPlay
+
+Test	Warunek zaliczenia
+Dock	Pozostaje widoczny podczas przewijania
+Overview	Pokazuje wybrane karty
+Drag & Drop	Zmienia kolejność kart
+Multi-Select	Zaznacza i odznacza parametry
+Matryca 1	Jeden wykres na pełnej przestrzeni
+Matryca 2	Dwa wykresy pionowo
+Matryca 3	Układ hybrydowy
+Matryca 4	Siatka 2 × 2
+Scrubber	Pokazuje wartość i timestamp
+Multi-Overlay	Pokazuje kilka linii i legendę
+Eksport PNG	Tworzy prawidłowy plik
+DTC Manager	Pokazuje szczegóły i Freeze Frame
+Misfire Lab	Pokazuje cztery cylindry
+Virtual Dyno	Prezentuje dane z modułu obliczeniowego
+Trip & Fuel	Rozdziela trzy rejestry tras
+Black Box	Odtwarza zarejestrowaną telemetrię
+Maintenance	Pozwala resetować liczniki serwisowe
+
+48. Testy systemowe
+
+Należy przetestować:
+
+* start aplikacji po uruchomieniu radia;
+* brak adaptera OBD;
+* wyłączenie Bluetooth;
+* utratę połączenia podczas jazdy;
+* ponowne połączenie;
+* brak GPS;
+* brak uprawnień do lokalizacji;
+* brak uprawnień overlay;
+* odmowę uprawnień;
+* Split-Screen;
+* powrót z Split-Screen;
+* zgaszenie silnika;
+* ponowne uruchomienie silnika;
+* odłączenie USB podczas eksportu;
+* brak wolnego miejsca;
+* brak danych do wykresu;
+* nieaktualne dane;
+* zmianę motywu;
+* restart aplikacji po zmianie ustawień.
+
+49. Kryteria wydajnościowe
+
+Minimalne wymagania:
+
+* brak blokowania głównego wątku;
+* brak operacji OBD w onDraw();
+* brak alokacji obiektów w pętli rysowania;
+* brak wycieków Activity;
+* brak niekontrolowanego wzrostu pamięci;
+* płynne przełączanie trybów;
+* płynne przesuwanie wskazówki;
+* płynne wykresy;
+* brak zacięć interfejsu podczas komunikacji OBD.
+
+Na urządzeniu referencyjnym należy wykonać profilowanie:
+
+* FPS;
+* frame time;
+* Java Heap;
+* liczba alokacji;
+* czas renderowania;
+* obciążenie CPU/GPU.
+
+Nie należy deklarować, że 60 FPS jest zagwarantowane na każdym egzemplarzu sprzętu. Trzeba to zmierzyć.
+
+CZĘŚĆ XI. DECYZJE I NIEJEDNOZNACZNOŚCI
+
+50. Lista punktów wymagających ostrożności
+
+Temat	Stan w materiale	Postępowanie
+Próg Redline	Rozważano 6300 i 6500 RPM	Konfigurowalny
+Piąty parametr wykresu	FIFO lub ignorowanie piątego wyboru	Jawna decyzja implementacyjna
+Jasność ekranu	Występuje 35% oraz brak ingerencji systemowej	Domyślnie nie zmieniać jasności Androida
+Widżet 100 ms	Żądanie źródłowe	Nie obiecywać gwarancji RemoteViews
+Globalny overlay	Wymaganie globalnych gestów	Zastosować kompromis przechwytywania
+Normy parametrów	Nie wszystkie zakresy są określone	Status UNKNOWN, bez zgadywania
+Bieg	Nie zawsze dostępne wiarygodne źródło	Nie prezentować szacowania jako pewnego pomiaru
+Skale i jednostki	Część elementów opisana w px, część w dp	Canvas w siatce referencyjnej, widoki natywne według density
+
+51. Ważne ograniczenia wynikające z Androida 9
+
+Te ograniczenia należy uwzględnić od początku, a nie dopiero po napisaniu aplikacji:
+
+* RemoteViews nie zapewnia widżetowi 10 FPS.
+* Overlay nie może jednocześnie bezstratnie przechwytywać wszystkich gestów i przepuszczać pozostałych dotknięć.
+* Android 9 nie używa uprawnień Bluetooth SCAN i CONNECT wprowadzonych w Androidzie 12.
+* Systemowy dostęp do USB należy realizować z uwzględnieniem Storage Access Framework.
+* Usługa utrzymująca połączenie w tle wymaga prawidłowego zarządzania lifecycle i powiadomieniem.
+* Zmiana jasności systemowej wymaga osobnego rozwiązania; nie należy jej mieszać z motywem UI.
+
+CZĘŚĆ XII. MASTER PROMPT DLA AGENTA AI / PROGRAMISTY
+
+Poniższy tekst można przekazać agentowi implementującemu aplikację. Jest to polecenie wykonawcze odnoszące się do całej specyfikacji powyżej.
+
+MASTER PROMPT – HONDA OBD DISCOVERY UI
+
+Działaj jako Senior Android UI Engineer oraz Graphics Performance Engineer.
+
+Zaimplementuj kompletną warstwę UI aplikacji Honda OBD Discovery zgodnie z przekazaną specyfikacją techniczną.
+
+1. Platforma
+
+* Android 9 / API 28.
+* Kotlin.
+* Ekran landscape 1280 × 720.
+* Urząd
+
+CZĘŚĆ IX. ARCHITEKTURA I IMPLEMENTACJA
+
+Poniższa część przekłada wymagania interfejsu na strukturę aplikacji. Zachowuję rozróżnienie między tym, co zostało opisane w materiale źródłowym, a szczegółami technicznymi potrzebnymi do wykonania tego na Androidzie 9. Nie będę dopisywał niepotwierdzonych funkcji jako wymagań projektu.
+
+44. Architektura warstwy UI
+
+44.1. Podział odpowiedzialności
+
+Warstwa interfejsu nie może bezpośrednio komunikować się z adapterem ELM327 ani wykonywać komend OBD. Ma odbierać gotowe, opisane dane z warstwy aplikacyjnej.
+
+Wymagany przepływ:
+
+ELM327 / CAN
+     |
+     v
+OBD Transport Layer
+     |
+     v
+PID Scheduler
+     |
+     v
+OBD Data Parser
+     |
+     v
+Vehicle Data Repository
+     |
+     +----------------------+
+     |                      |
+     v                      v
+Baseline / Analytics     Room Database
+     |                      |
+     +-----------+----------+
+                 |
+                 v
+          UI State Layer
+                 |
+                 v
+        Android UI / Canvas
+
+Zasada nadrzędna: UI wyświetla dane, a nie oblicza diagnostykę ani nie komunikuje się z ECU.
+
+Przykładowo:
+
+* RPM jest przekazywane do interfejsu jako wartość liczbowa;
+* UI interpoluje ruch wskazówki;
+* moduł analityczny określa, czy parametr przekracza normę;
+* UI wyświetla odpowiedni kolor i opis;
+* zapis zdarzenia jest wykonywany przez repozytorium danych.
+
+44.2. Moduły interfejsu
+
+Zalecany podział:
+
+app/
+ ├── ui/
+ │    ├── cluster/
+ │    │    ├── UfoClusterActivity
+ │    │    ├── UfoClusterView
+ │    │    ├── TachometerRenderer
+ │    │    ├── MidDisplayView
+ │    │    ├── HudView
+ │    │    ├── WingArcView
+ │    │    └── ClusterFooterView
+ │    │
+ │    ├── carplay/
+ │    │    ├── CarPlayActivity
+ │    │    ├── CarPlayDashboardView
+ │    │    ├── LeftDockView
+ │    │    ├── OverviewFragment
+ │    │    ├── MultiSelectFragment
+ │    │    ├── MultiGraphFragment
+ │    │    ├── DtcManagerFragment
+ │    │    ├── MisfireLabFragment
+ │    │    ├── VirtualDynoFragment
+ │    │    ├── PerformanceFragment
+ │    │    ├── TripFuelFragment
+ │    │    ├── BlackBoxFragment
+ │    │    └── MaintenanceFragment
+ │    │
+ │    ├── settings/
+ │    │    ├── SettingsActivity
+ │    │    ├── ConnectionSettings
+ │    │    ├── AppearanceSettings
+ │    │    ├── AudioSettings
+ │    │    ├── VehicleSettings
+ │    │    └── ExportSettings
+ │    │
+ │    ├── widgets/
+ │    │    └── VehicleAppWidget
+ │    │
+ │    └── common/
+ │         ├── StatusCard
+ │         ├── ValueCard
+ │         ├── ChartView
+ │         ├── ModalView
+ │         ├── LoadingView
+ │         └── EmptyStateView
+ │
+ ├── data/
+ ├── obd/
+ ├── analytics/
+ ├── database/
+ └── services/
+
+Nazwy są propozycją organizacji kodu, a nie wymaganiem dotyczącym konkretnych nazw plików. Istotne jest zachowanie separacji funkcjonalnej.
+
+44.3. Jeden wspólny stan danych pojazdu
+
+Oba tryby UI muszą korzystać z tego samego źródła danych.
+
+Nie wolno tworzyć niezależnego połączenia OBD dla UFO i drugiego dla CarPlay.
+
+Przykładowy model:
+
+data class VehicleUiState(
+    val rpm: Float?,
+    val speed: Float?,
+    val coolantTemp: Float?,
+    val intakeTemp: Float?,
+    val voltage: Float?,
+    val throttlePosition: Float?,
+    val map: Float?,
+    val boost: Float?,
+    val stft: Float?,
+    val ltft: Float?,
+    val gear: Int?,
+    val obdConnected: Boolean,
+    val engineRunning: Boolean,
+    val activeDtcCount: Int
+)
+
+Wartości nullable są celowe: brak danych nie może być przedstawiany jako 0.
+
+44.4. Przełączanie UFO ↔ CarPlay
+
+Przełączenie trybu nie może:
+
+* rozłączać adaptera;
+* restartować usługi OBD;
+* kasować historii wykresów;
+* resetować wybranych parametrów;
+* kasować ustawień użytkownika;
+* zatrzymywać rejestracji zdarzeń.
+
+Należy zachować stan:
+
+* aktywnego ekranu;
+* wybranych PID;
+* zakresu osi czasu;
+* konfiguracji MID;
+* konfiguracji łuków;
+* wybranego modułu;
+* otwartego zdarzenia Black Box.
+
+W praktyce przełącza się tylko warstwę prezentacji, nie cały silnik aplikacji.
+
+45. Silnik renderowania Canvas
+
+Wymagany jest własny silnik rysowania dla elementów, które muszą wyglądać jak fabryczny zestaw wskaźników.
+
+Najważniejsze zastosowania:
+
+* obrotomierz;
+* wskazówka;
+* podziałki;
+* pierścienie;
+* soczewka HUD;
+* wskaźniki REV;
+* boczne łuki;
+* retro LCD MID;
+* animacje kasowania DTC;
+* wykresy o niestandardowej stylistyce.
+
+45.1. Zero Allocation w onDraw()
+
+W materiale źródłowym określono rygorystyczną zasadę: w onDraw() nie wolno tworzyć nowych obiektów takich jak:
+
+* Paint;
+* Path;
+* RectF;
+* Bitmap;
+* String.
+
+Wszystkie obiekty należy przygotować wcześniej, np. w konstruktorze widoku lub podczas inicjalizacji rozmiarów.
+
+Przykładowa struktura:
+
+class TachometerView(context: Context) : View(context) {
+    private val dialPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val tickPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val needlePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val dialBounds = RectF()
+    private val needlePath = Path()
+    private var targetRpm = 0f
+    private var renderedRpm = 0f
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        // Tylko rysowanie na wcześniej przygotowanych obiektach.
+        // Bez tworzenia Paint, Path, RectF, Bitmap i String.
+    }
+}
+
+To jest wzorzec konstrukcyjny, nie kompletny kod obrotomierza.
+
+45.2. Przygotowanie geometrii
+
+Wymiary i geometria powinny być przygotowane w:
+
+* onSizeChanged();
+* konstruktorze;
+* metodzie inicjalizacyjnej;
+* metodzie aktualizacji konfiguracji.
+
+Nie obliczać całej geometrii tarczy od nowa przy każdej klatce.
+
+45.3. Rozdzielenie danych i rysowania
+
+Odczyt OBD może następować 10–15 razy na sekundę, natomiast Canvas ma renderować niezależnie.
+
+Założenia:
+
+Proces	Częstotliwość
+Odczyt danych OBD	10–15 Hz, zależnie od PID
+Aktualizacja celu wskazówki	Po nowym odczycie
+Renderowanie aktywnego UI	Cel 60 FPS
+Interpolacja wskazówki	Przy każdej klatce animacji
+Aktualizacja klasycznego widżetu Androida	Według ograniczeń AppWidget
+
+45.4. Wygładzanie wskazówek
+
+Zastosować interpolację:
+
+V_{rendered}=V_{rendered}+\alpha(V_{target}-V_{rendered})
+
+Gdzie:
+
+* V_target – ostatnia prawidłowa wartość z OBD;
+* V_rendered – aktualna wartość prezentowana;
+* alpha – współczynnik wygładzania.
+
+Współczynnik należy dobierać do rodzaju parametru. Wskazówka RPM może reagować szybciej niż temperatura ECT.
+
+Nie wolno nadmiernie wygładzać alarmów krytycznych. Stan alarmowy ma zostać aktywowany na podstawie wartości rzeczywistej, a nie opóźnionej wartości wizualnej.
+
+45.5. Obsługa utraty danych
+
+Jeśli przez określony czas nie przychodzą nowe dane:
+
+* zachować ostatnią wartość tylko przez krótki okres;
+* oznaczyć parametr jako nieaktualny;
+* nie kontynuować pozornie płynnego ruchu wskazówki na podstawie nieistniejących odczytów;
+* po przekroczeniu limitu wyświetlić --- lub status braku danych.
+
+Czas uznania wartości za nieaktualną powinien być zależny od PID i częstotliwości jego odczytu.
+
+46. Responsywność i skalowanie
+
+46.1. Rozdzielczość referencyjna
+
+Projekt bazuje na ekranie:
+
+* 1280 × 720 px;
+* orientacja pozioma;
+* proporcje 16:9.
+
+Wszystkie makiety referencyjne należy przygotować w tych proporcjach.
+
+46.2. Jednostki
+
+Należy rozróżnić:
+
+* dp – wymiary elementów interfejsu;
+* sp – rozmiary tekstu;
+* współrzędne Canvas – współrzędne lokalne widoku;
+* piksele bitmap – tylko dla przygotowanych zasobów rastrowych.
+
+Nie wolno traktować wartości px i dp jako równoważnych.
+
+46.3. Współrzędne UFO
+
+Wartości geometryczne tarczy są określone dla układu referencyjnego 1280 × 720.
+
+Przy innej wielkości okna należy przeliczać współrzędne proporcjonalnie i zachować proporcje tarczy.
+
+Nie rozciągać koła do elipsy.
+
+46.4. CarPlay
+
+CarPlay powinien dostosowywać się do szerokości dostępnego okna:
+
+* dock po lewej stronie w pełnym ekranie;
+* dock na dole w Split-Screen;
+* wykresy układane zależnie od szerokości;
+* karty skalowane bez utraty tekstu;
+* przewijanie pionowe, jeśli zabraknie miejsca.
+
+46.5. Split-Screen
+
+W Split-Screen:
+
+* ukryć UFO;
+* przejść do CarPlay;
+* przenieść dock na dół;
+* zastosować dolny pasek nawigacyjny około 50 dp;
+* układać kafelki w pojedynczej kolumnie;
+* zachować wszystkie dane i zaznaczenia.
+
+47. Wykresy – implementacja
+
+47.1. Własny komponent wykresu
+
+Wszystkie wykresy muszą używać spójnego silnika wizualnego:
+
+* krzywe Béziera;
+* delikatne wypełnienie pod linią;
+* przezroczystość wypełnienia około 20%;
+* osie i siatka;
+* etykiety;
+* aktualna wartość;
+* scrubber;
+* crosshair.
+
+47.2. Bufor historii
+
+Historia musi być przechowywana w buforze o ograniczonej długości.
+
+Dla widoku 30 sekund nie należy bez końca dopisywać punktów do listy w pamięci.
+
+Zalecana struktura:
+
+* bufor cykliczny;
+* timestamp;
+* wartość;
+* identyfikator parametru;
+* informacja o jakości odczytu.
+
+47.3. Scrubber
+
+Obsługa dotyku:
+
+* użytkownik dotyka obszaru wykresu;
+* komponent przelicza pozycję X na czas;
+* odnajduje najbliższy punkt danych;
+* rysuje pionową linię;
+* pokazuje wartość i timestamp;
+* aktualizuje wynik podczas przesuwania palcem;
+* znika po zakończeniu gestu lub zgodnie z zachowaniem danego ekranu.
+
+47.4. Matryca 1–4 wykresów
+
+Układ musi być wyliczany na podstawie liczby wybranych parametrów:
+
+* 1: jeden duży wykres;
+* 2: dwa wykresy pionowo;
+* 3: jeden duży u góry i dwa małe na dole;
+* 4: siatka 2 × 2.
+
+Dla każdego wykresu zachować czytelność nazwy, wartości i jednostki.
+
+47.5. Eksport PNG
+
+Eksportować rzeczywisty widok wykresu, a nie pustą powierzchnię.
+
+W pliku muszą być widoczne:
+
+* nazwa parametru;
+* jednostka;
+* legenda;
+* wartości;
+* osie;
+* zakres czasu;
+* data i godzina, jeśli dostępne.
+
+48. Dotyk i animacje
+
+48.1. Zasady ogólne
+
+Interakcje muszą być czytelne i przewidywalne.
+
+* krótki tap – główna akcja;
+* long press – dodatkowe ustawienia;
+* swipe – przewijanie lub usuwanie, zależnie od ekranu;
+* drag – zmiana kolejności elementów;
+* gesty nie mogą kolidować z przewijaniem.
+
+48.2. Scale Feedback
+
+Kafelki CarPlay:
+
+* skala początkowa: 100%;
+* skala po wciśnięciu: 97%;
+* po zwolnieniu: powrót do 100%;
+* animacja subtelna, bez przesadnego sprężynowania.
+
+48.3. Animacje DTC
+
+Trzy warianty do wyboru:
+
+Reboot
+
+* wskazówki schodzą do zera;
+* wykonują pełny sweep;
+* wracają do aktualnych danych.
+
+Impulse
+
+* około 200 ms błysku obramowania;
+* jasny błękit;
+* brak agresywnego rozbłysku całego ekranu.
+
+Glitch
+
+* przesunięcie kanałów RGB;
+* subtelny szum;
+* około 400 ms.
+
+Animacja nie może blokować komunikacji z OBD ani opóźniać odświeżenia rzeczywistego stanu błędów.
+
+48.4. Zmiana trybu
+
+UFO ↔ CarPlay:
+
+* płynne przejście;
+* bez restartu aplikacji;
+* bez resetu danych;
+* bez utraty aktualnej wartości;
+* bez zatrzymania rejestracji.
+
+49. Ustawienia – zachowanie formularzy
+
+Każda opcja powinna mieć jednoznaczny typ kontrolki:
+
+Typ danych	Kontrolka
+Włączenie/wyłączenie	Switch
+Wybór jednej wartości	Radio / Spinner
+Wybór wielu parametrów	Lista checkboxów
+Wartość liczbowa	Pole numeryczne
+Zakres liczbowy	Slider + pole wartości
+Przypisanie kolejności	Drag & Drop
+Wybór pliku	Systemowy picker
+Akcja jednorazowa	Przycisk
+
+49.1. Walidacja
+
+Przed zapisem:
+
+* sprawdzić typ danych;
+* sprawdzić zakres;
+* sprawdzić wymagane pola;
+* wyświetlić zrozumiały komunikat;
+* nie zapisywać nieprawidłowych wartości.
+
+49.2. Zapis
+
+Zmiany ustawień powinny być zapisywane w sposób trwały. Użytkownik nie powinien tracić konfiguracji po zamknięciu aplikacji lub odcięciu zasilania.
+
+49.3. Konfiguracja parametrów MID
+
+Lista dostępnych parametrów musi być generowana na podstawie katalogu PID dostępnych w aplikacji.
+
+Nie tworzyć drugiej, niezależnej listy parametrów tylko dla MID.
+
+CZĘŚĆ X. ZACHOWANIE APLIKACJI I BEZPIECZEŃSTWO DANYCH
+
+50. Lifecycle Activity i usługi
+
+50.1. Activity
+
+Interfejs powinien prawidłowo reagować na:
+
+* onCreate();
+* onStart();
+* onResume();
+* onPause();
+* onStop();
+* onDestroy().
+
+Zatrzymanie lub odtworzenie Activity nie może powodować utraty stanu diagnostycznego.
+
+50.2. ForegroundService
+
+Usługa działa niezależnie od widocznego ekranu. Jej zadania:
+
+* utrzymywanie połączenia z adapterem;
+* odbiór danych;
+* aktualizacja wspólnego stanu pojazdu;
+* obsługa rejestracji telemetrii;
+* obsługa zdarzeń automatycznych;
+* aktualizacja widżetu w granicach Androida.
+
+Po wybudzeniu radia aplikacja ma uruchomić usługę w tle. Pełny interfejs ma otwierać się dopiero po kliknięciu ikony lub widżetu.
+
+50.3. Komunikacja UI z usługą
+
+UI nie powinno samodzielnie utrzymywać socketu Bluetooth.
+
+Zalecany model:
+
+* usługa zarządza połączeniem;
+* repozytorium udostępnia stan;
+* Activity obserwuje stan;
+* View renderuje wartości.
+
+Jeśli Activity zostanie zniszczona, usługa nadal może działać.
+
+50.4. Ponowne połączenie
+
+Po utracie połączenia:
+
+* oznaczyć adapter jako offline;
+* zachować ostatnie dane historyczne;
+* nie przedstawiać starych danych jako aktualnych;
+* rozpocząć ponawianie połączenia;
+* zwiększać odstęp prób zgodnie z exponential backoff;
+* ograniczyć maksymalny odstęp do 30 sekund;
+* kontynuować próby również po upływie 3 minut.
+
+Stan powinien być widoczny w interfejsie, ale nie może blokować całego ekranu.
+
+51. Zdarzenia systemowe
+
+Aplikacja musi obsługiwać:
+
+* uruchomienie systemu;
+* wybudzenie radia;
+* zmianę stanu Bluetooth;
+* utratę połączenia;
+* ponowne podłączenie adaptera;
+* zmianę rozmiaru okna;
+* wejście i wyjście z Multi-Window;
+* odłączenie pamięci USB;
+* zmianę motywu systemowego;
+* zgaszenie i ponowne uruchomienie silnika.
+
+Nie należy zakładać, że wszystkie urządzenia z Androidem 9 obsługują autostart identycznie. Mechanizmy producenta mogą ograniczać automatyczne uruchamianie usług.
+
+52. Dźwięk i Audio Focus
+
+52.1. Rodzaj sygnałów
+
+* Shift Light;
+* ostrzeżenia krytyczne;
+* podwójny, łagodny gong OEM Honda.
+
+Dźwięki muszą być wyłączalne w Ustawieniach.
+
+52.2. Wybór sposobu odtwarzania
+
+Użytkownik ma wybierać:
+
+Tryb A – Audio Ducking
+
+* strumień STREAM_MUSIC;
+* AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK;
+* przyciszenie muzyki do około 20% na czas sygnału.
+
+Tryb B – bez ingerencji w muzykę
+
+* strumień STREAM_NOTIFICATION;
+* brak żądania przyciszenia muzyki.
+
+Oba tryby muszą być dostępne, ponieważ działanie zależy od konkretnego urządzenia i sposobu obsługi audio.
+
+52.3. Pliki dźwiękowe
+
+Użytkownik może wybrać własne pliki WAV/OGG z katalogu:
+
+/Honda_OBD_Audio/
+
+Alternatywnie aplikacja może generować dźwięk przez ToneGenerator.
+
+Nie odtwarzać dźwięków bezpośrednio z wątku UI, jeśli mogłoby to blokować animację.
+
+53. Baza danych i retencja
+
+53.1. Room SQLite
+
+Baza ma przechowywać:
+
+* telemetrię;
+* zdarzenia Black Box;
+* wyniki Virtual Dyno;
+* wyniki Performance Timer;
+* rekordy Best Runs;
+* historię tras;
+* konfigurację użytkownika;
+* historię błędów, jeśli jest zapisywana.
+
+53.2. Tryb WAL
+
+Źródłowa decyzja:
+
+JournalMode.WRITE_AHEAD_LOGGING
+
+Tryb WAL ma zwiększyć odporność bazy na przerwanie zapisu i nagłe odcięcie zasilania.
+
+53.3. Retencja
+
+Przyjęta polityka:
+
+* przechowywanie danych z ostatnich 30 dni jazdy;
+* automatyczne usuwanie starszych wpisów;
+* retencja obejmuje logi i dane telemetryczne.
+
+Nie należy usuwać konfiguracji użytkownika ani danych serwisowych razem z retencją telemetrii.
+
+53.4. Destrukcyjna migracja – ważne zastrzeżenie
+
+W rozmowie zatwierdzono użycie fallbackToDestructiveMigration() jako elementu strategii odporności na problemy z bazą.
+
+To rozwiązanie nie jest mechanizmem naprawiania uszkodzonych rekordów. Przy braku migracji może usunąć istniejącą bazę i dane użytkownika. Nie należy przedstawiać go jako gwarancji „Zero Crash Policy” bez konsekwencji.
+
+Wykonawca powinien:
+
+* stosować jawne migracje schematu;
+* wykonywać kontrolę integralności;
+* zabezpieczać dane przed zmianami schematu;
+* oddzielić błąd migracji od uszkodzenia bazy;
+* nie usuwać całej bazy automatycznie bez świadomej polityki odzyskiwania danych.
+
+To zastrzeżenie nie zmienia decyzji źródłowej; wskazuje ryzyko implementacyjne, które trzeba rozwiązać przed wydaniem aplikacji.
+
+54. Eksport i kopia zapasowa
+
+54.1. Eksport CSV
+
+Dane powinny być eksportowane w formacie czytelnym dla polskiego użytkownika.
+
+Plik trasy:
+
+TRIP_YYYY-MM-DD_HHMM.csv
+
+Wartości liczbowe, separator i kodowanie muszą być spójne z arkuszami kalkulacyjnymi używanymi w Polsce.
+
+54.2. Kopia bazy
+
+Użytkownik może wyeksportować kopię bazy Room na USB.
+
+Nie wykonywać kopii aktywnej bazy w sposób, który może utworzyć niespójny plik podczas trwającego zapisu. Należy uwzględnić mechanizm bezpiecznego checkpointu lub kopii uwzględniającej pliki WAL.
+
+54.3. Automatyczny eksport USB
+
+W Ustawieniach:
+
+* ręczny eksport;
+* przełącznik automatycznego eksportu po wykryciu USB.
+
+Po wykryciu nośnika można zapytać użytkownika o wykonanie eksportu, jeśli automatyczna funkcja jest aktywna.
+
+54.4. Backup konfiguracji
+
+Plik:
+
+config.json
+
+Powinien przechowywać:
+
+* tryb startowy;
+* motyw;
+* listę parametrów MID;
+* konfigurację bocznych łuków;
+* progi alarmowe;
+* wybrane karty;
+* ustawienia wykresów;
+* preferencje dźwięków;
+* cenę paliwa;
+* ustawienia profilu pojazdu.
+
+Import musi walidować plik. Nieprawidłowy JSON nie może nadpisywać działającej konfiguracji.
+
+CZĘŚĆ XI. WYMAGANIA WYDAJNOŚCIOWE I TESTOWE
+
+55. Docelowa platforma
+
+Profil urządzenia referencyjnego
+
+Parametr	Wartość
+System	Android 9
+API	28
+Ekran	9 cali
+Rozdzielczość	1280 × 720
+GPU	Mali-T720
+Platforma	MediaTek MT8163
+Java Heap	około 128 MB
+Orientacja	pozioma
+
+Parametry podane w końcowym master promptcie źródłowym.
+
+56. Cele wydajnościowe
+
+56.1. Renderowanie
+
+* cel: 60 FPS w aktywnym interfejsie;
+* brak widocznych skoków wskazówki;
+* brak zamrażania UI podczas odczytu OBD;
+* brak długich operacji na głównym wątku;
+* brak alokowania obiektów w onDraw().
+
+60 FPS jest celem wydajnościowym, nie gwarancją na każdej konfiguracji sprzętowej.
+
+56.2. Pamięć
+
+* unikać bitmap o dużej rozdzielczości;
+* unikać tworzenia nowych obiektów w pętli renderowania;
+* ograniczać historię wykresów;
+* zwalniać zasoby po zamknięciu ekranów;
+* nie przechowywać nieograniczonej liczby zdarzeń w RAM.
+
+56.3. Wątki
+
+Operacje, które nie mogą blokować UI:
+
+* Bluetooth;
+* komunikacja OBD;
+* odczyt bazy;
+* zapis bazy;
+* eksport CSV;
+* eksport PNG;
+* obliczenia analityczne;
+* retencja;
+* import i eksport JSON.
+
+56.4. Brak akcelerometru
+
+W źródłowym materiale przyjęto, że urządzenie nie ma akcelerometru.
+
+W związku z tym:
+
+* nie używać Sensor.TYPE_ACCELEROMETER jako wymaganego źródła danych;
+* nie pokazywać G-Force jako rzeczywistego pomiaru;
+* przyspieszenie obliczać z różnicy prędkości OBD w czasie;
+* Virtual Dyno i Performance Timer nie mogą zależeć od nieistniejącego czujnika.
+
+57. Testy interfejsu – UFO
+
+Wykonać testy:
+
+* Tarcza jest wycentrowana.
+* Okrąg nie jest deformowany przy zmianie rozmiaru okna.
+* Cyfry są pochylone, a nie radialne.
+* Podziałki 1000/500/100 RPM są prawidłowo rozmieszczone.
+* Próg Redline zmienia kolor wskazówki i aury.
+* Wartość RPM jest płynnie interpolowana.
+* Brak danych pokazuje stan nieaktualny.
+* MID przełącza parametry zgodnie z konfiguracją.
+* MID pokazuje wykres, jeśli użytkownik wybrał ten tryb.
+* Long press resetuje MAX/AVG.
+* Łuki pokazują wartość po wewnętrznej stronie.
+* Łuk dwukierunkowy ma zero w połowie.
+* Tapnięcie łuku zmienia parametr.
+* Long press łuku otwiera przypisanie.
+* Footer ma pięć sektorów.
+* ZAPISZ EVENT zapisuje 30 sekund danych.
+* SWAP UI nie restartuje usługi OBD.
+
+58. Testy interfejsu – CarPlay
+
+* Dock jest po lewej w pełnym ekranie.
+* Tło docka jest półprzezroczyste.
+* Aktywna zakładka ma kolorową pigułkę.
+* Stopka docka pozostaje przytwierdzona.
+* Lista modułów przewija się niezależnie.
+* QUICK BUTTON wykonuje skonfigurowaną akcję.
+* Karty mają nagłówki z ikonami.
+* Jednostki są obok wartości.
+* Karty obsługują styl płaski i z cieniem.
+* Ikona ↗ otwiera moduł na pełnym ekranie.
+* Kafelki mają Scale Down do 97%.
+* Multi-Select obsługuje maksymalnie cztery wykresy.
+* Matryca poprawnie reaguje na 1, 2, 3 i 4 parametry.
+* Scrubber pokazuje właściwą wartość i czas.
+* Auto-Sort można wyłączyć.
+* DTC Manager rozwija Freeze Frame.
+* Misfire Lab prezentuje cztery cylindry.
+* Tryb jasny i ciemny nie zmienia znaczenia kolorów statusu.
+* Ostrzeżenie wyróżnia tylko odpowiedni kafelek.
+* Układ zachowuje czytelność w Split-Screen.
+
+59. Testy ustawień
+
+* zapis i odczyt konfiguracji;
+* import i eksport config.json;
+* walidacja wartości numerycznych;
+* wybór profilu pojazdu;
+* konfiguracja MID;
+* konfiguracja Wing Arcs;
+* ustawienie progu Redline;
+* wybór audio focus;
+* wybór motywu;
+* zmiana ceny paliwa;
+* zmiana akcji QUICK BUTTON;
+* eksport USB;
+* reset statystyk.
+
+60. Testy odporności
+
+Należy symulować:
+
+* nagłe odłączenie ELM327;
+* wyłączenie Bluetooth;
+* brak danych z jednego PID;
+* timeout odpowiedzi;
+* zgaszenie silnika;
+* ponowne uruchomienie silnika;
+* uśpienie i wybudzenie radia;
+* odłączenie USB w trakcie eksportu;
+* odcięcie zasilania podczas zapisu;
+* brak GPS;
+* zmianę rozmiaru okna;
+* przejście w Split-Screen;
+* przełączenie UFO ↔ CarPlay;
+* brak pamięci;
+* błąd odczytu bazy.
+
+CZĘŚĆ XII. MASTER PROMPT DLA AI IMPLEMENTUJĄCEGO UI
+
+Poniższy tekst jest instrukcją wykonawczą do przekazania modelowi AI, który będzie pisał kod interfejsu. Powinien otrzymać go razem z dokumentacją pozostałych warstw aplikacji.
+
+MASTER PROMPT – HONDA OBD DISCOVERY: IMPLEMENTACJA UI/UX
+
+Rola
+
+Działasz jako Senior Android UI Engineer, specjalizujący się w natywnym Androidzie, renderowaniu Canvas, interfejsach samochodowych i optymalizacji GPU.
+
+Twoim zadaniem jest zaimplementowanie kompletnej warstwy wizualnej aplikacji Honda OBD Discovery.
+
+1. Platforma docelowa
+
+* Android 9, API 28.
+* Rozdzielczość referencyjna: 1280 × 720 px.
+* Orientacja: pozioma.
+* Ekran: IPS 9”.
+* GPU: Mali-T720.
+* Platforma: MediaTek MT8163.
+* Dostępny Java Heap: około 128 MB.
+
+Nie używaj API wymagających Androida nowszego niż API 28 bez zapewnienia kompatybilnego rozwiązania alternatywnego.
+
+2. Architektura
+
+Zaimplementuj dwa niezależne wizualnie tryby:
+
+1. Honda OEM UFO Cluster.
+2. Apple CarPlay Dashboard.
+
+Oba tryby korzystają z jednego źródła danych pojazdu. Przełączanie między nimi nie może restartować połączenia OBD, usługi ani rejestracji telemetrii.
+
+UI nie może komunikować się bezpośrednio z ELM327 ani wykonywać diagnostycznych komend OBD. Otrzymuje gotowe dane przez warstwę stanu aplikacji.
+
+3. Wydajność
+
+* Docelowo 60 FPS w aktywnym interfejsie.
+* Odczyty OBD mogą występować z częstotliwością 10–15 Hz.
+* Animacje muszą działać niezależnie od częstotliwości danych.
+* Wykorzystaj interpolację Lerp lub EMA.
+* Bezwzględnie unikaj alokowania Paint, Path, RectF, Bitmap i String wewnątrz onDraw().
+* Przygotuj geometrię i obiekty graficzne przed renderowaniem.
+* Nie blokuj głównego wątku.
+* Ogranicz historię wykresów i bufory danych.
+* Nie twórz niepotrzebnych bitmap ani ciężkich efektów blur.
+
+4. Honda OEM UFO Cluster
+
+Zaimplementuj:
+
+* centralny obrotomierz o średnicy 440 px;
+* środek tarczy X=640, Y=400;
+* cyfry Italic/Slanted, nie radialne;
+* podziałki główne co 1000 RPM, średnie co 500 RPM, małe co 100 RPM;
+* konfigurowalny próg Redline;
+* płynnie zmieniającą kolor aurę obrotomierza;
+* wskazówkę z interpolacją;
+* górny HUD z prędkością 96sp Bold Italic;
+* wskaźnik biegu 1–6/N;
+* zwarty pasek REV/ECO/VTEC;
+* eliptyczną soczewkę pod prędkością;
+* kwadratowy MID 220 × 220 px;
+* boczne łuki 180 × 480 px;
+* footer 80 px z pięcioma sektorami.
+
+MID ma obsługiwać:
+
+* dowolną listę parametrów dostępnych w aplikacji;
+* wartość cyfrową;
+* wykres z historią 30 sekund;
+* MAX i AVG;
+* reset MAX/AVG przez long press;
+* zmianę parametru przez tapnięcie.
+
+Boczne łuki mają:
+
+* pokazywać cyfrową wartość od wewnętrznej strony;
+* nie posiadać poprzecznych kresek;
+* obsługiwać parametry jedno- i dwukierunkowe;
+* mieć zero w połowie skali dla parametrów dwukierunkowych;
+* obsługiwać tap i long press.
+
+5. Apple CarPlay Dashboard
+
+Zaimplementuj:
+
+* ciemny i jasny motyw;
+* konfigurowalne akcenty kolorystyczne;
+* półprzezroczysty Left Dock;
+* kolorową pigułkę aktywnej zakładki;
+* przewijaną listę modułów;
+* przytwierdzoną stopkę;
+* QUICK BUTTON;
+* USTAWIENIA;
+* HOME;
+* karty z nagłówkami i ikonami;
+* jednostki obok wartości;
+* styl płaski i wariant z cieniem;
+* animację Scale Down do 97%;
+* ikonę szybkiego powiększenia ↗.
+
+Ekran Overview ma mieć jedną dużą kartę po lewej i dwie mniejsze po prawej.
+
+Użytkownik ma móc konfigurować zawartość kart.
+
+6. Wykresy
+
+Wykonaj własny, spójny komponent wykresu z:
+
+* krzywymi Béziera;
+* wypełnieniem gradientowym o kryciu około 20%;
+* siatką i osiami;
+* wartością bieżącą;
+* legendą;
+* crosshair scrubberem;
+* odczytem wartości i czasu po dotknięciu wykresu.
+
+Obsługuj zakresy:
+
+* 30 sekund;
+* 1 minuta;
+* 5 minut;
+* cała trasa.
+
+Multi-Select obsługuje maksymalnie cztery parametry.
+
+Układ:
+
+* jeden parametr: jeden duży wykres;
+* dwa parametry: dwa wykresy pionowo;
+* trzy parametry: jeden duży i dwa małe;
+* cztery parametry: siatka 2 × 2.
+
+Multi-Overlay ma prezentować kilka parametrów na wspólnej osi czasu.
+
+7. Moduły
+
+Zaimplementuj interfejsy:
+
+* Overview;
+* Live Data;
+* Multi-Select;
+* Multi-Graph;
+* Multi-Overlay;
+* Misfire Lab;
+* DTC Manager;
+* Virtual Dyno;
+* Performance Timer;
+* Best Runs;
+* Trip & Fuel;
+* Black Box;
+* Maintenance;
+* Settings.
+
+Każdy ekran musi mieć kompletne stany: ładowanie, dane dostępne, brak danych, brak połączenia, błąd i stan normalny.
+
+8. DTC i Misfire Lab
+
+DTC Manager:
+
+* karty kodów;
+* polskie opisy;
+* status;
+* rozwijany Freeze Frame;
+* podpowiedź serwisowa;
+* przycisk kasowania;
+* animacje Reboot, Impulse i Glitch.
+
+Misfire Lab:
+
+* cztery pionowe słupki;
+* oddzielny licznik dla każdego cylindra;
+* status;
+* możliwość prezentacji danych w czasie.
+
+Mapowanie cylindrów:
+
+* cylinder 1 – MID A2;
+* cylinder 2 – MID A3;
+* cylinder 3 – MID A4;
+* cylinder 4 – MID A5.
+
+9. Ustawienia
+
+Pięć zakładek:
+
+1. Połączenie & OBD.
+2. Wygląd & Interfejs.
+3. Dźwięki & Ostrzeżenia.
+4. Profil Pojazdu & Paliwo.
+5. Logi, Eksport & Backup.
+
+Wszystkie ustawienia mają być trwale zapisywane.
+
+Użytkownik może personalizować MID, łuki, wykresy, karty, motywy, progi alarmowe i Quick Button.
+
+10. Android 9
+
+* Obsługuj Multi-Window.
+* W Split-Screen ukryj UFO.
+* Przełącz na CarPlay.
+* Przenieś dock na dół.
+* Zastosuj pojedynczą przewijaną kolumnę.
+* Zachowaj dane i konfigurację.
+* Obsłuż uprawnienia Androida 9.
+* Nie wymagaj uprawnień wprowadzonych dopiero w API 31.
+* Klasyczny AppWidget aktualizuj zgodnie z ograniczeniami Androida, bez wymuszania aktualizacji co 100 ms.
+
+11. Wymagania dotyczące kodu
+
+Nie dostarczaj samych makiet ani atrap interakcji.
+
+Każdy przycisk ma wykonywać przypisaną akcję. Każdy parametr ma mieć źródło danych. Każdy ekran ma być rzeczywiście zintegrowany z aplikacją.
+
+Nie zastępuj funkcji pustymi przyciskami, statycznymi wartościami ani przykładowymi danymi w wersji produkcyjnej.
+
+Jeżeli funkcja zależy od innej warstwy aplikacji, przygotuj jawny interfejs integracyjny i opisz wymagane dane wejściowe oraz wyjściowe.
+
+12. Sposób realizacji
+
+Pracuj etapami:
+
+1. Struktura projektu i nawigacja.
+2. System motywów i komponenty wspólne.
+3. Honda UFO Cluster.
+4. CarPlay Dashboard.
+5. Silnik wykresów.
+6. Moduły diagnostyczne.
+7. Ustawienia.
+8. Integracja ze wspólnym stanem danych.
+9. Split-Screen i zachowanie systemowe.
+10. Optymalizacja i testy.
+
+Po każdym etapie:
+
+* przedstaw komplet zmienionych plików;
+* sprawdź kompilację;
+* napraw błędy;
+* nie usuwaj działających funkcji z poprzednich etapów;
+* nie pozostawiaj kodu z atrapami bez wyraźnego oznaczenia.
+
+13. Kryterium ukończenia
+
+Warstwa UI jest ukończona dopiero wtedy, gdy wszystkie ekrany, interakcje, animacje, ustawienia, stany błędów, wykresy i przejścia działają na Androidzie 9 API 28.
+
+Nie zmieniaj zatwierdzonych wymiarów, kolorów i zachowań bez wskazania konkretnego konfliktu technicznego. Każde odstępstwo opisz i uzasadnij przed wdrożeniem.
+
+CZĘŚĆ XIII. DOKUMENTY, KTÓRE MUSZĄ POWSTAĆ, ABY INNE AI MIAŁO KOMPLETNĄ INSTRUKCJĘ APLIKACJI
+
+Końcowe strony materiału źródłowego wskazują cztery osobne obszary, które trzeba jeszcze opisać w niezależnych dokumentach technicznych. To ważne: sam prompt UI nie wystarczy do zbudowania całej aplikacji.
+
+61. Master Prompt: OBD2 i ELM327 Transport Layer
+
+Do opracowania
+
+Zakres dokumentu:
+
+* Bluetooth Classic RFCOMM;
+* BLE GATT;
+* inicjalizacja adaptera ELM327;
+* obsługa ISO 15765-4;
+* komunikacja z ECU Keihin;
+* adaptacyjny PidScheduler;
+* bufor 80 ms;
+* timeout odpowiedzi 1500 ms;
+* odzyskiwanie połączenia;
+* priorytetyzacja RPM i SPEED;
+* ciągły odczyt Mode $06 dla cylindrów 1–4;
+* priorytetyzacja Misfire Lab bez opóźniania obrotomierza;
+* obsługa niestandardowych PID;
+* obsługa błędnych i niekompletnych odpowiedzi.
+
+Szczególnie ważna jest kolejka odczytów. Źródłowa decyzja zakłada model karuzelowy:
+
+RPM + SPEED
+Mode 06 Cylinder 1
+RPM + SPEED
+Mode 06 Cylinder 2
+RPM + SPEED
+Mode 06 Cylinder 3
+RPM + SPEED
+Mode 06 Cylinder 4
+
+Cel: odświeżanie obrotów około 100–120 ms i pełna diagnostyka czterech cylindrów około raz na sekundę.
+
+62. Master Prompt: Room SQLite i system logowania
+
+Do opracowania
+
+Zakres:
+
+* kompletna struktura tabel Room;
+* encje i relacje;
+* DAO;
+* repozytoria;
+* migracje;
+* WAL;
+* retencja 30 dni;
+* Black Box z buforem 30 sekund;
+* wyniki Virtual Dyno;
+* Performance Timer;
+* Best Runs;
+* historia tras;
+* baza ponad 3000 kodów DTC;
+* polskie opisy;
+* podpowiedzi serwisowe;
+* eksport CSV;
+* eksport JSON;
+* kopia bazy na USB;
+* odzyskiwanie po odcięciu zasilania.
+
+Ten dokument powinien również rozstrzygnąć sposób bezpiecznej kopii bazy w trybie WAL oraz politykę odzyskiwania danych po błędach.
+
+63. Master Prompt: Analityka i silnik obliczeniowy
+
+Do opracowania
+
+Zakres:
+
+* Virtual Dyno;
+* korekcja DIN/SAE;
+* obliczenia na podstawie MAP/IAT;
+* charakterystyka silnika L13Z1;
+* przełożenia skrzyni biegów;
+* wykrywanie uślizgu sprzęgła;
+* analiza LTFT i luzów zaworowych;
+* spalanie Speed-Density;
+* L/100 km i L/h;
+* Eco Score;
+* wykrywanie gwałtownych zmian prędkości;
+* Performance Timer;
+* analiza korelacji parametrów.
+
+Wszystkie algorytmy powinny mieć opis matematyczny, wymagane dane wejściowe, jednostki, zakresy poprawności i obsługę braku danych.
+
+64. Master Prompt: Usługi Androida i integracja sprzętowa
+
+Do opracowania
+
+Zakres:
+
+* ForegroundService;
+* uruchamianie po wybudzeniu radia;
+* podtrzymywanie połączenia;
+* BootReceiver;
+* obsługa Bluetooth;
+* obsługa AppWidget;
+* obsługa overlay;
+* Audio Focus i Audio Ducking;
+* ToneGenerator;
+* NOAA Sunset Engine;
+* GPS i ostatnia znana pozycja;
+* przyciski NEXT/PREV z kierownicy;
+* wykrywanie stanu silnika;
+* zabezpieczenie przed spadkiem napięcia podczas rozruchu (Cranking Lock).
+
+CZĘŚĆ XIV. KOŃCOWA INSTRUKCJA DLA KOLEJNEGO AI
+
+Ten prompt należy przekazać modelowi, który ma opracować pozostałą dokumentację. Dzięki temu nie będzie traktował UI jako całej aplikacji.
+
+MASTER FOLLOW-UP PROMPT – PEŁNA ARCHITEKTURA HONDA OBD DISCOVERY
+
+Otrzymujesz kompletną specyfikację UI/UX aplikacji Honda OBD Discovery.
+
+Twoim zadaniem jest przygotowanie brakującej dokumentacji technicznej tak, aby niezależny programista lub agent AI mógł zbudować całą działającą aplikację na Androida 9 API 28.
+
+Nie twórz kolejnej specyfikacji wyglądu. Warstwa UI została już opisana.
+
+Przygotuj cztery niezależne dokumenty:
+
+DOKUMENT 1 – OBD2 / ELM327 TRANSPORT LAYER
+
+Opisz kompletną komunikację Bluetooth Classic i BLE, inicjalizację ELM327, protokoły CAN, ISO 15765-4, obsługę ECU Keihin, PidScheduler, kolejkę priorytetów, timeouty, odzyskiwanie połączenia i ciągły Mode $06 Misfire Lab.
+
+Podaj konkretne klasy, interfejsy, modele danych, stany, algorytmy, pseudokod i kryteria testowe.
+
+DOKUMENT 2 – ROOM DATABASE / LOGGING
+
+Opracuj pełną bazę Room SQLite:
+
+* encje;
+* relacje;
+* DAO;
+* repozytoria;
+* migracje;
+* WAL;
+* retencja 30 dni;
+* Black Box;
+* historia tras;
+* DTC;
+* Best Runs;
+* Virtual Dyno;
+* Performance Timer;
+* eksport CSV/JSON;
+* kopie zapasowe USB.
+
+Uwzględnij ryzyko destrukcyjnej migracji i nagłego odcięcia zasilania.
+
+DOKUMENT 3 – ANALYTICS / BASELINE ENGINE
+
+Opisz matematycznie:
+
+* Virtual Dyno;
+* DIN/SAE;
+* Speed-Density;
+* spalanie;
+* Eco Score;
+* uślizg sprzęgła;
+* analizę LTFT i luzów zaworowych;
+* Performance Timer;
+* wykrywanie zdarzeń Black Box;
+* analizę korelacji.
+
+Każdy algorytm musi zawierać jednostki, wejścia, wyjścia, zakresy, ograniczenia, obsługę błędów i testy.
+
+DOKUMENT 4 – ANDROID SERVICES / HARDWARE INTEGRATION
+
+Opisz:
+
+* ForegroundService;
+* BootReceiver;
+* automatyczne połączenie po wybudzeniu;
+* zarządzanie Bluetooth;
+* AppWidget;
+* overlay;
+* Audio Focus;
+* NOAA Sunset Engine;
+* GPS fallback;
+* steering wheel controls;
+* wykrywanie Engine OFF/RUNNING;
+* Cranking Lock;
+* Split-Screen;
+* eksport USB.
+
+ZASADY
+
+1. Wszystko musi być kompatybilne z Androidem 9 API 28.
+2. Nie przenoś założeń z innych projektów.
+3. Korzystaj z dostarczonej specyfikacji jako źródła zatwierdzonych decyzji.
+4. Nie wymyślaj zachowań, których nie określono.
+5. Rozbieżności oznaczaj jako nierozstrzygnięte.
+6. Oddzielaj wymagania źródłowe od własnych rekomendacji technicznych.
+7. Nie przedstawiaj przykładowych danych jako rzeczywistych pomiarów.
+8. Nie twórz atrap funkcji.
+9. Każda funkcja musi mieć zdefiniowany przepływ danych.
+10. Każdy moduł musi mieć testy jednostkowe, integracyjne i testy na urządzeniu.
+
+WYNIK
+
+Dostarcz cztery kompletne dokumenty techniczne oraz jeden nadrzędny dokument integracyjny, który opisuje:
+
+* zależności między modułami;
+* przepływ danych;
+* kontrakty interfejsów;
+* kolejność implementacji;
+* strukturę projektu;
+* konfigurację Gradle;
+* wymagane uprawnienia;
+* testy końcowe;
+* kryteria odbioru aplikacji.
+
+Celem jest uzyskanie pełnej dokumentacji wykonawczej całej aplikacji, a nie tylko ogólnego opisu architektury.
+
+65. Ostateczna kolejność budowy aplikacji
+
+Najrozsądniej przekazać dokumenty kolejnym agentom w takiej kolejności:
+
+* OBD2 / ELM327 – określa, jakie dane aplikacja rzeczywiście otrzymuje.
+* Room / Logging – określa, jak dane są przechowywane.
+* Analytics / Baseline Engine – określa, jak dane są przeliczane i interpretowane.
+* Android Services / Hardware – spina działanie aplikacji z systemem i sprzętem.
+* UI/UX – integruje gotowe dane, stany i operacje w interfejsie.
+* Master Integration – sprawdza, czy wszystkie części współpracują ze sobą.
+
+Ważne: przekazanie samego promptu UI nie daje jeszcze kompletnej specyfikacji całego produktu. Cztery dokumenty z poprzedniej części są niezbędne, aby wykonawca nie musiał zgadywać, jak działa komunikacja, diagnostyka, obliczenia i usługi systemowe.
+
+Na tym kończy się opracowanie materiału źródłowego.

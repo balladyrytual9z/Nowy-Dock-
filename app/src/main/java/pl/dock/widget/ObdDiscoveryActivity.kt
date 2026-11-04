@@ -44,6 +44,8 @@ class ObdDiscoveryActivity : Activity() {
     private lateinit var manager: ConnectionManager
     private lateinit var statusTv: TextView
     private lateinit var dataTv: TextView
+    private lateinit var connIcon: android.widget.ImageView
+    private lateinit var connText: TextView
     private val scope = MainScope()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,10 +75,31 @@ class ObdDiscoveryActivity : Activity() {
             setTextColor(Color.parseColor("#E5E5EA"))
             setPadding(0, 16, 0, 0)
         }
+
+        // Ikona polaczenia na wierzchu: zielona kropka + "OBD OK" gdy adapter
+        // jest podlaczony, bursztynowa "CONNECTING", szara "OFFLINE".
+        val connRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(0, 20, 0, 4)
+        }
+        connIcon = android.widget.ImageView(this)
+        connRow.addView(connIcon, LinearLayout.LayoutParams(28, 28))
+        connText = TextView(this).apply {
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            setPadding(12, 0, 0, 0)
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
+        connRow.addView(connText)
         root.addView(statusTv)
+        root.addView(connRow)
 
         // nawigacja do modulow
         val nav = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        nav.addView(navBtn("SKANUJ ADAPTERY (SPP / BLE)") {
+            startActivity(Intent(this, ObdAdapterScanActivity::class.java))
+        })
         nav.addView(navBtn("UFO CLUSTER (ZEGARY)") {
             startActivity(Intent(this, UfoClusterActivity::class.java))
         })
@@ -180,6 +203,19 @@ class ObdDiscoveryActivity : Activity() {
         }
 
     private fun render(s: pl.dock.widget.repository.VehicleUiState) {
+        // ikona polaczenia na wierzchu (zielony / bursztynowy / szary status)
+        val color = when {
+            s.connected -> Color.parseColor("#30D158")
+            s.connecting -> Color.parseColor("#FF9F0A")
+            else -> Color.parseColor("#8E8E93")
+        }
+        connIcon.setImageBitmap(dot(color))
+        connText.text = when {
+            s.connecting -> "CONNECTING..."
+            s.connected -> "OBD OK"
+            else -> "OFFLINE"
+        }
+        connText.setTextColor(color)
         statusTv.text = when {
             s.connecting -> "Laczenie..."
             s.connected -> "Polaczono - " + s.adapterName
@@ -208,6 +244,21 @@ class ObdDiscoveryActivity : Activity() {
             appendLine("Wtrysk (2101): " + fmt(s.injectionMs) + " ms")
         }
         ObdWidgetProvider.push(this, s.rpm, s.speedKmh, s.voltage, s.connected)
+    }
+
+    /** Kolorowa kropka statusu polaczenia (cache po kolorze - bez alokacji na klatke). */
+    private val dotCache = HashMap<Int, android.graphics.Bitmap>()
+
+    private fun dot(color: Int): android.graphics.Bitmap {
+        dotCache[color]?.let { return it }
+        val size = 64
+        val b = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val cv = android.graphics.Canvas(b)
+        val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        p.color = color
+        cv.drawCircle(size / 2f, size / 2f, size / 2f - 4f, p)
+        dotCache[color] = b
+        return b
     }
 
     private fun fmt(v: Float): String = if (v.isNaN()) "-" else String.format("%.1f", v)

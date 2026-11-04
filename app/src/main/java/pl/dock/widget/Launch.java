@@ -58,6 +58,27 @@ public class Launch {
         }
     }
 
+    /**
+     * Narzedzia Docka (pseudo-pakiety "dock:...") uzywane w 4 ikonach dok-a.
+     * Zwraca true, gdy pakiet byl narzedziem Docka i zostalo otwarte.
+     */
+    public static boolean openDockTool(Context c, String pkg) {
+        if (pkg == null || !pkg.startsWith("dock:")) return false;
+        if ("dock:settings".equals(pkg)) {
+            Intent i = new Intent(c, ConfigActivity.class);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            return start(c, i);
+        }
+        if (pkg.equals("dock:carplay")) {
+            carplay(c);
+            return true;
+        }
+        // dock:obd oraz nieznane "dock:" -> centrum OBD
+        Intent i = new Intent(c, ObdDiscoveryActivity.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        return start(c, i);
+    }
+
     public static void carplay(Context c) {
         Intent i = carplayIntent(c);
         if (i != null && start(c, i)) return;

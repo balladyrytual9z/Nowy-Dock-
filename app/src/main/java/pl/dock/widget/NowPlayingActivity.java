@@ -85,8 +85,12 @@ public class NowPlayingActivity extends BaseActivity implements MediaHub.Listene
                     Launch.carplay(NowPlayingActivity.this);
                     finish();
                 } else if (index < top.size()) {
-                    Intent i = getPackageManager()
-                            .getLaunchIntentForPackage(top.get(index).pkg);
+                    String p = top.get(index).pkg;
+                    if (Launch.openDockTool(NowPlayingActivity.this, p)) {
+                        finish();
+                        return;
+                    }
+                    Intent i = getPackageManager().getLaunchIntentForPackage(p);
                     if (i != null) {
                         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         startActivity(i);

@@ -73,8 +73,12 @@ public class ConnectivityActivity extends BaseActivity {
                     Launch.carplay(ConnectivityActivity.this);
                     finish();
                 } else if (index < top.size()) {
-                    Intent i = getPackageManager()
-                            .getLaunchIntentForPackage(top.get(index).pkg);
+                    String p = top.get(index).pkg;
+                    if (Launch.openDockTool(ConnectivityActivity.this, p)) {
+                        finish();
+                        return;
+                    }
+                    Intent i = getPackageManager().getLaunchIntentForPackage(p);
                     if (i != null) {
                         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         startActivity(i);

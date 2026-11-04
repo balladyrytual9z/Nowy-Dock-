@@ -22,15 +22,18 @@ public class LaunchReceiver extends BroadcastReceiver {
             }
         }
         Prefs.recordPkg(c, pkg);
-        Intent launch = pkg.length() > 0
-                ? c.getPackageManager().getLaunchIntentForPackage(pkg) : null;
-        if (launch == null) {
-            launch = new Intent(c, ConfigActivity.class);
-        }
-        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        try {
-            c.startActivity(launch);
-        } catch (Exception ignored) {
+        // narzedzia Docka (dock:obd / dock:settings) nie maja pakietu systemowego
+        if (!Launch.openDockTool(c, pkg)) {
+            Intent launch = pkg.length() > 0
+                    ? c.getPackageManager().getLaunchIntentForPackage(pkg) : null;
+            if (launch == null) {
+                launch = new Intent(c, ConfigActivity.class);
+            }
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            try {
+                c.startActivity(launch);
+            } catch (Exception ignored) {
+            }
         }
         DockWidget.updateAll(c);
     }

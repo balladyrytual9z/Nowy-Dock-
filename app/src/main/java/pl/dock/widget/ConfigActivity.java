@@ -739,8 +739,12 @@ public class ConfigActivity extends BaseActivity {
                     Launch.carplay(ConfigActivity.this);
                     finish();
                 } else if (index < top.size()) {
-                    Intent i = getPackageManager()
-                            .getLaunchIntentForPackage(top.get(index).pkg);
+                    String p = top.get(index).pkg;
+                    if (Launch.openDockTool(ConfigActivity.this, p)) {
+                        finish();
+                        return;
+                    }
+                    Intent i = getPackageManager().getLaunchIntentForPackage(p);
                     if (i != null) {
                         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         startActivity(i);
@@ -1629,6 +1633,7 @@ public class ConfigActivity extends BaseActivity {
 
     private String appLabel(String pkg) {
         if (pkg == null || pkg.length() == 0) return "—";
+        if (Prefs.isVirtual(pkg)) return Prefs.labelFor(this, pkg);
         try {
             PackageManager pm = getPackageManager();
             return pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString();
