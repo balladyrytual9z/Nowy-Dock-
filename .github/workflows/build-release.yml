@@ -3,19 +3,22 @@ name: Build and publish CarPlay Launcher
 on:
   push:
     branches:
-      - '**'
-  workflow_dispatch:
+      - 'main' # Release tworzy się TYLKO gdy kod trafi do głównej gałęzi
+  pull_request:
+    branches:
+      - 'main' # Uruchamia się przy Pull Requeście, żeby agent widział błędy
+  workflow_dispatch: # Pozwala na ręczne uruchomienie z panelu GitHuba
 
 permissions:
   contents: write
 
 concurrency:
   group: carplay-launcher-release-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build-release:
-    name: Build signed Android APK and publish GitHub Release
+    name: Build, Test and publish Android APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -25,11 +28,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Stabilny keystore podpisu: bez tego kazdy build dostaje inny
-      # (ephemeral) klucz debug i tablet wymaga odinstalowania starej
-      # aplikacji przed instalacja aktualizacji. Keystore jest generowany
-      # RAZ, commitowany do repo [skip ci] i uzywany we wszystkich
-      # kolejnych buildach - instalacja nadpisuje stara wersje (update).
       - name: Ensure stable signing keystore
         shell: bash
         run: |
@@ -64,90 +62,42 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
-          if [ ! -d "$SDK_ROOT" ]; then
-            echo "ERROR: Android SDK directory not found: $SDK_ROOT"
-            exit 1
-          fi
-
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
-
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager -print 2>/dev/null | sort -V | tail -n 1 || true)"
-          if [ -z "$SDKMANAGER" ]; then
-            echo "ERROR: sdkmanager not found under $SDK_ROOT/cmdline-tools."
-            exit 1
-          fi
-
           set +o pipefail
           yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses 2>&1 | tee -a "$RUNNER_TEMP/ci.log"
           set -o pipefail
-
-          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install \
-            "platform-tools" \
-            "platforms;android-35" \
-            "build-tools;35.0.0" 2>&1 | tee -a "$RUNNER_TEMP/ci.log"
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0" 2>&1 | tee -a "$RUNNER_TEMP/ci.log"
 
       - name: Set up Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      # versionCode = numer runa CI -> zawsze rosnacy, instalator Androida
-      # traktuje APK jako aktualizacje (a nie downgrade/reinstall).
+      # NOWY KROK: Uruchomienie testów jednostkowych
+      - name: Run Unit Tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+          echo "Uruchamianie testów..." | tee -a "$RUNNER_TEMP/ci.log"
+          gradle --no-daemon test 2>&1 | tee -a "$RUNNER_TEMP/ci.log"
+
       - name: Build Android APK (Debug, stable signing, auto versionCode)
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         shell: bash
         run: |
           set -euo pipefail
-
-          PROJECT_DIR="$GITHUB_WORKSPACE"
-          if [ ! -f "$PROJECT_DIR/settings.gradle" ]; then
-            echo "ERROR: settings.gradle not found in $PROJECT_DIR" | tee -a "$RUNNER_TEMP/ci.log"
-            exit 1
-          fi
-
-          cd "$PROJECT_DIR"
-          echo "gradle version:" | tee -a "$RUNNER_TEMP/ci.log"
-          gradle --version 2>&1 | tee -a "$RUNNER_TEMP/ci.log" || true
-          gradle --no-daemon --stacktrace clean assembleDebug -Pvc="${GITHUB_RUN_NUMBER}" 2>&1 | tee "$RUNNER_TEMP/build.log"
-          cp "$RUNNER_TEMP/build.log" "$RUNNER_TEMP/ci.log.bak" || true
-
+          cd "$GITHUB_WORKSPACE"
+          gradle --no-daemon --stacktrace clean assembleDebug -Pvc="${GITHUB_RUN_NUMBER}" 2>&1 | tee -a "$RUNNER_TEMP/ci.log"
           APK="app/build/outputs/apk/debug/app-debug.apk"
-          if [ ! -s "$APK" ]; then
-            echo "ERROR: Debug APK was not generated: $APK"
-            exit 1
-          fi
-
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK" || true
-
           mkdir -p "$RUNNER_TEMP/release-assets"
           cp "$APK" "$RUNNER_TEMP/release-assets/CarPlay-Launcher-v1.0.${GITHUB_RUN_NUMBER}.apk"
-          (
-            cd "$RUNNER_TEMP/release-assets"
-            sha256sum "CarPlay-Launcher-v1.0.${GITHUB_RUN_NUMBER}.apk" > SHA256SUMS.txt
-          )
-
-      - name: Publish failure log [skip ci]
-        if: failure()
-        shell: bash
-        run: |
-          cd "$GITHUB_WORKSPACE"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          {
-            echo "# CI failure log (run ${{ github.run_id }})"
-            echo; echo '## build.log'; echo
-            cat "$RUNNER_TEMP/build.log" 2>/dev/null || echo "(missing)"
-            echo; echo '## ci.log'; echo
-            cat "$RUNNER_TEMP/ci.log" 2>/dev/null || echo "(missing)"
-          } > ci-failure-log.md || true
-          git add ci-failure-log.md || true
-          git commit -m "CI failure log [skip ci]" || true
-          git push origin HEAD:main || true
+          (cd "$RUNNER_TEMP/release-assets" && sha256sum *.apk > SHA256SUMS.txt)
 
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
@@ -157,7 +107,9 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+      # Release tworzy się TYLKO przy pushu do main (nie przy Pull Requestach)
       - name: Create GitHub Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: ncipollo/release-action@v1
         with:
           tag: v1.0.${{ github.run_number }}
