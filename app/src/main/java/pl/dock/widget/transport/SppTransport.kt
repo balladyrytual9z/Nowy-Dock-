@@ -12,8 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
-import java.io.BufferedReader
-import java.io.InputStreamReader
+import java.io.InputStream
 import java.io.OutputStream
 import java.util.UUID
 
@@ -21,9 +20,18 @@ import java.util.UUID
  * Bluetooth Classic (SPP) transport for ELM327 / vGate clones.
  *
  * Three-stage connection heuristic for UUID 00001101-0000-1000-8000-00805F9B34FB:
- *  1. Insecure RFCOMM (no authentication key) â primary, works with most clones
- *  2. Secure RFCOMM â fallback
- *  3. Reflection channel-1 bypass â last resort for stubborn adapters
+ *  1. Insecure RFCOMM (no authentication key) - primary, works with most clones
+ *  2. Secure RFCOMM - fallback
+ *  3. Reflection channel-1 bypass - last resort for stubborn adapters
+ *
+ * NAPRAWA (prompt '>'): ELM327 konczy kazda odpowiedz znakiem zachety '>'
+ * BEZ zadnego terminatora linii (CR/LF). Wczesniej BufferedReader.readLine()
+ * czekal na terminator, wiec linia z promptem NIGDY nie byla emitowana -
+ * kazda komenda (zaczynajac od ATZ w initialize()) konczyla sie timeoutem
+ * 8 s i polaczenie padalo mimo otwartego socketa ("adapter jest znajdowany,
+ * ale sie nie laczy"). Czytamy teraz surowe bajty i traktujemy CR, LF ORAZ '>'
+ * jako koniec linii; prompt '>' emitujemy jako osobna linie, ktora ElmSession
+ * (sendAndWaitPrompt) wykrywa i konczy oczekiwanie na odpowiedz.
  */
 class SppTransport : ElmTransport {
 
@@ -40,7 +48,7 @@ class SppTransport : ElmTransport {
 
     @Volatile private var socket: BluetoothSocket? = null
     @Volatile private var output: OutputStream? = null
-    @Volatile private var reader: BufferedReader? = null
+    @Volatile private var input: InputStream? = null
     @Volatile private var readThread: Thread? = null
 
     override fun isConnected(): Boolean = _state.value == TransportState.CONNECTED
@@ -62,7 +70,7 @@ class SppTransport : ElmTransport {
 
         this@SppTransport.socket = socket
         output = socket.outputStream
-        reader = BufferedReader(InputStreamReader(socket.inputStream, Charsets.US_ASCII))
+        input = socket.inputStream
         startReader()
         _state.value = TransportState.CONNECTED
         Log.i(TAG, "SPP connected to $address")
@@ -76,7 +84,7 @@ class SppTransport : ElmTransport {
             Log.i(TAG, "Insecure RFCOMM OK")
             s
         } catch (e: Exception) {
-            Log.w(TAG, "Insecure RFCOMM failed: ${e.message}")
+            Log.w(TAG, "Insecure RFCOMM failed: " + e.message)
             null
         }
     }
@@ -89,7 +97,7 @@ class SppTransport : ElmTransport {
             Log.i(TAG, "Secure RFCOMM OK")
             s
         } catch (e: Exception) {
-            Log.w(TAG, "Secure RFCOMM failed: ${e.message}")
+            Log.w(TAG, "Secure RFCOMM failed: " + e.message)
             null
         }
     }
@@ -107,24 +115,45 @@ class SppTransport : ElmTransport {
             Log.i(TAG, "Reflection channel-1 OK")
             s
         } catch (e: Exception) {
-            Log.w(TAG, "Reflection channel-1 failed: ${e.message}")
+            Log.w(TAG, "Reflection channel-1 failed: " + e.message)
             null
         }
     }
 
+    /**
+     * Czytnik socketa: surowe bajty, koncem linii jest CR (0x0D), LF (0x0A)
+     * LUB znak zachety '>' (0x3E). NAPRAWA: prompt '>' nie ma za soba
+     * terminatora - readLine() wieszal sie na nim i ATZ zawsze timeoutowal,
+     * przez co polaczenie z adapterem nigdy nie dochodzilo do stanu OK.
+     */
     private fun startReader() {
         readThread = Thread({
-            val r = reader ?: return@Thread
+            val inp = input ?: return@Thread
+            val sb = StringBuilder()
+            val buf = ByteArray(256)
             try {
                 while (!Thread.currentThread().isInterrupted) {
-                    val line = r.readLine() ?: break
-                    val trimmed = line.trim()
-                    if (trimmed.isNotEmpty()) {
-                        _lines.tryEmit(trimmed)
+                    val n = inp.read(buf)
+                    if (n < 0) break
+                    for (i in 0 until n) {
+                        when (val c = buf[i].toInt() and 0xFF) {
+                            0x0D, 0x0A -> {
+                                val line = sb.toString().trim()
+                                sb.setLength(0)
+                                if (line.isNotEmpty()) _lines.tryEmit(line)
+                            }
+                            0x3E -> {
+                                val line = sb.toString().trim()
+                                sb.setLength(0)
+                                if (line.isNotEmpty()) _lines.tryEmit(line)
+                                _lines.tryEmit(">")   // prompt = koniec odpowiedzi ELM
+                            }
+                            else -> sb.append(c.toChar())
+                        }
                     }
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Reader stopped: ${e.message}")
+                Log.w(TAG, "Reader stopped: " + e.message)
             } finally {
                 if (_state.value == TransportState.CONNECTED) {
                     _state.value = TransportState.DISCONNECTED
@@ -148,12 +177,11 @@ class SppTransport : ElmTransport {
     private fun disconnectInternal() {
         try { readThread?.interrupt() } catch (_: Exception) {}
         readThread = null
-        try { reader?.close() } catch (_: Exception) {}
-        reader = null
+        try { input?.close() } catch (_: Exception) {}
+        input = null
         try { output?.close() } catch (_: Exception) {}
         output = null
         try { socket?.close() } catch (_: Exception) {}
         socket = null
     }
 }
-

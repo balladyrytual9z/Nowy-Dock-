@@ -30,6 +30,14 @@ import kotlin.coroutines.resumeWithException
  * - Multi-profile UUID detection (klon FFF0, vGate/vLinker 18F0 i e7810a71,
  *   HM-10 FFE0, Nordic UART, Microchip UART) + genericzny fallback
  * - Czyste zamykanie: disconnect() -> pauza na callback (max 1 s) -> close()
+ *
+ * NAPRAWA (prompt '>'): ELM327 konczy kazda odpowiedz znakiem zachety '>'
+ * BEZ terminatora linii (CR/LF). Wczesniej lineBuffer dzielil linie TYLKO
+ * po CR/LF, wiec prompt zostawal w buforze na zawsze i ElmSession
+ * (sendAndWaitPrompt) timeoutowal na kazdej komendzie, zaczynajac od ATZ
+ * w initialize() - polaczenie padalo mimo poprawnie otwartego GATT
+ * ("adapter jest znajdowany, ale sie nie laczy"). Teraz '>' jest
+ * traktowany jak koniec linii i emitowany jako osobna linia.
  */
 @SuppressLint("MissingPermission")
 class BleTransport(private val appContext: Context) : ElmTransport {
@@ -189,12 +197,23 @@ class BleTransport(private val appContext: Context) : ElmTransport {
                         val text = String(data, Charsets.US_ASCII)
                         synchronized(lineBuffer) {
                             lineBuffer.append(text)
-                            var idx: Int
-                            while (lineBuffer.indexOf('\r').also { idx = it } >= 0 ||
-                                lineBuffer.indexOf('\n').also { idx = it } >= 0) {
+                            // NAPRAWA: pierwszy z CR / LF / '>' konczy linie.
+                            // Prompt '>' ELM327 nie ma za soba terminatora -
+                            // wczesniej zostawal w buforze na zawsze i kazda
+                            // komenda (od ATZ) konczyla sie timeoutem 8 s.
+                            while (true) {
+                                var idx = -1
+                                var isPrompt = false
+                                for (i in 0 until lineBuffer.length) {
+                                    val ch = lineBuffer[i]
+                                    if (ch == '\r' || ch == '\n') { idx = i; break }
+                                    if (ch == '>') { idx = i; isPrompt = true; break }
+                                }
+                                if (idx < 0) break
                                 val line = lineBuffer.substring(0, idx).trim()
                                 lineBuffer.delete(0, idx + 1)
                                 if (line.isNotEmpty()) _lines.tryEmit(line)
+                                if (isPrompt) _lines.tryEmit(">")
                             }
                         }
                     }
@@ -296,7 +315,7 @@ class BleTransport(private val appContext: Context) : ElmTransport {
             method.invoke(g)
             Log.i(TAG, "GATT cache refreshed via reflection")
         } catch (e: Exception) {
-            Log.w(TAG, "GATT refresh failed: ${e.message}")
+            Log.w(TAG, "GATT refresh failed: " + e.message)
         }
     }
 }
