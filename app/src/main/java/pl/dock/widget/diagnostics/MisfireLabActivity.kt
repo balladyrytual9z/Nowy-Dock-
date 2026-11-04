@@ -13,6 +13,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import pl.dock.widget.orchestration.ConnectionManager
 
@@ -30,6 +31,7 @@ class MisfireLabActivity : Activity() {
     private lateinit var counters: Array<TextView?>
     private lateinit var dtcTv: TextView
     private val handler = Handler(Looper.getMainLooper())
+    private val scope = MainScope()
     private var resumed = false
 
     private val poller = object : Runnable {
@@ -166,7 +168,7 @@ class MisfireLabActivity : Activity() {
     }
 
     private fun pollOnce() {
-        MainScope().launch {
+        scope.launch {
             val results = analyzer.poll { cmd -> manager.rawRequest(cmd) }
             val dtcs = Dtc.parse(manager.rawRequest("03"), pending = false)
                 .filter { it.code in setOf("P0300","P0301","P0302","P0303","P0304") }
@@ -199,5 +201,11 @@ class MisfireLabActivity : Activity() {
             dtcTv.text = if (dtcs.isEmpty()) "" else
                 "Kody zaplonu: " + dtcs.joinToString(", ") { it.code }
         }
+    }
+
+    override fun onDestroy() {
+        handler.removeCallbacks(poller)
+        scope.cancel()
+        super.onDestroy()
     }
 }

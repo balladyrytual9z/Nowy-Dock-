@@ -33,7 +33,9 @@ class ElmSession(
     companion object {
         private const val TAG = "ElmSession"
         private const val PROMPT_TIMEOUT_MS = 8_000L
-        private val FORBIDDEN = setOf("ATMA", "AT MA", "ATMA\r", "AT MA\r")
+
+        /** Monitor All – jedyna komenda ELM, którą blokujemy twardo (request/response only). */
+        private const val AT_MA = "ATMA"
 
         /** Prefiksy komend modyfikujacych ECU (Read-Only Safety Lock). */
         private val MUTATING = setOf("2E", "27", "10", "30", "31")
@@ -85,10 +87,10 @@ class ElmSession(
      */
     suspend fun request(command: String): String = withContext(Dispatchers.IO) {
         val cmd = command.trim().uppercase()
-        if (FORBIDDEN.any { cmd.startsWith(it.replace(" ", "")) || cmd == it }) {
+        val noSpace = cmd.replace(" ", "")
+        if (noSpace == AT_MA) {
             throw SecurityException("AT MA (Monitor All) is blocked - request/response only")
         }
-        val noSpace = cmd.replace(" ", "")
         if (!allowMutating && MUTATING.any { noSpace.startsWith(it) }) {
             throw SecurityException(
                 "Read-Only Safety Lock: komenda '" + cmd +

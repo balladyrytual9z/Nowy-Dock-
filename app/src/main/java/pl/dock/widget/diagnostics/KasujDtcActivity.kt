@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.widget.TextView
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import pl.dock.widget.ObdCoreService
 import pl.dock.widget.orchestration.ConnectionManager
@@ -17,6 +18,8 @@ import pl.dock.widget.orchestration.ConnectionManager
  * Po operacji nastepuje automatyczny ponowny odczyt i zamkniecie ekranu.
  */
 class KasujDtcActivity : Activity() {
+
+    private val scope = MainScope()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,11 +35,16 @@ class KasujDtcActivity : Activity() {
 
         ObdCoreService.start(this)
 
-        MainScope().launch {
+        scope.launch {
             val ok = Dtc.clearSucceeded(manager.rawRequest("04"))
             manager.rawRequest("03") // natychmiastowy ponowny odczyt po skasowaniu
             tv.text = if (ok) "KODY SKASOWANE" else "BRAK POLACZENIA / NIEPOTWIERDZONE"
             Handler(Looper.getMainLooper()).postDelayed({ finish() }, 1500)
         }
+    }
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
     }
 }
