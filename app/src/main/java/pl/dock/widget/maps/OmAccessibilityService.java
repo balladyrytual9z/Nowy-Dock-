@@ -21,7 +21,9 @@ import java.util.List;
  *   distance_value / distance_dimen   - pozostaly dystans
  *   nav_speed_limit                   - limit predkosci (jesli droga go ma)
  *
- * Usluga nasluchuje wylacznie pakietu app.organicmaps (patrz packageNames).
+ * Usluga czyta TRESC wylacznie z pakietu app.organicmaps. Zdarzenia zmiany
+ * okna innych aplikacji sa wykorzystywane tylko do wykrycia, czy Organic Maps
+ * jest na wierzchu (potrzebne, zeby nakladka nie wisiala nad innymi apkami).
  * Dane zostaja na urzadzeniu - nic nie jest wysylane na zewnatrz.
  */
 public class OmAccessibilityService extends AccessibilityService {
@@ -82,7 +84,17 @@ public class OmAccessibilityService extends AccessibilityService {
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event == null) return;
         CharSequence pkg = event.getPackageName();
-        if (pkg == null || !OM_PACKAGE.contentEquals(pkg)) return;
+        if (pkg == null) return;
+
+        boolean isOm = OM_PACKAGE.contentEquals(pkg);
+
+        // Zmiana aktywnego okna: tylko na tej podstawie wiemy, czy Organic Maps
+        // jest na wierzchu (nakladka pokazuje sie wylacznie nad nim).
+        // Tresc czytamy WYLACZNIE z pakietu Organic Maps - ponizej.
+        if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            NavData.get().setOmForeground(isOm);
+        }
+        if (!isOm) return;
 
         AccessibilityNodeInfo root = getRootInActiveWindow();
         if (root == null) return;

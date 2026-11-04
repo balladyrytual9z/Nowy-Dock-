@@ -14,5 +14,4 @@
     android:canRetrieveWindowContent="true"
     android:description="@string/om_accessibility_desc"
     android:notificationTimeout="150"
-    android:packageNames="app.organicmaps"
     android:summary="@string/om_accessibility_summary" />

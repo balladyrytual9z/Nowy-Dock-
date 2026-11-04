@@ -269,6 +269,11 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/om_accessibility" />
         </service>
+
+        <!-- Nakladka CarPlay nad Organic Maps: chrome (nieklikalny) + dock (klikalny) -->
+        <service
+            android:name=".maps.NavOverlayService"
+            android:exported="false" />
         <provider
             android:name=".DockStateProvider"
             android:authorities="pl.dock.widget.state"
