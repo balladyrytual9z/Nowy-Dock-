@@ -1,4 +1,4 @@
-package pl.dock.widget;
+successfully downloaded text file (SHA: e1670b232fe541ec46d02e8f4ad2a3307a2ea088)package pl.dock.widget;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -74,9 +74,11 @@ public class OverlayTriggerTest {
 
     @Test
     public void followGesture_clampsToScreen() {
-        // palec przy lewej krawędzi -> panel nie wyjeżdża za ekran
-        assertEquals(8, OverlayTrigger.panelX(0, 500, 1200, 120, true, true, 8));
-        // palec przy prawej krawędzi -> max = 1200 - 500 - 8
+        // palec przy lewej krawędzi, dok po PRAWEJ -> clamp do pad.
+        // gestureX=0 to brak gestu (otwarcie przyciskiem doka) - ten przypadek
+        // pokrywa zeroGesture_fallsBackToDefault, tam pozycja jest domyślna.
+        assertEquals(8, OverlayTrigger.panelX(10, 500, 1200, 120, false, true, 8));
+        // palec przy prawej krawędzi, dok po LEWEJ -> max = 1200 - 500 - 8
         assertEquals(692, OverlayTrigger.panelX(1200, 500, 1200, 120, true, true, 8));
     }
 
