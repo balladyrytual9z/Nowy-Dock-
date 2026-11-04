@@ -531,6 +531,21 @@ public class ConfigActivity extends BaseActivity {
                     }
                 }));
         sep(g);
+        g.addView(toggle("Startuj z mapą Polski", Prefs.mapPoland(this), new BoolSetter() {
+            @Override
+            public void set(boolean v) {
+                Prefs.setMapPoland(ConfigActivity.this, v);
+            }
+        }));
+        sep(g);
+        g.addView(toggle("Pobieraj mapę Polski przez Wi-Fi", Prefs.mapWifiAuto(this),
+                new BoolSetter() {
+                    @Override
+                    public void set(boolean v) {
+                        Prefs.setMapWifiAuto(ConfigActivity.this, v);
+                    }
+                }));
+        sep(g);
         g.addView(toggle("Podążaj za pozycją GPS", Prefs.mapFollow(this), new BoolSetter() {
             @Override
             public void set(boolean v) {
@@ -557,6 +572,19 @@ public class ConfigActivity extends BaseActivity {
                         try {
                             startActivity(new Intent(ConfigActivity.this,
                                     pl.dock.widget.maps.NavigatorActivity.class));
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }));
+        sep(g);
+        // Wlaczenie odczytu danych z Organic Maps (manewry, ETA, limit predkosci).
+        g.addView(row(Icons.builtin(this, "nav"), "Odczyt danych z Organic Maps",
+                "manewry, ETA, limit", true, p.accent, new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        try {
+                            startActivity(new Intent(
+                                    android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS));
                         } catch (Throwable ignored) {
                         }
                     }

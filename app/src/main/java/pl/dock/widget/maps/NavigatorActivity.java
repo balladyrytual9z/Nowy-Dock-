@@ -88,6 +88,8 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
         } catch (Throwable ignored) {
             map = null;
         }
+        // Jesli tablet jest na Wi-Fi, mapa Polski sciagnie sie sama raz w tle.
+        PolandAutoDownload.maybeStart(this, map);
 
         // warstwa przyciskow (rysowana, jak reszta UI Docka)
         controls = new Controls(this);
@@ -110,17 +112,23 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
 
     private void restoreCenter() {
         if (map == null) return;
-        double lat = 52.2297d, lon = 21.0122d;
+        double lat = 52.07d, lon = 19.48d;   // cala Polska
+        boolean hasSaved = false;
         try {
             String la = Prefs.mapLastLat(this);
             String lo = Prefs.mapLastLon(this);
             if (la.length() > 0 && lo.length() > 0) {
                 lat = Double.parseDouble(la);
                 lon = Double.parseDouble(lo);
+                hasSaved = true;
             }
         } catch (Throwable ignored) {
         }
         map.getController().setCenter(new GeoPoint(lat, lon));
+        // Bez zapisanej pozycji startujemy z widokiem calej Polski.
+        if (!hasSaved && Prefs.mapPoland(this)) {
+            map.getController().setZoom(6d);
+        }
     }
 
     private void wireDock() {

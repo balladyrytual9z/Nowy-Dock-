@@ -24,7 +24,8 @@ import pl.dock.widget.Prefs;
  * Dziala OFFLINE: kafle pochodza z pamieci aplikacji. Gdy tablet jest online
  * (i wlaczono to w Ustawieniach), mapa doklada nowe obszary.
  * Karta jest cienka nakladka na zywy MapView: naglowek + pigulka z predkoscia
- * sa rysowane przez te karte, a dotkniecie naglowka otwiera pelna Nawigacje.
+ * sa rysowane przez te karte, a dotkniecie CALEGO kafelka otwiera pelna Nawigacje
+ * (przesuwanie mapy w kafelku jest wylaczone, zeby nic nie "zjadalo" dotyku).
  */
 public class MapCard extends FrameLayout implements NightAware, MapState.Listener {
 
@@ -52,7 +53,7 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
             map = new MapView(c);
             map.setTileSource("topo".equals(Prefs.mapStyle(c))
                     ? TileSourceFactory.OpenTopo : TileSourceFactory.MAPNIK);
-            map.setMultiTouchControls(true);
+            map.setMultiTouchControls(false);
             map.setTilesScaledToDpi(true);
             map.setUseDataConnection(online);
             map.setBackgroundColor(night ? 0xFF0B0C0E : 0xFFE8E8ED);
@@ -68,43 +69,50 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
         } catch (Throwable ignored) {
             map = null;
         }
-        // Niewidzialny pasek naglowka na wierzchu mapy: dotkniecie otwiera Nawigacje,
-        // przytrzymanie pozwala podmienic kafelek na inny widzet.
-        View headerHit = new View(c);
-        headerHit.setOnClickListener(new OnClickListener() {
+        // Caly kafelek reaguje na dotkniecie (jak mapa w CarPlay):
+        //  - tapniecie      -> otwiera pelna Nawigacje,
+        //  - przytrzymanie  -> podmiana kafelka na inny widzet.
+        // Przesuwanie mapy w kafelku jest wylaczone, wiec nic nie "zjada" dotyku.
+        View tap = new View(c);
+        tap.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
                 openNav();
             }
         });
-        headerHit.setOnLongClickListener(new OnLongClickListener() {
+        tap.setOnLongClickListener(new OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
                 return MapCard.this.performLongClick();
             }
         });
-        LayoutParams hlp = new LayoutParams(LayoutParams.MATCH_PARENT, (int) (50f * d));
-        hlp.gravity = Gravity.TOP;
-        hlp.topMargin = (int) (6f * d);
-        headerHit.setLayoutParams(hlp);
-        addView(headerHit);
+        addView(tap, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         restoreCenter();
+        PolandAutoDownload.maybeStart(c, map);
     }
 
     private void restoreCenter() {
         if (map == null) return;
-        double lat = 52.2297d, lon = 21.0122d;
+        double lat = 52.07d, lon = 19.48d;   // cala Polska
+        float zoom = 6f;
+        boolean hasSaved = false;
         try {
             String la = Prefs.mapLastLat(getContext());
             String lo = Prefs.mapLastLon(getContext());
             if (la.length() > 0 && lo.length() > 0) {
                 lat = Double.parseDouble(la);
                 lon = Double.parseDouble(lo);
+                hasSaved = true;
             }
         } catch (Throwable ignored) {
         }
         try {
             map.getController().setCenter(new GeoPoint(lat, lon));
+            // Bez zapisanej pozycji startujemy z widokiem calej Polski
+            // (mozna wylaczyc: Ustawienia -> Mapy -> "Startuj z mapa Polski").
+            if (!hasSaved && Prefs.mapPoland(getContext())) {
+                map.getController().setZoom((double) zoom);
+            }
         } catch (Throwable ignored) {
         }
     }
