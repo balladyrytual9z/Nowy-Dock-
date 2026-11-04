@@ -419,19 +419,16 @@ public class BuiltinIcons {
             c.drawCircle(50 * u, 37 * u, 3.8f * u, f(PURPLE));
             c.drawLine(50 * u, 47 * u, 50 * u, 66 * u, s(PURPLE, 6 * u));
         } else if ("honda".equals(id)) {
-            // Emblemat Hondy: zwezony "H" w ramce (orientacyjna, wektorowa interpretacja)
-            Paint frame = s(0xFFE60012, 6.5f * u);
-            Path outer = new Path();
-            outer.moveTo(30 * u, 20 * u);
-            outer.lineTo(70 * u, 20 * u);
-            outer.lineTo(62 * u, 80 * u);
-            outer.lineTo(38 * u, 80 * u);
-            outer.close();
-            c.drawPath(outer, frame);
-            Paint bar = s(0xFFE60012, 9 * u);
-            c.drawLine(42 * u, 31 * u, 42 * u, 69 * u, bar);
-            c.drawLine(58 * u, 31 * u, 58 * u, 69 * u, bar);
-            c.drawLine(42 * u, 50 * u, 58 * u, 50 * u, bar);
+            // Emblemat Hondy: zaokraglona tarcza + zwezone "H" (biale, z czerwonym
+            // akcentem) - czytelne na ciemnym kaflu, w stylu reszty ikon Docka.
+            Paint red = f(0xFFE60012);
+            c.drawRoundRect(rc(u, 27, 19, 73, 81), 20 * u, 20 * u, red);
+            Paint white = f(0xFFFFFFFF);
+            c.drawRoundRect(rc(u, 32, 24, 68, 76), 16 * u, 16 * u, white);
+            Paint bar = s(0xFFE60012, 8f * u);
+            c.drawLine(41 * u, 33 * u, 41 * u, 67 * u, bar);
+            c.drawLine(59 * u, 33 * u, 59 * u, 67 * u, bar);
+            c.drawLine(41 * u, 50 * u, 59 * u, 50 * u, bar);
         }
     }
 

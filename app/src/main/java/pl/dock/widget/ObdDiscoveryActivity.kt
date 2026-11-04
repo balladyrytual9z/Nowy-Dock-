@@ -11,6 +11,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
@@ -46,6 +47,8 @@ class ObdDiscoveryActivity : Activity() {
     private lateinit var dataTv: TextView
     private lateinit var connIcon: android.widget.ImageView
     private lateinit var connText: TextView
+    private lateinit var connBtn: Button
+    private var lastState: pl.dock.widget.repository.VehicleUiState? = null
     private val scope = MainScope()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -92,6 +95,22 @@ class ObdDiscoveryActivity : Activity() {
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
         connRow.addView(connText)
+        // Przycisk polaczenia z adapterem - NA WIERZCHU ekranu OBD (obok statusu).
+        // POLACZ laczy z zapamietanym adapterem; ROZLACZ zamyka sesje.
+        connBtn = Button(this).apply {
+            isAllCaps = false
+            textSize = 13f
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                cornerRadius = 18f
+                setColor(Color.parseColor("#0A84FF"))
+            }
+            setOnClickListener { onConnButton() }
+            layoutParams = LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+            ).apply { leftMargin = 12 }
+        }
+        connRow.addView(connBtn)
         root.addView(statusTv)
         root.addView(connRow)
 
@@ -186,6 +205,32 @@ class ObdDiscoveryActivity : Activity() {
             .show()
     }
 
+    /**
+     * Przycisk polaczenia z adapterem na gorze ekranu OBD.
+     * POLACZ laczy z zapamietanym adapterem (MAC z ustawien), ROZLACZ zamyka sesje.
+     * Bez zapamietanego adaptera odsyla do skanera (SPP / BLE).
+     */
+    private fun onConnButton() {
+        val s = lastState
+        if (s?.connected == true) {
+            manager.disconnect()
+            return
+        }
+        if (s?.connecting == true) {
+            Toast.makeText(this, "Trwa laczenie z adapterem...", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val p = getSharedPreferences("obd_settings", MODE_PRIVATE)
+        val mac = p.getString("adapter_mac", "")?.trim().orEmpty()
+        if (mac.isEmpty()) {
+            Toast.makeText(this, "Najpierw wybierz adapter (SKANUJ ADAPTERY)",
+                Toast.LENGTH_LONG).show()
+            startActivity(Intent(this, ObdAdapterScanActivity::class.java))
+            return
+        }
+        manager.connect(mac, p.getBoolean("prefer_ble", false))
+    }
+
     private fun navBtn(label: String, onClick: () -> Unit): Button =
         Button(this).apply {
             text = label
@@ -203,6 +248,7 @@ class ObdDiscoveryActivity : Activity() {
         }
 
     private fun render(s: pl.dock.widget.repository.VehicleUiState) {
+        lastState = s
         // ikona polaczenia na wierzchu (zielony / bursztynowy / szary status)
         val color = when {
             s.connected -> Color.parseColor("#30D158")
@@ -216,6 +262,14 @@ class ObdDiscoveryActivity : Activity() {
             else -> "OFFLINE"
         }
         connText.setTextColor(color)
+        // przycisk na wierzchu: POLACZ / ROZLACZ (+ stan "laczenie")
+        connBtn.text = when {
+            s.connecting -> "LACZENIE..."
+            s.connected -> "ROZLACZ"
+            else -> "POLACZ Z ADAPTEREM"
+        }
+        (connBtn.background as GradientDrawable).setColor(
+            if (s.connected) Color.parseColor("#FF453A") else Color.parseColor("#0A84FF"))
         statusTv.text = when {
             s.connecting -> "Laczenie..."
             s.connected -> "Polaczono - " + s.adapterName
