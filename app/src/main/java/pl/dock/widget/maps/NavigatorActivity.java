@@ -349,7 +349,7 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
         destDistM = -1f;
         destBearing = -1f;
         if (destLine != null) destLine.setPoints(new ArrayList<GeoPoint>());
-        if (destOverlay != null) destOverlay.invalidate();
+        if (map != null) map.invalidate();
         invalidateControls();
         Toast.makeText(this, "Cel ustawiony — dotknij paska CEL, aby usunąć",
                 Toast.LENGTH_SHORT).show();
@@ -361,7 +361,7 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
         destDistM = -1f;
         destBearing = -1f;
         if (destLine != null) destLine.setPoints(new ArrayList<GeoPoint>());
-        if (destOverlay != null) destOverlay.invalidate();
+        if (map != null) map.invalidate();
         invalidateControls();
     }
 
