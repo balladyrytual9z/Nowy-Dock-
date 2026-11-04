@@ -1026,25 +1026,4 @@ public class Prefs {
     public static void setMapPoland(Context c, boolean v) {
         ed(c).putBoolean("map_poland", v).apply();
     }
-
-    // "map_wifi_auto" = sam sciagaj mape calej Polski, gdy tablet jest na Wi-Fi.
-    // Domyslnie WLACZONE, mozna wylaczyc w Ustawieniach -> Mapy.
-    public static boolean mapWifiAuto(Context c) {
-        return sp(c).getBoolean("map_wifi_auto", true);
-    }
-
-    public static void setMapWifiAuto(Context c, boolean v) {
-        ed(c).putBoolean("map_wifi_auto", v).apply();
-    }
-
-    // znacznik "mapa Polski juz pobrana" - zeby nie sciagac jej w kolko
-    public static boolean mapPolandDone(Context c) {
-        return sp(c).getBoolean("map_poland_done", false);
-    }
-
-    public static void setMapPolandDone(Context c, boolean v) {
-        ed(c).putBoolean("map_poland_done", v).apply();
-    }
 }
-
-

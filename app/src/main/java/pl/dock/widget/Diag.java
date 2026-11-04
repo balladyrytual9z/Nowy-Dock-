@@ -11,6 +11,8 @@ import java.util.Arrays;
 public class Diag {
     public static String report(Context c) {
         StringBuilder b = new StringBuilder();
+        b.append("== Ostatni crash aplikacji ==\n");
+        b.append(CrashLog.last(c)).append("\n\n");
         b.append("== Ostatni błąd widżetu ==\n");
         b.append(Prefs.sp(c).getString("lasterr", "brak")).append("\n\n");
         b.append("== WiFi / tethering ==\n");

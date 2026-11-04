@@ -270,6 +270,11 @@ public class MapDownloadActivity extends BaseActivity {
             toast("Mapa niedostępna");
             return;
         }
+        if (!BulkGuard.allowed(map)) {
+            status.setText(BulkGuard.DENIED_MSG);
+            toast(BulkGuard.DENIED_MSG);
+            return;
+        }
         // Internet tylko na czas pobierania; po zakonczeniu wracamy do poprzedniego stanu.
         final boolean prevOnline = Prefs.mapOnline(this);
         Prefs.setMapOnline(this, true);

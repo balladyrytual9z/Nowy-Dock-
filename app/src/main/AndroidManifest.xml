@@ -27,6 +27,7 @@
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 
     <application
+        android:name=".DockApp"
         android:icon="@drawable/ic_launcher"
         android:label="Dock"
         android:allowBackup="false"

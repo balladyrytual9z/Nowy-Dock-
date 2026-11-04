@@ -88,8 +88,6 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
         } catch (Throwable ignored) {
             map = null;
         }
-        // Jesli tablet jest na Wi-Fi, mapa Polski sciagnie sie sama raz w tle.
-        PolandAutoDownload.maybeStart(this, map);
 
         // warstwa przyciskow (rysowana, jak reszta UI Docka)
         controls = new Controls(this);
@@ -226,6 +224,10 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
         }
         if (!Prefs.mapOnline(this)) {
             Toast.makeText(this, "Włącz internet, aby pobrać mapy", Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (!BulkGuard.allowed(map)) {
+            Toast.makeText(this, BulkGuard.DENIED_MSG, Toast.LENGTH_LONG).show();
             return;
         }
         try {
