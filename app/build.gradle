@@ -53,13 +53,26 @@ android {
         }
     }
 
+    // Java 17 + desugaring: wymog Organic Maps SDK (natywny renderer,
+    // wyszukiwarka offline i routing). CI uzywa JDK 17 (temurin) - patrz
+    // .github/workflows/build-release.yml.
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+        // SDK OM jest budowane z desugaringiem - host musi miec to samo,
+        // inaczej klasy z AAR nie wystartuja na API 26.
+        coreLibraryDesugaringEnabled true
     }
 
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '17'
+    }
+
+    // Natywny silnik map czyta .mwm, fonty i packed_polygons.bin z APK
+    // losowym dostepem - spakowane (deflate) sa nieczytelne i mapa pada.
+    // PNG sa juz skompresowane, wiec zapis 1:1 tylko oszczedza czas.
+    androidResources {
+        noCompress.addAll(['png', 'mwm', 'ttf', 'packed_polygons.bin'])
     }
 
     packaging {
@@ -94,6 +107,10 @@ dependencies {
     // Mapy dzialaja bez internetu (kafle z pamieci), a przy podlaczonym
     // internecie dokladaja/odswiezaja obszar.
     implementation 'org.osmdroid:osmdroid-android:6.1.18'
+
+    // Wymagane przez Organic Maps SDK (Java 17 -> API 26). Artefakt lezy
+    // w repozytorium Google (google() w settings.gradle), nie na Central.
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
 
     // Testy jednostkowe (JVM) - parser ELM327 i logika czysta, bez Androida.
     testImplementation 'junit:junit:4.13.2'
