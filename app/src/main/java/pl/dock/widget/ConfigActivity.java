@@ -589,6 +589,19 @@ public class ConfigActivity extends BaseActivity {
                         }
                     }
                 }));
+        // Zgoda na rysowanie nakladki CarPlay nad Organic Maps.
+        g.addView(row(Icons.builtin(this, "nav"), "Nakładka nad Organic Maps",
+                "kółko, ETA, dock", true, p.accent, new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        try {
+                            startActivity(new Intent(
+                                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    android.net.Uri.parse("package:" + getPackageName())));
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }));
         footer(col, "Mapy działają offline z pobranych kafli. „Pobierz mapę regionu” zapisuje "
                 + "cały region (np. Mazowsze) raz przy hotspotcie; w Nawigacji możesz dodatkowo "
                 + "dociągnąć okolicę przyciskiem „Pobierz okolice”.");

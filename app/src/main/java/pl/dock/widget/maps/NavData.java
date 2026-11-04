@@ -42,12 +42,32 @@ public final class NavData {
     private volatile String speedUnit = "km/h";
     private volatile String speedLimit = "";
     private volatile long updatedAt;
+    private volatile boolean omForeground;
+    private volatile long lastOmEventAt;
 
     private NavData() {
     }
 
     public boolean isActive() {
         return navActive;
+    }
+
+    /** Czy Organic Maps jest aktualnie na wierzchu (okno aplikacji). */
+    public boolean isOmForeground() {
+        return omForeground;
+    }
+
+    /** Ile ms temu przyszlo ostatnie zdarzenie z Organic Maps. */
+    public long msSinceOmEvent() {
+        long t = lastOmEventAt;
+        return t == 0L ? Long.MAX_VALUE : System.currentTimeMillis() - t;
+    }
+
+    public void setOmForeground(boolean f) {
+        if (omForeground == f) return;
+        omForeground = f;
+        if (f) lastOmEventAt = System.currentTimeMillis();
+        notifyListeners();
     }
 
     /** Czy mamy swieze dane (nawigacja trwa i dane przyszly niedawno). */
@@ -106,6 +126,7 @@ public final class NavData {
         this.speedUnit = nz(speedUnit).isEmpty() ? "km/h" : nz(speedUnit);
         this.speedLimit = nz(speedLimit);
         this.updatedAt = System.currentTimeMillis();
+        this.lastOmEventAt = this.updatedAt;
 
         if (changed) notifyListeners();
     }
