@@ -531,6 +531,21 @@ public class ConfigActivity extends BaseActivity {
                     }
                 }));
         sep(g);
+        g.addView(toggle("Startuj z mapą Polski", Prefs.mapPoland(this), new BoolSetter() {
+            @Override
+            public void set(boolean v) {
+                Prefs.setMapPoland(ConfigActivity.this, v);
+            }
+        }));
+        sep(g);
+        g.addView(toggle("Pobieraj mapę Polski przez Wi-Fi", Prefs.mapWifiAuto(this),
+                new BoolSetter() {
+                    @Override
+                    public void set(boolean v) {
+                        Prefs.setMapWifiAuto(ConfigActivity.this, v);
+                    }
+                }));
+        sep(g);
         g.addView(toggle("Podążaj za pozycją GPS", Prefs.mapFollow(this), new BoolSetter() {
             @Override
             public void set(boolean v) {

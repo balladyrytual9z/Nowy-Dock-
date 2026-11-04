@@ -970,9 +970,10 @@ public class Prefs {
 
     // ---------- mapy offline (osmdroid) ----------
     // "map_online" = dokladanie kafli z internetu (gdy tablet jest online).
-    // Domyslnie WYLACZONE: mapy dzialaja z pobranego wczesniej obszaru (offline).
+    // Domyslnie WLACZONE, zeby mapa od razu cos pokazywala. Mozna wylaczyc
+    // w Ustawieniach -> Mapy i wtedy dziala tylko z pobranego obszaru (offline).
     public static boolean mapOnline(Context c) {
-        return sp(c).getBoolean("map_online", false);
+        return sp(c).getBoolean("map_online", true);
     }
 
     public static void setMapOnline(Context c, boolean v) {
@@ -1014,6 +1015,35 @@ public class Prefs {
 
     public static void setMapFollow(Context c, boolean v) {
         ed(c).putBoolean("map_follow", v).apply();
+    }
+
+    // "map_poland" = po wejsciu w mape pokazuj od razu cala Polske (gdy nie ma
+    // zapisanej ostatniej pozycji). Domyslnie WLACZONE, mozna wylaczyc w Ustawieniach.
+    public static boolean mapPoland(Context c) {
+        return sp(c).getBoolean("map_poland", true);
+    }
+
+    public static void setMapPoland(Context c, boolean v) {
+        ed(c).putBoolean("map_poland", v).apply();
+    }
+
+    // "map_wifi_auto" = sam sciagaj mape calej Polski, gdy tablet jest na Wi-Fi.
+    // Domyslnie WLACZONE, mozna wylaczyc w Ustawieniach -> Mapy.
+    public static boolean mapWifiAuto(Context c) {
+        return sp(c).getBoolean("map_wifi_auto", true);
+    }
+
+    public static void setMapWifiAuto(Context c, boolean v) {
+        ed(c).putBoolean("map_wifi_auto", v).apply();
+    }
+
+    // znacznik "mapa Polski juz pobrana" - zeby nie sciagac jej w kolko
+    public static boolean mapPolandDone(Context c) {
+        return sp(c).getBoolean("map_poland_done", false);
+    }
+
+    public static void setMapPolandDone(Context c, boolean v) {
+        ed(c).putBoolean("map_poland_done", v).apply();
     }
 }
 
