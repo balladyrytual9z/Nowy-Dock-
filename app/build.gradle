@@ -72,6 +72,15 @@ android {
         abortOnError false
         checkReleaseBuilds false
     }
+
+    testOptions {
+        // Testy JVM moga ladowac klasy ze statycznymi polami Androida
+        // (np. PanelTool ma statyczny Paint) - stub zwraca wartosci
+        // domyslne zamiast rzucac wyjatek "not mocked".
+        unitTests {
+            returnDefaultValues = true
+        }
+    }
 }
 
 dependencies {

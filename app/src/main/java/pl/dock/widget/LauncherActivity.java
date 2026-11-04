@@ -517,7 +517,12 @@ public class LauncherActivity extends BaseActivity {
         dotsApps.setAlpha(0f);
         lastDockSig = "";
 
-        // Gest swipe UP od dołu → centrum łączności (środek panelu nad palcem)
+        // Gest swipe UP od dołu → centrum łączności (środek panelu nad palcem).
+        // NAPRAWA (root cause): poprzednia wersja zwracała false w ACTION_DOWN,
+        // więc framework uznawał, że nikt nie konsumuje dotyku i ACTION_UP nigdy
+        // nie przychodził - warunek swipe'u był martwym kodem, panel nie otwierał
+        // się w ogóle. Teraz DOWN w dolnej strefie (120dp) jest konsumowany
+        // (return true), dzięki czemu MOVE/UP docierają i gest działa.
         if (Prefs.overlayEnabled(this)) {
             root.setOnTouchListener(new View.OnTouchListener() {
                 private float downY, downX;
@@ -530,12 +535,14 @@ public class LauncherActivity extends BaseActivity {
                             downY = e.getY();
                             downX = e.getX();
                             downT = System.currentTimeMillis();
-                            return false;
+                            // konsumujemy dotyk TYLKO w strefie gestu; poza nią
+                            // dotyk przechodzi normalnie do stron launchera
+                            return OverlayTrigger.inSwipeZone(downY, root.getHeight(),
+                                    Ui.dp(LauncherActivity.this, 120));
                         case android.view.MotionEvent.ACTION_UP: {
-                            float dy = downY - e.getY();
                             long dt = System.currentTimeMillis() - downT;
-                            if (dy > Ui.dp(LauncherActivity.this, 80) && dt < 500
-                                    && downY > root.getHeight() - Ui.dp(LauncherActivity.this, 120)) {
+                            if (OverlayTrigger.isSwipeUp(downY, e.getY(), dt,
+                                    Ui.dp(LauncherActivity.this, 80), 500)) {
                                 showOverlayAt(downX);
                                 return true;
                             }
@@ -1467,72 +1474,57 @@ public class LauncherActivity extends BaseActivity {
         });
         boolean left = Ui.dockLeft(this);
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
-        int panelW = Math.min(Ui.dp(this, 560), Ui.windowWidth(this) - Ui.dp(this, 24));
+        // szerokość panelu: min 240dp, maks 560dp i nigdy szersza niż ekran - 24dp
+        int panelW = Math.max(Ui.dp(this, 240),
+                Math.min(Ui.dp(this, 560), Ui.windowWidth(this) - Ui.dp(this, 24)));
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 panelW, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.START);
-        int panelX;
-        if (Prefs.overlayFollowGesture(this) && gestureX > 0) {
-            panelX = (int) (gestureX - panelW / 2f);
-            panelX = Math.max(Ui.dp(this, 8), Math.min(panelX, root.getWidth() - panelW - Ui.dp(this, 8)));
-            if (left && panelX < dockPx) panelX = dockPx + Ui.dp(this, 8);
-            if (!left && panelX + panelW > root.getWidth() - dockPx) {
-                panelX = root.getWidth() - dockPx - panelW - Ui.dp(this, 8);
-            }
-        } else {
-            panelX = left ? dockPx + Ui.dp(this, 8) : Ui.dp(this, 8);
-        }
+        // pozycja X: środek panelu nad palcem (gdy follow) z clampingiem;
+        // logika w czystej klasie OverlayTrigger pokryta testami jednostkowymi
+        int panelX = OverlayTrigger.panelX(gestureX, panelW, root.getWidth(),
+                dockPx, left, Prefs.overlayFollowGesture(this), Ui.dp(this, 8));
         lp.leftMargin = panelX;
         lp.topMargin = Ui.dp(this, 12);
         overlay.addView(panel, lp);
-        root.addView(overlay, root.indexOfChild(dock), new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        // defensive: dodajemy pod dok (nad resztą). indexOfChild może dać -1
+        // w krótkim oknie po odbudowie UI - wtedy zwykły addView na wierzch.
+        int underDock = root.indexOfChild(dock);
+        if (underDock >= 0) {
+            root.addView(overlay, underDock, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        } else {
+            root.addView(overlay, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        }
+        // NAPRAWA (root cause): ŻADNEJ animacji wejścia na samym panelu.
+        // Wcześniej ViewPropertyAnimator (scale/pivot/translate/Overshoot)
+        // wymuszał re-render całego panelu co klatkę, a każdy z dzieci-
+        // przycisków przy okazji invalide'ował drzewo. Na MT8163 (Mali-T720,
+        // Android 9) ViewPropertyAnimator na dzieciach nie wyświeżał
+        // rysowania - panel pojawiał się pusty. Teraz panel wchodzi od razu
+        // w finalnym rozmiarze/pozycji; animowany jest tylko overlay (alpha).
+        // Overlay to zwykły fade - nie skaluje i nie przesuwa dzieci.
         overlay.setAlpha(0f);
-        overlay.animate().alpha(1f).setDuration(Prefs.reduceMotion(this) ? 0 : 220).start();
-        panel.setScaleX(0.92f);
-        panel.setScaleY(0.92f);
-        panel.setTranslationY(Ui.dp(this, 40));
-        panel.setPivotX(panelW / 2f);
-        panel.setPivotY(0f);
-        panel.animate().scaleX(1f).scaleY(1f).translationY(0f)
-                .setDuration(Prefs.reduceMotion(this) ? 0 : 280)
-                .setInterpolator(new android.view.animation.OvershootInterpolator(0.9f))
-                .withEndAction(new Runnable() {
-                    @Override
-                    public void run() {
-                        // NAPRAWA: wymuszony re-layout po animacji - na MT8163
-                        // pierwszy pomiar panelu w animowanej overlay potrafil
-                        // wyjsc 0x0 i tresc nigdy sie nie rysowala.
-                        if (panel != null) {
-                            panel.requestLayout();
-                            panel.invalidate();
-                        }
-                        if (overlay != null) overlay.invalidate();
-                    }
-                })
-                .start();
+        if (Prefs.reduceMotion(this)) {
+            overlay.setAlpha(1f);
+        } else {
+            overlay.animate().alpha(1f).setDuration(200).start();
+        }
     }
 
     private void hideOverlay(boolean animate) {
         final FrameLayout ov = overlay;
         if (ov == null) return;
-        final ConnectivityPanel p = panel;
         overlay = null;
         panel = null;
         if (!animate || Prefs.reduceMotion(this)) {
             root.removeView(ov);
             return;
         }
-        // Reverse of open: fade + slight scale/translate, then remove after animation ends
-        if (p != null) {
-            p.animate()
-                    .scaleX(0.92f).scaleY(0.92f)
-                    .translationY(-Ui.dp(LauncherActivity.this, 18))
-                    .setDuration(220)
-                    .setInterpolator(new android.view.animation.AccelerateInterpolator())
-                    .start();
-        }
-        ov.animate().alpha(0f).setDuration(220)
-                .setInterpolator(new android.view.animation.AccelerateInterpolator())
+        // Tylko fade overlay - żadnego scale/translate na panelu (zob. NAPRAWA
+        // w showOverlayAt: animacje transformacyjne na panelu nie wyświeżają
+        // poprawnie rysowania dzieci na MT8163 i po drodze psuły layout).
+        ov.animate().alpha(0f).setDuration(180)
                 .setListener(new AnimatorListenerAdapter() {
                     @Override
                     public void onAnimationEnd(Animator a) {

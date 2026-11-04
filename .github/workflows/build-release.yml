@@ -86,6 +86,38 @@ jobs:
           echo "Uruchamianie testów..." | tee -a "$RUNNER_TEMP/ci.log"
           gradle --no-daemon test 2>&1 | tee -a "$RUNNER_TEMP/ci.log"
 
+      # Diagnostyka: przy padzie testow wypisz failing testy i ogon logu
+      # do publicznego podsumowania runa (logi krokow wymagaja logowania).
+      - name: Report failing tests
+        if: failure()
+        shell: bash
+        run: |
+          set -uo pipefail
+          cd "$GITHUB_WORKSPACE"
+          FOUND=0
+          for f in app/build/test-results/*/*.xml; do
+            [ -f "$f" ] || continue
+            if grep -q 'failures="[1-9]' "$f" 2>/dev/null || grep -q 'errors="[1-9]' "$f" 2>/dev/null; then
+              FOUND=1
+              {
+                echo "### Failing suite: $f"
+                echo '```xml'
+                cat "$f"
+                echo '```'
+              } >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          if [ "$FOUND" = "0" ]; then
+            echo "### Brak raportow testow z bledami" >> "$GITHUB_STEP_SUMMARY"
+            echo "Prawdopodobny blad kompilacji - patrz ogon logu ponizej." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          {
+            echo "### Ogon logu CI (ostatnie 300 linii)"
+            echo '```'
+            tail -n 300 "$RUNNER_TEMP/ci.log" 2>/dev/null || echo "(brak ci.log)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Build Android APK (Debug, stable signing, auto versionCode)
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
