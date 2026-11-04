@@ -1608,7 +1608,17 @@ public class LauncherActivity extends BaseActivity {
             });
             l = mc;
         }
-        if (rt == null) rt = new HomeSections.Slot(this, "hr", cb);
+        if (rt == null) {
+            final pl.dock.widget.maps.NavCard nc = new pl.dock.widget.maps.NavCard(this);
+            nc.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View x) {
+                    showWidgetPicker("hr");
+                    return true;
+                }
+            });
+            rt = nc;
+        }
         for (View v : new View[]{l, rt}) {
             if (v.getTag() instanceof WidgetEntry) {
                 final WidgetEntry we = (WidgetEntry) v.getTag();
