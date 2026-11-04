@@ -214,6 +214,10 @@ class ObdCoreService : Service() {
     private fun autoConnect() {
         val mac = obdPrefs.getString("adapter_mac", "")?.trim().orEmpty()
         if (mac.isEmpty()) return
+        // Stale wiazanie (pref "pair_lock", domyslnie wlaczone): gdy kierowca je
+        // wylaczy, aplikacja nie laczy sie automatycznie w tle i nie przeskakuje
+        // na zapamietany adapter - polaczenie wybiera sie recznie z ekranu skanu.
+        if (!obdPrefs.getBoolean("pair_lock", true)) return
         val preferBle = obdPrefs.getBoolean("prefer_ble", false)
         scope.launch {
             delay(1500)   // settle po BOOT_COMPLETED / starcie radia
