@@ -10,6 +10,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import pl.dock.widget.repository.EngineStateLabel
 import pl.dock.widget.repository.StaleFlags
 import pl.dock.widget.repository.VehicleUiState
@@ -69,6 +71,7 @@ class ConnectionManager(
     private var scheduler: PidScheduler? = null
     private var daemon: ConnectionDaemon? = null
     private val engineState = EngineState()
+    private val lifecycleMutex = Mutex()
 
     private val stale = mutableMapOf<String, Boolean>()
 
@@ -93,82 +96,92 @@ class ConnectionManager(
      */
     fun connect(address: String, preferBle: Boolean = false) {
         scope.launch {
-            _uiState.value = _uiState.value.copy(
-                connecting = true,
-                connected = false,
-                lastError = null
-            )
-            try {
-                val t: ElmTransport = if (preferBle) {
-                    BleTransport(appContext)
-                } else {
-                    SppTransport()
+            lifecycleMutex.withLock { doConnect(address, preferBle) }
+        }
+    }
+
+    private suspend fun doConnect(address: String, preferBle: Boolean) {
+        // 1) zawsze zamykamy poprzednią sesję - inaczej zostaje żywy stary
+        //    PidScheduler i dwa sockety piszą do jednego adaptera
+        stopBtWatch()
+        try { scheduler?.shutdown() } catch (_: Exception) {}
+        scheduler = null
+        try { daemon?.stop() } catch (_: Exception) {}
+        daemon = null
+        try { session?.close() } catch (_: Exception) {}
+        session = null
+        transport = null
+
+        _uiState.value = _uiState.value.copy(
+            connecting = true,
+            connected = false,
+            lastError = null
+        )
+        try {
+            val t: ElmTransport = if (preferBle) BleTransport(appContext) else SppTransport()
+            transport = t
+            t.connect(address)
+
+            val serviceMode = appContext
+                .getSharedPreferences("obd_settings", Context.MODE_PRIVATE)
+                .getBoolean("service_mode", false)
+            engineState.crankingProtect = appContext
+                .getSharedPreferences("obd_settings", Context.MODE_PRIVATE)
+                .getBoolean("cranking_protect", true)
+            val s = ElmSession(t, serviceMode = serviceMode)
+            session = s
+            s.initialize()
+
+            val sched = PidScheduler(
+                session = s,
+                engineState = engineState,
+                onPidResult = { pid, raw, _ -> handlePid(pid, raw) },
+                onStale = { pid -> markStale(pid) },
+                onVoltage = { v ->
+                    engineState.updateVoltage(v)
+                    publish()
                 }
-                transport = t
-                t.connect(address)
+            )
+            scheduler = sched
+            sched.start()
 
-                // Read-Only Safety Lock: przy restarcie aplikacji przywracamy
-                // stan flagi z prefs (domyslnie wylaczony).
-                val serviceMode = appContext
-                    .getSharedPreferences("obd_settings", Context.MODE_PRIVATE)
-                    .getBoolean("service_mode", false)
-                // Ochrona rozruchu wg ustawien (domyslnie wlaczona)
-                engineState.crankingProtect = appContext
-                    .getSharedPreferences("obd_settings", Context.MODE_PRIVATE)
-                    .getBoolean("cranking_protect", true)
-                val s = ElmSession(t, serviceMode = serviceMode)
-                session = s
-                s.initialize()
+            val d = ConnectionDaemon(t, scope)
+            daemon = d
+            d.start(address)
+            startBtWatch()
 
-                val sched = PidScheduler(
-                    session = s,
-                    engineState = engineState,
-                    onPidResult = { pid, raw, _ -> handlePid(pid, raw) },
-                    onStale = { pid -> markStale(pid) },
-                    onVoltage = { v ->
-                        engineState.updateVoltage(v)
-                        publish()
-                    }
-                )
-                scheduler = sched
-                sched.start()
-
-                val d = ConnectionDaemon(t, scope)
-                daemon = d
-                d.start(address)
-                startBtWatch()
-
-                _uiState.value = _uiState.value.copy(
-                    connected = true,
-                    connecting = false,
-                    adapterName = address,
-                    protocol = "ISO 15765-4 CAN 11-bit 500k",
-                    engineState = engineState.label
-                )
-            } catch (e: Exception) {
-                Log.e(TAG, "Connect failed", e)
-                _uiState.value = _uiState.value.copy(
-                    connected = false,
-                    connecting = false,
-                    lastError = e.message ?: "unknown"
-                )
-            }
+            _uiState.value = _uiState.value.copy(
+                connected = true,
+                connecting = false,
+                adapterName = address,
+                protocol = "ISO 15765-4 CAN 11-bit 500k",
+                engineState = engineState.label
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Connect failed", e)
+            _uiState.value = _uiState.value.copy(
+                connected = false,
+                connecting = false,
+                lastError = e.message ?: "unknown"
+            )
         }
     }
 
     fun disconnect() {
         stopBtWatch()
         scope.launch {
-            scheduler?.shutdown()
-            scheduler = null
-            daemon?.stop()
-            daemon = null
-            session?.close()
-            session = null
-            transport = null
-            engineState.reset()
-            stale.clear()
-            _uiState.value = VehicleUiState()
+            lifecycleMutex.withLock {
+                scheduler?.shutdown()
+                scheduler = null
+                daemon?.stop()
+                daemon = null
+                try { session?.close() } catch (_: Exception) {}
+                session = null
+                transport = null
+                engineState.reset()
+                stale.clear()
+                _uiState.value = VehicleUiState()
+            }
         }
     }
 
