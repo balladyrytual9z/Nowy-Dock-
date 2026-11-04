@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="om_accessibility_summary">Odczyt danych nawigacji z Organic Maps (manewry, ETA, limit prędkości) na potrzeby kafelków i nakładki Docka.</string>
+    <string name="om_accessibility_desc">Dock czyta z ekranu Organic Maps: dystans i kierunek następnego manewru, nazwę ulicy, czas dojazdu (ETA), pozostały czas i dystans oraz limit prędkości - żeby pokazać je na kafelkach i nakładce w stylu CarPlay. Dane zostają na tablecie i nie są nigdzie wysyłane.</string>
+</resources>

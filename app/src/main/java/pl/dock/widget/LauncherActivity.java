@@ -1634,6 +1634,8 @@ public class LauncherActivity extends BaseActivity {
                 v = new CardWidgets.WorldClockCard(this);
             } else if (e.id == -8) {
                 v = new pl.dock.widget.maps.MapCard(this);
+            } else if (e.id == -9) {
+                v = new pl.dock.widget.maps.NavCard(this);
             }
             if (v != null) {
                 ((NightAware) v).setNight(night);
@@ -1654,9 +1656,9 @@ public class LauncherActivity extends BaseActivity {
         if (where.startsWith("s") && stacksPage == null) return;
         PackageManager pm = getPackageManager();
         final List<String> labels = new ArrayList<String>();
-        final int[] builtIns = {-1, -2, -3, -4, -5, -6, -7, -8};
+        final int[] builtIns = {-1, -2, -3, -4, -5, -6, -7, -8, -9};
         String[] bn = {"Zegar analogowy", "Odtwarzane", "Pogoda", "Zachód słońca", "Data",
-                "Kalendarz", "Zegary świata", "Mapy (offline)"};
+                "Kalendarz", "Zegary świata", "Mapy (offline)", "Nawigacja"};
         for (String s : bn) labels.add(s);
         final PackageManager pmf = pm;
         final List<AppWidgetProviderInfo> sorted =

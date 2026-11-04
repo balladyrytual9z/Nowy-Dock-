@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Konfiguracja uslugi dostepnosci Docka.
+
+  Uwaga: usluga nasluchuje WYLACZNIE pakietu Organic Maps (packageNames),
+  zeby nie czytac niczego innego. flagReportViewIds daje nazwy identyfikatorow
+  widokow (np. distance_value, time_estimate), po ktorych precyzyjnie
+  odczytujemy dane nawigacji.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagReportViewIds|flagIncludeNotImportantViews"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/om_accessibility_desc"
+    android:notificationTimeout="150"
+    android:packageNames="app.organicmaps"
+    android:summary="@string/om_accessibility_summary" />

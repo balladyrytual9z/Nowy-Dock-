@@ -576,6 +576,19 @@ public class ConfigActivity extends BaseActivity {
                         }
                     }
                 }));
+        sep(g);
+        // Wlaczenie odczytu danych z Organic Maps (manewry, ETA, limit predkosci).
+        g.addView(row(Icons.builtin(this, "nav"), "Odczyt danych z Organic Maps",
+                "manewry, ETA, limit", true, p.accent, new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        try {
+                            startActivity(new Intent(
+                                    android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS));
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }));
         footer(col, "Mapy działają offline z pobranych kafli. „Pobierz mapę regionu” zapisuje "
                 + "cały region (np. Mazowsze) raz przy hotspotcie; w Nawigacji możesz dodatkowo "
                 + "dociągnąć okolicę przyciskiem „Pobierz okolice”.");
