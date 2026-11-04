@@ -32,6 +32,7 @@ public final class MapState {
     private final List<Listener> listeners = new ArrayList<Listener>();
 
     private Location last;
+    private volatile long lastFixAt;
     private boolean listening;
 
     private final LocationListener gpsListener = new LocationListener() {
@@ -39,6 +40,7 @@ public final class MapState {
         public void onLocationChanged(Location l) {
             if (l != null) {
                 last = l;
+                lastFixAt = System.currentTimeMillis();
                 dispatch();
             }
         }
@@ -137,6 +139,18 @@ public final class MapState {
 
     public boolean hasFix() {
         return last != null;
+    }
+
+    /** Kiedy przyszla OSTATNIA swieza pozycja z GPS (0 = nigdy). Sluzy do
+     *  odroznienia swiezego fix'a od starej "ostatniej znanej pozycji". */
+    public long lastFixAt() {
+        return lastFixAt;
+    }
+
+    /** Wolane po nadaniu zgody na lokalizacje: startuje nasluch GPS. */
+    public void onPermissionGranted() {
+        start();
+        dispatchSoon();
     }
 
     public double lastLat() {

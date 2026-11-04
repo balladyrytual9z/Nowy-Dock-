@@ -224,24 +224,19 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
     public void onLocation(double lat, double lon, float bearing, float speedMs, boolean hasFix) {
         this.hasFix = hasFix;
         this.speedMs = speedMs;
-        if (!centeredOnce && hasFix && map != null && !hasSavedPosition()) {
+        // Auto-centrowanie TYLKO na swiezym fix'ie GPS (MapState podaje tez
+        // stare "ostatnie znane pozycje", a wtedy nie ma co przeskakiwac -
+        // mapa po prostu znikala, bo na nowym zoomie nie bylo kafli).
+        if (!centeredOnce && hasFix && map != null
+                && System.currentTimeMillis() - MapState.get(getContext()).lastFixAt() < 15000L) {
             centeredOnce = true;
             try {
                 map.getController().setCenter(new GeoPoint(lat, lon));
-                map.getController().setZoom(15d);
+                map.getController().setZoom(13d);
             } catch (Throwable ignored) {
             }
         }
         invalidate();
-    }
-
-    private boolean hasSavedPosition() {
-        try {
-            Context c = getContext();
-            return Prefs.mapLastLat(c).length() > 0 && Prefs.mapLastLon(c).length() > 0;
-        } catch (Throwable t) {
-            return false;
-        }
     }
 
     // ---- rysowanie nakladki (naglowek + pigulka predkosci) ----

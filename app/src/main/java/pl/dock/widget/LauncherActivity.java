@@ -186,6 +186,19 @@ public class LauncherActivity extends BaseActivity {
     }
 
     @Override
+    protected void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_LOC && grantResults != null && grantResults.length > 0
+                && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            // Po nadaniu zgody uruchamiamy nasluch GPS (kafelek mapy).
+            try {
+                pl.dock.widget.maps.MapState.get(this).onPermissionGranted();
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    @Override
     protected void onStart() {
         super.onStart();
         visible = true;
