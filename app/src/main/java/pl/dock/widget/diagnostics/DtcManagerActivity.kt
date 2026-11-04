@@ -12,6 +12,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import pl.dock.widget.orchestration.ConnectionManager
 
@@ -31,6 +32,7 @@ class DtcManagerActivity : Activity() {
     private lateinit var ffBtn: Button
     private lateinit var vinBtn: Button
     private var busy = false
+    private val scope = MainScope()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -104,7 +106,7 @@ class DtcManagerActivity : Activity() {
         readBtn.isEnabled = false
         statusTv.text = "Odczyt kodow (Mode 03/07)..."
         list.removeAllViews()
-        MainScope().launch {
+        scope.launch {
             val confirmed = Dtc.parse(manager.rawRequest("03"), pending = false)
             val pending = Dtc.parse(manager.rawRequest("07"), pending = true)
             val all = confirmed + pending.filter { p -> confirmed.none { it.code == p.code } }
@@ -125,7 +127,7 @@ class DtcManagerActivity : Activity() {
         busy = true
         clearBtn.isEnabled = false
         statusTv.text = "Kasowanie kodow (Mode 04)..."
-        MainScope().launch {
+        scope.launch {
             val ok = Dtc.clearSucceeded(manager.rawRequest("04"))
             busy = false
             statusTv.text = if (ok)
@@ -140,7 +142,7 @@ class DtcManagerActivity : Activity() {
         busy = true
         ffBtn.isEnabled = false
         statusTv.text = "Odczyt Freeze Frame (Mode 02)..."
-        MainScope().launch {
+        scope.launch {
             val raw = manager.rawRequest("02")
             busy = false
             ffBtn.isEnabled = true
@@ -160,7 +162,7 @@ class DtcManagerActivity : Activity() {
         busy = true
         vinBtn.isEnabled = false
         statusTv.text = "Odczyt VIN (Mode 09)..."
-        MainScope().launch {
+        scope.launch {
             val raw = manager.rawRequest("0902")
             busy = false
             vinBtn.isEnabled = true
@@ -241,5 +243,10 @@ class DtcManagerActivity : Activity() {
         card.addView(headRow)
         card.addView(bodyTv)
         return card
+    }
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
     }
 }
