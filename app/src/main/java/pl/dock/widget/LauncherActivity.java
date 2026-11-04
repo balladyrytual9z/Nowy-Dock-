@@ -462,7 +462,7 @@ public class LauncherActivity extends BaseActivity {
                 // slabym GPU tabletu) - snapshot robimy dopiero po osiadnieciu strony
                 dotsTop.setAlpha(1f - t);
                 dotsApps.setAlpha(t);
-                int topCount = homeIdx + 2;
+                int topCount = homeIdx + 1;
                 dotsTop.set(topCount, Math.min(pos, topCount - 1));
                 dotsApps.set(Math.max(1, appPages.size() + 1), pos - appsStart);
             }
@@ -481,7 +481,7 @@ public class LauncherActivity extends BaseActivity {
         buildWidgetPages();
         assemblePages();
         // Fix race condition: set page indicators immediately (report: Dot Indicators symmetry)
-        int topCount = homeIdx + 2;
+        int topCount = homeIdx + 1;
         dotsTop.set(topCount, homeIdx);
         dotsApps.set(Math.max(1, appPages.size() + 1), 0f);
         dotsTop.setAlpha(1f);
@@ -748,7 +748,7 @@ public class LauncherActivity extends BaseActivity {
 
             cell.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    dismissLibraryOverlay(overlay, blurBmp);
+                    closeLibraryFolder();
                     openApp(e.pkg, Math.round(pager.position()));
                 }
             });
@@ -787,7 +787,7 @@ public class LauncherActivity extends BaseActivity {
         // Tap outside / empty area closes
         overlay.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
-                dismissLibraryOverlay(overlay, blurBmp);
+                closeLibraryFolder();
             }
         });
         col.setOnClickListener(new View.OnClickListener() {
