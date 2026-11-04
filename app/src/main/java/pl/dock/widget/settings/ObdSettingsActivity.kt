@@ -29,6 +29,21 @@ class ObdSettingsActivity : Activity() {
     private lateinit var tabs: Array<Button>
     private var pageIndex = 0
 
+    // NAPRAWA "przycisk nie zapisuje": EditText zapisywal wartosc dopiero
+    // przy utracie fokusu, ale na dotyku klik przycisku/zakladki NIE odbiera
+    // fokusu, wiec wartosc nigdy nie byla zapisywana. Rejestrujemy jawne
+    // savery i zapisujemy WSZYSTKIE pola przed kazda akcja + w onPause.
+    private val fieldSavers = ArrayList<() -> Unit>()
+
+    private fun saveAllFields() {
+        for (s in fieldSavers) s()
+    }
+
+    override fun onPause() {
+        saveAllFields()
+        super.onPause()
+    }
+
     private fun sp() = getSharedPreferences("obd_settings", MODE_PRIVATE)
 
     private fun backBtn(): Button =
@@ -94,6 +109,7 @@ class ObdSettingsActivity : Activity() {
     }
 
     private fun showTab(i: Int) {
+        saveAllFields()   // NAPRAWA: zmiana zakladki nie odbiera fokusu z pola
         pageIndex = i
         for (j in pages.indices) {
             pages[j].visibility = if (j == i) View.VISIBLE else View.GONE
@@ -141,6 +157,7 @@ class ObdSettingsActivity : Activity() {
                 toast("Zapisano")
             }
         }
+        fieldSavers.add { sp().edit().putString(key, et.text.toString()).apply() }
         return et
     }
 
@@ -263,6 +280,7 @@ class ObdSettingsActivity : Activity() {
                 setColor(Color.parseColor("#0A84FF"))
             }
             setOnClickListener {
+                saveAllFields()   // NAPRAWA: zapis lat/lon PRZED przeliczeniem
                 val lat = sp().getString("lat", "52.23")?.toDoubleOrNull() ?: 52.23
                 val lon = sp().getString("lon", "21.01")?.toDoubleOrNull() ?: 21.01
                 val ss = SolarTimes.sunriseSunset(lat, lon, Calendar.getInstance())

@@ -74,6 +74,11 @@ class ConnectionManager(
     private val engineState = EngineState()
     private val lifecycleMutex = Mutex()
 
+    // NAPRAWA: obserwator stanu transportu (zerwanie/reconnect) + flaga,
+    // ze po auto-reconnectcie daemonem sesja ELM wymaga pelnej re-inicjalizacji
+    private var stateJob: Job? = null
+    @Volatile private var needsReinit = false
+
     private val stale = mutableMapOf<String, Boolean>()
 
     /**
@@ -105,6 +110,8 @@ class ConnectionManager(
         // 1) zawsze zamykamy poprzednią sesję - inaczej zostaje żywy stary
         //    PidScheduler i dwa sockety piszą do jednego adaptera
         stopBtWatch()
+        stateJob?.cancel()
+        stateJob = null
         try { scheduler?.shutdown() } catch (_: Exception) {}
         scheduler = null
         try { daemon?.stop() } catch (_: Exception) {}
@@ -151,6 +158,56 @@ class ConnectionManager(
             d.start(address)
             startBtWatch()
 
+            // NAPRAWA: obserwacja stanu transportu. Wczesniej po zerwaniu
+            // socketa (zasieg, energia adaptera, restart BT) uiState trzymal
+            // "OBD OK" i przyciski operacyjne (kasowanie DTC, terminal)
+            // pracowaly na martwym polaczeniu. Teraz:
+            //  - DISCONNECTED/FAILED -> natychmiast OFFLINE + lastError,
+            //  - CONNECTED po padzie (auto-reconnect daemonem) -> pelna
+            //    ponowna inicjalizacja sesji ELM (ATZ/ATE0/ATSP6/ATH1/...),
+            //    bo adapter po restarcie zapomina ustawienia.
+            stateJob = scope.launch {
+                var wasConnected = false
+                t.connectionState.collect { st ->
+                    when (st) {
+                        TransportState.CONNECTED -> {
+                            wasConnected = true
+                            if (needsReinit) {
+                                needsReinit = false
+                                scope.launch {
+                                    try {
+                                        session?.initialize()
+                                        _uiState.value = _uiState.value.copy(
+                                            connected = true,
+                                            connecting = false,
+                                            lastError = null
+                                        )
+                                        Log.i(TAG, "ELM session re-initialized after reconnect")
+                                    } catch (e: Exception) {
+                                        _uiState.value = _uiState.value.copy(
+                                            connected = false,
+                                            connecting = false,
+                                            lastError = e.message ?: "re-init failed"
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        TransportState.DISCONNECTED, TransportState.FAILED -> {
+                            if (wasConnected) {
+                                wasConnected = false
+                                needsReinit = true
+                                _uiState.value = _uiState.value.copy(
+                                    connected = false,
+                                    lastError = "Polaczenie z adapterem zerwane (auto-reconnect)"
+                                )
+                            }
+                        }
+                        else -> {}
+                    }
+                }
+            }
+
             _uiState.value = _uiState.value.copy(
                 connected = true,
                 connecting = false,
@@ -170,6 +227,9 @@ class ConnectionManager(
 
     fun disconnect() {
         stopBtWatch()
+        stateJob?.cancel()
+        stateJob = null
+        needsReinit = false
         scope.launch {
             lifecycleMutex.withLock {
                 scheduler?.shutdown()
