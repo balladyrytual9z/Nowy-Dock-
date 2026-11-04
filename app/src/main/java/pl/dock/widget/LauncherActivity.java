@@ -780,7 +780,7 @@ public class LauncherActivity extends BaseActivity {
             lb.setEllipsize(android.text.TextUtils.TruncateAt.END);
             lb.setPadding(0, Ui.dp(this, 10), 0, 0);
             cell.addView(lb, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                    Ui.dp(this, 124), ViewGroup.LayoutParams.WRAP_CONTENT));
 
             cell.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
@@ -1304,7 +1304,7 @@ public class LauncherActivity extends BaseActivity {
     // ------------------------------------------------- dok a ekrany systemowe
     // Android celowo blokuje rysowanie ponad bezpiecznymi ekranami (Ustawienia,
     // odinstalowanie, uprawnienia) - tego nie da sie obejsc bez roota. Zamiast
-    // naglego znikania doka robiemy zamierzone, plynne przejscie: dok "celowo"
+    // naglego znikania doka robiimy zamierzone, plynne przejscie: dok "celowo"
     // wyjezdza za krawedz przy otwieraniu ekranu systemowego i plynnie wraca
     // po powrocie (iluzja intencjonalnego designu jak w iOS).
     private void dockSlideIn() {
@@ -1671,7 +1671,7 @@ public class LauncherActivity extends BaseActivity {
         Collections.sort(sorted, new Comparator<AppWidgetProviderInfo>() {
             @Override
             public int compare(AppWidgetProviderInfo a, AppWidgetProviderInfo b) {
-                return a.loadLabel(pmf).compareTo(b.loadLabel(pmf));
+                return a.loadLabel(pmf).compareToIgnoreCase(b.loadLabel(pmf));
             }
         });
         for (AppWidgetProviderInfo i : sorted) {
@@ -2014,3 +2014,9 @@ public class LauncherActivity extends BaseActivity {
         if (currentRef != null && currentRef.get() == this) currentRef = null;
     }
 }
+
+
+
+
+
+
