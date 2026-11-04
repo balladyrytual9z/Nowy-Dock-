@@ -104,6 +104,16 @@
             </intent-filter>
         </activity>
 
+        <!-- Pobieranie map offline: całe regiony (np. Mazowsze) raz przy hotspotcie.
+             Ekran uruchamiany z Ustawien -> Mapy (offline). -->
+        <activity
+            android:name=".maps.MapDownloadActivity"
+            android:label="Pobierz mapy offline"
+            android:launchMode="singleTop"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:configChanges="orientation|screenSize|keyboardHidden|density|uiMode|fontScale"
+            android:exported="false" />
+
         <activity
             android:name=".AppsActivity"
             android:label="Aplikacje"

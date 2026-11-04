@@ -538,6 +538,18 @@ public class ConfigActivity extends BaseActivity {
             }
         }));
         sep(g);
+        g.addView(row(Icons.builtin(this, "nav"), "Pobierz mapę regionu", "offline", true, p.accent,
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        try {
+                            startActivity(new Intent(ConfigActivity.this,
+                                    pl.dock.widget.maps.MapDownloadActivity.class));
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }));
+        sep(g);
         g.addView(row(Icons.builtin(this, "nav"), "Otwórz nawigację", "", true, p.accent,
                 new View.OnClickListener() {
                     @Override
@@ -549,9 +561,9 @@ public class ConfigActivity extends BaseActivity {
                         }
                     }
                 }));
-        footer(col, "Mapy działają offline z pobranych kafli. Gdy tablet jest online, "
-                + "włącz „Pobieraj nowe mapy z internetu” i użyj w Nawigacji przycisku "
-                + "„Pobierz okolice”, aby zapisać obszar.");
+        footer(col, "Mapy działają offline z pobranych kafli. „Pobierz mapę regionu” zapisuje "
+                + "cały region (np. Mazowsze) raz przy hotspotcie; w Nawigacji możesz dodatkowo "
+                + "dociągnąć okolicę przyciskiem „Pobierz okolice”.");
 
         // --- Łączność ---
         section(col, "Łączność");
