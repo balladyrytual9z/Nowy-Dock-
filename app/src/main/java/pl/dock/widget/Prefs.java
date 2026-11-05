@@ -944,6 +944,15 @@ public class Prefs {
         ed(c).putBoolean("lib_hidden_" + pkg, hidden).apply();
     }
 
+    // kierunek powiekszania litery na liscie aplikacji: true = w gore (jak w iOS)
+    public static boolean libLetterUp(Context c) {
+        return sp(c).getBoolean("libletterup", true);
+    }
+
+    public static void setLibLetterUp(Context c, boolean up) {
+        ed(c).putBoolean("libletterup", up).apply();
+    }
+
 
     // pakiety ukryte w Bibliotece aplikacji (do przywracania w Ustawieniach)
     public static java.util.List<String> hiddenInLibrary(Context c) {

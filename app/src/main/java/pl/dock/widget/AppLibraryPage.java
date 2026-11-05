@@ -1,12 +1,23 @@
 package pl.dock.widget;
 
 import android.content.Context;
-import android.content.pm.PackageManager;
-import android.graphics.Typeface;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.GradientDrawable;
+import android.text.Editable;
+import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.view.Gravity;
+import android.view.HapticFeedbackConstants;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -14,43 +25,50 @@ import android.widget.TextView;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 
 /**
- * iOS App Library page: searchable title + 2-column grid of category folders.
+ * Ostatnia strona launchera: PLASKA lista alfabetyczna wszystkich aplikacji
+ * zainstalowanych w tablecie (+ 3 narzedzia launchera wmieszane alfabetycznie).
+ *
+ * Widok jest celowo pozbawiony kategorii - silnik kategoryzowania
+ * (AppCategorizer) zostaje w kodzie na pozniej, ale nie jest tu uzywany.
+ * Na gorze pole wyszukiwania, pod nim poziomy pasek liter A-Z w stylu iOS
+ * (litery nie sa wygaszane; litera pod palcem powieksza sie z animacja).
  */
 public class AppLibraryPage extends FrameLayout {
 
     public interface Host {
         void openApp(String pkg);
         void onLibraryChanged();
-        void showCategoryFolder(String category, List<AppEntry> apps);
+        // onGrid=false -> usun z siatki aplikacji, onGrid=true -> dodaj do siatki
+        void setOnGrid(String pkg, boolean onGrid);
+        void showAppInfo(String pkg);
+        void uninstall(String pkg);
     }
+
+    private static final String LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#";
 
     private final Context ctx;
     private final float d;
     private boolean night;
     private Host host;
-    private final Map<String, List<AppEntry>> categories = new LinkedHashMap<String, List<AppEntry>>();
-    private final List<LibraryFolderView> folders = new ArrayList<LibraryFolderView>();
-    private LinearLayout grid;
-    private boolean editing;
-    private TextView title;
-    private View searchBar;
-    private ScrollView scrollView;
+
+    // pelna lista z launchera (kolejnosc ustawiamy sami po oryginalnej nazwie)
+    private final List<AppsGridPage.Item> apps = new ArrayList<AppsGridPage.Item>();
+
+    private EditText searchEt;
+    private boolean clearVisible;
+    private int clearSize;
     private LinearLayout letterBar;
-    private String filterQuery = "";
-    private boolean searchFocused = false;
-    private final Map<String, Integer> categoryY = new LinkedHashMap<String, Integer>();
-    private final Map<String, String> labels = new LinkedHashMap<String, String>();
-    private static final String LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#";
+    private ScrollView scrollView;
+    private LinearLayout listCol;
+
+    private String query = "";
+    private String rawText = "";
     private final LinkedHashMap<String, Integer> letterY = new LinkedHashMap<String, Integer>();
-    private TextView stickyHeader;      // przyklejony naglowek aktualnej kategorii
-    private String lastStickySection;
-    private final List<View> sectionHeaders = new ArrayList<View>();
 
     public AppLibraryPage(Context c) {
         super(c);
@@ -58,22 +76,9 @@ public class AppLibraryPage extends FrameLayout {
         this.d = c.getResources().getDisplayMetrics().density;
         this.night = Look.night(c);
         setClickable(true);
+        setClipChildren(false);
+        setClipToPadding(false);
         buildChrome();
-        // DLUZE przytrzymanie na tle listy wlacza tryb z minusami (zadnego trzesienia)
-        final OnLongClickListener bgLong = new OnLongClickListener() {
-            @Override public boolean onLongClick(View v) {
-                setMinusMode(true);
-                return true;
-            }
-        };
-        setOnLongClickListener(bgLong);
-        if (scrollView != null) scrollView.setOnLongClickListener(bgLong);
-        if (grid != null) grid.setOnLongClickListener(bgLong);
-        setOnClickListener(new OnClickListener() {
-            @Override public void onClick(View v) {
-                if (editing) setMinusMode(false);
-            }
-        });
     }
 
     public void setHost(Host h) {
@@ -81,100 +86,114 @@ public class AppLibraryPage extends FrameLayout {
     }
 
     public void setNight(boolean n) {
+        if (this.night == n && listCol != null) return;
         this.night = n;
-        if (title != null) title.setTextColor(n ? 0xFFFFFFFF : 0xFF1C1C1E);
-        rebuildFolders();
+        buildChrome();
+        if (rawText.length() > 0) {
+            searchEt.setText(rawText);   // TextWatcher sam odbuduje przefiltrowana liste
+        } else {
+            rebuild();
+        }
     }
+
+    // ---------------------------------------------------------------- dane
+
+    /** Ustawia pelna liste aplikacji z launchera i odbudowuje widok. */
+    public void setApps(List<AppsGridPage.Item> list) {
+        apps.clear();
+        if (list != null) {
+            for (AppsGridPage.Item it : list) {
+                if (it != null) apps.add(it);
+            }
+        }
+        Collections.sort(apps, new Comparator<AppsGridPage.Item>() {
+            @Override public int compare(AppsGridPage.Item a, AppsGridPage.Item b) {
+                return norm(a.label).compareTo(norm(b.label));
+            }
+        });
+        rebuild();
+    }
+
+    /** Zamyka fokus i klawiature (wyjscie ze strony / otwarcie aplikacji). */
+    public void dismissSearch() {
+        if (searchEt == null) return;
+        try {
+            searchEt.clearFocus();
+            InputMethodManager im = (InputMethodManager)
+                    ctx.getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (im != null) im.hideSoftInputFromWindow(searchEt.getWindowToken(), 0);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    // ---------------------------------------------------------------- chrome (gora strony)
 
     private void buildChrome() {
         removeAllViews();
-        folders.clear();
 
-        // inset na dock: zawartosc biblioteki nie moze wchodzic pod dok
         int dockInset = Ui.dp(ctx, Ui.DOCK_OFFSET_DP);
         boolean dockLeft = Ui.dockLeft(ctx);
         int extraL = dockLeft ? dockInset : 0;
         int extraR = dockLeft ? 0 : dockInset;
 
-        // jak w Bibliotece aplikacji iOS: na gorze sam pasek wyszukiwania
-        // (tytul strony jest teraz placeholderem tego pola)
+        LinearLayout page = new LinearLayout(ctx);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.setClipChildren(false);
+        page.setClipToPadding(false);
+
         LinearLayout header = new LinearLayout(ctx);
         header.setOrientation(LinearLayout.VERTICAL);
-        header.setPadding(dp(16) + extraL, dp(14), dp(16) + extraR, dp(6));
+        header.setClipChildren(false);
+        header.setClipToPadding(false);
+        header.setPadding(dp(16) + extraL, dp(14), dp(16) + extraR, dp(2));
 
-        // Search bar â opens inline filter
-        final android.widget.EditText searchEt = new android.widget.EditText(ctx);
+        searchEt = new EditText(ctx);
         searchEt.setHint("Biblioteka aplikacji");
         searchEt.setTextSize(17);
         searchEt.setTypeface(pl.dock.widget.ui.DockTheme.interRegular());
         searchEt.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
         searchEt.setHintTextColor(night ? 0x99FFFFFF : 0x996C6C70);
         searchEt.setSingleLine(true);
-        searchEt.setBackground(new android.graphics.drawable.GradientDrawable() {{
-            setCornerRadius(dp(22));
-            setColor(night ? 0x33FFFFFF : 0xCCFFFFFF);
-            setStroke(Math.max(1, (int) (0.5f * d)), night ? 0x33FFFFFF : 0x2E000000);
-        }});
-        // ikona lupy po lewej stronie pola (rysowana recznie, zero zasobow)
-        int msz = dp(20);
-        android.graphics.Bitmap mb = android.graphics.Bitmap.createBitmap(
-                msz, msz, android.graphics.Bitmap.Config.ARGB_8888);
-        android.graphics.Canvas mc = new android.graphics.Canvas(mb);
-        android.graphics.Paint mp = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-        mp.setStyle(android.graphics.Paint.Style.STROKE);
-        mp.setStrokeWidth(1.8f * d);
-        mp.setStrokeCap(android.graphics.Paint.Cap.ROUND);
-        mp.setColor(night ? 0x99FFFFFF : 0x993C3C43);
-        mc.drawCircle(msz * 0.40f, msz * 0.40f, msz * 0.26f, mp);
-        mc.drawLine(msz * 0.60f, msz * 0.60f, msz * 0.80f, msz * 0.80f, mp);
-        searchEt.setCompoundDrawablesWithIntrinsicBounds(
-                new android.graphics.drawable.BitmapDrawable(ctx.getResources(), mb), null, null, null);
+        GradientDrawable field = new GradientDrawable();
+        field.setCornerRadius(dp(22));
+        field.setColor(night ? 0x33FFFFFF : 0xCCFFFFFF);
+        field.setStroke(Math.max(1, (int) (0.5f * d)), night ? 0x33FFFFFF : 0x2E000000);
+        searchEt.setBackground(field);
+        clearSize = dp(20);
         searchEt.setCompoundDrawablePadding(dp(10));
         searchEt.setPadding(dp(14), dp(10), dp(14), dp(10));
         searchEt.setMinimumHeight(dp(46));
-        searchBar = searchEt;
-        header.addView(searchEt, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        searchEt.addTextChangedListener(new android.text.TextWatcher() {
+        searchEt.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
             @Override public void onTextChanged(CharSequence s, int st, int b, int c) {
-                filterQuery = s == null ? "" : s.toString().trim().toLowerCase(java.util.Locale.ROOT);
-                rebuildFolders();
+                rawText = s == null ? "" : s.toString();
+                query = norm(rawText);
+                updateClear();
+                rebuild();
             }
-            @Override public void afterTextChanged(android.text.Editable s) {}
+            @Override public void afterTextChanged(Editable s) {}
         });
-        // iOS: dotkniecie paska szukania (bez tekstu) = pelna lista alfabetyczna
-        searchEt.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-            @Override public void onFocusChange(View v, boolean hasFocus) {
-                searchFocused = hasFocus;
-                rebuildFolders();
+        searchEt.setOnTouchListener(new View.OnTouchListener() {
+            @Override public boolean onTouch(View v, MotionEvent e) {
+                if (e.getActionMasked() == MotionEvent.ACTION_UP && clearVisible
+                        && e.getX() >= v.getWidth() - v.getPaddingRight() - clearSize) {
+                    searchEt.setText("");
+                    return true;
+                }
+                return false;
             }
         });
-
-        addView(header, new LayoutParams(
+        updateClear();
+        header.addView(searchEt, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        scrollView = new ScrollView(ctx);
-                scrollView.setFillViewport(true);
-        scrollView.setVerticalScrollBarEnabled(false);
-        scrollView.setOverScrollMode(View.OVER_SCROLL_NEVER);
-
-        grid = new LinearLayout(ctx);
-        grid.setOrientation(LinearLayout.VERTICAL);
-        grid.setPadding(dp(14) + extraL, dp(4), dp(40) + extraR, dp(24)); // right pad for letter bar
-        scrollView.addView(grid, new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        LayoutParams scLp = new LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        scLp.topMargin = dp(72);
-        addView(scrollView, scLp);
-
-        // AâZ letter index (iOS style)
+        // poziomy pasek liter - dokladnie pod polem wyszukiwania, cala szerokosc
         letterBar = new LinearLayout(ctx);
-        letterBar.setOrientation(LinearLayout.VERTICAL);
-        letterBar.setGravity(Gravity.CENTER_HORIZONTAL);
-        letterBar.setPadding(0, dp(8), dp(4), dp(8));
+        letterBar.setOrientation(LinearLayout.HORIZONTAL);
+        letterBar.setGravity(Gravity.CENTER);
+        letterBar.setClipChildren(false);
+        letterBar.setClipToPadding(false);
+        letterBar.setPadding(0, dp(4), 0, 0);
         for (int i = 0; i < LETTERS.length(); i++) {
             final String letter = String.valueOf(LETTERS.charAt(i));
             TextView tv = new TextView(ctx);
@@ -183,339 +202,173 @@ public class AppLibraryPage extends FrameLayout {
             tv.setTypeface(pl.dock.widget.ui.DockTheme.interMedium());
             tv.setTextColor(night ? 0xFF0A84FF : 0xFF007AFF);
             tv.setGravity(Gravity.CENTER);
-            tv.setPadding(dp(6), dp(1), dp(6), dp(1));
             tv.setOnClickListener(new OnClickListener() {
                 @Override public void onClick(View v) {
                     scrollToLetter(letter);
                 }
             });
-            letterBar.addView(tv);
+            letterBar.addView(tv, new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         }
-        // iOS: przeciganie palcem po pasku = zywe przewijanie + efekt magnesu
-        // (wybrana litera powieksza sie i wysuwa w lewo)
+        // przesuwanie palcem po pasku: podswietlenie + powiekszenie litery i zywe przewijanie
         letterBar.setOnTouchListener(new View.OnTouchListener() {
             private int selected = -1;
 
-            @Override public boolean onTouch(View v, android.view.MotionEvent ev) {
+            @Override public boolean onTouch(View v, MotionEvent ev) {
                 int a = ev.getActionMasked();
-                int idx = -1;
-                float y = ev.getY();
-                for (int i = 0; i < letterBar.getChildCount(); i++) {
-                    View ch = letterBar.getChildAt(i);
-                    if (y >= ch.getTop() && y <= ch.getBottom()) { idx = i; break; }
-                }
-                if (a == android.view.MotionEvent.ACTION_DOWN
-                        || a == android.view.MotionEvent.ACTION_MOVE) {
+                if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_MOVE) {
+                    int idx = letterIndexAt(ev.getX());
                     if (idx >= 0 && idx != selected) {
-                        if (selected >= 0) resetLetter(selected);
+                        if (selected >= 0) magnifyLetter(selected, false);
                         selected = idx;
-                        TextView tv = (TextView) letterBar.getChildAt(idx);
-                        tv.setPivotX(tv.getWidth());
-                        tv.animate().scaleX(1.7f).scaleY(1.7f).translationX(-dp(12))
-                                .setDuration(90).start();
-                        tv.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
+                        magnifyLetter(idx, true);
+                        v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
                         scrollToLetter(String.valueOf(LETTERS.charAt(idx)));
                     }
                     return true;
                 }
-                if (a == android.view.MotionEvent.ACTION_UP
-                        || a == android.view.MotionEvent.ACTION_CANCEL) {
-                    if (selected >= 0) resetLetter(selected);
+                if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
+                    if (selected >= 0) magnifyLetter(selected, false);
                     selected = -1;
                     return true;
                 }
                 return false;
             }
         });
-        LayoutParams lbLp = new LayoutParams(dp(34), ViewGroup.LayoutParams.MATCH_PARENT);
-        lbLp.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
-        lbLp.topMargin = dp(72);
-        lbLp.rightMargin = extraR;
-        lbLp.leftMargin = extraL;
-        addView(letterBar, lbLp);
+        header.addView(letterBar, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        // przyklejony (sticky) naglowek aktualnej kategorii - widoczny przy scrollu
-        stickyHeader = new TextView(ctx);
-        stickyHeader.setTextSize(20);
-        stickyHeader.setTypeface(pl.dock.widget.ui.DockTheme.interSemiBold());
-        stickyHeader.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
-        stickyHeader.setBackgroundColor(night ? 0xF20E0E0F : 0xF2F5F5F7);
-        stickyHeader.setPadding(dp(16) + extraL, dp(10), dp(54) + extraR, dp(10));
-        stickyHeader.setVisibility(GONE);
-        LayoutParams shLp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        shLp.topMargin = dp(72);
-        addView(stickyHeader, shLp);
+        page.addView(header, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        // aktualizacja sticky przy przewijaniu listy
-        scrollView.getViewTreeObserver().addOnScrollChangedListener(
-                new android.view.ViewTreeObserver.OnScrollChangedListener() {
-                    @Override public void onScrollChanged() {
-                        updateSticky();
-                    }
-                });
+        scrollView = new ScrollView(ctx);
+        scrollView.setFillViewport(true);
+        scrollView.setVerticalScrollBarEnabled(false);
+        scrollView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+
+        listCol = new LinearLayout(ctx);
+        listCol.setOrientation(LinearLayout.VERTICAL);
+        listCol.setPadding(dp(14) + extraL, dp(4), dp(14) + extraR, dp(28));
+        scrollView.addView(listCol, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        page.addView(scrollView, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        addView(page, new LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
-    private void resetLetter(int i) {
-        if (letterBar == null || i < 0 || i >= letterBar.getChildCount()) return;
-        TextView tv = (TextView) letterBar.getChildAt(i);
-        tv.animate().scaleX(1f).scaleY(1f).translationX(0f).setDuration(130).start();
+    // lupa rysowana recznie (zero zasobow)
+    private Bitmap magnifier() {
+        int sz = dp(20);
+        Bitmap b = Bitmap.createBitmap(sz, sz, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(b);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(1.8f * d);
+        p.setStrokeCap(Paint.Cap.ROUND);
+        p.setColor(night ? 0x99FFFFFF : 0x993C3C43);
+        c.drawCircle(sz * 0.40f, sz * 0.40f, sz * 0.26f, p);
+        c.drawLine(sz * 0.60f, sz * 0.60f, sz * 0.80f, sz * 0.80f, p);
+        return b;
     }
 
-    private void scrollToLetter(String letter) {
-        if (scrollView == null || grid == null) return;
-        // najpierw lista: dokladna pozycja pierwszej aplikacji na dana litere
-        for (Map.Entry<String, Integer> e : letterY.entrySet()) {
-            if (letter.equals(e.getKey())) {
-                scrollView.smoothScrollTo(0, Math.max(0, e.getValue() - dp(24)));
-                return;
-            }
-        }
-        // fallback: kategorie
-        for (Map.Entry<String, Integer> e : categoryY.entrySet()) {
-            String name = e.getKey();
-            if (name == null || name.isEmpty()) continue;
-            char c = Character.toUpperCase(name.charAt(0));
-            if (letter.equals("#")) {
-                if (!Character.isLetter(c)) {
-                    scrollView.smoothScrollTo(0, e.getValue());
-                    return;
-                }
-            } else if (c == letter.charAt(0)) {
-                scrollView.smoothScrollTo(0, e.getValue());
-                return;
-            }
-        }
+    // szary okrag z bialym X - przycisk czyszczenia pola (jak w iOS)
+    private Bitmap clearGlyph() {
+        int sz = dp(20);
+        Bitmap b = Bitmap.createBitmap(sz, sz, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(b);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(0xFF8E8E93);
+        c.drawCircle(sz / 2f, sz / 2f, sz * 0.42f, p);
+        p.setColor(0xFFFFFFFF);
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(1.8f * d);
+        p.setStrokeCap(Paint.Cap.ROUND);
+        float a = sz * 0.24f;
+        c.drawLine(sz / 2f - a, sz / 2f - a, sz / 2f + a, sz / 2f + a, p);
+        c.drawLine(sz / 2f - a, sz / 2f + a, sz / 2f + a, sz / 2f - a, p);
+        return b;
     }
 
-    /** Rebuild from full launcher items list (selected apps). */
-    public void setApps(List<AppsGridPage.Item> items) {
-        categories.clear();
-        labels.clear();
-        // order: Suggestions/Recent first if we want â for now auto categories
-        List<String> order = new ArrayList<String>();
-        order.add("Narzędzia");
-        order.add(AppCategorizer.CAT_SOCIAL);
-        order.add(AppCategorizer.CAT_ENTERTAINMENT);
-        order.add(AppCategorizer.CAT_NAVIGATION);
-        order.add(AppCategorizer.CAT_UTILITIES);
-        order.add(AppCategorizer.CAT_PRODUCTIVITY);
-        order.add(AppCategorizer.CAT_OTHER);
-
-        for (String k : order) categories.put(k, new ArrayList<AppEntry>());
-
-        if (items != null) {
-            PackageManager pm = ctx.getPackageManager();
-            for (AppsGridPage.Item it : items) {
-                if (it == null) continue;
-                // iOS 26 CarPlay: stale, przewidywalne kategorie - narzedzia systemowe
-                // (Ustawienia / CarPlay / OBD) zawsze w tym samym miejscu Biblioteki
-                if (it.settings || (it.action != null && it.action.length() > 0)) {
-                    AppEntry tool = new AppEntry();
-                    boolean isObd = "obd".equals(it.action);
-                    tool.pkg = it.settings ? "dock:settings" : (isObd ? "dock:obd" : "dock:carplay");
-                    tool.mode = "builtin";
-                    // OBD w launcherze nosi ikone Hondy (zgodnie ze specyfikacja)
-                    tool.iconPkg = it.settings ? "settings" : (isObd ? "honda" : "carplay");
-                    labels.put(tool.pkg, it.label);
-                    categories.get("Narzędzia").add(tool);
-                    continue;
-                }
-                String pkg = it.pkg;
-                if (pkg == null || pkg.length() == 0) continue;
-                if (Prefs.isHiddenInLibrary(ctx, pkg)) continue;
-
-                AppEntry e = it.entry != null ? it.entry : new AppEntry();
-                if (e.pkg == null || e.pkg.length() == 0) e.pkg = pkg;
-
-                String label = it.label != null ? it.label : "";
-                if (label.length() == 0) {
-                    try {
-                        label = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString();
-                    } catch (Throwable ignored) {
-                        label = pkg;
-                    }
-                }
-                labels.put(pkg, label);
-                String cat = AppCategorizer.getCategory(e, label);
-                if (!categories.containsKey(cat)) {
-                    categories.put(cat, new ArrayList<AppEntry>());
-                }
-                categories.get(cat).add(e);
-            }
-        }
-        // CarPlay iOS 26: ZERO personalizacji - statyczne, przewidywalne kategorie
-        // (kierowca musi wiedziec, ze aplikacje sa zawsze w tym samym miejscu)
-
-        // drop empty
-        List<String> empty = new ArrayList<String>();
-        for (Map.Entry<String, List<AppEntry>> e : categories.entrySet()) {
-            if (e.getValue().isEmpty()) empty.add(e.getKey());
-        }
-        for (String k : empty) categories.remove(k);
-
-        rebuildFolders();
+    private void updateClear() {
+        clearVisible = query != null && query.length() > 0;
+        if (searchEt == null) return;
+        searchEt.setCompoundDrawablesWithIntrinsicBounds(
+                new BitmapDrawable(ctx.getResources(), magnifier()), null,
+                clearVisible ? new BitmapDrawable(ctx.getResources(), clearGlyph()) : null, null);
     }
 
-    private void rebuildFolders() {
-        if (grid == null) return;
-        grid.removeAllViews();
-        folders.clear();
-        if (searchFocused && (filterQuery == null || filterQuery.length() == 0)) {
-            buildAlphabeticalList();
-            return;
+    // ---------------------------------------------------------------- lista
+
+    private void rebuild() {
+        if (listCol == null) return;
+        listCol.removeAllViews();
+        letterY.clear();
+
+        List<AppsGridPage.Item> shown = new ArrayList<AppsGridPage.Item>();
+        for (AppsGridPage.Item it : apps) {
+            if (it == null) continue;
+            String label = it.label == null ? "" : it.label;
+            if (query != null && query.length() > 0) {
+                // szukamy po ORYGINALNEJ nazwie oraz po nazwie podmienionej w Docku
+                // (np. wpisane "AirDrop" ma pokazac "LocalSend")
+                String alias = "";
+                Overrides.O o = Overrides.match(label);
+                if (o != null && o.label != null) alias = o.label;
+                if (!norm(label).contains(query) && !norm(alias).contains(query)) continue;
+            }
+            shown.add(it);
         }
 
-        LibraryFolderView.Listener fl = new LibraryFolderView.Listener() {
-            @Override public void onFolderTap(String category) {
-                if (editing) return;
-                List<AppEntry> apps = categories.get(category);
-                if (host != null && apps != null) host.showCategoryFolder(category, apps);
-            }
-
-            @Override public void onAppTap(AppEntry app) {
-                if (editing) return;
-                if (host != null && app != null) host.openApp(app.pkg);
-            }
-
-            @Override public void onAppLongPress(View iconView, AppEntry app) {
-                showLibraryAppMenuNear(iconView, app);
-            }
-
-            @Override public void onRemoveApp(AppEntry app) {
-                if (app == null) return;
-                Prefs.setHiddenInLibrary(ctx, app.pkg, true);
-                if (host != null) host.onLibraryChanged();
-                // local refresh
-                List<AppEntry> list = categories.get(
-                        AppCategorizer.getCategory(app, ""));
-                // rebuild from current map
-                for (List<AppEntry> lst : categories.values()) {
-                    for (int i = lst.size() - 1; i >= 0; i--) {
-                        if (app.pkg.equals(lst.get(i).pkg)) lst.remove(i);
-                    }
-                }
-                rebuildFolders();
-            }
-        };
-
-        categoryY.clear();
-        sectionHeaders.clear();
-        for (Map.Entry<String, List<AppEntry>> e : categories.entrySet()) {
-            if (e.getValue().isEmpty()) continue;
-            // Search filter: match category name or any app label
-            if (filterQuery != null && filterQuery.length() > 0) {
-                boolean match = e.getKey().toLowerCase(java.util.Locale.ROOT).contains(filterQuery);
-                if (!match) {
-                    for (AppEntry app : e.getValue()) {
-                        if (app == null) continue;
-                        String pkg = app.pkg != null ? app.pkg.toLowerCase(java.util.Locale.ROOT) : "";
-                        if (pkg.contains(filterQuery)) {
-                            match = true;
-                            break;
-                        }
-                    }
-                }
-                if (!match) continue;
-            }
-            // LISTA aplikacji w kategorii: naglowek + wiersze ikona+nazwa
-            categoryY.put(e.getKey(), grid.getChildCount() * dp(60));
-            TextView head = new TextView(ctx);
-            head.setText(e.getKey());
-            head.setTextSize(20);
-            head.setTypeface(pl.dock.widget.ui.DockTheme.interSemiBold());
-            head.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
-            head.setPadding(dp(16), dp(16), dp(16), dp(6));
-            head.setTag(e.getKey());
-            sectionHeaders.add(head);
-            grid.addView(head, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            for (final AppEntry app : e.getValue()) {
-                grid.addView(makeAppRow(app, fl), new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            }
-        }
-        if (categories.isEmpty()) {
+        if (shown.isEmpty()) {
             TextView empty = new TextView(ctx);
-            empty.setText("Brak aplikacji w bibliotece");
+            empty.setText(query != null && query.length() > 0 ? "Brak wyników" : "Brak aplikacji");
             empty.setTextColor(night ? 0x99FFFFFF : 0x99666666);
             empty.setGravity(Gravity.CENTER);
             empty.setPadding(0, dp(40), 0, 0);
-            grid.addView(empty);
+            listCol.addView(empty, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            return;
         }
-        // pozycje liter dla paska A-Z (dopiero po policzeniu layoutu)
+
+        for (AppsGridPage.Item it : shown) {
+            listCol.addView(makeRow(it), new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
         post(measureLetters);
-        updateSticky();
     }
 
-    // wiersz aplikacji: zaokraglona ikona po lewej + nazwa po prawej (jak w Ustawieniach iOS)
-    private View makeAppRow(final AppEntry app, final LibraryFolderView.Listener fl) {
+    // wiersz: zaokraglona ikona po lewej + nazwa po prawej (jak w Ustawieniach iOS)
+    private View makeRow(final AppsGridPage.Item it) {
+        final boolean builtin = it.settings || (it.action != null && it.action.length() > 0);
+
         LinearLayout row = new LinearLayout(ctx);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setMinimumHeight(dp(64));
         row.setPadding(dp(16), dp(8), dp(16), dp(8));
-        row.setTag(app);
-        // rozjasnienie przy dotknieciu (lekkie, bez ciezkiego ripple)
-        android.graphics.drawable.GradientDrawable rowMask = new android.graphics.drawable.GradientDrawable();
-        rowMask.setCornerRadius(dp(14));
-        rowMask.setColor(0x00000000);
+        row.setTag(it);
+        GradientDrawable mask = new GradientDrawable();
+        mask.setCornerRadius(dp(14));
+        mask.setColor(0xFFFFFFFF);   // maska ripple: liczy sie tylko alfa
         row.setBackground(new android.graphics.drawable.RippleDrawable(
                 android.content.res.ColorStateList.valueOf(night ? 0x26FFFFFF : 0x14000000),
-                null, rowMask));
+                null, mask));
 
-        FrameLayout iconBox = new FrameLayout(ctx);
-        android.widget.ImageView iv = new android.widget.ImageView(ctx);
-        android.graphics.Bitmap bmp = Icons.forEntry(ctx, app);
-        if (bmp != null) {
-            android.graphics.Bitmap out = android.graphics.Bitmap.createBitmap(dp(48), dp(48), android.graphics.Bitmap.Config.ARGB_8888);
-            android.graphics.Canvas cv = new android.graphics.Canvas(out);
-            android.graphics.Paint pt = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG | android.graphics.Paint.FILTER_BITMAP_FLAG);
-            android.graphics.RectF rect = new android.graphics.RectF(0, 0, dp(48), dp(48));
-            cv.drawRoundRect(rect, dp(12), dp(12), pt);
-            pt.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN));
-            android.graphics.Rect src = new android.graphics.Rect(0, 0, bmp.getWidth(), bmp.getHeight());
-            cv.drawBitmap(bmp, src, rect, pt);
-            iv.setImageBitmap(out);
-        }
-        iconBox.addView(iv, new FrameLayout.LayoutParams(dp(48), dp(48)));
-
-        if (editing) {
-            // minus w LEWYM GORNYM rogu ikony (jak w iOS)
-            View badge = new View(ctx) {
-                @Override protected void onDraw(android.graphics.Canvas c) {
-                    float s = getWidth();
-                    android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-                    p.setStyle(android.graphics.Paint.Style.FILL);
-                    p.setColor(0xFFFF3B30);
-                    c.drawCircle(s / 2f, s / 2f, s / 2f, p);
-                    p.setColor(0xFFFFFFFF);
-                    p.setStyle(android.graphics.Paint.Style.STROKE);
-                    p.setStrokeWidth(2.2f * d);
-                    p.setStrokeCap(android.graphics.Paint.Cap.ROUND);
-                    float m = s * 0.28f;
-                    c.drawLine(m, s / 2f, s - m, s / 2f, p);
-                }
-            };
-            FrameLayout.LayoutParams blp = new FrameLayout.LayoutParams(dp(22), dp(22),
-                    Gravity.TOP | Gravity.START);
-            blp.leftMargin = -dp(8);
-            blp.topMargin = -dp(8);
-            iconBox.addView(badge, blp);
-            badge.setOnClickListener(new OnClickListener() {
-                @Override public void onClick(View v) {
-                    fl.onRemoveApp(app);
-                }
-            });
-        }
-        row.addView(iconBox, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        ImageView iv = new ImageView(ctx);
+        iv.setImageBitmap(iconFor(it));
+        iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        row.addView(iv, new LinearLayout.LayoutParams(dp(48), dp(48)));
 
         TextView name = new TextView(ctx);
-        name.setText(appLabel(app));
+        name.setText(it.label == null ? "" : it.label);
         name.setTextSize(17);
         name.setTypeface(pl.dock.widget.ui.DockTheme.interRegular());
         name.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
         name.setMaxLines(1);
-        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        name.setEllipsize(TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         nlp.leftMargin = dp(14);
@@ -523,317 +376,171 @@ public class AppLibraryPage extends FrameLayout {
 
         row.setOnClickListener(new OnClickListener() {
             @Override public void onClick(View v) {
-                fl.onAppTap(app);
+                dismissSearch();
+                if (host != null) host.openApp(packageOf(it));
             }
         });
-        row.setOnLongClickListener(new OnLongClickListener() {
-            @Override public boolean onLongClick(View v) {
-                showLibraryAppMenuNear(v, app);
-                return true;
-            }
-        });
-        return row;
-    }
-
-    // przyklejony naglowek: pokazuje kategorie, ktora jest aktualnie na gorze listy
-    private void updateSticky() {
-        if (stickyHeader == null) return;
-        if (sectionHeaders.isEmpty() || scrollView == null) {
-            stickyHeader.setVisibility(GONE);
-            lastStickySection = null;
-            return;
-        }
-        int y = scrollView.getScrollY();
-        String cur = null;
-        for (View h : sectionHeaders) {
-            if (h.getTop() <= y + dp(4)) cur = (String) h.getTag();
-        }
-        if (cur == null) {
-            stickyHeader.setVisibility(GONE);
-            lastStickySection = null;
-            return;
-        }
-        if (!cur.equals(lastStickySection)) {
-            lastStickySection = cur;
-            stickyHeader.setText(cur);
-        }
-        stickyHeader.setVisibility(VISIBLE);
-    }
-
-    // komorka aplikacji na liscie biblioteki: ikona + podpis (+ usuwanie w trybie edycji)
-    private View makeAppCell(final AppEntry app, final LibraryFolderView.Listener fl) {
-        FrameLayout cell = new FrameLayout(ctx);
-        cell.setTag(app);
-        LinearLayout col = new LinearLayout(ctx);
-        col.setOrientation(LinearLayout.VERTICAL);
-        col.setGravity(Gravity.CENTER_HORIZONTAL);
-        col.setPadding(dp(4), dp(4), dp(4), dp(4));
-        android.widget.ImageView iv = new android.widget.ImageView(ctx);
-        iv.setImageBitmap(Icons.forEntry(ctx, app));
-        iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-        col.addView(iv, new LinearLayout.LayoutParams(dp(56), dp(56)));
-        TextView tv = new TextView(ctx);
-        tv.setText(appLabel(app));
-        tv.setTextSize(11);
-        tv.setMaxLines(1);
-        tv.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        tv.setGravity(Gravity.CENTER);
-        tv.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
-        col.addView(tv, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        cell.addView(col, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        if (editing) {
-            // badge usuwania: bialy minus na czerwonym kole (jak w iOS)
-            TextView badge = new TextView(ctx);
-            badge.setText("\u2212");
-            badge.setTextSize(15);
-            badge.setTypeface(Typeface.DEFAULT_BOLD);
-            badge.setTextColor(0xFFFFFFFF);
-            badge.setGravity(Gravity.CENTER);
-            android.graphics.drawable.GradientDrawable bgd = new android.graphics.drawable.GradientDrawable();
-            bgd.setColor(0xFFFF3B30);
-            bgd.setCornerRadius(dp(12));
-            badge.setBackground(bgd);
-            FrameLayout.LayoutParams blp = new FrameLayout.LayoutParams(dp(24), dp(24),
-                    Gravity.TOP | Gravity.START);
-            cell.addView(badge, blp);
-            badge.setOnClickListener(new OnClickListener() {
-                @Override public void onClick(View v) {
-                    fl.onRemoveApp(app);
+        if (!builtin) {
+            // narzedzia launchera (Ustawienia / CarPlay / Honda OBD) nie dostaja menu
+            row.setOnLongClickListener(new OnLongClickListener() {
+                @Override public boolean onLongClick(View v) {
+                    showRowMenu(v, it);
+                    return true;
                 }
             });
         }
-
-        cell.setOnClickListener(new OnClickListener() {
-            @Override public void onClick(View v) {
-                fl.onAppTap(app);
-            }
-        });
-        cell.setOnLongClickListener(new OnLongClickListener() {
-            @Override public boolean onLongClick(View v) {
-                fl.onAppLongPress(v, app);
-                return true;
-            }
-        });
-        return cell;
+        return row;
     }
 
-    // po layout: zapisz Y pierwszej aplikacji kazdej litery (pasek A-Z trafia dokladnie)
+    private Bitmap iconFor(AppsGridPage.Item it) {
+        if (it.settings) return Icons.builtin(ctx, "settings");
+        if (it.action != null && it.action.length() > 0) {
+            return Icons.builtin(ctx, "obd".equals(it.action) ? "honda" : "carplay");
+        }
+        if (it.builtinId != null && it.builtinId.length() > 0) {
+            return Icons.builtin(ctx, it.builtinId);
+        }
+        if (it.entry != null) return Icons.forEntry(ctx, it.entry);
+        // oryginalna ikona aplikacji - lista pokazuje oryginalne nazwy
+        return Icons.forPackageRaw(ctx, it.pkg);
+    }
+
+    private String packageOf(AppsGridPage.Item it) {
+        if (it.settings) return "dock:settings";
+        if (it.action != null && it.action.length() > 0) {
+            return "obd".equals(it.action) ? "dock:obd" : "dock:carplay";
+        }
+        return it.pkg;
+    }
+
+    // menu dlugiego przytrzymania: informacje / dodaj-usun z siatki / odinstaluj
+    private void showRowMenu(final View anchor, final AppsGridPage.Item it) {
+        if (!(ctx instanceof android.app.Activity)) return;
+        final android.app.Activity a = (android.app.Activity) ctx;
+        final boolean onGrid = Prefs.isAppSelected(ctx, it.pkg);
+        String[] items = new String[]{
+                "Informacje o aplikacji",
+                onGrid ? "Usuń z siatki aplikacji" : "Dodaj do siatki aplikacji",
+                "Odinstaluj"
+        };
+        Popups.menuNear(a, anchor, it.label, items, new Popups.OnSel() {
+            @Override public void on(int idx) {
+                if (idx == 0) {
+                    if (host != null) host.showAppInfo(it.pkg);
+                } else if (idx == 1) {
+                    if (host != null) host.setOnGrid(it.pkg, !onGrid);
+                } else if (idx == 2) {
+                    if (host != null) host.uninstall(it.pkg);
+                }
+            }
+        });
+    }
+
+    /** Wymusza odswiezenie listy po zmianie stanu siatki. */
+    public void refreshFromHost() {
+        if (host != null) host.onLibraryChanged();
+    }
+
+    // ---------------------------------------------------------------- pasek liter
+
+    // pozycje liter liczone z tagow WIERSZY (wczesniej tag byl na dzieciach i pasek nie dzialal)
     private final Runnable measureLetters = new Runnable() {
         @Override public void run() {
             letterY.clear();
-            if (grid == null) return;
-            int n = grid.getChildCount();
-            for (int i = 0; i < n; i++) {
-                View row = grid.getChildAt(i);
-                if (!(row instanceof LinearLayout)) continue;
-                LinearLayout rw = (LinearLayout) row;
-                for (int j = 0; j < rw.getChildCount(); j++) {
-                    View cell = rw.getChildAt(j);
-                    Object tag = cell.getTag();
-                    if (!(tag instanceof AppEntry)) continue;
-                    String lb = appLabel((AppEntry) tag);
-                    if (lb == null || lb.length() == 0) continue;
-                    char c0 = Character.toUpperCase(lb.charAt(0));
-                    String key = Character.isLetter(c0) ? String.valueOf(c0) : "#";
-                    if (!letterY.containsKey(key)) {
-                        letterY.put(key, row.getTop() + cell.getTop());
-                    }
-                }
+            if (listCol == null) return;
+            for (int i = 0; i < listCol.getChildCount(); i++) {
+                View row = listCol.getChildAt(i);
+                Object tag = row.getTag();
+                if (!(tag instanceof AppsGridPage.Item)) continue;
+                String key = letterOf(((AppsGridPage.Item) tag).label);
+                if (!letterY.containsKey(key)) letterY.put(key, row.getTop());
             }
         }
     };
 
-    // Sugestie: do 4 najczesciej uzywanych aplikacji z ostatniego tygodnia
-    private List<AppEntry> suggestions(List<AppEntry> all) {
-        List<AppEntry> out = new ArrayList<AppEntry>();
-        Map<String, Long> last = new LinkedHashMap<String, Long>();
-        try {
-            android.app.usage.UsageStatsManager usm = (android.app.usage.UsageStatsManager)
-                    ctx.getSystemService(Context.USAGE_STATS_SERVICE);
-            if (usm != null) {
-                List<android.app.usage.UsageStats> stats = usm.queryUsageStats(
-                        android.app.usage.UsageStatsManager.INTERVAL_WEEKLY,
-                        System.currentTimeMillis() - 7L * 24 * 3600 * 1000L,
-                        System.currentTimeMillis());
-                if (stats != null) {
-                    for (android.app.usage.UsageStats s : stats) {
-                        if (s == null) continue;
-                        Long cur = last.get(s.getPackageName());
-                        if (cur == null || s.getLastTimeUsed() > cur) {
-                            last.put(s.getPackageName(), s.getLastTimeUsed());
-                        }
-                    }
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-        if (last.isEmpty()) return out;
-        final Map<String, Long> usage = last;
-        List<AppEntry> cands = new ArrayList<AppEntry>(all);
-        Collections.sort(cands, new Comparator<AppEntry>() {
-            @Override public int compare(AppEntry a, AppEntry b) {
-                Long ta = usage.get(a.pkg), tb = usage.get(b.pkg);
-                if (ta == null && tb == null) return 0;
-                if (ta == null) return 1;
-                if (tb == null) return -1;
-                return tb.compareTo(ta);
-            }
-        });
-        for (AppEntry e : cands) {
-            if (out.size() >= 4) break;
-            if (usage.containsKey(e.pkg)) out.add(e);
-        }
-        return out;
+    private String letterOf(String label) {
+        if (label == null || label.length() == 0) return "#";
+        String s = stripDiacritics(label.trim().toLowerCase(Locale.ROOT));
+        if (s.length() == 0) return "#";
+        char c = Character.toUpperCase(s.charAt(0));
+        return c >= 'A' && c <= 'Z' ? String.valueOf(c) : "#";
     }
 
-    // Ostatnio dodane: instalacje/aktualizacje z ostatnich 7 dni
-    private List<AppEntry> recentlyAdded(List<AppEntry> all) {
-        List<AppEntry> out = new ArrayList<AppEntry>();
-        long week = 7L * 24 * 60 * 60 * 1000;
-        long now = System.currentTimeMillis();
-        try {
-            PackageManager pm = ctx.getPackageManager();
-            for (AppEntry e : all) {
-                try {
-                    long t = pm.getPackageInfo(e.pkg, 0).lastUpdateTime;
-                    if (t > 0 && now - t <= week) out.add(e);
-                } catch (Throwable ignored) {
-                }
-            }
-        } catch (Throwable ignored) {
+    private void scrollToLetter(String letter) {
+        if (scrollView == null) return;
+        Integer y = letterY.get(letter);
+        if (y == null) {
+            // layout mogl jeszcze nie byc policzony - zmierz i sprobuj ponownie
+            measureLetters.run();
+            y = letterY.get(letter);
         }
-        return out;
+        if (y == null) return;   // brak aplikacji na te litere
+        scrollView.smoothScrollTo(0, Math.max(0, y - dp(8)));
     }
 
-    // menu przy aplikacji (nie na srodku ekranu): usuwa z listy / informacje / odinstaluj
-    private void showLibraryAppMenuNear(final View anchor, final AppEntry app) {
-        if (app == null || app.pkg == null || app.pkg.length() == 0
-                || !(ctx instanceof android.app.Activity)) {
-            return;
+    private int letterIndexAt(float x) {
+        if (letterBar == null) return -1;
+        for (int i = 0; i < letterBar.getChildCount(); i++) {
+            View ch = letterBar.getChildAt(i);
+            if (x >= ch.getLeft() && x <= ch.getRight()) return i;
         }
-        final android.app.Activity a = (android.app.Activity) ctx;
-        Popups.menuNear(a, anchor, appLabel(app),
-                new String[]{"Usuń z listy aplikacji", "Informacje o aplikacji", "Odinstaluj"},
-                new Popups.OnSel() {
-                    @Override public void on(int idx) {
-                        if (idx == 0) {
-                            Prefs.setHiddenInLibrary(ctx, app.pkg, true);
-                            if (host != null) host.onLibraryChanged();
-                            for (List<AppEntry> lst : categories.values()) {
-                                for (int i = lst.size() - 1; i >= 0; i--) {
-                                    if (app.pkg.equals(lst.get(i).pkg)) lst.remove(i);
-                                }
-                            }
-                            rebuildFolders();
-                        } else if (idx == 1) {
-                            try {
-                                a.startActivity(new android.content.Intent(
-                                        android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                        android.net.Uri.parse("package:" + app.pkg)));
-                            } catch (Throwable ignored) {
-                            }
-                        } else if (idx == 2) {
-                            try {
-                                android.content.Intent i = new android.content.Intent(
-                                        android.content.Intent.ACTION_UNINSTALL_PACKAGE,
-                                        android.net.Uri.parse("package:" + app.pkg));
-                                i.putExtra(android.content.Intent.EXTRA_RETURN_RESULT, true);
-                                a.startActivity(i);
-                            } catch (Throwable ignored) {
-                            }
-                        }
-                    }
-                });
+        return -1;
     }
 
-    private String appLabel(AppEntry e) {
-        if (e == null) return "";
-        String l = labels.get(e.pkg);
-        if (l != null && l.length() > 0) return l;
-        return e.pkg != null ? e.pkg : "";
+    // powiekszenie litery pod palcem; kierunek (gora/dol) z Ustawien Docka
+    private void magnifyLetter(int idx, boolean on) {
+        if (letterBar == null || idx < 0 || idx >= letterBar.getChildCount()) return;
+        View tv = letterBar.getChildAt(idx);
+        float dy = on ? (Prefs.libLetterUp(ctx) ? -dp(8) : dp(8)) : 0f;
+        float s = on ? 1.75f : 1f;
+        tv.setPivotX(tv.getWidth() / 2f);
+        tv.setPivotY(tv.getHeight() / 2f);
+        tv.animate().scaleX(s).scaleY(s).translationY(dy)
+                .setDuration(on ? 90 : 130).start();
     }
 
-    // pelna lista alfabetyczna (dotkniecie paska szukania bez tekstu, jak w iOS)
-    private void buildAlphabeticalList() {
-        List<AppEntry> all = new ArrayList<AppEntry>();
-        HashSet<String> seen = new HashSet<String>();
-        for (List<AppEntry> lst : categories.values()) {
-            for (AppEntry e : lst) {
-                if (e != null && e.pkg != null && seen.add(e.pkg)) all.add(e);
-            }
-        }
-        Collections.sort(all, new Comparator<AppEntry>() {
-            @Override public int compare(AppEntry a, AppEntry b) {
-                return appLabel(a).compareToIgnoreCase(appLabel(b));
-            }
-        });
-        if (all.isEmpty()) {
-            TextView empty = new TextView(ctx);
-            empty.setText("Brak aplikacji");
-            empty.setTextColor(night ? 0x99FFFFFF : 0x99666666);
-            empty.setGravity(Gravity.CENTER);
-            empty.setPadding(0, dp(40), 0, 0);
-            grid.addView(empty);
-            return;
-        }
-        LinearLayout row = null;
-        int col = 0;
-        for (final AppEntry app : all) {
-            if (row == null || col >= 4) {
-                row = new LinearLayout(ctx);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                grid.addView(row);
-                col = 0;
-            }
-            LinearLayout cell = new LinearLayout(ctx);
-            cell.setOrientation(LinearLayout.VERTICAL);
-            cell.setGravity(Gravity.CENTER_HORIZONTAL);
-            cell.setPadding(dp(6), dp(6), dp(6), dp(6));
-            android.widget.ImageView iv = new android.widget.ImageView(ctx);
-            iv.setImageBitmap(Icons.forEntry(ctx, app));
-            int isz = dp(52);
-            iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-            cell.addView(iv, new LinearLayout.LayoutParams(isz, isz));
-            TextView tv = new TextView(ctx);
-            tv.setText(appLabel(app));
-            tv.setTextSize(11);
-            tv.setMaxLines(1);
-            tv.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            tv.setGravity(Gravity.CENTER);
-            tv.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
-            cell.addView(tv, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            cell.setOnClickListener(new OnClickListener() {
-                @Override public void onClick(View v) {
-                    if (editing) return;
-                    if (host != null) host.openApp(app.pkg);
-                }
-            });
-            cell.setOnLongClickListener(new OnLongClickListener() {
-                @Override public boolean onLongClick(View v) {
-                    showLibraryAppMenuNear(v, app);
-                    return true;
-                }
-            });
-            LinearLayout.LayoutParams cellLp = new LinearLayout.LayoutParams(0,
-                    ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            row.addView(cell, cellLp);
-            col++;
-        }
+    // ---------------------------------------------------------------- narzedzia
+
+    // male litery + bez polskich ogonkow (L->l, S->s, Z->z)
+    static String norm(String s) {
+        if (s == null) return "";
+        return stripDiacritics(s.trim().toLowerCase(Locale.ROOT));
     }
-    // tryb z minusami (bez trzesienia): wlaczany dlugim przytrzymaniem tla listy
-    public void setMinusMode(boolean on) {
-        editing = on;
-        if (grid != null) rebuildFolders();
+
+    static String stripDiacritics(String s) {
+        if (s == null) return "";
+        StringBuilder b = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case 'ą': b.append('a'); break;
+                case 'ć': b.append('c'); break;
+                case 'ę': b.append('e'); break;
+                case 'ł': b.append('l'); break;
+                case 'ń': b.append('n'); break;
+                case 'ó': b.append('o'); break;
+                case 'ś': b.append('s'); break;
+                case 'ź': b.append('z'); break;
+                case 'ż': b.append('z'); break;
+                case 'Ą': b.append('A'); break;
+                case 'Ć': b.append('C'); break;
+                case 'Ę': b.append('E'); break;
+                case 'Ł': b.append('L'); break;
+                case 'Ń': b.append('N'); break;
+                case 'Ó': b.append('O'); break;
+                case 'Ś': b.append('S'); break;
+                case 'Ź': b.append('Z'); break;
+                case 'Ż': b.append('Z'); break;
+                default: b.append(c);
+            }
+        }
+        return b.toString();
     }
 
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
-        editing = false;
+        dismissSearch();
     }
 
     private int dp(float v) {
