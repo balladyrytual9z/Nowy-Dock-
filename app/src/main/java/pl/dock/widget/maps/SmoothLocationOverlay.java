@@ -42,7 +42,6 @@ public class SmoothLocationOverlay extends MyLocationNewOverlay {
     private final Paint arrowRing = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final float density;
     private boolean has;
-    private boolean arrow;
     private boolean night;
     private Runnable onUserTouch;
 
@@ -112,7 +111,7 @@ public class SmoothLocationOverlay extends MyLocationNewOverlay {
             canvas.drawCircle(px.x, px.y, radius, mCirclePaint);
         }
 
-        if (arrow) {
+        {
             // Jedziemy: strzalka kierunku. Canvas jest juz obrocony o orientacje mapy,
             // wiec przy heading-up (mapa obrocona o -kurs) strzalka celuje w gore.
             //
@@ -134,13 +133,6 @@ public class SmoothLocationOverlay extends MyLocationNewOverlay {
             canvas.drawPath(arrowPath, arrowFill);
             canvas.drawPath(arrowPath, arrowRing);
             canvas.restore();
-        } else {
-            // Stojmy: ikona osoby, obrocona tak, zeby zostala pionowo mimo obrotu mapy.
-            canvas.save();
-            canvas.rotate(-mMapView.getMapOrientation(), px.x, px.y);
-            canvas.drawBitmap(mPersonBitmap,
-                    px.x - mPersonHotspot.x, px.y - mPersonHotspot.y, mPaint);
-            canvas.restore();
         }
-    }
+     }
 }

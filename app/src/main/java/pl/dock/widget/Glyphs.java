@@ -53,6 +53,80 @@ public final class Glyphs {
         p.setStyle(old);
     }
 
+    /**
+     * Rysuje ikone z siatki 24x24 (jak SVG Material) wypelniona kolorem:
+     * wifi, wifi_off, bt. Bok 24 jednostek -> 2 * pol (ikona zajmuje ~92% srednicy).
+     */
+    private static void svg24(Canvas cv, String g, float cx, float cy, float pol, int color) {
+        Paint p = GP;
+        Path pa = PA;
+        pa.reset();
+        float k = (2f * pol) / 24f;
+        if ("bt".equals(g)) {
+            pa.moveTo(17.71, 7.71);
+            pa.lineTo(12, 2);
+            pa.lineTo(11, 2);
+            pa.lineTo(11, 9.59);
+            pa.lineTo(6.41, 5);
+            pa.lineTo(5, 6.41);
+            pa.lineTo(10.59, 12);
+            pa.lineTo(5, 17.59);
+            pa.lineTo(6.41, 19);
+            pa.lineTo(11, 14.41);
+            pa.lineTo(11, 22);
+            pa.lineTo(12, 22);
+            pa.lineTo(17.71, 16.29);
+            pa.lineTo(13.41, 12);
+            pa.lineTo(17.71, 7.71);
+            pa.close();
+            pa.moveTo(13, 5.83);
+            pa.lineTo(14.88, 7.71);
+            pa.lineTo(13, 9.59);
+            pa.lineTo(13, 5.83);
+            pa.close();
+            pa.moveTo(14.88, 16.29);
+            pa.lineTo(13, 18.17);
+            pa.lineTo(13, 14.41);
+            pa.lineTo(14.88, 16.29);
+            pa.close();
+        } else {
+            pa.moveTo(1, 9);
+            pa.lineTo(3, 11);
+            pa.cubicTo(7.97, 6.03, 16.03, 6.03, 21, 11);
+            pa.lineTo(23, 9);
+            pa.cubicTo(16.93, 2.93, 7.08, 2.93, 1, 9);
+            pa.close();
+            pa.moveTo(9, 17);
+            pa.lineTo(12, 20);
+            pa.lineTo(15, 17);
+            pa.cubicTo(13.35, 15.34, 10.66, 15.34, 9, 17);
+            pa.close();
+            pa.moveTo(5, 13);
+            pa.lineTo(7, 15);
+            pa.cubicTo(9.76, 12.24, 14.24, 12.24, 17, 15);
+            pa.lineTo(19, 13);
+            pa.cubicTo(15.14, 9.14, 8.87, 9.14, 5, 13);
+            pa.close();
+            if ("wifi_off".equals(g)) {
+pa.moveTo(3.27, 2);
+                pa.lineTo(2, 3.27);
+                pa.lineTo(20.73, 22);
+                pa.lineTo(22, 20.73);
+                pa.close();
+            }
+        }
+        Matrix m = new Matrix();
+        m.setScale(k, k);
+        m.postTranslate(cx - 12f * k, cy - 12f * k);
+        pa.transform(m);
+        p.reset();
+        p.setAntiAlias(true);
+        p.setColor(color);
+        p.setStyle(Paint.Style.FILL);
+        cv.drawPath(pa, p);
+        pa.reset();
+    }
+
     /** Rysuje ikone o danym kodzie w okregu o promieniu r wokol punktu (cx, cy). */
     public static void draw(Canvas cv, String g, float cx, float cy, float r, int color) {
         Paint p = GP;
@@ -70,34 +144,21 @@ public final class Glyphs {
         p.setStrokeJoin(Paint.Join.ROUND);
         if (g == null) g = "gear";
 
+        // Ikony z siatki 24x24 (klasyczne Material - te same ksztalty, ktore byly w
+        // starszej wersji aplikacji i wygladaly dobrze). Rysujemy je KODEM, bo na
+        // docelowym sprzecie (ESSGOO MT8163 / Mali-T720, Android 9) wektory z XML
+        // po filtrze SRC_IN ginely.
+        if ("wifi".equals(g) || "wifi_off".equals(g) || "bt".equals(g)) {
+            svg24(cv, g, cx, cy, s, color);
+            return;
+        }
+
         switch (g) {
-            case "wifi": {
-                // Wi-Fi jak w referencji: 3 luki nad wypelniona kropka (wspolsrodkowe)
-                float fy = cy + s * 0.42f;
-                p.setStyle(Paint.Style.STROKE);
-                float[] rr = {s * 0.36f, s * 0.66f, s * 0.96f};
-                for (float R : rr) {
-                    rc.set(cx - R, fy - R, cx + R, fy + R);
-                    cv.drawArc(rc, 212, 116, false, p);
-                }
-                p.setStyle(Paint.Style.FILL);
-                cv.drawCircle(cx, fy, sw * 0.9f, p);
-                break;
-            }
-            case "bt":
-                pa.moveTo(cx, cy - s);
-                pa.lineTo(cx, cy + s);
-                pa.moveTo(cx, cy - s);
-                pa.lineTo(cx + s * 0.7f, cy - s * 0.35f);
-                pa.lineTo(cx, cy);
-                pa.lineTo(cx + s * 0.7f, cy + s * 0.35f);
-                pa.lineTo(cx, cy + s);
-                pa.moveTo(cx - s * 0.55f, cy - s * 0.4f);
-                pa.lineTo(cx, cy);
-                pa.lineTo(cx - s * 0.55f, cy + s * 0.4f);
-                cv.drawPath(pa, p);
-                break;
-            case "air":
+            case "wifi":          // (rysowane przez svg24 wyzej)
+        case "wifi_off":
+        case "bt":
+            break;
+        case "air":
                 // wypelniona sylwetka samolotu (jak w referencji): nos, skrzydla, stateczniki
                 pa.moveTo(cx, cy - s);
                 pa.lineTo(cx + s * 0.15f, cy - s * 0.45f);

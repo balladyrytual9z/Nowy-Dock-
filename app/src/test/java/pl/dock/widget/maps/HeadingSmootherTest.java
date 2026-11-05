@@ -470,4 +470,51 @@ public class HeadingSmootherTest {
         assertTrue("po prawdziwych fixach jestesmy na miejscu (jest " + left + " m)",
                 left < 20d);
     }
+
+    // ---------------- postoj: znacznik ma sie calkowicie zatrzymac ----------------
+
+    @Test
+    public void poChwiliPostojuZnacznikZamieraNaDobre() {
+        // Zgloszenie: stojac znacznik nadal sie ruszal ("postac sie rusza troszke").
+        // Po kilkunastu sekundach bez ruchu ma stanac jak wryty, mimo szumu GPS.
+        HeadingSmoother s = new HeadingSmoother();
+        s.onFix(52.0d, 19.0d, 0f, 0f, 8f, 1000L);
+        long t = 1000L;
+        for (int i = 0; i < 20; i++) {            // 20 s stania (okno zamrozenia)
+            t += 1000L;
+            s.advance(t);
+            s.onFix(52.0d, 19.0d, 0f, 0f, 8f, t);
+        }
+        s.advance(t + 1000L);
+        double lat0 = s.lat(), lon0 = s.lon();
+        for (int i = 0; i < 10; i++) {            // mocny szum: +-33 m na przemian
+            t += 1000L;
+            s.advance(t);
+            s.onFix(52.0d + (i % 2 == 0 ? 0.0003d : -0.0003d), 19.0d, 0f, 0f, 8f, t);
+        }
+        s.advance(t + 1000L);
+        double moved = HeadingSmoother.metersBetween(lat0, lon0, s.lat(), s.lon());
+        assertTrue("po zamrozeniu nic nim nie rusza (ruszyl sie " + moved + " m)", moved < 0.01d);
+    }
+
+    @Test
+    public void ruszeniePoZamrozeniuOdmarzaZnacznik() {
+        HeadingSmoother s = new HeadingSmoother();
+        s.onFix(52.0d, 19.0d, 0f, 0f, 8f, 1000L);
+        long t = 1000L;
+        for (int i = 0; i < 20; i++) {
+            t += 1000L;
+            s.advance(t);
+            s.onFix(52.0d, 19.0d, 0f, 0f, 8f, t);
+        }
+        double lat = 52.0d;
+        for (int i = 0; i < 8; i++) {             // ruszamy: 5 m/s, co sekunde 5 m
+            t += 1000L;
+            s.advance(t);
+            lat += 5d / 111320d;
+            s.onFix(lat, 19.0d, 90f, 5f, 6f, t);
+        }
+        double moved = HeadingSmoother.metersBetween(52.0d, 19.0d, s.lat(), s.lon());
+        assertTrue("po ruszeniu znacznik jedzie (" + moved + " m)", moved > 25d);
+    }
 }

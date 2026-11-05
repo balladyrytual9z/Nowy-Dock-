@@ -242,6 +242,11 @@ public class LauncherActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        // Powrot na STRONE GLOWNA (przycisk home w doku Nawigacji ustawia te flage).
+        if (Prefs.goHome(this)) {
+            Prefs.setGoHome(this, false);
+            if (pager != null) pager.goTo(homeIdx, false);
+        }
         applyBars();
         if (Math.abs(Prefs.uiScale(this) - builtScale) > 0.001f) {
             recreate();
@@ -492,9 +497,14 @@ public class LauncherActivity extends BaseActivity {
                 // slabym GPU tabletu) - snapshot robimy dopiero po osiadnieciu strony
                 dotsTop.setAlpha(1f - t);
                 dotsApps.setAlpha(t);
-                int topCount = homeIdx + 1;
-                dotsTop.set(topCount, Math.min(pos, topCount - 1));
-                dotsApps.set(Math.max(1, appPages.size() + 1), pos - appsStart);
+                // ZAWSZE realna liczba stron calego panelu (bez wyszukiwania), tak samo na
+                // kazdej stronie - zgloszenie: na stronie glownej byly 2 kropki,
+                // a na liscie aplikacji liczba aplikacji.
+                int panelCount = panelPageCount();
+                dotsTop.set(panelCount, Math.min(pos, panelCount - 1));
+                dotsApps.set(panelCount, Math.min(pos, panelCount - 1));
+                // biale tlo (kapsula) tylko na stronie glownej
+                dotsTop.setCapsule(Math.abs(pos - homeIdx) < 0.5f);
             }
 
             @Override
@@ -510,10 +520,11 @@ public class LauncherActivity extends BaseActivity {
         dotsApps.setLight(!night);
         buildWidgetPages();
         assemblePages();
-        // Fix race condition: set page indicators immediately (report: Dot Indicators symmetry)
-        int topCount = homeIdx + 1;
-        dotsTop.set(topCount, homeIdx);
-        dotsApps.set(Math.max(1, appPages.size() + 1), 0f);
+        // Fix race condition: wskaznik od razu po zbudowaniu stron
+        int panelCount = panelPageCount();
+        dotsTop.set(panelCount, homeIdx);
+        dotsApps.set(panelCount, homeIdx);
+        dotsTop.setCapsule(true);
         dotsTop.setAlpha(1f);
         dotsApps.setAlpha(0f);
         lastDockSig = "";
@@ -1934,6 +1945,13 @@ public class LauncherActivity extends BaseActivity {
 
     public static LauncherActivity current() {
         return currentRef == null ? null : currentRef.get();
+    }
+
+
+    /** Liczba stron panelu BEZ strony wyszukiwania (ta nigdy nie liczy sie do kropek). */
+    private int panelPageCount() {
+        int n = pager == null ? 1 : pager.count();
+        return Math.max(1, n - 1);
     }
 
     private void saveLastPage(int index) {
