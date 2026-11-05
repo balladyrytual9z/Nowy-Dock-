@@ -147,6 +147,7 @@ public class LauncherActivity extends BaseActivity {
         buildUi();
         StatusService.start(this);
         Updater.scheduleCheck(this);
+        Updater.startPolling(this);   // sprawdzanie w tle co minute (Ustawienia)
         NightShift.restore(this);
         updateClockText();
         loadApps();
