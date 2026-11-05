@@ -1494,6 +1494,21 @@ public class ConfigActivity extends BaseActivity {
         g = group(col);
         g.addView(row(null, "Zainstalowana wersja", localTag(), false, p.text, null));
         sep(g);
+        final int[] updMin = {1, 10, 60, 360};
+        String[] updLbl = {"Co minutę (test)", "Co 10 min", "Co godzinę", "Co 6 h"};
+        int updSel = 0;
+        int curUpd = Prefs.updateCheckMin(this);
+        for (int i = 0; i < updMin.length; i++) {
+            if (curUpd == updMin[i]) updSel = i;
+        }
+        g.addView(segRow("Sprawdzanie w tle", updLbl, updSel, new OnSel() {
+            @Override
+            public void on(int i) {
+                Prefs.setUpdateCheckMin(ConfigActivity.this, updMin[i]);
+                changed();
+            }
+        }));
+        sep(g);
         g.addView(row(null, "Sprawdź aktualizacje teraz", "", true, p.accent,
                 new View.OnClickListener() {
                     @Override
@@ -1501,9 +1516,10 @@ public class ConfigActivity extends BaseActivity {
                         Updater.checkNow(ConfigActivity.this);
                     }
                 }));
-        footer(col, "Aktualizacje pobierają się automatycznie przez WiFi (co 6 h). "
-                + "Przycisk sprawdza od razu – gdy pojawi się nowa wersja, pobierze ją "
-                + "i poprosi o potwierdzenie instalacji.");
+        footer(col, "Aktualizacje sprawdzają się w tle, bez powiadomień, i instalują się same. "
+                + "„Co minutę (test)” służy do sprawdzania zmian na bieżąco; na co dzień "
+                + "wystarczy „Co 6 h”. Bez roota system pokaże jedno potwierdzenie instalacji – "
+                + "z rootem instaluje się całkiem cicho. Przycisk sprawdza od razu.");
 
         section(col, "Kopia zapasowa");
         g = group(col);

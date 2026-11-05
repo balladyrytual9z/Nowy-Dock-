@@ -1026,4 +1026,18 @@ public class Prefs {
     public static void setMapPoland(Context c, boolean v) {
         ed(c).putBoolean("map_poland", v).apply();
     }
+
+    // ---------- samoaktualizacja ----------
+    /** Domyslny odstep sprawdzania aktualizacji w tle [min]. Tryb testowy = 1 min. */
+    public static final int UPDATE_MIN_DEFAULT = 1;
+
+    /** Co ile minut sprawdzac aktualizacje w tle (1 = tryb testowy). */
+    public static int updateCheckMin(Context c) {
+        int v = sp(c).getInt("update_check_min", UPDATE_MIN_DEFAULT);
+        return v < 1 ? UPDATE_MIN_DEFAULT : v;
+    }
+
+    public static void setUpdateCheckMin(Context c, int min) {
+        ed(c).putInt("update_check_min", min < 1 ? 1 : min).apply();
+    }
 }
