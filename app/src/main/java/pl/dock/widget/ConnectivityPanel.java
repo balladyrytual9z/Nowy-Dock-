@@ -11,7 +11,6 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Typeface;
-import android.graphics.Outline;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
@@ -20,7 +19,6 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewOutlineProvider;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -99,36 +97,28 @@ public class ConnectivityPanel extends LinearLayout {
         setBackground(Ui.popupBg(a, night));
         setPadding(dp(12), dp(12), dp(12), dp(10));
         setClickable(true);
-        // Panel na API >= 30 rysuje sie normalnie (hardware). Na starym GPU
-        // tabletu (ESSGOO / MT8163, Mali-T720, realny Android 9 = API 28) tresc
-        // panelu - suwaki PillSlider, NightShiftButton, ModeSegment i kafelki
-        // rail - NIE rysuje sie bez wlasnej warstwy: widoczne sa tylko tlo panelu
-        // i TextView z frameworka. Zmierzone rozmiary sa poprawne, wiec to nie
-        // uklad, a odtwarzanie nowo dodanego poddrzewa custom views z RenderNode.
+        // Panel rysuje sie normalnie, sprzetowo - z JEDNYM wyjatkiem.
         //
-        // Warstwa SOFTWARE na API < 30 jest na tym urzadzeniu POTWIERDZONA
-        // (dziala z nia: widoczna pelna tresc panelu). Ustawiamy ja RAZ i NIE
-        // przelaczamy z powrotem na LAYER_TYPE_NONE - samo przelaczenie czyscilo
-        // bufor w trakcie animacji otwarcia i panel gasl (PR #9). Panel
-        // przerysowuje sie dopiero przy dotknieciu, wiec koszt CPU jest znikomy.
+        // Na starym GPU tabletu (ESSGOO / MT8163, Mali-T720, realny Android 9 =
+        // API 28) TRESC panelu (suwaki PillSlider, NightShiftButton, ModeSegment,
+        // kafelki rail) NIE rysuje sie bez wlasnej warstwy: widoczne sa tylko tlo
+        // panelu i TextView z frameworka. Zmierzone rozmiary sa poprawne, wiec to
+        // nie uklad, a odtwarzanie nowo dodanego poddrzewa custom views z RenderNode.
+        //
+        // Warstwa SOFTWARE na API < 30 jest na tym urzadzeniu POTWIERDZONA: z nia
+        // panel pokazuje cala tresc, bez niej jest PUSTY (regresja PR #17).
+        // Ustawiamy ja RAZ i NIE przelaczamy z powrotem na LAYER_TYPE_NONE - samo
+        // przelaczenie czyscilo bufor w trakcie animacji otwarcia i panel gasl (PR #9).
+        // Panel przerysowuje sie dopiero przy dotknieciu, wiec koszt CPU jest znikomy.
+        //
+        // Czego tu NIE ma i nie dokladamy: setElevation oraz setClipToOutline
+        // z OutlineProvider. Wczesniejsze proby naprawy dokladaly je po kolei i
+        // wzajemnie sie znosily - setElevation kazal GPU renderowac warstwe cienia
+        // (na Mali-T720 wychodzil pusty bufor), a Outline liczony z getWidth()/
+        // getHeight() przy pierwszym pomiarze (0x0) obcinal CALY panel. Zaokraglone
+        // tlo rysuje GradientDrawable z Ui.popupBg, wiec clip nie jest potrzebny.
         if (android.os.Build.VERSION.SDK_INT < 30) {
             setLayerType(View.LAYER_TYPE_SOFTWARE, null);
-        }
-        // Clip tylko na API >= 30. Zaokraglone tlo rysuje GradientDrawable
-        // z Ui.popupBg, wiec clip nie jest wizualnie potrzebny, a Outline liczony
-        // z getWidth()/getHeight() przy pierwszym pomiarze (0x0) obcinal CALY
-        // panel do pustego prostokata - dlatego guard na wymiary > 0.
-        if (android.os.Build.VERSION.SDK_INT >= 30) {
-            setOutlineProvider(new ViewOutlineProvider() {
-                @Override
-                public void getOutline(View v, Outline o) {
-                    if (v.getWidth() > 0 && v.getHeight() > 0) {
-                        o.setRoundRect(0, 0, v.getWidth(), v.getHeight(), dp(34));
-                        o.setAlpha(0f);   // brak cienia -> brak zepsutej warstwy
-                    }
-                }
-            });
-            setClipToOutline(true);
         }
         build();
     }
@@ -854,32 +844,6 @@ public class ConnectivityPanel extends LinearLayout {
             android.util.Log.w("Dock", "panel update", tr);
         }
 
-        // Diagnostyka renderowania (logcat, tag CC_PANEL), po pierwszym layout:
-        // rozmiary powinny byc niezerowe; w=0 wskazuje problem pomiaru,
-        // alpha=0 problem animacji/warstwy.
-        postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    android.util.Log.w("CC_PANEL", "self w=" + getWidth()
-                            + " h=" + getHeight()
-                            + " alpha=" + getAlpha()
-                            + " vis=" + getVisibility()
-                            + " children=" + getChildCount()
-                            + " layer=" + getLayerType()
-                            + " clip=" + getClipToOutline()
-                            + " elevation=" + getElevation());
-                    for (int i = 0; i < getChildCount(); i++) {
-                        View ch = getChildAt(i);
-                        android.util.Log.w("CC_PANEL", "  child[" + i + "] "
-                                + ch.getClass().getSimpleName()
-                                + " w=" + ch.getWidth() + " h=" + ch.getHeight()
-                                + " alpha=" + ch.getAlpha() + " vis=" + ch.getVisibility());
-                    }
-                } catch (Throwable ignored) {
-                }
-            }
-        }, 300);
     }
 
     @Override
