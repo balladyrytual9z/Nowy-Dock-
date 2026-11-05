@@ -108,6 +108,20 @@ public final class HeadingSmoother {
     private float accuracy;
     private boolean dirty;
 
+    /** Po ilu ms stania znacznik zamarza calkowicie (zgloszenie: "postac sie rusza"). */
+    private static final long FREEZE_AFTER_MS = 15000L;
+
+    /** Ile fixow z rzedu musi wskazywac ruch, by odmarznac znacznik. */
+    private static final int UNFREEZE_FIXES = 2;
+
+    /** Odleglosc, od ktorej fix jest "realnym ruchem" nawet bez predkosci [m]. */
+    private static final float UNFREEZE_MOVE_M = 60f;
+
+    /** Zamrozenie na postoju: znacznik stoi jak wryty, dopoki nie ruszymy naprawde. */
+    private boolean frozen;
+    private long stillSinceMs;
+    private int unfreezeHits;
+
     /** Czy mamy pozycje z pamieci ("gdzie zaparkowalem"), zanim przyszly fixy. */
     private boolean seeded;
 
@@ -151,6 +165,9 @@ public final class HeadingSmoother {
         speedMs = 0f;
         accuracy = 0f;
         dirty = true;
+        frozen = false;
+        stillSinceMs = 0L;
+        unfreezeHits = 0;
         seeded = false;
         holdHeading = 0f;
         holdHeadingSet = false;
@@ -231,6 +248,17 @@ public final class HeadingSmoother {
         double tLat = accSet ? accLat : fixLat;
         double tLon = accSet ? accLon : fixLon;
         accSet = false;
+
+        // Postoj: po kilkunastu sekundach bez ruchu znacznik zamarza calkowicie - zaden
+        // szum GPS nim nie ruszy (zgloszenie: "postac sie rusza mimo wszystko troszke").
+        // Odmraza go dopiero REALNY ruch: predkosc jazdy albo wyrazne przemieszczenie.
+        // Cel to tLat/tLon, bo glosowanie moze wskazywac prawdziwe miejsce daleko -
+        // wtedy (i tylko wtedy) zamrozenie przepuszcza korekte.
+        if (frozen && !unfreeze(tLat, tLon, fixSpeedMs)) {
+            lastFixAt = nowMs;      // wiemy, ze GPS zyje, ale pozycji nie ruszamy
+            return;
+        }
+
         // Ile z tego fix'a bierzemy na wiare (0 = stoimy, 1 = jedziemy).
         float trust = trustFor(tLat, tLon, fixSpeedMs, fixAccuracy);
 
@@ -245,6 +273,14 @@ public final class HeadingSmoother {
         toLat = lat + (tLat - lat) * trust;
         toLon = lon + (tLon - lon) * trust;
         speedMs = trust <= 0f ? 0f : fixSpeedMs;
+        if (speedMs < STILL_SPEED_MS) {
+            if (stillSinceMs == 0L) stillSinceMs = nowMs;
+            else if (nowMs - stillSinceMs >= FREEZE_AFTER_MS) frozen = true;
+        } else {
+            stillSinceMs = 0L;
+            frozen = false;
+            unfreezeHits = 0;
+        }
         if (trust > 0f) accuracy = fixAccuracy;
         fromBearing = bearing;
         toBearing = bearing + shortestDelta(target, bearing);
@@ -273,6 +309,24 @@ public final class HeadingSmoother {
     /** Czy pozycja pochodzi z pamieci ("gdzie zaparkowalem"), a fix jeszcze nie przyszedl. */
     public boolean seededKnown() {
         return seeded && !hasFix;
+    }
+
+    /**
+     * Czy zamarznieta pozycja ma odmarznac? Tylko przy realnym ruchu: dwa fixy z rzedu
+     * z predkoscia jazdy albo dwa fixy z rzedu daleko (> {@link #UNFREEZE_MOVE_M}).
+     * Pojedynczy blad GPS na postoju NIE odmarza znacznika.
+     */
+    private boolean unfreeze(double fixLat, double fixLon, float fixSpeedMs) {
+        double dist = metersBetween(lat, lon, fixLat, fixLon);
+        if (fixSpeedMs >= STILL_SPEED_MS || dist > UNFREEZE_MOVE_M) unfreezeHits++;
+        else unfreezeHits = 0;
+        if (unfreezeHits >= UNFREEZE_FIXES) {
+            frozen = false;
+            stillSinceMs = 0L;
+            unfreezeHits = 0;
+            return true;
+        }
+        return false;
     }
 
     /** Kurs do trzymania na postoju: ostatni z jazdy, a bez jazdy - polnoc. */

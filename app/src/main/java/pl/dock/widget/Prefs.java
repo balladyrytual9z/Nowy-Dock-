@@ -1003,6 +1003,15 @@ public class Prefs {
                 .apply();
     }
 
+    // jednorazowa prosba "wroc na strone glowna" (przycisk home w doku Nawigacji)
+    public static boolean goHome(Context c) {
+        return sp(c).getBoolean("go_home", false);
+    }
+
+    public static void setGoHome(Context c, boolean v) {
+        ed(c).putBoolean("go_home", v).apply();
+    }
+
     // ostatnia DOBRA pozycja GPS ("gdzie zaparkowalem") - zeby po wejsciu do auta
     // mapa od razu pokazala wlasciwe miejsce, bez szukania
     public static String posLastLat(Context c) {

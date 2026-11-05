@@ -24,6 +24,13 @@ public class PageDots extends View {
         d = c.getResources().getDisplayMetrics().density;
     }
 
+    /** Kapsula (biale tlo) - wlaczana tylko na stronie glownej. */
+    public void setCapsule(boolean c) {
+        if (capsule == c) return;
+        capsule = c;
+        invalidate();
+    }
+
     public void setLight(boolean light) {
         base = light ? 0x00000000 : 0x00FFFFFF;
         invalidate();

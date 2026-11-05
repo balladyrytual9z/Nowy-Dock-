@@ -37,6 +37,7 @@ import pl.dock.widget.Icons;
 import pl.dock.widget.Launch;
 import pl.dock.widget.Look;
 import pl.dock.widget.Prefs;
+import pl.dock.widget.RecentAppsPopup;
 import pl.dock.widget.StatusCenter;
 import pl.dock.widget.Ui;
 
@@ -222,6 +223,9 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
     }
 
     private void wireDock() {
+            // Ikona dolnego przycisku: "jeden kwadracik" = powrot do ekranu glownego
+            // (na kafelkach launchera pokazuje siatke aplikacji - tutaj ma byc dom).
+            dock.setBottomProgress(1f);
         Bitmap[] dockIcons = new Bitmap[4];
         List<AppEntry> top = Prefs.top(this, 3);
         for (int i = 0; i < 3 && i < top.size(); i++) dockIcons[i] = Icons.forEntry(this, top.get(i));
@@ -262,10 +266,15 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
 
             @Override
             public void onBottom() {
+                // Zgloszenie: w pelnoekranowej mapie ten przycisk nie robil nic.
+                // Ma wrocic na STRONE GLOWNA launchera (ta flaga + finish).
+                Prefs.setGoHome(NavigatorActivity.this, true);
+                finish();
             }
 
             @Override
             public void onBottomLong() {
+                RecentAppsPopup.show(NavigatorActivity.this, Prefs.recents(NavigatorActivity.this, 8));
             }
         });
     }
@@ -764,34 +773,7 @@ private void toggleFollow() {
 
         @Override
         protected void onDraw(Canvas cv) {
-            // === top bar (ETA/dystans/kompas) ===
-            RectF tb = topBarRect();
-            pt.setStyle(Paint.Style.FILL);
-            pt.setColor(night ? 0xCC000000 : 0xCCF5F5F7);
-            cv.drawRect(tb, pt);
-
-            // lewa: dystans do celu lub predkosc
-            String topLeft;
-            if (hasDest && destDistM >= 0) {
-                String dd = destDistM >= 1000
-                        ? String.format(java.util.Locale.US, "%.1f km", destDistM / 1000f)
-                        : String.format(java.util.Locale.US, "%.0f m", destDistM);
-                topLeft = "↑  " + dd;
-            } else if (hasFix) {
-                int kph = Math.round(currentSpeedMs * 3.6f);
-                topLeft = String.valueOf(kph) + " km/h";
-            } else {
-                topLeft = "GPS…";
-            }
-            drawText(cv, topLeft, tb.left + 14f * d, tb.centerY(),
-                    hasFix ? 0xFF30D158 : 0xFFFF9F0A, 13f, Paint.Align.LEFT);
-
-            // prawa: strzalka kierunku (kompas)
-            float ccx = tb.right - 30f * d;
-            float ccy = tb.centerY();
-            drawCompass(cv, ccx, ccy, currentBearing);
-
-            // === plakietka predkosci: prostokat z rogami (taki sam jak na kafelku
+// === plakietka predkosci: prostokat z rogami (taki sam jak na kafelku
             // mapy na ekranie glownym - ten sam rozmiar, promien i czcionki) ===
             float scx = speedCx();
             float scy = speedCy();
@@ -809,11 +791,9 @@ private void toggleFollow() {
                 unitTf = pl.dock.widget.ui.DockTheme.interMedium();
             }
             String kphS = hasFix ? String.valueOf(Math.round(currentSpeedMs * 3.6f)) : "—";
-            // liczba i jednostka tuz obok siebie (bylo 25/46 dp - za duzo pustki
-            // w srodku plakietki); polozenie co do piksela jak na kafelku mapy
-            drawTextTf(cv, kphS, speedRect.centerX(), speedRect.top + 22f * d,
+            drawTextTf(cv, kphS, speedRect.centerX(), speedRect.top + 25f * d,
                     night ? 0xFFFFFFFF : 0xFF10131A, 26f, Paint.Align.CENTER, numTf);
-            drawTextTf(cv, "km/h", speedRect.centerX(), speedRect.top + 41f * d,
+            drawTextTf(cv, "km/h", speedRect.centerX(), speedRect.top + 46f * d,
                     night ? 0xFF8E8E93 : 0xFF6B7686, 11f, Paint.Align.CENTER, unitTf);
 
             // === przyciski (plywajace pigułki) ===
