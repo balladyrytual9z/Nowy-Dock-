@@ -48,6 +48,8 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
     private static final float CARD_RADIUS_DP = 30f;
     private static final float CARD_STROKE_DP = 1.5f;
     private final RectF cardRect = new RectF();
+    private final RectF speedRect = new RectF();
+    private Typeface tfNum, tfUnit;
     private final Path cardClip = new Path();
     private int clipW = -1;
     private int clipH = -1;
@@ -411,30 +413,38 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
         // Kafelek to SAMA MAPA + wskaznik predkosci. Paska "MAPY / offline /
         // NAWIGACJA" tu nie ma (usuniety na zyczenie uzytkownika, 2026-11-05).
         //
-        // Okragly wskaznik predkosci (jak w pelnoekranowej Nawigacji / Waze)
-        // w prawym dolnym rogu. Kolory zgodne z motywem launchera.
-        float r = 34f * d;
-        float cx = w - r - 14f * d;
-        float cy = h - r - 14f * d;
+        // Plakietka predkosci: PROSTOKAT z zaokraglonymi rogami (jak karty widzetow
+        // obok) w prawym dolnym rogu, liczba + "km/h" pod nia. Czcionka z motywu
+        // launchera (Inter z DockTheme, jak w reszcie UI).
         float kmh = speedMs * 3.6f;
         String val = hasFix ? String.valueOf(Math.round(kmh)) : "—";
+        float bw = 84f * d;
+        float bh = 64f * d;
+        float rad = 20f * d;          // zaokraglenie; karta widzetu ma 30 dp przy ~200 dp
+        float mgn = 14f * d;
+        speedRect.set(w - bw - mgn, h - bh - mgn, w - mgn, h - mgn);
+        float cx = speedRect.centerX();
 
         p.setStyle(Paint.Style.FILL);
         p.setColor(night ? 0xE60E0E0F : 0xE6F5F5F7);
-        cv.drawCircle(cx, cy, r, p);
+        cv.drawRoundRect(speedRect, rad, rad, p);
         p.setStyle(Paint.Style.STROKE);
-        p.setStrokeWidth(2.5f * d);
+        p.setStrokeWidth(2f * d);
         p.setColor(night ? 0xFF0A84FF : 0xFF0A6CFF);
-        cv.drawCircle(cx, cy, r, p);
+        cv.drawRoundRect(speedRect, rad, rad, p);
 
+        if (tfNum == null) {              // czcionki bierzemy raz, nie co klatke
+            tfNum = pl.dock.widget.ui.DockTheme.interSemiBold();
+            tfUnit = pl.dock.widget.ui.DockTheme.interMedium();
+        }
         t.setTextAlign(Paint.Align.CENTER);
-        t.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-        t.setTextSize(24f * d);
+        t.setTypeface(tfNum);
+        t.setTextSize(26f * d);
         t.setColor(night ? 0xFFFFFFFF : 0xFF10131A);
-        cv.drawText(val, cx, cy + 6f * d, t);
-        t.setTypeface(Typeface.DEFAULT);
-        t.setTextSize(9f * d);
+        cv.drawText(val, cx, speedRect.top + 31f * d, t);      // liczba
+        t.setTypeface(tfUnit);
+        t.setTextSize(11f * d);
         t.setColor(night ? 0xFF8E8E93 : 0xFF6B7686);
-        cv.drawText("km/h", cx, cy + 22f * d, t);
+        cv.drawText("km/h", cx, speedRect.top + 50f * d, t);   // jednostka pod liczba
     }
 }
