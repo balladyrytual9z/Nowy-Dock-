@@ -49,6 +49,24 @@ public final class HeadingSmoother {
     /** Fix z gorsza dokladnoscia niz tyle metrow jest bezuzyteczny. */
     private static final float MAX_USABLE_ACCURACY_M = 100f;
 
+    /** Szybciej niz to nie jezdzimy [m/s] (216 km/h) - "szybszy" fix to blad GPS. */
+    private static final float MAX_PLAUSIBLE_SPEED_MS = 60f;
+
+    /** Zapas na niepewnosc GPS [m] - tyle wolno odjechac bez potwierdzenia. */
+    private static final float JUMP_SLACK_M = 30f;
+
+    /** Ile razy z rzedu GPS musi pokazac to samo miejsce, by uznac skok za prawdziwy. */
+    private static final int JUMP_CONFIRM = 3;
+
+    /** Na postoju wymagamy wiekszego dowodu - szum nie moze nas przesuwac. */
+    private static final int JUMP_CONFIRM_STILL = 5;
+
+    /** Dwa fixy to "to samo miejsce", gdy dzieli je tyle metrow. */
+    private static final float JUMP_AGREE_M = 25f;
+
+    /** Na postoju ignorujemy rozrzut do tyle razy wiekszy od deklarowanej dokladnosci. */
+    private static final float STILL_ACCURACY_SLACK = 1.5f;
+
     /** Ponizej takiego ruchu/obrotu nie ma po co przerysowywac klatki (postoj = zero pracy). */
     private static final double MIN_MOVE_DEG = 1e-7;
     private static final float MIN_TURN_DEG = 0.02f;
@@ -75,6 +93,13 @@ public final class HeadingSmoother {
     private float accuracy;
     private boolean dirty;
 
+    /** Ile fixow z rzedu GPS pokazywal ten sam skok (patrz {@link #plausible}). */
+    private int pendingHits;
+    private double pendingLat, pendingLon;
+    /** Miejsce, ktore GPS potwierdzil jako nowa pozycje - dochodzimy do niego. */
+    private boolean confirmedSet;
+    private double confirmedLat, confirmedLon;
+
     /** Zeruje stan (np. po utracie fix'a). */
     public void reset() {
         hasFix = false;
@@ -93,6 +118,12 @@ public final class HeadingSmoother {
         speedMs = 0f;
         accuracy = 0f;
         dirty = true;
+        pendingHits = 0;
+        pendingLat = 0d;
+        pendingLon = 0d;
+        confirmedSet = false;
+        confirmedLat = 0d;
+        confirmedLon = 0d;
     }
 
     /**
@@ -132,10 +163,19 @@ public final class HeadingSmoother {
             lastFixAt = nowMs;
             return;
         }
+        // Bramka na skoki GPS. Pojedynczy bledny fix (zimny start, tunel, miasto miedzy
+        // budynkami) potrafi wskazac pozycje kilometry dalej i jeszcze sklamac, ze
+        // jedziemy. Taki fix nie moze przestawic mapy ani zapisac sie jako "ostatnia
+        // pozycja" w Ustawieniach.
+        long gap = nowMs - lastFixAt;
+        if (!plausible(fixLat, fixLon, fixSpeedMs, fixAccuracy, gap)) {
+            lastFixAt = nowMs;      // wiemy, ze GPS zyje, ale pozycji nie ruszamy
+            return;
+        }
+
         // Ile z tego fix'a bierzemy na wiare (0 = stoimy, 1 = jedziemy).
         float trust = trustFor(fixLat, fixLon, fixSpeedMs, fixAccuracy);
 
-        long gap = nowMs - lastFixAt;
         durMs = gap < MIN_DUR_MS ? MIN_DUR_MS : (gap > MAX_DUR_MS ? MAX_DUR_MS : gap);
         lastFixAt = nowMs;
         t0 = nowMs;
@@ -164,8 +204,60 @@ public final class HeadingSmoother {
         }
         // Postoj: promien szumu rosnie z (nie)dokladnoscia GPS.
         double dist = metersBetween(lat, lon, fixLat, fixLon);
-        float radius = Math.max(STILL_RADIUS_M, fixAccuracy);
+        // Ten sam promien co w bramce (plausible): jesli fix przeszedl bramke,
+        // to znaczy, ze jest w granicach szumu - i wtedy NIE ruszamy znacznika.
+        float radius = Math.max(STILL_RADIUS_M, fixAccuracy * STILL_ACCURACY_SLACK);
         return dist <= radius ? 0f : CREEP_TRUST;
+    }
+
+    /**
+     * Czy temu fix'owi wierzymy. Odrzucamy skoki, ktorych nie da sie przejechac
+     * (GPS klamie), a duzy skok przyjmujemy dopiero, gdy powtorzy sie kilka razy
+     * z rzedu w tym samym miejscu - to odroznia prawdziwa zmiane miejsca od bledu.
+     * Odrzucony fix nie rusza ani pozycji, ani predkosci, wiec licznik nie pokazuje
+     * na postoju 40 km/h po blednym fixie.
+     */
+    private boolean plausible(double fixLat, double fixLon, float fixSpeedMs,
+                              float fixAccuracy, long gapMs) {
+        double dist = metersBetween(lat, lon, fixLat, fixLon);
+        double dt = Math.max(0.5d, gapMs / 1000d);
+        boolean still = fixSpeedMs < STILL_SPEED_MS && speedMs < STILL_SPEED_MS;
+        double allowed;
+        if (still) {
+            allowed = Math.max(STILL_RADIUS_M, fixAccuracy * STILL_ACCURACY_SLACK);
+        } else {
+            double v = Math.min(MAX_PLAUSIBLE_SPEED_MS, Math.max(fixSpeedMs, speedMs));
+            allowed = v * dt * 1.6d + JUMP_SLACK_M;
+        }
+        if (dist <= allowed) {
+            // Jestesmy na miejscu - konczymy "dochodzenie" do zatwierdzonego punktu.
+            pendingHits = 0;
+            confirmedSet = false;
+            return true;
+        }
+        // Skok potwierdzony: kolejne fixy z tego samego miejsca przyjmujemy od razu,
+        // inaczej dochodzenie do nowej pozycji rozciagalo sie na minuty (kazdy krok
+        // musialby znow czekac na potwierdzenie).
+        if (confirmedSet
+                && metersBetween(confirmedLat, confirmedLon, fixLat, fixLon) <= JUMP_AGREE_M) {
+            return true;
+        }
+        if (pendingHits > 0
+                && metersBetween(pendingLat, pendingLon, fixLat, fixLon) <= JUMP_AGREE_M) {
+            pendingHits++;
+        } else {
+            pendingLat = fixLat;
+            pendingLon = fixLon;
+            pendingHits = 1;
+        }
+        if (pendingHits >= (still ? JUMP_CONFIRM_STILL : JUMP_CONFIRM)) {
+            pendingHits = 0;         // powtarza sie - to prawda, nie blad
+            confirmedSet = true;
+            confirmedLat = fixLat;
+            confirmedLon = fixLon;
+            return true;
+        }
+        return false;
     }
 
     /** Odleglosc w metrach (haversine). */
