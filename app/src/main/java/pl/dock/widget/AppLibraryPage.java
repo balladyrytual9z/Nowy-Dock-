@@ -234,7 +234,23 @@ public class AppLibraryPage extends FrameLayout {
                 return false;
             }
         });
-        header.addView(letterBar, new LinearLayout.LayoutParams(
+        // Pasek liter ma ~65% szerokosci paska wyszukiwania i jest wysrodkowany.
+        // Odstep od gory (dp 16) jest po to, zeby POWIEKSZONA litera nie dotknela
+        // pola wyszukiwania, gdy rosnie w gore.
+        LinearLayout barRow = new LinearLayout(ctx);
+        barRow.setOrientation(LinearLayout.HORIZONTAL);
+        barRow.setGravity(Gravity.CENTER_VERTICAL);
+        barRow.setClipChildren(false);
+        barRow.setClipToPadding(false);
+        View gapL = new View(ctx);
+        View gapR = new View(ctx);
+        barRow.addView(gapL, new LinearLayout.LayoutParams(0, 1, 0.175f));
+        LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.65f);
+        barLp.topMargin = dp(16);
+        barRow.addView(letterBar, barLp);
+        barRow.addView(gapR, new LinearLayout.LayoutParams(0, 1, 0.175f));
+        header.addView(barRow, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         page.addView(header, new LinearLayout.LayoutParams(
@@ -495,8 +511,10 @@ public class AppLibraryPage extends FrameLayout {
     private void magnifyLetter(int idx, boolean on) {
         if (letterBar == null || idx < 0 || idx >= letterBar.getChildCount()) return;
         View tv = letterBar.getChildAt(idx);
-        float dy = on ? (Prefs.libLetterUp(ctx) ? -dp(8) : dp(8)) : 0f;
-        float s = on ? 1.75f : 1f;
+        // litera rosnie w gore (albo w dol - ustawienie), ale w granicach odstepu
+        // nad paskiem, zeby nie nachodzila na pole wyszukiwania
+        float dy = on ? (Prefs.libLetterUp(ctx) ? -dp(6) : dp(6)) : 0f;
+        float s = on ? 1.6f : 1f;
         tv.setPivotX(tv.getWidth() / 2f);
         tv.setPivotY(tv.getHeight() / 2f);
         tv.animate().scaleX(s).scaleY(s).translationY(dy)
