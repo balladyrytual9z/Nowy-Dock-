@@ -124,3 +124,36 @@ kręciła się na boki). Progi to stałe w `HeadingSmoother`.
 - Pusty panel łączności (Mali-T720/API 28) naprawiony przez
   `setLayerType(LAYER_TYPE_SOFTWARE, null)`; pilnuje tego
   `ConnectivityPanelTest`/`ConnectivityPanelGuardTest` — **nie usuwać** tej warstwy.
+
+## 2026-11-05 (sesja: panel, ikony iOS, ładowanie mapy, ekran play)
+
+- **Panel łączności**: sama warstwa `LAYER_TYPE_SOFTWARE` bywa niewystarczająca —
+  układ przepisany z `weight` na **stałe dp** (suwaki 159×172, lewa kolumna 330,
+  NightShift 146×58, ModeSegment 178×58, kafelek rail 74 → 3×80 = 240, pasek ciepła
+  220). Dodatkowo po `onAttachedToWindow` wymuszamy `requestLayout()+invalidate()`
+  po 260 ms, bo nowo dodane poddrzewo custom views potrafi nie odtworzyć się
+  z RenderNode. **Nie wracać do `weight` w tym panelu** i nie dodawać `setElevation`
+  ani `setClipToOutline` (opisane w `INSTRUKCJE NAPRAW/`).
+- **Ikony rysowane kodem**: literały w `Path.moveTo/lineTo/cubicTo` muszą mieć
+  przyrostek `f` (`1f`, `17.71f`) — inaczej CI pada na
+  `incompatible types: possible lossy conversion from double to float`.
+  Kształty bierzemy z klasycznych Material/iOS, ale rysujemy je sami — wektory XML
+  na Mali-T720 wychodzą puste. Wi-Fi w stylu iOS = 3 łuki (`drawArc`, 205°/130°)
+  z `StrokeCap.ROUND` + kropka; „off” dokłada przekreślenie.
+- **`LoadingCover`** (`pl.dock.widget.maps`): zasłona + kółeczko iOS, własna warstwa
+  SOFTWARE, blokuje dotyk. Pokazywana tylko, gdy `MapPlace.startupPlace()` zwróci
+  `null` i nie ma fixa ani pozycji z pamięci — znika, gdy pozycja jest znana.
+- **Dok na innych ekranach**: każdy `DockView.Listener` musi mieć niepuste
+  `onBottom()` (powrót na stronę główną: `Prefs.setGoHome(true)` + `finish()`),
+  `onBottomLong()` (ostatnie aplikacje) i `setBottomProgress(1f)` na ekranach
+  innych niż główny. Puste metody = martwy przycisk (tak było w `NavigatorActivity`
+  i `NowPlayingActivity`).
+- **Pułapka przy patchowaniu kodu**: `sed -n ... | cat -n` **dodaje** wcięcia, więc
+  kotwice do podmian trzeba potwierdzać przez `grep -n ... | cat -A`. Dziś przez to
+  cztery podmiany nie trafiły (nawigator, dock, pole `arrow`).
+- **CI na gałęzi**: `workflow_dispatch` jest odrzucane (`403`, token bez zakresu
+  `workflow`), a `close/reopen` PR-a nie zawsze odpala workflow. Pewny sposób na
+  uruchomienie testów na gałęzi: **nowy commit** (zdarzenie `synchronize`).
+- Wydanie tworzy się tylko z `push` na `main`
+  (`if: github.event_name == 'push' && github.ref == 'refs/heads/main'`), więc
+  ręczne uruchomienie workflow na gałęzi nic nie wypuści.

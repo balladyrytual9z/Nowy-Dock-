@@ -74,6 +74,8 @@ public class NowPlayingActivity extends BaseActivity implements MediaHub.Listene
 
     private DockView buildDock() {
         dock = new DockView(this);
+        // Ikona dolnego przycisku: jeden kwadracik = ekran glowny (a nie siatka).
+        dock.setBottomProgress(1f);
         dock.setListener(new DockView.Listener() {
             @Override public void onHeader() {
                 // panel lacznosci jako osobne okno (overlay dziala tylko w launcherze)
@@ -99,9 +101,14 @@ public class NowPlayingActivity extends BaseActivity implements MediaHub.Listene
                 }
             }
             @Override public void onBottom() {
+                // Ten sam dok co w reszcie systemu: dolny przycisk = powrot na
+                // STRONE GLOWNA (flaga + zamkniecie okna), a nie na losowa strone.
+                Prefs.setGoHome(NowPlayingActivity.this, true);
                 finish();
             }
             @Override public void onBottomLong() {
+                RecentAppsPopup.show(NowPlayingActivity.this,
+                        Prefs.recents(NowPlayingActivity.this, 8));
             }
         });
         return dock;

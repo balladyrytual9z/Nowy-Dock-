@@ -180,7 +180,9 @@ public class ConnectivityPanel extends LinearLayout {
                 showWarmthSlider();   // jak w iOS: przytrzymanie jasnosci = cieplo ekranu
             }
         });
-        LayoutParams blp = new LayoutParams(0, dp(172), 1f);
+        // stale dp zamiast weight: na tym GPU (Mali-T720) dzieci z weight potrafia
+        // wyjsc zerowe - stara, dzialajaca wersja panelu uzywala wylacznie stalych dp.
+        LayoutParams blp = new LayoutParams(dp(159), dp(172));
         blp.rightMargin = dp(6);
         sliders.addView(briSlider, blp);
         volSlider = new PillSlider(act, false, volumeValue());
@@ -195,7 +197,7 @@ public class ConnectivityPanel extends LinearLayout {
                 openAndClose("android.settings.SOUND_SETTINGS");
             }
         });
-        LayoutParams vlp = new LayoutParams(0, dp(172), 1f);
+        LayoutParams vlp = new LayoutParams(dp(159), dp(172));
         vlp.leftMargin = dp(6);
         sliders.addView(volSlider, vlp);
         left.addView(sliders);
@@ -204,18 +206,19 @@ public class ConnectivityPanel extends LinearLayout {
         LinearLayout btns = new LinearLayout(act);
         btns.setOrientation(HORIZONTAL);
         nightBtn = new NightShiftButton(act);
-        LayoutParams nlp = new LayoutParams(0, dp(58), 1f);
+        LayoutParams nlp = new LayoutParams(dp(146), dp(58));
         nlp.topMargin = dp(10);
         nlp.rightMargin = dp(6);
         btns.addView(nightBtn, nlp);
         modeSeg = new ModeSegment(act);
-        LayoutParams mlp = new LayoutParams(0, dp(58), 1.25f);
+        LayoutParams mlp = new LayoutParams(dp(178), dp(58));
         mlp.topMargin = dp(10);
         mlp.leftMargin = dp(6);
         btns.addView(modeSeg, mlp);
         left.addView(btns);
 
-        main.addView(left, new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        // lewa kolumna 330 dp = 159+6+159 suwaki, 146+178 przyciski (jak w starej wersji)
+        main.addView(left, new LayoutParams(dp(330), ViewGroup.LayoutParams.WRAP_CONTENT));
 
         // prawa kolumna: trzy okragle przelaczniki jak w pierwszych wersjach
         LinearLayout rail = new LinearLayout(act);
@@ -240,7 +243,8 @@ public class ConnectivityPanel extends LinearLayout {
             PanelTool.Def def = PanelTool.find(rid);
             if (def == null) continue;
             ToolGrid.Tile t = new ToolGrid.Tile(act, def, night, railHost, null);
-            LayoutParams tlp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+            // kafelek rail: stala wysokosc 74 dp + marginesy 3+3 = 80, trzy kafelki = 240 dp
+            LayoutParams tlp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(74));
             tlp.topMargin = dp(3);
             tlp.bottomMargin = dp(3);
             rail.addView(t, tlp);
@@ -656,7 +660,7 @@ public class ConnectivityPanel extends LinearLayout {
         warmthBar = new android.widget.SeekBar(act);
         warmthBar.setMax(80);
         warmthBar.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
-        LayoutParams bp = new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        LayoutParams bp = new LayoutParams(dp(220), ViewGroup.LayoutParams.WRAP_CONTENT);
         bp.leftMargin = dp(12);
         bp.rightMargin = dp(12);
         warmthRow.addView(warmthBar, bp);
@@ -844,6 +848,16 @@ public class ConnectivityPanel extends LinearLayout {
             android.util.Log.w("Dock", "panel update", tr);
         }
 
+        // Siatka bezpieczenstwa na Mali-T720: nowo dodane poddrzewo custom views potrafi
+        // nie zostac odtworzone z RenderNode (pusty panel). Po doszlifowaniu ukladu
+        // wymuszamy pelny pomiar i przerysowanie - tanio, a odsiewa przypadki wyscigu.
+        postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                requestLayout();
+                invalidate();
+            }
+        }, 260);
     }
 
     @Override

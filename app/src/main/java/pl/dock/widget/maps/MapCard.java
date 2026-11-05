@@ -58,6 +58,8 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
     private float speedMs;
     private boolean started;
     private boolean centeredOnce;
+    private LoadingCover cover;      // "ladowanie" iOS, gdy nie znamy jeszcze pozycji
+    private boolean waitPos;         // brak jakiejkolwiek znanej pozycji na starcie
     // Wygladzanie ruchu i obrotu (heading-up). GPS daje fix raz na sekunde
     // (MapState), a znacznik i mapa maja sie poruszac CIAGLE - patrz HeadingSmoother.
     private final HeadingSmoother smooth = new HeadingSmoother();
@@ -104,6 +106,12 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
             }
         });
         addView(tap, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        // Przykrywka na wierzchu: pokazuje sie tylko przy pierwszym uruchomieniu,
+        // gdy nie ma ani fixa, ani zapamietanego miejsca ("gdzie zaparkowalem").
+        cover = new LoadingCover(getContext());
+        cover.setLight(!night);
+        cover.setVisibility(GONE);
+        addView(cover, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         restoreCenter();
     }
 
@@ -206,6 +214,7 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
         } catch (Throwable ignored) {
         }
         double[] place = MapPlace.startupPlace(fLat, fLon, gLat, gLon, vLat, vLon);
+        waitPos = (place == null);      // nie wiemy, gdzie jestesmy -> pokaz ladowanie
         double lat = 52.07d, lon = 19.48d;      // cala Polska - ostatnia deska ratunku
         boolean hasSaved = false;
         if (place != null) {
@@ -408,8 +417,20 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
         h.removeCallbacks(frame);
     }
 
+    /** Przykrywka tylko do momentu, gdy znamy pozycje - potem mapa dziala normalnie. */
+    private void applyLoading() {
+        if (cover == null) return;
+        boolean load = waitPos && !smooth.hasFix() && !smooth.seededKnown();
+        int vis = load ? VISIBLE : GONE;
+        if (cover.getVisibility() != vis) {
+            cover.setVisibility(vis);
+            if (vis == VISIBLE) cover.bringToFront();
+        }
+    }
+
     private void tick() {
         smooth.advance(SystemClock.uptimeMillis());
+        applyLoading();
         // pozycja z pamieci ("gdzie zaparkowalem") tez ma pokazac znacznik -
         // dzieki temu po wejsciu do auta mapa jest od razu wlasciwa
         if ((!smooth.hasFix() && !smooth.seededKnown()) || !smooth.dirty()) return;
