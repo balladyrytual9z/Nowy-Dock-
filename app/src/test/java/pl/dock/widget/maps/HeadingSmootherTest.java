@@ -76,15 +76,18 @@ public class HeadingSmootherTest {
     }
 
     @Test
-    public void postoj_wracaDoPolnocy() {
+    public void postojNaSwiatlachTrzymaKursZJazdy() {
+        // Wczesniej zatrzymanie oznaczalo powrot mapy na polnoc (orientacja 0).
+        // Uzytkownik zglosil, ze nie chce takiego przestawiania sie widoku na
+        // swiatlach - widok ma zostac taki, jak w czasie jazdy. Kurs NIE jest
+        // brany z szumu GPS (predkosc 0), tylko trzymany z ostatniej jazdy.
         HeadingSmoother s = new HeadingSmoother();
         s.onFix(50d, 20d, 90f, 20f, 5f, 1000L);
         assertEquals(270f, s.mapOrientation(), 1e-3f);
 
-        // zatrzymanie: predkosc 0 -> cel to polnoc (orientacja 0)
         s.onFix(50d, 20d, 90f, 0f, 5f, 2000L);
         s.advance(3000L);
-        assertEquals(0f, s.mapOrientation(), 1e-3f);
+        assertEquals("widok ma zostac z jazdy", 270f, s.mapOrientation(), 1f);
         assertFalse("na postoju nie rysujemy strzalki", s.isMoving());
     }
 
@@ -259,7 +262,8 @@ public class HeadingSmootherTest {
     @Test
     public void malaPredkoscNieKreciMapa() {
         // Predkosc 0.6 m/s (2 km/h) to jeszcze szum: wczesniej kurs bral sie z takiego
-        // fix'a i mapa obracala sie na boki. Teraz ponizej 10 km/h mapa idzie na polnoc.
+        // fix'a i mapa obracala sie na boki. Teraz ponizej 10 km/h kurs bierzemy
+        // z ostatniej JAZDY (a gdy jej nie bylo - polnoc), nigdy z takiego fix'a.
         HeadingSmoother s = new HeadingSmoother();
         s.onFix(50d, 20d, 0f, 20f, 5f, 1000L);
         s.advance(2000L);
@@ -343,7 +347,87 @@ public class HeadingSmootherTest {
             s.onFix(50d, 20d + mLon(offs[i], 50d), 0f, 0.2f, 10f, t);
         }
         s.advance(20000L);
-        assertEquals("postoj ma byc nieruchomy",
-                0d, HeadingSmoother.metersBetween(lat0, lon0, s.lat(), s.lon()), 0.01d);
+        // Od 2026-11-05 dziala jeszcze glosowanie: jesli GPS UPARCIE pokazuje ten sam
+        // punkt obok (stale przesuniecie), to po kilku fixach idziemy do jego srodka.
+        // Efekt jest maly (metry), a losowy szum nadal nie rusza znacznikiem.
+        double drift = HeadingSmoother.metersBetween(lat0, lon0, s.lat(), s.lon());
+        assertTrue("postoj ma byc praktycznie nieruchomy (dryf " + drift + " m)", drift < 5d);
+    }
+
+    // ---------------- widok przy zatrzymaniu: nie przestawiamy na polnoc ----------------
+
+    @Test
+    public void zatrzymanieNiePrzestawiaWidokuNaPolnoc() {
+        // Jedziemy na wschod (kurs 90 -> mapa 270), stajemy na swiatlach.
+        // Widok ma zostac taki, jak w czasie jazdy - a nie wskoczyc na polnoc.
+        HeadingSmoother s = new HeadingSmoother();
+        s.onFix(50d, 20d, 90f, 20f, 5f, 1000L);
+        s.advance(2000L);
+        assertEquals(270f, s.mapOrientation(), 1e-3f);
+
+        s.onFix(50d, 20d, 90f, 0f, 5f, 2000L);            // stop na swiatlach
+        s.advance(3000L);
+        assertEquals("widok ma zostac z jazdy", 270f, s.mapOrientation(), 1f);
+
+        // szum kursu na postoju (GPS podaje byle co) nie moze krecic mapa
+        s.onFix(50d, 20d, 10f, 0f, 5f, 3000L);
+        s.advance(4000L);
+        s.onFix(50d, 20d, 300f, 0f, 5f, 4000L);
+        s.advance(5000L);
+        assertEquals("szum kursu nie kreci mapa", 270f, s.mapOrientation(), 1f);
+    }
+
+    @Test
+    public void bezJazdyZostajePolnoc() {
+        // Stojac od startu nie mamy kursu z jazdy - wtedy zostaje polnoc.
+        HeadingSmoother s = new HeadingSmoother();
+        s.onFix(50d, 20d, 123f, 0f, 5f, 1000L);
+        s.advance(2000L);
+        assertEquals(0f, s.mapOrientation(), 1e-3f);
+    }
+
+    // ---------------- postoj: pozycja wraca do prawdy (glosowanie) ----------------
+
+    @Test
+    public void poPostojuWZlymMiejscuPozycjaWracaDoPrawdziwej() {
+        // Zly punkt startowy (np. stara pozycja z AGPS), a GPS uparcie pokazuje
+        // prawdziwe miejsce 5 km dalej. Stoimy - i mimo to mamy tam wrocic.
+        HeadingSmoother s = new HeadingSmoother();
+        s.onFix(52.0d, 19.0d, 0f, 0f, 8f, 1000L);
+        double[] noise = {0d, 12d, -9d, 15d, -14d, 6d, -11d, 13d, -7d, 9d, -13d, 11d,
+                -8d, 14d, -12d, 7d, -10d, 10d, -6d, 8d};
+        long t = 2000L;
+        double maxStep = 0d, prevLat = s.lat(), prevLon = s.lon();
+        for (int i = 0; i < 40; i++) {
+            t += 1000L;
+            s.advance(t);
+            double off = noise[i % noise.length];
+            s.onFix(52.045d + off / 111320d, 19.0d, 0f, 0f, 8f, t);
+            maxStep = Math.max(maxStep,
+                    HeadingSmoother.metersBetween(prevLat, prevLon, s.lat(), s.lon()));
+            prevLat = s.lat();
+            prevLon = s.lon();
+        }
+        double left = HeadingSmoother.metersBetween(52.045d, 19.0d, s.lat(), s.lon());
+        assertTrue("ma dojsc do prawdziwego miejsca (zostalo " + left + " m)", left < 400d);
+        assertTrue("korekta bez teleportu (max krok " + maxStep + " m)", maxStep < 600d);
+    }
+
+    @Test
+    public void losoweSkokiPrzyPostojuNieRuszajaPozycji() {
+        // GPS co sekunde rzuca nas w inne miejsce po kilka km - nie ma z czego
+        // zrobic grupy, wiec mamy stac w miejscu.
+        HeadingSmoother s = new HeadingSmoother();
+        s.onFix(52.0d, 19.0d, 0f, 0f, 8f, 1000L);
+        double[] dirs = {1d, -1d, 3d, -3d, 5d, -5d, 7d, -7d, 2d, -2d, 4d, -4d};
+        long t = 2000L;
+        for (int i = 0; i < dirs.length; i++) {
+            t += 1000L;
+            s.advance(t);
+            s.onFix(52.0d + dirs[i] * 0.03d, 19.0d + dirs[i] * 0.02d, 0f, 0f, 8f, t);
+        }
+        s.advance(t + 1000L);
+        assertEquals("pozycja ma stac w miejscu",
+                0d, HeadingSmoother.metersBetween(52.0d, 19.0d, s.lat(), s.lon()), 1d);
     }
 }
