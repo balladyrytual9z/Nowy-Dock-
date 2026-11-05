@@ -64,6 +64,21 @@ public final class HeadingSmoother {
     /** Dwa fixy to "to samo miejsce", gdy dzieli je tyle metrow. */
     private static final float JUMP_AGREE_M = 25f;
 
+    /** Ile ostatnich fixow bierzemy do glosowania przy postoju. */
+    private static final int VOTE_SLOTS = 8;
+
+    /** Ile z nich musi wskazywac to samo miejsce, by uznac je za prawdziwe. */
+    private static final int VOTE_NEEDED = 5;
+
+    /** Jak blisko siebie musza byc fixy, by uznac je za to samo miejsce [m]. */
+    private static final float VOTE_CLUSTER_M = 150f;
+
+    /** Najwiekszy krok korekty pozycji na jeden fix [m] - zeby nie bylo teleportu. */
+    private static final double MAX_CORRECT_STEP_M = 400d;
+
+    /** Najmniejszy krok korekty (zeby dojsc do celu, nawet gdy blad jest maly) [1]. */
+    private static final float MIN_CORRECT_TRUST = 0.06f;
+
     /** Na postoju ignorujemy rozrzut do tyle razy wiekszy od deklarowanej dokladnosci. */
     private static final float STILL_ACCURACY_SLACK = 1.5f;
 
@@ -93,9 +108,24 @@ public final class HeadingSmoother {
     private float accuracy;
     private boolean dirty;
 
+    /** Ostatni kurs z realnej jazdy - trzymamy go po zatrzymaniu. */
+    private float holdHeading;
+    private boolean holdHeadingSet;
+
     /** Ile fixow z rzedu GPS pokazywal ten sam skok (patrz {@link #plausible}). */
     private int pendingHits;
     private double pendingLat, pendingLon;
+    /** Cel przyjety przez glosowanie (srodek grupy) - zamiast pojedynczego fixa. */
+    private boolean accSet;
+    private double accLat, accLon;
+
+    /** Glosowanie: ostatnie fixy (pierscien) - patrz {@link #voteWinner}. */
+    private final double[] voteLat = new double[VOTE_SLOTS];
+    private final double[] voteLon = new double[VOTE_SLOTS];
+    private final double[] voteOut = new double[3];
+    private int voteCount;
+    private int voteNext;
+
     /** Miejsce, ktore GPS potwierdzil jako nowa pozycje - dochodzimy do niego. */
     private boolean confirmedSet;
     private double confirmedLat, confirmedLon;
@@ -118,12 +148,19 @@ public final class HeadingSmoother {
         speedMs = 0f;
         accuracy = 0f;
         dirty = true;
+        holdHeading = 0f;
+        holdHeadingSet = false;
         pendingHits = 0;
         pendingLat = 0d;
         pendingLon = 0d;
         confirmedSet = false;
         confirmedLat = 0d;
         confirmedLon = 0d;
+        accSet = false;
+        accLat = 0d;
+        accLon = 0d;
+        voteCount = 0;
+        voteNext = 0;
     }
 
     /**
@@ -135,8 +172,16 @@ public final class HeadingSmoother {
         // Kurs bierzemy tylko z realnej jazdy. Prog jest tu 10 km/h, a nie 1.8 km/h:
         // przy wolnej jazdzie i na postoju GPS podaje kierunek z szumu, a wtedy mapa
         // kreci sie na boki (to bylo widac na urzadzeniu przy zmianie predkosci
-        // 0.5 -> 0.6 m/s: raz kurs, raz polnoc).
-        float target = fixSpeedMs >= NORTH_UP_SPEED_MS ? normalize(fixBearing) : 0f;
+        // 0.5 -> 0.6 m/s: raz kurs, raz polnoc). - przy wolnej jazdzie i na postoju GPS
+        // podaje kierunek z szumu i mapa krecilaby sie na boki.
+        // Ale zatrzymujac sie (np. na swiatlach) NIE przestawiamy widoku na polnoc:
+        // trzymamy ostatni kurs z jazdy, zeby widok byl ciagle ten sam. Zmiana na
+        // polnoc tylko wtedy, gdy jeszcze nigdy nie jechalismy (brak kursu).
+        float target = fixSpeedMs >= NORTH_UP_SPEED_MS ? normalize(fixBearing) : holdingTarget();
+        if (fixSpeedMs >= NORTH_UP_SPEED_MS) {      // jedziemy - zapamietujemy kurs
+            holdHeading = normalize(fixBearing);
+            holdHeadingSet = true;
+        }
         if (!hasFix) {
             // pierwszy fix - nie ma z czego interpolowac, ustawiamy od razu
             hasFix = true;
@@ -173,8 +218,12 @@ public final class HeadingSmoother {
             return;
         }
 
+        // Glosowanie moglo wskazac srodek grupy fixow - wtedy to on jest celem.
+        double tLat = accSet ? accLat : fixLat;
+        double tLon = accSet ? accLon : fixLon;
+        accSet = false;
         // Ile z tego fix'a bierzemy na wiare (0 = stoimy, 1 = jedziemy).
-        float trust = trustFor(fixLat, fixLon, fixSpeedMs, fixAccuracy);
+        float trust = trustFor(tLat, tLon, fixSpeedMs, fixAccuracy);
 
         durMs = gap < MIN_DUR_MS ? MIN_DUR_MS : (gap > MAX_DUR_MS ? MAX_DUR_MS : gap);
         lastFixAt = nowMs;
@@ -184,13 +233,18 @@ public final class HeadingSmoother {
         fromLon = lon;
         // Cel to punkt o "trust" blizej fix'a. Przy postoju (trust = 0) celem jest
         // biezaca pozycja, czyli znacznik stoi w miejscu mimo szumu GPS.
-        toLat = lat + (fixLat - lat) * trust;
-        toLon = lon + (fixLon - lon) * trust;
+        toLat = lat + (tLat - lat) * trust;
+        toLon = lon + (tLon - lon) * trust;
         speedMs = trust <= 0f ? 0f : fixSpeedMs;
         if (trust > 0f) accuracy = fixAccuracy;
         fromBearing = bearing;
         toBearing = bearing + shortestDelta(target, bearing);
         dirty = true;
+    }
+
+    /** Kurs do trzymania na postoju: ostatni z jazdy, a bez jazdy - polnoc. */
+    private float holdingTarget() {
+        return holdHeadingSet ? holdHeading : 0f;
     }
 
     /**
@@ -207,7 +261,11 @@ public final class HeadingSmoother {
         // Ten sam promien co w bramce (plausible): jesli fix przeszedl bramke,
         // to znaczy, ze jest w granicach szumu - i wtedy NIE ruszamy znacznika.
         float radius = Math.max(STILL_RADIUS_M, fixAccuracy * STILL_ACCURACY_SLACK);
-        return dist <= radius ? 0f : CREEP_TRUST;
+        if (dist <= radius) return 0f;
+        // Potwierdzona korekta pozycji: dochodzimy malymi krokami (max ~400 m na fix),
+        // zeby nawet 5 km bledu nadrobic plynnie w kilkanascie sekund, bez teleportu.
+        double step = MAX_CORRECT_STEP_M / Math.max(1d, dist);
+        return (float) Math.max(MIN_CORRECT_TRUST, Math.min(CREEP_TRUST, step));
     }
 
     /**
@@ -222,6 +280,7 @@ public final class HeadingSmoother {
         double dist = metersBetween(lat, lon, fixLat, fixLon);
         double dt = Math.max(0.5d, gapMs / 1000d);
         boolean still = fixSpeedMs < STILL_SPEED_MS && speedMs < STILL_SPEED_MS;
+        addVote(fixLat, fixLon);          // kazdy fix jest glosem (patrz voteWinner)
         double allowed;
         if (still) {
             allowed = Math.max(STILL_RADIUS_M, fixAccuracy * STILL_ACCURACY_SLACK);
@@ -250,6 +309,21 @@ public final class HeadingSmoother {
             pendingLon = fixLon;
             pendingHits = 1;
         }
+        if (still && voteWinner()) {
+            // Postoj: glosowanie. Pojedyncze fixy skacza, ale prawdziwe miejsce
+            // powtarza sie najczesciej - jesli najliczniejsza grupa ostatnich fixow
+            // trzyma sie razem, to wlasnie tam jestesmy. Celem jest SRODEK tej grupy
+            // (a nie pojedynczy fix), dzieki czemu szum nie wozil znacznikiem.
+            // Bez tego stalismy w blednym miejscu az do ruszenia (zgloszenie 2026-11-05).
+            confirmedSet = true;
+            confirmedLat = voteOut[0];
+            confirmedLon = voteOut[1];
+            pendingHits = 0;
+            accSet = true;
+            accLat = voteOut[0];
+            accLon = voteOut[1];
+            return true;
+        }
         if (pendingHits >= (still ? JUMP_CONFIRM_STILL : JUMP_CONFIRM)) {
             pendingHits = 0;         // powtarza sie - to prawda, nie blad
             confirmedSet = true;
@@ -258,6 +332,47 @@ public final class HeadingSmoother {
             return true;
         }
         return false;
+    }
+
+    /** Dopisz fix do glosowania (pierscien ostatnich {@link #VOTE_SLOTS} fixow). */
+    private void addVote(double fixLat, double fixLon) {
+        voteLat[voteNext] = fixLat;
+        voteLon[voteNext] = fixLon;
+        voteNext = (voteNext + 1) % VOTE_SLOTS;
+        if (voteCount < VOTE_SLOTS) voteCount++;
+    }
+
+    /**
+     * Czy najliczniejsza grupa ostatnich fixow wskazuje jedno miejsce? Jesli tak,
+     * wpisuje jego srodek do {@link #voteOut} (lat, lon, ile glosow) i zwraca true.
+     * Smieci w nieuzywanych slotach pierscienia nie biora udzialu w glosowaniu.
+     */
+    private boolean voteWinner() {
+        if (voteCount < VOTE_NEEDED) return false;
+        int best = 0;
+        double bestLat = 0d, bestLon = 0d;
+        for (int i = 0; i < voteCount; i++) {
+            int n = 0;
+            double sLat = 0d, sLon = 0d;
+            for (int j = 0; j < voteCount; j++) {
+                if (metersBetween(voteLat[i], voteLon[i], voteLat[j], voteLon[j])
+                        <= VOTE_CLUSTER_M) {
+                    n++;
+                    sLat += voteLat[j];
+                    sLon += voteLon[j];
+                }
+            }
+            if (n > best) {
+                best = n;
+                bestLat = sLat / n;
+                bestLon = sLon / n;
+            }
+        }
+        if (best < VOTE_NEEDED) return false;
+        voteOut[0] = bestLat;
+        voteOut[1] = bestLon;
+        voteOut[2] = best;
+        return true;
     }
 
     /** Odleglosc w metrach (haversine). */
