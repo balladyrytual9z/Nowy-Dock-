@@ -4,6 +4,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.os.Handler;
 import android.os.Looper;
@@ -18,6 +20,7 @@ import org.osmdroid.views.MapView;
 
 import pl.dock.widget.NightAware;
 import pl.dock.widget.Prefs;
+import pl.dock.widget.Ui;
 
 /**
  * Karta mapy na ekranie glownym (slot "hl", jak mapa w CarPlay).
@@ -38,6 +41,16 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
 
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint t = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    // Karta jak pozostale widzety: promien 30 dp + obwodka 1.5 dp (Ui.ringCard).
+    // Mapa jest dzieckiem tej karty, wiec bez przyciecia zaslanialaby caly kafelek
+    // prostokatem - bez zaokraglonych rogow i bez obwodki.
+    private static final float CARD_RADIUS_DP = 30f;
+    private static final float CARD_STROKE_DP = 1.5f;
+    private final RectF cardRect = new RectF();
+    private final Path cardClip = new Path();
+    private int clipW = -1;
+    private int clipH = -1;
 
     private boolean hasFix;
     private float speedMs;
@@ -361,10 +374,39 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
 
     @Override
     protected void dispatchDraw(Canvas cv) {
-        // Najpierw mapa (dzieci), potem nasza nakladka na wierzchu.
-        super.dispatchDraw(cv);
         int w = getWidth();
         int h = getHeight();
+
+        // Karta z zaokraglonymi rogami i obwodka DOKLADNIE jak pozostale widzety
+        // (Ui.ringCard: 30 dp / 1.5 dp). Kolejnosc jest istotna, bo mapa jest
+        // dzieckiem tej karty:
+        //   1) wypelnienie karty - lezy POD mapa (widoczne, gdy kafle sie wczytuja),
+        //   2) dzieci przyciete do KSZTALTU karty - mapa konczy sie na zaokragleniu,
+        //   3) obwodka NA WIERZCHU mapy - inaczej mapa by ja zaslonila.
+        if (w > 0 && h > 0) {
+            cardRect.set(0f, 0f, w, h);
+            float rad = CARD_RADIUS_DP * d;
+            if (w != clipW || h != clipH) {
+                // Ksztalt liczymy tylko przy zmianie rozmiaru (nie co klatke).
+                clipW = w;
+                clipH = h;
+                float side = Math.min(w, h);
+                cardClip.reset();
+                if (rad > side * 0.18f) {
+                    cardClip.set(Ui.squirclePath(cardRect, Math.min(rad / side, 0.45f)));
+                } else {
+                    cardClip.addRoundRect(cardRect, rad, rad, Path.Direction.CW);
+                }
+            }
+            Ui.ringCard(cv, cardRect, rad, CARD_STROKE_DP * d, night, false);   // wypelnienie
+            int save = cv.save();
+            cv.clipPath(cardClip);                                              // rogi karty
+            super.dispatchDraw(cv);
+            cv.restoreToCount(save);
+            Ui.ringStroke(cv, cardRect, rad, CARD_STROKE_DP * d, night);        // obwodka
+        } else {
+            super.dispatchDraw(cv);
+        }
 
         // Kafelek to SAMA MAPA + wskaznik predkosci. Paska "MAPY / offline /
         // NAWIGACJA" tu nie ma (usuniety na zyczenie uzytkownika, 2026-11-05).

@@ -34,6 +34,6 @@ public final class BulkGuard {
 
     /** Komunikat dla uzytkownika, gdy pobieranie jest niedozwolone. */
     public static final String DENIED_MSG =
-            "To źródło map nie pozwala na masowe pobieranie. "
-                    + "Pobierz mapy offline w Organic Maps.";
+            "To źródło map nie pozwala na masowe pobieranie (np. styl Topo). "
+                    + "Zmień styl map w Ustawieniach na podstawowy albo pobieraj okolicę mniejszymi obszarami.";
 }

@@ -95,7 +95,18 @@ public class Ui {
         } else {
             cv.drawRoundRect(r, radius, radius, p);
         }
-        if (!ring) return;
+        if (ring) ringStroke(cv, r, radius, stroke, night);
+    }
+
+    /**
+     * Sama obwodka karty (bez wypelnienia).
+     *
+     * Dla widzetow, ktore nie moga zostac zamalowane kolorem karty, bo maja pod
+     * obwodka "zywa" tresc - np. kafelek mapy, gdzie pod obwodka jest MapView
+     * z mapa. Kolory i geometria sa te same, co w {@link #ringCard}.
+     */
+    public static void ringStroke(Canvas cv, RectF r, float radius, float stroke, boolean night) {
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setStyle(Paint.Style.STROKE);
         p.setStrokeWidth(stroke);
         p.setShader(new LinearGradient(r.left, r.top, r.right, r.bottom,
@@ -104,6 +115,7 @@ public class Ui {
                 new float[]{0f, 0.3f, 0.75f, 1f}, Shader.TileMode.CLAMP));
         RectF in = new RectF(r.left + stroke / 2, r.top + stroke / 2, r.right - stroke / 2,
                 r.bottom - stroke / 2);
+        float side = Math.min(r.width(), r.height());
         if (radius > side * 0.18f) {
             Path sqIn = squirclePath(in, Math.min(radius / side, 0.45f));
             cv.drawPath(sqIn, p);
