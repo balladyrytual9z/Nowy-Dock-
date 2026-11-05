@@ -47,27 +47,28 @@ public class HeadingSmootherTest {
     public void pozycja_idzieLiniowoDoNowegoFixu() {
         HeadingSmoother s = new HeadingSmoother();
         s.onFix(0d, 0d, 0f, 10f, 5f, 1000L);
-        // fix oddalony o 0.001 stopnia, po 1000 ms od poprzedniego
-        s.onFix(0.001d, 0d, 0f, 10f, 5f, 2000L);
+        // fix 11 m dalej, po 1000 ms (10 m/s - tyle da sie przejechac)
+        s.onFix(0.0001d, 0d, 0f, 10f, 5f, 2000L);
 
         s.advance(2500L);   // polowa drogi (fix o 2000, czas przejscia 1000 ms)
-        assertEquals(0.0005d, s.lat(), 1e-9);
+        assertEquals(0.00005d, s.lat(), 1e-9);
 
         s.advance(3000L);   // koniec drogi
-        assertEquals(0.001d, s.lat(), 1e-9);
+        assertEquals(0.0001d, s.lat(), 1e-9);
     }
 
     @Test
     public void nowyFixWTrakcieRuchu_nieRobikSkoku() {
         HeadingSmoother s = new HeadingSmoother();
         s.onFix(0d, 0d, 0f, 10f, 5f, 1000L);
-        s.onFix(0.01d, 0d, 0f, 10f, 5f, 2000L);
+        s.onFix(0.0002d, 0d, 0f, 10f, 5f, 2000L);   // 22 m - realny ruch przy 10 m/s
         s.advance(2500L);
         double mid = s.lat();
-        assertTrue("w polowie ruchu pozycja jest miedzy fixami", mid > 0d && mid < 0.01d);
+        assertTrue("w polowie ruchu pozycja jest miedzy fixami",
+                mid > 0d && mid < 0.0002d);
 
         // kolejny fix w polowie ruchu: wartosc ma byc ciagla (zero skoku)
-        s.onFix(0.02d, 0d, 0f, 10f, 5f, 2500L);
+        s.onFix(0.0004d, 0d, 0f, 10f, 5f, 2500L);
         assertEquals(mid, s.lat(), EPS);
 
         s.advance(3000L);
@@ -267,5 +268,82 @@ public class HeadingSmootherTest {
         assertTrue("kurs 90 stopni z fix'a 0.6 m/s nie moze obracac mapy (orientacja "
                         + s.mapOrientation() + ")",
                 Math.abs(s.mapOrientation()) < 1e-3f);
+    }
+
+    // ---------------- skoki GPS: bledny fix nie moze przestawic mapy ----------------
+
+    @Test
+    public void blednyFixZKlamliwaPredkosciaJestOdrzucany() {
+        // Dokladnie to, co robilo sie na urzadzeniu: stoimy, a GPS raz podaje
+        // pozycje 5 km dalej i twierdzi, ze jedziemy 12 m/s.
+        HeadingSmoother s = new HeadingSmoother();
+        s.onFix(52.0000d, 19.0000d, 0f, 0f, 6f, 1000L);
+        s.advance(3000L);
+        double lat0 = s.lat(), lon0 = s.lon();
+        s.onFix(52.0450d, 19.0000d, 90f, 12f, 8f, 2000L);
+        s.advance(4000L);
+        assertEquals("pozycja nie moze skoczyc 5 km",
+                0d, HeadingSmoother.metersBetween(lat0, lon0, s.lat(), s.lon()), 0.01d);
+        assertTrue("licznik nie moze pokazac 43 km/h z blednego fixa, jest "
+                + s.speedMs(), s.speedMs() < 0.01f);
+        assertTrue("nastepny prawdziwy fix ma byc przyjety", s.hasFix());
+    }
+
+    @Test
+    public void powtarzajacySieSkokToPrawdziwaZmianaMiejsca() {
+        // Prawdziwa zmiana miejsca (np. laweta): GPS uparcie pokazuje 5 km dalej.
+        HeadingSmoother s = new HeadingSmoother();
+        s.onFix(52.0d, 19.0d, 0f, 0f, 6f, 1000L);
+        long t = 2000L;
+        for (int i = 0; i < 12; i++) {
+            s.advance(t);                    // domknij ruch do biezacej chwili
+            s.onFix(52.045d, 19.0d, 0f, 0f, 6f, t);
+            t += 1000L;
+        }
+        s.advance(t);
+        double dist = HeadingSmoother.metersBetween(52.0d, 19.0d, s.lat(), s.lon());
+        assertTrue("prawdziwa zmiana miejsca ma byc sledzona (przebyte " + dist + " m)",
+                dist > 1000d);
+    }
+
+    @Test
+    public void skokPoDluzszejPrzerwieNaPostojuWymagaPotwierdzenia() {
+        HeadingSmoother s = new HeadingSmoother();
+        s.onFix(52.0d, 19.0d, 0f, 0f, 6f, 1000L);
+        s.advance(3000L);
+        // 60 s przerwy w fixach i nagle 3 km dalej - to jeszcze nie dowod
+        s.onFix(52.027d, 19.0d, 0f, 0f, 6f, 61000L);
+        s.advance(62000L);
+        assertEquals("jeden fix po przerwie to za malo",
+                0d, HeadingSmoother.metersBetween(52.0d, 19.0d, s.lat(), s.lon()), 0.01d);
+        long t = 62000L;
+        // GPS powtarza to samo miejsce: najpierw potwierdzenie, potem dojscie
+        for (int i = 0; i < 14; i++) {
+            t += 1000L;
+            s.advance(t);
+            s.onFix(52.027d, 19.0d, 0f, 0f, 6f, t);
+        }
+        s.advance(t + 1000L);
+        double dist = HeadingSmoother.metersBetween(52.0d, 19.0d, s.lat(), s.lon());
+        assertTrue("po potwierdzeniu pozycja ma dojsc na miejsce (jest " + dist + " m)",
+                dist > 1000d);
+    }
+
+    @Test
+    public void szumNaPostojuNiePrzesuwaNawetPozaPromieniem() {
+        // Szum o rozrzucie wiekszym niz promien postoju (12 m) - nadal zero ruchu,
+        // bo pojedyncze fixy nie moga sie zsumowac w "dryf".
+        HeadingSmoother s = new HeadingSmoother();
+        s.onFix(50d, 20d, 0f, 0.2f, 10f, 1000L);
+        double[] offs = {14d, -16d, 18d, -13d, 15d, -17d, 19d, -15d, 16d, -18d};
+        double lat0 = s.lat(), lon0 = s.lon();
+        for (int i = 0; i < offs.length; i++) {
+            long t = 2000L + i * 1000L;
+            s.advance(t);
+            s.onFix(50d, 20d + mLon(offs[i], 50d), 0f, 0.2f, 10f, t);
+        }
+        s.advance(20000L);
+        assertEquals("postoj ma byc nieruchomy",
+                0d, HeadingSmoother.metersBetween(lat0, lon0, s.lat(), s.lon()), 0.01d);
     }
 }

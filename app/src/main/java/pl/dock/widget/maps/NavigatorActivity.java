@@ -320,21 +320,28 @@ private void toggleFollow() {
         this.hasFix = hasFix;
         this.currentSpeedMs = speedMs;
         this.currentBearing = bearing;
-        // Auto-centrowanie TYLKO na swiezym fix'ie GPS (stara "ostatnia znana
-        // pozycja" nie jest podstawa do skoku - wtedy mapa by znikala).
-        if (!centeredOnce && hasFix && map != null
+        // Najpierw smoother: on odrzuca bledne fixy (skoki GPS o kilometry).
+        smooth.onFix(lat, lon, bearing, speedMs,
+                MapState.get(this).lastAccuracy(), SystemClock.uptimeMillis());
+        // Auto-centrowanie TYLKO na swiezym i PRZYJETYM fix'ie GPS (stara "ostatnia
+        // znana pozycja" nie jest podstawa do skoku - wtedy mapa by znikala).
+        // Bierzemy pozycje ze smoothera, nie surowa, zeby pojedynczy blad GPS nie
+        // przeniosl mapy w dalekie miejsce (ten srodek zapisuje sie w Ustawieniach).
+        if (!centeredOnce && hasFix && smooth.hasFix() && map != null
                 && System.currentTimeMillis() - MapState.get(this).lastFixAt() < 15000L) {
             centeredOnce = true;
             try {
-                map.getController().setCenter(new GeoPoint(lat, lon));
+                map.getController().setCenter(new GeoPoint(smooth.lat(), smooth.lon()));
                 // zachowujemy obecny zoom — nie skaczemy na 13 zeby nie
                 // wyczyscic kafli na slabym laczu/offline.
             } catch (Throwable ignored) {
             }
         }
-        if (hasDest && dest != null && hasFix && map != null) {
+        // Dystans do celu liczony z przyjetej pozycji - bledny fix potrafil
+        // pokazac "o 3 km dalej do celu" na jedna sekunde.
+        if (hasDest && dest != null && hasFix && map != null && smooth.hasFix()) {
             try {
-                GeoPoint here = new GeoPoint(lat, lon);
+                GeoPoint here = new GeoPoint(smooth.lat(), smooth.lon());
                 destDistM = (float) here.distanceToAsDouble(dest);
                 destBearing = (float) here.bearingTo(dest);
                 List<GeoPoint> pts = new ArrayList<GeoPoint>();
@@ -344,10 +351,6 @@ private void toggleFollow() {
             } catch (Throwable ignored) {
             }
         }
-        // Pozycje i obrot wygladzamy MIEDZY fixami (petla tick()): przy 1 Hz GPS
-        // znacznik sunie, a mapa obraca sie ciagle, bez skokow co sekunde.
-        smooth.onFix(lat, lon, bearing, speedMs,
-                MapState.get(this).lastAccuracy(), SystemClock.uptimeMillis());
         startLoop();
     }
 

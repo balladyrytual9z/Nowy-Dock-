@@ -309,11 +309,19 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
         // Auto-centrowanie TYLKO na swiezym fix'ie GPS (MapState podaje tez
         // stare "ostatnie znane pozycje", a wtedy nie ma co przeskakiwac -
         // mapa po prostu znikala, bo na nowym zoomie nie bylo kafli).
-        if (!centeredOnce && hasFix && map != null
+        // Pozycje i obrot wygladzamy MIEDZY fixami (petla tick()): przy 1 Hz GPS
+        // znacznik sunie, a mapa obraca sie ciagle, bez skokow co sekunde.
+        // Najpierw smoother - to on odrzuca bledne fixy (skoki GPS).
+        smooth.onFix(lat, lon, bearing, speedMs,
+                MapState.get(getContext()).lastAccuracy(), SystemClock.uptimeMillis());
+        // Auto-centrowanie TYLKO na swiezym i PRZYJETYM fix'ie. Bierzemy pozycje ze
+        // smoothera, a nie surowa, zeby pojedynczy blad GPS nie przeniosl mapy
+        // w dalekie miejsce - bo ten srodek zapisuje sie potem w Ustawieniach.
+        if (!centeredOnce && hasFix && smooth.hasFix() && map != null
                 && System.currentTimeMillis() - MapState.get(getContext()).lastFixAt() < 15000L) {
             centeredOnce = true;
             try {
-                map.getController().setCenter(new GeoPoint(lat, lon));
+                map.getController().setCenter(new GeoPoint(smooth.lat(), smooth.lon()));
                 // NIE zmieniamy zooma - zostaje na poziomie zapisanym w Prefs.
                 // Skok na wysoki zoom czysci kafle i offline mapa znika na bialo.
                 // Uzytkownik widzi swoja lokalizacje na ogolnym tle,
@@ -321,10 +329,6 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
             } catch (Throwable ignored) {
             }
         }
-        // Pozycje i obrot wygladzamy MIEDZY fixami (petla tick()): przy 1 Hz GPS
-        // znacznik sunie, a mapa obraca sie ciagle, bez skokow co sekunde.
-        smooth.onFix(lat, lon, bearing, speedMs,
-                MapState.get(getContext()).lastAccuracy(), SystemClock.uptimeMillis());
         startLoop();
     }
 
