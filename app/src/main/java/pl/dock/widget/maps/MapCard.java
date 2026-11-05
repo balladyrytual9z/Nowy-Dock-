@@ -311,7 +311,7 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
         // Heading-up: plytny obrot mapy z kierunkiem jazdy na gorze.
         // Wlacza sie od 10 km/h (~2.78 m/s) - nizsze progi daja skaczacy obraz
         // przez szum GPS na wolnym MT8163. Animacja 250ms wygladza skoki.
-        rotateMapTo((hasFix && speedMs > 2.78f) ? bearing : 0f);
+        rotateMapTo((hasFix && speedMs > 2.78f) ? -bearing : 0f);
         invalidate();
     }
 

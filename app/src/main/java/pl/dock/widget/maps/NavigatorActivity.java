@@ -334,7 +334,7 @@ private void toggleFollow() {
         }
         // Heading-up: plytny obrot mapy z kierunkiem jazdy na gorze.
         // Wlacza sie od 10 km/h (~2.78 m/s). Animacja 250ms wygladza skoki.
-        rotateMapTo((hasFix && speedMs > 2.78f) ? bearing : 0f);
+        rotateMapTo((hasFix && speedMs > 2.78f) ? -bearing : 0f);
         invalidateControls();
     }
 
