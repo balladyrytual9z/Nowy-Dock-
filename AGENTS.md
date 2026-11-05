@@ -148,6 +148,14 @@ kręciła się na boki). Progi to stałe w `HeadingSmoother`.
   `onBottomLong()` (ostatnie aplikacje) i `setBottomProgress(1f)` na ekranach
   innych niż główny. Puste metody = martwy przycisk (tak było w `NavigatorActivity`
   i `NowPlayingActivity`).
+- **Glif przycisku dolnego doka pokazuje CEL, nie miejsce** (`DockView.onDraw`,
+  gałąź `bottomT`): ekran główny i strony widżetów (`bottomT ≈ 0`) → **siatka 9
+  kwadratów (3x3)** = „lista aplikacji”, strony aplikacji i Biblioteka
+  (`bottomT ≈ 1`) → **jeden kwadrat z zaokrąglonymi rogami** = „ekran główny”.
+  To samo dotyczy ekranów obcych, bo wołają `setBottomProgress(1f)` i wracają
+  do domu przez `onBottom()`. ⚠️ v1.0.96 (`b62fda5`) to odwrócił „w locie” i glify
+  kłamały przez wiele wersji — przy każdej zmianie tego bloku sprawdź spójność
+  z `LauncherActivity.onBottom()` (`pager.position() < homeIdx + 0.5f` → `appsStart`).
 - **Pułapka przy patchowaniu kodu**: `sed -n ... | cat -n` **dodaje** wcięcia, więc
   kotwice do podmian trzeba potwierdzać przez `grep -n ... | cat -A`. Dziś przez to
   cztery podmiany nie trafiły (nawigator, dock, pole `arrow`).
