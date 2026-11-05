@@ -36,6 +36,23 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
     private final float d;
     private boolean night = true;
     private MapView map;
+
+    /** Pochylenie mapy, gdy wlaczony jest tryb 3D (ten sam co w Nawigacji). */
+    private void applyTilt() {
+        if (map != null) MapTilt.apply(map, MapTilt.enabled(getContext()), false);
+    }
+
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        applyTilt();
+    }
+
+    @Override
+    protected void onWindowVisibilityChanged(int vis) {
+        super.onWindowVisibilityChanged(vis);
+        if (vis == VISIBLE) applyTilt();       // wracamy na ekran glowny - odswiez tryb
+    }
     private SmoothLocationOverlay loc;
     private boolean online;
 
@@ -142,6 +159,7 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
             released = false;
             // indeks 0 = pod warstwa dotyku dodana w konstruktorze
             addView(map, 0, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+            applyTilt();                       // tryb 3D wspolny z pelnoekranowa Nawigacja
         } catch (Throwable ignored) {
             map = null;
             loc = null;

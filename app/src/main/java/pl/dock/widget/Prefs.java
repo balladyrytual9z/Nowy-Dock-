@@ -1027,6 +1027,16 @@ public class Prefs {
         ed(c).putBoolean("map_poland", v).apply();
     }
 
+    // tryb 3D mapy - JEDNO ustawienie dla kafelka na ekranie glownym
+    // i dla pelnoekranowej Nawigacji (przycisk jest tylko w Nawigacji)
+    public static boolean map3d(Context c) {
+        return sp(c).getBoolean("map_3d", false);
+    }
+
+    public static void setMap3d(Context c, boolean v) {
+        ed(c).putBoolean("map_3d", v).apply();
+    }
+
     // ---------- samoaktualizacja ----------
     /** Domyslny odstep sprawdzania aktualizacji w tle [min]. Tryb testowy = 1 min. */
     public static final int UPDATE_MIN_DEFAULT = 1;

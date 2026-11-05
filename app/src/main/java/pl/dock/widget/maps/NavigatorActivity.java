@@ -155,6 +155,7 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
         wireDock();
 
         setContentView(root);
+        applyTilt3d(false);
     }
 
     private void restoreCenter() {
@@ -227,7 +228,39 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
         });
     }
 
-private void toggleFollow() {
+/**
+     * Przelacza mape w tryb pochylony ("3D"). To jedno ustawienie dla calej
+     * aplikacji - kafelek na ekranie glownym pochyla sie tak samo.
+     */
+    private void toggle3d() {
+        boolean on = !Prefs.map3d(this);
+        Prefs.setMap3d(this, on);
+        // Pochylona mapa jest z natury bardziej przyblizona (musi zakryc ekran),
+        // wiec cofamy zoom o jeden poziom - kierowca widzi podobny obszar drogi.
+        if (map != null) {
+            if (on) map.getController().zoomOut();
+            else map.getController().zoomIn();
+        }
+        applyTilt3d(true);
+        invalidateControls();
+    }
+
+    /** Naklada albo zdejmuje pochylenie mapy (czeka, az widok ma rozmiar). */
+    private void applyTilt3d(final boolean animate) {
+        if (map == null) return;
+        if (map.getWidth() <= 0 || map.getHeight() <= 0) {
+            map.post(new Runnable() {
+                @Override
+                public void run() {
+                    applyTilt3d(animate);
+                }
+            });
+            return;
+        }
+        MapTilt.apply(map, Prefs.map3d(this), animate);
+    }
+
+    private void toggleFollow() {
         boolean f = !Prefs.mapFollow(this);
         Prefs.setMapFollow(this, f);
         followPaused = !f;   // po wlaczeniu "Sledz" znow ciagujemy mape
@@ -624,6 +657,7 @@ private void toggleFollow() {
         private static final int BTN_LAYER = 4;
         private static final int BTN_ONLINE = 5;
         private static final int BTN_SEARCH = 6;
+        private static final int BTN_3D = 7;
 
         private final float d;
         private final Paint pt = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -644,7 +678,7 @@ private void toggleFollow() {
         }
 
         private float btnColY() {
-            int n = 7;
+            int n = 8;
             float total = n * (36f * d) + (n - 1) * (6f * d);
             return (getHeight() - total) / 2f;
         }
@@ -669,9 +703,6 @@ private void toggleFollow() {
             return 52f * d + 60f * d;
         }
 
-        private RectF speedRect = new RectF();
-        private Typeface numTf, unitTf;
-
         private float speedR() {
             return 34f * d;
         }
@@ -695,7 +726,8 @@ private void toggleFollow() {
                     follow ? "Sledz" : "Sledz",
                     "Mapa",
                     "Net",
-                    "Szukaj"
+                    "Szukaj",
+                    "3D"
             };
         }
 
@@ -728,28 +760,20 @@ private void toggleFollow() {
             float ccy = tb.centerY();
             drawCompass(cv, ccx, ccy, currentBearing);
 
-            // === plakietka predkosci: prostokat z rogami (taki sam jak na kafelku
-            // mapy na ekranie glownym - ten sam rozmiar, promien i czcionki) ===
+            // === kolo predkosci (Waze / CarPlay) ===
             float scx = speedCx();
             float scy = speedCy();
-            float bw = 84f * d, bh = 64f * d;
-            speedRect.set(scx - bw / 2f, scy - bh / 2f, scx + bw / 2f, scy + bh / 2f);
+            float sr = speedR();
             pt.setStyle(Paint.Style.FILL);
-            pt.setColor(night ? 0xE60E0E0F : 0xE6F5F5F7);
-            cv.drawRoundRect(speedRect, 20f * d, 20f * d, pt);
+            pt.setColor(0xCC000000);
+            cv.drawCircle(scx, scy, sr, pt);
             pt.setStyle(Paint.Style.STROKE);
             pt.setStrokeWidth(2f * d);
-            pt.setColor(night ? 0xFF0A84FF : 0xFF0A6CFF);
-            cv.drawRoundRect(speedRect, 20f * d, 20f * d, pt);
-            if (numTf == null) {            // czcionki launchera - raz, nie co klatke
-                numTf = pl.dock.widget.ui.DockTheme.interSemiBold();
-                unitTf = pl.dock.widget.ui.DockTheme.interMedium();
-            }
-            String kphS = hasFix ? String.valueOf(Math.round(currentSpeedMs * 3.6f)) : "—";
-            drawTextTf(cv, kphS, speedRect.centerX(), speedRect.top + 25f * d,
-                    night ? 0xFFFFFFFF : 0xFF10131A, 26f, Paint.Align.CENTER, numTf);
-            drawTextTf(cv, "km/h", speedRect.centerX(), speedRect.top + 46f * d,
-                    night ? 0xFF8E8E93 : 0xFF6B7686, 11f, Paint.Align.CENTER, unitTf);
+            pt.setColor(0xFFFFFFFF);
+            cv.drawCircle(scx, scy, sr, pt);
+            int kph = hasFix ? Math.round(currentSpeedMs * 3.6f) : 0;
+            drawText(cv, String.valueOf(kph), scx, scy - 5f * d, 0xFFFFFFFF, 36f, Paint.Align.CENTER);
+            drawText(cv, "km/h", scx, scy + 15f * d, 0xFF909090, 10f, Paint.Align.CENTER);
 
             // === przyciski (plywajace pigułki) ===
             String[] labs = labels();
@@ -757,7 +781,8 @@ private void toggleFollow() {
                 RectF rr = rectFor(i);
                 boolean act = (i == BTN_FOLLOW && Prefs.mapFollow(getContext()))
                         || (i == BTN_ONLINE && Prefs.mapOnline(getContext()))
-                        || (i == BTN_LAYER && "topo".equals(Prefs.mapStyle(getContext())));
+                        || (i == BTN_LAYER && "topo".equals(Prefs.mapStyle(getContext())))
+                        || (i == BTN_3D && Prefs.map3d(getContext()));
                 pt.setStyle(Paint.Style.FILL);
                 pt.setColor(pressed == i ? 0xFF2C2C2E : 0xCC202020);
                 cv.drawRoundRect(rr, 16f * d, 16f * d, pt);
@@ -790,17 +815,6 @@ private void toggleFollow() {
                 }
                 drawText(cv, ct, dr.centerX(), dr.centerY(), 0xFF0A84FF, 12f, Paint.Align.CENTER);
             }
-        }
-
-        /** Jak drawText, ale z podana czcionka (czcionki launchera dla plakietki). */
-        private void drawTextTf(Canvas cv, String s, float x, float cy, int color,
-                                float size, Paint.Align align, Typeface tf) {
-            tx.setTypeface(tf);
-            tx.setTextAlign(align);
-            tx.setTextSize(size * d);
-            tx.setColor(color);
-            Paint.FontMetrics fm = tx.getFontMetrics();
-            cv.drawText(s, x, cy - (fm.ascent + fm.descent) / 2f, tx);
         }
 
         private void drawText(Canvas cv, String s, float x, float cy, int color, float size, Paint.Align align) {
@@ -883,6 +897,7 @@ private void toggleFollow() {
             else if (i == BTN_LAYER) toggleLayer();
             else if (i == BTN_ONLINE) toggleOnline();
             else if (i == BTN_SEARCH) openSearch();
+            else if (i == BTN_3D) toggle3d();
         }
     }
 }
