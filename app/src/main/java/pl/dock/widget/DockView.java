@@ -157,9 +157,15 @@ public class DockView extends View {
         int dimmer = (fg & 0x00FFFFFF) | 0x40000000;
         Context c = getContext();
         StatusCenter.Snap s = snap;
+        // Ikony pod zegarem (Wi-Fi, hotspot, Bluetooth) rysowane kodem przez Glyphs -
+        // to samo źródło prawdy, z którego korzysta panel łączności. Wcześniej hotspot
+        // i Bluetooth szły z res/drawable/ic_*.xml przez Icons.vector() z filtrem
+        // PorterDuff.SRC_IN, który na docelowym sprzęcie (ESSGOO MT8163 / Mali-T720 /
+        // Android 9) gubił obrysowe wektory z przezroczystym wypełnieniem i ikony
+        // w doku nie pojawiały się.
         bWifi = Icons.wifi(c, s.wifi, fg);
-        bTether = Icons.tether(96, s.tether ? fg : dimmer, false);
-        bBt = Icons.vector(c, R.drawable.ic_bt, 96, s.bt ? fg : dimmer);
+        bTether = Glyphs.bitmap("hot", 96, s.tether ? fg : dimmer);
+        bBt = Glyphs.bitmap("bt", 96, s.bt ? fg : dimmer);
         bBattery = Icons.vector(c, R.drawable.ic_battery, 96, fg);
         bCharge = Icons.batteryCharging(c, 96, fg);
         bGrid = Icons.vector(c, R.drawable.ic_grid, 128, fg);

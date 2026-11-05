@@ -92,10 +92,12 @@ public class DockWidget extends AppWidgetProvider {
         rv.setImageViewBitmap(R.id.grid, Icons.vector(c, R.drawable.ic_grid, 128, fg));
 
         // statusy z jednego, wspólnego odczytu
+        // Wi-Fi / hotspot / Bluetooth rysowane kodem (Glyphs) - tak samo jak w doku
+        // i w panelu łączności, bez plików XML i bez filtra PorterDuff.SRC_IN
         StatusCenter.Snap s = StatusCenter.get(c);
         rv.setImageViewBitmap(R.id.wifi, Icons.wifi(c, s.wifi, fg));
-        rv.setImageViewBitmap(R.id.tether, Icons.tether(96, s.tether ? fg : dimmer, false));
-        rv.setImageViewBitmap(R.id.bt, Icons.vector(c, R.drawable.ic_bt, 96, s.bt ? fg : dimmer));
+        rv.setImageViewBitmap(R.id.tether, Glyphs.bitmap("hot", 96, s.tether ? fg : dimmer));
+        rv.setImageViewBitmap(R.id.bt, Glyphs.bitmap("bt", 96, s.bt ? fg : dimmer));
         if (Prefs.cpShow(c)) {
             rv.setViewVisibility(R.id.cpstat, View.VISIBLE);
             if (s.cp == CarplayState.PHONE) {
