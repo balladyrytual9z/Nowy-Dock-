@@ -204,11 +204,10 @@ public class AppLibraryPage extends FrameLayout {
             tv.setGravity(Gravity.CENTER);
             tv.setOnClickListener(new OnClickListener() {
                 @Override public void onClick(View v) {
-                    scrollToLetter(letter);
+                    scrollToLetter(letter, true);
                 }
             });
-            letterBar.addView(tv, new LinearLayout.LayoutParams(
-                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            letterBar.addView(tv, new LinearLayout.LayoutParams(0, dp(30), 1f));
         }
         // przesuwanie palcem po pasku: podswietlenie + powiekszenie litery i zywe przewijanie
         letterBar.setOnTouchListener(new View.OnTouchListener() {
@@ -223,7 +222,7 @@ public class AppLibraryPage extends FrameLayout {
                         selected = idx;
                         magnifyLetter(idx, true);
                         v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
-                        scrollToLetter(String.valueOf(LETTERS.charAt(idx)));
+                        scrollToLetter(String.valueOf(LETTERS.charAt(idx)), false);
                     }
                     return true;
                 }
@@ -466,7 +465,7 @@ public class AppLibraryPage extends FrameLayout {
         return c >= 'A' && c <= 'Z' ? String.valueOf(c) : "#";
     }
 
-    private void scrollToLetter(String letter) {
+    private void scrollToLetter(String letter, boolean smooth) {
         if (scrollView == null) return;
         Integer y = letterY.get(letter);
         if (y == null) {
@@ -475,7 +474,12 @@ public class AppLibraryPage extends FrameLayout {
             y = letterY.get(letter);
         }
         if (y == null) return;   // brak aplikacji na te litere
-        scrollView.smoothScrollTo(0, Math.max(0, y - dp(8)));
+        int to = Math.max(0, y - dp(8));
+        if (smooth) {
+            scrollView.smoothScrollTo(0, to);
+        } else {
+            scrollView.scrollTo(0, to);
+        }
     }
 
     private int letterIndexAt(float x) {
