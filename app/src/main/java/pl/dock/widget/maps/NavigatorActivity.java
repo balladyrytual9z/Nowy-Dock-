@@ -96,7 +96,7 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
             map.setMultiTouchControls(true);
             map.setTilesScaledToDpi(true);
             map.setUseDataConnection(Prefs.mapOnline(this));
-            map.setBackgroundColor(night ? 0xFF0B0C0E : 0xFFE8E8ED);
+            MapConfig.applyNight(map, night);   // tlo + filtr kafli (dzien/noc)
             map.getController().setZoom(Math.round(Prefs.mapLastZoom(this)));
             map.setMinZoomLevel(3d);
             map.setMaxZoomLevel(19d);
@@ -105,6 +105,7 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
             // i dokarmial znacznik surowymi fixami - stad skakanie strzalki.
             loc = new SmoothLocationOverlay(map);
             loc.setDrawAccuracyEnabled(true);
+            loc.setNight(night);
             loc.setOnUserTouch(new Runnable() {
                 @Override
                 public void run() {

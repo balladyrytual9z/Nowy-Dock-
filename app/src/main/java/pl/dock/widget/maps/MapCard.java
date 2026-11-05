@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Paint;
-import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.os.Handler;
 import android.os.Looper;
@@ -105,7 +104,7 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
             m.setMultiTouchControls(false);
             m.setTilesScaledToDpi(true);
             m.setUseDataConnection(online);
-            m.setBackgroundColor(night ? 0xFF0B0C0E : 0xFFE8E8ED);
+            MapConfig.applyNight(m, night);   // tlo + filtr kafli (dzien/noc)
             // KLUCZOWE: nie pozwalamy osmdroid niszczyc mapy przy odlaczeniu od okna.
             // Domyslnie (destroyModeOnDetach = true) kazde odlaczenie wola onDetach():
             // czysci kafle z RAM, odpina tile provider, zeruje projekcje i listenery.
@@ -121,6 +120,7 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
             // dokarmial znacznik surowymi, czesto niedokladnymi fixami.
             SmoothLocationOverlay l = new SmoothLocationOverlay(m);
             l.setDrawAccuracyEnabled(true);
+            l.setNight(night);
             m.getOverlays().add(l);
             map = m;
             loc = l;
@@ -190,7 +190,9 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
     @Override
     public void setNight(boolean n) {
         night = n;
-        if (map != null) map.setBackgroundColor(night ? 0xFF0B0C0E : 0xFFE8E8ED);
+        // Motyw mapy jak reszta launchera: noc = przygaszone kafle + grafitowe tlo.
+        MapConfig.applyNight(map, night);
+        if (loc != null) loc.setNight(night);
         invalidate();
     }
 
@@ -367,29 +369,30 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
         // Kafelek to SAMA MAPA + wskaznik predkosci. Paska "MAPY / offline /
         // NAWIGACJA" tu nie ma (usuniety na zyczenie uzytkownika, 2026-11-05).
         //
-        // Pigulka z predkoscia (jak w CarPlay) w prawym dolnym rogu
+        // Okragly wskaznik predkosci (jak w pelnoekranowej Nawigacji / Waze)
+        // w prawym dolnym rogu. Kolory zgodne z motywem launchera.
+        float r = 34f * d;
+        float cx = w - r - 14f * d;
+        float cy = h - r - 14f * d;
         float kmh = speedMs * 3.6f;
         String val = hasFix ? String.valueOf(Math.round(kmh)) : "—";
-        float pw = 84f * d;
-        float ph = 60f * d;
-        RectF pr = new RectF(w - pw - 12f * d, h - ph - 12f * d, w - 12f * d, h - 12f * d);
+
         p.setStyle(Paint.Style.FILL);
-        p.setColor(night ? 0xE6000000 : 0xE6FFFFFF);
-        cv.drawRoundRect(pr, 20f * d, 20f * d, p);
+        p.setColor(night ? 0xE60E0E0F : 0xE6F5F5F7);
+        cv.drawCircle(cx, cy, r, p);
         p.setStyle(Paint.Style.STROKE);
-        p.setStrokeWidth(2f * d);
+        p.setStrokeWidth(2.5f * d);
         p.setColor(night ? 0xFF0A84FF : 0xFF0A6CFF);
-        cv.drawRoundRect(new RectF(pr.left + d, pr.top + d, pr.right - d, pr.bottom - d),
-                20f * d, 20f * d, p);
+        cv.drawCircle(cx, cy, r, p);
 
         t.setTextAlign(Paint.Align.CENTER);
         t.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-        t.setTextSize(26f * d);
+        t.setTextSize(24f * d);
         t.setColor(night ? 0xFFFFFFFF : 0xFF10131A);
-        cv.drawText(val, pr.centerX(), pr.top + 32f * d, t);
+        cv.drawText(val, cx, cy + 6f * d, t);
         t.setTypeface(Typeface.DEFAULT);
         t.setTextSize(9f * d);
         t.setColor(night ? 0xFF8E8E93 : 0xFF6B7686);
-        cv.drawText("km/h", pr.centerX(), pr.top + 46f * d, t);
+        cv.drawText("km/h", cx, cy + 22f * d, t);
     }
 }
