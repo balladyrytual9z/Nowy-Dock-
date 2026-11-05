@@ -5,15 +5,17 @@ Aktualizuj, gdy odkryjesz coś, co oszczędzi czas następnej sesji.
 
 ## 1. Co to jest
 
-Launcher Android (`pl.dock.widget`) dla tabletu samochodowego (Honda,
-SoC **MT8163**, heap ok. **128 MB**). Cechy: dock z ikonami, panel
-łączności, OBD przez SPP/BLE (ELM327), nakładka CarPlay nad Organic Maps.
+Launcher Android (`pl.dock.widget`) dla tabletu samochodowego Honda,
+zainstalowany na head unicie **ESSGOO 9"** (SoC MT8163). Cechy: dock
+z ikonami, panel łączności, OBD przez SPP/BLE (ELM327), nakładka
+CarPlay nad Organic Maps.
 
 > ### 🔴 TWARDY WYMÓG: ma działać na **Androidzie 9 = API 28**
 >
-> Tablet docelowy: **ESSGO** (head unit, Android 9). Każda zmiana musi
-> to zachować. **NIE podnosić `minSdk` powyżej 28 ani `targetSdk`
-> powyżej 28.** Pułapki i checklista → sekcja 2a.
+> Urządzenie: **ESSGOO 9"**, **32-bitowe ARMv7**, **bez roota**.
+> Pełna specyfikacja: [`docs/urzadzenie-essgoo-9.md`](docs/urzadzenie-essgoo-9.md).
+> Każda zmiana musi to zachować. **NIE podnosić `minSdk` powyżej 28 ani
+> `targetSdk` powyżej 28.** Pułapki i checklista → sekcja 2a.
 
 - `namespace` / `applicationId`: `pl.dock.widget`
 - `minSdk 26`, `targetSdk 28` (celowo stary — zachowanie nakładek),
@@ -51,39 +53,71 @@ Root `build.gradle` trzyma wersje wtyczek; `settings.gradle` ma
 przy zatrzymaniu agenta — lokalnie padnie, bo brak Gradle. Nie jest to
 błąd kodu.
 
-## 2a. Android 9 (API 28) — twardy cel i pułapki
+## 2a. Android 9 (API 28) — potwierdzony sprzęt i konsekwencje
 
-Ma chodzić na: **ESSGO head unit, Android 9**, SoC MT8163
-(GPU **Mali-T720**), ~128 MB heap.
+Urządzenie: **ESSGOO 9" head unit** (Honda). Pełna specyfikacja:
+[`docs/urzadzenie-essgoo-9.md`](docs/urzadzenie-essgoo-9.md).
 
-Sprawdzone — jest OK:
+| Fakt | Wartość |
+| --- | --- |
+| System | Android 9 Pie, API 28, build `PPR1.180610.011` |
+| Board | `Essgoop3_bsp` (alps), kernel `4.9.117+ armv7l` |
+| **ABI** | **`armeabi-v7a`, 32-bit (ARMv7)** — tylko to działa |
+| CPU / GPU | MT8163, 4× Cortex-A53 · Mali-T720, **OpenGL ES 3.2** |
+| RAM / heap | 4 GB fizycznie, ale **heap Javy 128 MB** |
+| Ekran | 9", 1280×720, IPS |
+| Czujniki | **tylko akcelerometr** |
+| Root | **BRAK** |
+| Play Services | obecne (Play Store działa) |
+
+### 🔴 Konsekwencje — to nie ciekawostki, to wytyczne projektowe
+
+- **ABI: TYLKO `armeabi-v7a`.** Urządzenie jest 32-bitowe (`armv7l`,
+  ABI `armeabi-v7a`/`armeabi`). Biblioteki natywne **muszą** być dla
+  ARMv7. Lokalne buildy kontrolne SDK robi się z `-Parm64`, co daje AAR
+  **bez** ARMv7, czyli **martwą apkę na tym tablecie**. Dlatego
+  `abiFilters` = `armeabi-v7a` i trzeba potwierdzić, że AAR SDK zawiera
+  `lib/armeabi-v7a/`.
+- **Wersja Androida jest SFALSZOWANA.** System wyświetla „Android 15.0",
+  a naprawdę jest Android 9 / API 28. **Nie wierzyć
+  `Build.VERSION.RELEASE`** i nie opierać na nim żadnej logiki.
+- **Brak czujników kierunku** — nie ma magnetometru ani żyroskopu, jest
+  tylko akcelerometr. Obrotu mapy „wg kursu" **nie da się** oprzeć na
+  kompasie; jedyne źródło to kurs GPS nad ziemią (działa w ruchu, nie
+  działa w miejscu). Nie planować funkcji zależnych od kompasu.
+- **Brak roota** → odpada iniekcja zdarzeń dotyku i sztuczki przez
+  `injectInputEvent`. Dlatego wbudowanie przez SDK to jedyna sensowna
+  droga (nie ma jak sterować obcą aplikacją w oknie).
+- **Vulkan odpada.** Mali-T720 go nie ma, ale jest **OpenGL ES 3.2** —
+  renderer OM musi iść ścieżką GLES. Nie włączać
+  `enableVulkanDiagnostics`.
+- **Brak czujnika światła** → auto tryb ciemny/jasny tylko przez
+  wschód/zachód słońca (algorytm NOAA), nie przez otoczenie.
+- **NIE używać API 29+.** Ani `ACCESS_BACKGROUND_LOCATION`, ani
+  `android:foregroundServiceType` (oba API 29) tu nie istnieją.
+  Nawigacja w tle = własny foreground service + notyfikacja
+  (README SDK: to obowiązek hosta).
+- **GPS jest sprzętowy, Play Services są** → **nie dodawać**
+  `location-google` ani `location-foss`. Wystarczy wbudowany provider
+  Androida. Mniej zależności, mniejszy APK.
+- **Cleartext HTTP** blokowany dla `targetSdk >= 28`. osmdroid i OM
+  używają HTTPS — nie otwierać `usesCleartextTraffic`.
+- **Pamięć.** Heap 128 MB — kafle i tekstury OM renderuje natywnie; nie
+  alokować ich w Javie. Mali-T720 → minimalne animacje.
+- **Zasilanie.** Stałe 12 V + osobny ACC. Po 12 h bez ACC pełne
+  wyłączenie, a zimny boot trwa **15–30 s** — nie zakładać natychmiastowej
+  gotowości po zapłonie.
+- **Zlink** (`com.zjinnova.zlink`, CarPlay, targetSdk 21) wyłącza
+  Bluetooth przy starcie → potrzebny BT Recovery (już jest w projekcie).
+
+### Sprawdzone — jest OK
+
 - SDK OM ma `minSdk = 21` (`propMinSdkVersion`), więc API 28 jest w zakresie
 - `FOREGROUND_SERVICE` **jest** zadeklarowany (wymagany od Android 9)
 - `SYSTEM_ALERT_WINDOW` (nakładki) — jest
 - Java 17 + desugaring nie zależą od wersji Androida: D8 desugaruje
   bajtkod do DEX pod `minSdk 26`
-- `compileSdk` jest **tylko kompilacyjny** i nie wpływa na działanie
-  na API 28
-
-Pułapki — potwierdzić, zanim cokolwiek wdrożymy na urządzenie:
-- **ABI — największe ryzyko.** Tanie head unity często mają **32-bitowy
-  userspace** mimo 64-bitowego SoC. Jeśli AAR SDK nie zawiera
-  `armeabi-v7a`, apka padnie na `UnsatisfiedLinkError`. Lokalne buildy
-  kontrolne SDK robi się z `-Parm64`, więc **samo `-Parm64` to za mało**.
-  Ustalić architekturę: `adb shell getprop ro.product.cpu.abi`.
-  Domyślny build wydaniowy SDK pakuje 4 ABI — potwierdzić w konkretnym AAR.
-- **Vulkan.** Mali-T720 **nie wspiera Vulkan** — renderer OM musi zejść
-  na OpenGL ES. Vulkan w OM jest opcjonalny
-  (`enableVulkanDiagnostics=OFF`), ale na tym GPU trzeba to potwierdzić
-  na żywym urządzeniu.
-- **Cleartext HTTP** jest blokowany dla `targetSdk >= 28`. osmdroid i OM
-  używają HTTPS — nie otwierać wyjątku `usesCleartextTraffic`.
-- **Lokalizacja w tle.** `ACCESS_BACKGROUND_LOCATION` istnieje od API 29 —
-  na Androidzie 9 go **nie** dodawać. Nawigacja w tle wymaga własnego
-  foreground service z notyfikacją (README SDK mówi wprost, że to
-  obowiązek hosta).
-- **Pamięć.** 128 MB heap — tekstury i kafle OM renderuje natywnie,
-  nie alokować ich po stronie Javy.
+- `compileSdk` jest **tylko kompilacyjny** i nie wpływa na API 28
 
 ## 3. Stos mapowy (stan obecny)
 
@@ -150,7 +184,8 @@ ze źródeł (`git submodule update --init --recursive`, CMake, **NDK 29**,
 | `androidResources.noCompress += ["png","mwm","ttf","packed_polygons.bin"]` | natywny silnik czyta mapy **losowym dostępem**; spakowane = crash |
 | AndroidX `lifecycle`/`recyclerview`/`fragment` (jako `api`) | wchodzą tranzytywnie |
 | minSdk 21 | masz 26 ✔ — **API 28 (Android 9) jest w zakresie** |
-| **ABI z `armeabi-v7a`** | jeśli tablet ma 32-bitowy userspace → sekcja 2a |
+| **ABI `armeabi-v7a` w AAR** | tablet jest 32-bit (`armv7l`) — AAR bez ARMv7 = martwa apka |
+| NIE dodawać `location-google`/`location-foss` | GPS jest sprzętowy; wbudowany provider wystarcza |
 | NDK 29 / JDK 21 | tylko przy budowaniu SDK ze źródeł |
 
 Kontrakt integracji (z README SDK — trzymaj się go):
@@ -172,10 +207,10 @@ Kontrakt integracji (z README SDK — trzymaj się go):
   `noCompress`. Bez dodawania zależności SDK (jeszcze jej nie ma).
 - **Faza 1** — podbić AGP + `compileSdk 37` + doinstalować
   `platforms;android-37` w CI, dodać `app.organicmaps.sdk:sdk` i
-  `:maps-world`. `abiFilters` dopasować do realnego tabletu —
-  **najpierw ustalić jego ABI** (sekcja 2a); `armeabi-v7a` musi zostać,
-  jeśli userspace jest 32-bitowy. `minSdk`/`targetSdk` **bez zmian**
-  (26/28) — to wymóg Androida 9.
+  `:maps-world` (**bez** `location-google`/`location-foss`).
+  Warunek wstępny: **potwierdzić, że AAR SDK zawiera
+  `lib/armeabi-v7a/`** — bez tego apka nie wstanie na tym tablecie.
+  `minSdk`/`targetSdk` **bez zmian** (26/28).
 - **Faza 2** — `OrganicMaps.init()` + `MapView`/`MapController` w launcherze.
 - **Faza 3** — offline search, pobieranie regionów, routing.
 - **Faza 4** — `NavData`/`NavOverlayService` zasilane **z SDK**;

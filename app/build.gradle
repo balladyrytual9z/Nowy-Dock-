@@ -33,8 +33,14 @@ android {
         versionCode vc
         versionName "1.0.${vc}-obd"
 
+        // Head unit ESSGOO 9" jest 32-bitowy: kernel armv7l, ABI
+        // armeabi-v7a/armeabi. Biblioteki natywne MUSZA byc ARMv7.
+        // arm64-v8a/x86/x86_64 na tym sprzecie nie wstana, a tylko
+        // puchna w APK - stad zawężenie do jednej architektury.
+        // Uwaga: gdy dojdzie AAR z libkami, sprawdz czy ma
+        // lib/armeabi-v7a/ (patrz AGENTS.md, sekcja 2a).
         ndk {
-            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+            abiFilters 'armeabi-v7a'
         }
     }
 
