@@ -55,6 +55,8 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
     private float currentSpeedMs;
     private float currentBearing;
     private boolean centeredOnce;
+    // Heading-up: ostatni obrot mapy. 0 = polnoc na gorze.
+    private float lastMapOrientation;
     private boolean hasDest;
     private GeoPoint dest;
     private Polyline destLine;
@@ -327,6 +329,14 @@ private void toggleFollow() {
                 pts.add(dest);
                 destLine.setPoints(pts);
             } catch (Throwable ignored) {
+            }
+        }
+        // Heading-up: obracamy mape tak, by kierunek jazdy byl na gorze ekranu.
+        if (map != null) {
+            float target = (hasFix && speedMs > 0.28f) ? bearing : 0f;
+            if (Math.abs(target - lastMapOrientation) > 3f) {
+                map.setMapOrientation(target);
+                lastMapOrientation = target;
             }
         }
         invalidateControls();
