@@ -635,7 +635,7 @@ private void toggleFollow() {
         try {
             org.osmdroid.api.IGeoPoint c = map.getMapCenter();
             if (c != null) {
-                Prefs.setMapLast(%(C)s, c.getLatitude(), c.getLongitude(),
+                Prefs.setMapLast(this, c.getLatitude(), c.getLongitude(),
                         (float) map.getZoomLevelDouble());
             }
         } catch (Throwable ignored) {

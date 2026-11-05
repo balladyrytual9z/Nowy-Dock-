@@ -307,7 +307,7 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
         try {
             org.osmdroid.api.IGeoPoint c = map.getMapCenter();
             if (c != null) {
-                Prefs.setMapLast(%(C)s, c.getLatitude(), c.getLongitude(),
+                Prefs.setMapLast(getContext(), c.getLatitude(), c.getLongitude(),
                         (float) map.getZoomLevelDouble());
             }
         } catch (Throwable ignored) {
