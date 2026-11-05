@@ -6,6 +6,8 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
@@ -43,6 +45,19 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
     private float speedMs;
     private boolean started;
     private boolean centeredOnce;
+    // Mapa zostala zwolniona (onDetach) - przy powrocie do okna trzeba ja odbudowac.
+    private boolean released;
+
+    private final Handler h = new Handler(Looper.getMainLooper());
+    // Zwolnienie mapy dopiero wtedy, gdy karta NIE wroci do okna. Pager przebudowuje
+    // strony (removeAllViews + addView), wiec krotkie odlaczenie jest normalne.
+    private final Runnable releaseIfGone = new Runnable() {
+        @Override
+        public void run() {
+            if (isAttachedToWindow()) return;
+            releaseMap();
+        }
+    };
 
     public MapCard(Context c) {
         super(c);
@@ -50,26 +65,7 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
         online = Prefs.mapOnline(c);
         MapConfig.init(c);
         setClipToPadding(false);
-        try {
-            map = new MapView(c);
-            map.setTileSource("topo".equals(Prefs.mapStyle(c))
-                    ? TileSourceFactory.OpenTopo : TileSourceFactory.MAPNIK);
-            map.setMultiTouchControls(false);
-            map.setTilesScaledToDpi(true);
-            map.setUseDataConnection(online);
-            map.setBackgroundColor(night ? 0xFF0B0C0E : 0xFFE8E8ED);
-            map.getController().setZoom(Math.round(Prefs.mapLastZoom(c)));
-            loc = new MyLocationNewOverlay(map);
-            loc.setDrawAccuracyEnabled(true);
-            if (MapState.hasPermission(c)) {
-                loc.enableMyLocation();
-                if (Prefs.mapFollow(c)) loc.enableFollowLocation();
-            }
-            map.getOverlays().add(loc);
-            addView(map, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-        } catch (Throwable ignored) {
-            map = null;
-        }
+        buildMap();
         // Caly kafelek reaguje na dotkniecie (jak mapa w CarPlay):
         //  - tapniecie      -> otwiera pelna Nawigacje,
         //  - przytrzymanie  -> podmiana kafelka na inny widzet.
@@ -89,6 +85,66 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
         });
         addView(tap, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         restoreCenter();
+    }
+
+    /**
+     * Tworzy (lub odtwarza) MapView. Wydzielone, bo mape trzeba czasem odbudowac
+     * po zwolnieniu - patrz {@link #releaseMap()}.
+     */
+    private void buildMap() {
+        try {
+            MapView m = new MapView(getContext());
+            m.setTileSource("topo".equals(Prefs.mapStyle(getContext()))
+                    ? TileSourceFactory.OpenTopo : TileSourceFactory.MAPNIK);
+            m.setMultiTouchControls(false);
+            m.setTilesScaledToDpi(true);
+            m.setUseDataConnection(online);
+            m.setBackgroundColor(night ? 0xFF0B0C0E : 0xFFE8E8ED);
+            // KLUCZOWE: nie pozwalamy osmdroid niszczyc mapy przy odlaczeniu od okna.
+            // Domyslnie (destroyModeOnDetach = true) kazde odlaczenie wola onDetach():
+            // czysci kafle z RAM, odpina tile provider, zeruje projekcje i listenery.
+            // onAttachedToWindow() w osmdroid jest PUSTE, wiec po ponownym dodaniu
+            // widoku mapa juz nie wraca - kafelek zostaje pusty. To byla przyczyna
+            // objawu "mapa miga i znika, a w pelnym ekranie dziala".
+            m.setDestroyMode(false);
+            m.setMinZoomLevel(3d);
+            m.setMaxZoomLevel(19d);
+            m.getController().setZoom(Math.round(Prefs.mapLastZoom(getContext())));
+            MyLocationNewOverlay l = new MyLocationNewOverlay(m);
+            l.setDrawAccuracyEnabled(true);
+            if (MapState.hasPermission(getContext())) {
+                l.enableMyLocation();
+                if (Prefs.mapFollow(getContext())) l.enableFollowLocation();
+            }
+            m.getOverlays().add(l);
+            map = m;
+            loc = l;
+            released = false;
+            // indeks 0 = pod warstwa dotyku dodana w konstruktorze
+            addView(map, 0, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        } catch (Throwable ignored) {
+            map = null;
+            loc = null;
+        }
+    }
+
+    /**
+     * Zwalnia mape (osmdroid onDetach) - wolane tylko wtedy, gdy karta naprawde
+     * zniknela z okna. Nie wolno tego robic przy zwyklej przebudowie stron pagera.
+     */
+    private void releaseMap() {
+        if (map == null) return;
+        try {
+            map.onDetach();
+        } catch (Throwable ignored) {
+        }
+        try {
+            removeView(map);
+        } catch (Throwable ignored) {
+        }
+        map = null;
+        loc = null;
+        released = true;
     }
 
     private void restoreCenter() {
@@ -135,6 +191,11 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
 
     public void setOnline(boolean v) {
         online = v;
+        if (map == null && released) {
+            // karta byla ukryta, gdy zmieniono ustawienie sieci - odbuduj z nowym trybem
+            buildMap();
+            restoreCenter();
+        }
         if (map != null) map.setUseDataConnection(v);
         invalidate();
     }
@@ -145,6 +206,12 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
     private void start() {
         if (started) return;
         started = true;
+        // Mapa mogla zostac zwolniona przy poprzednim odlaczeniu od okna - wtedy
+        // trzeba ja odbudowac, bo zwolnionego MapView nie da sie "wznowic".
+        if (map == null && released) {
+            buildMap();
+            restoreCenter();
+        }
         if (map != null) {
             try { map.onResume(); } catch (Throwable ignored) {}
         }
@@ -191,12 +258,19 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
+        // Karta wrocila do okna (np. pager przebudowal strony) - nie zwalniamy mapy.
+        h.removeCallbacks(releaseIfGone);
         updateLifecycle();
     }
 
     @Override
     protected void onDetachedFromWindow() {
         stop();
+        // NIE zwalniamy mapy od razu: pager potrafi odlaczyc i podlaczyc te sama
+        // strone w tej samej klatce (removeAllViews + addView). Zwolnienie dopiero
+        // po chwili, jesli karta naprawde nie wrocila do okna.
+        h.removeCallbacks(releaseIfGone);
+        h.postDelayed(releaseIfGone, 1500L);
         super.onDetachedFromWindow();
     }
 
@@ -224,9 +298,8 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
             centeredOnce = true;
             try {
                 map.getController().setCenter(new GeoPoint(lat, lon));
-                // NIE zmieniamy zooma — zostaje na poziomie 6 (cala Polska).
-                // Skok na zoom 13 (albo jakikolwiek wyzszy) czysci kafle
-                // i bez internetu/offline mapa znika na bialo.
+                // NIE zmieniamy zooma - zostaje na poziomie zapisanym w Prefs.
+                // Skok na wysoki zoom czysci kafle i offline mapa znika na bialo.
                 // Uzytkownik widzi swoja lokalizacje na ogolnym tle,
                 // a w NavigatorActivity moze przyblizyc recznie.
             } catch (Throwable ignored) {

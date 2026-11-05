@@ -628,33 +628,46 @@ public class LauncherActivity extends BaseActivity {
         loadWidgets();
     }
 
-    // zbiera strony do pagera: [widżety] [ekran główny] [aplikacje...]
+    // zbiera strony do pagera: [widzety] [ekran glowny] [aplikacje...]
+    // UWAGA: nie wolno robic removeAllViews() + addView() przy kazdej zmianie
+    // listy aplikacji. Odlaczenie widoku od okna niszczy osmdroid MapView
+    // (domyslnie destroyModeOnDetach=true -> onDetach(): czyszczenie kafli,
+    // zerwanie projekcji), a po ponownym dodaniu mapa zostaje pusta.
+    // Dlatego: usuwamy tylko strony zbedne, brakujace dodajemy, a kolejnosc
+    // ustawiamy przez bringChildToFront (bez detach/attach).
     private void assemblePages() {
-        pager.removeAllViews();
+        List<View> order = new ArrayList<View>();
         homeIdx = 0;
         if (stacksPage != null) {
-            pager.addView(stacksPage, new FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            order.add(stacksPage);
             homeIdx = 1;
         }
-        pager.addView(home, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        order.add(home);
         appsStart = homeIdx + 1;
-        for (AppsGridPage p : appPages) {
-            if (p.getParent() instanceof ViewGroup) ((ViewGroup) p.getParent()).removeView(p);
-            pager.addView(p, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT));
-        }
-        // App Library (Biblioteka aplikacji) – last page, iOS style
+        for (AppsGridPage p : appPages) order.add(p);
+        // App Library (Biblioteka aplikacji) - last page, iOS style
         ensureAppLibrary();
         if (appLibraryPage != null) {
-            if (appLibraryPage.getParent() instanceof ViewGroup) {
-                ((ViewGroup) appLibraryPage.getParent()).removeView(appLibraryPage);
-            }
             appLibraryPage.setApps(items);
             appLibraryPage.setNight(night);
-            pager.addView(appLibraryPage, new FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            order.add(appLibraryPage);
+        }
+        // 1) strony, ktorych juz nie ma na liscie
+        for (int i = pager.getChildCount() - 1; i >= 0; i--) {
+            if (!order.contains(pager.getChildAt(i))) pager.removeViewAt(i);
+        }
+        // 2) brakujace dodaj, istniejace przenies na wlasciwe miejsce
+        for (int i = 0; i < order.size(); i++) {
+            View v = order.get(i);
+            if (v.getParent() == pager) {
+                pager.bringChildToFront(v);
+            } else {
+                if (v.getParent() instanceof ViewGroup) {
+                    ((ViewGroup) v.getParent()).removeView(v);
+                }
+                pager.addView(v, new FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            }
         }
         pager.setPosition(homeIdx);
     }
