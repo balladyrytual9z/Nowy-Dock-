@@ -174,8 +174,11 @@ Ustalenia z użytkownikiem, żeby nikt tego nie „poprawił” z powrotem:
   (`Icons.forPackageRaw`, bez podmian `Overrides`). Wykluczony jest tylko własny
   pakiet Docka. Trzy narzędzia launchera (Ustawienia, CarPlay, Honda OBD)
   wchodzą do tej samej listy i sortują się alfabetycznie.
-- **Pasek liter A–Z jest poziomo, całą szerokość, pod polem wyszukiwania**
-  (nie pionowo z boku). Litery nigdy nie są wygaszane; litera pod palcem
+- **Pasek liter A–Z jest poziomo, pod polem wyszukiwania, ale NIE na całą
+  szerokość**: zajmuje ~65% szerokości paska wyszukiwania i jest wyśrodkowany
+  (dwa równe odstępy po bokach). Nad paskiem jest odstęp 16 dp, a powiększenie
+  litery to skala 1.6 i wychylenie 6 dp — dzięki temu powiększona litera
+  **nie nachodzi na pole wyszukiwania**. Litery nigdy nie są wygaszane; litera pod palcem
   powiększa się z animacją + haptyką, tapnięcie litery przewija listę.
   Kierunek powiększania (w górę / w dół) to ustawienie
   `Prefs.libLetterUp` (Ustawienia → Lista aplikacji), domyślnie w górę.
