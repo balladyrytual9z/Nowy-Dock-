@@ -6,9 +6,11 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
-import android.animation.ValueAnimator;
 import android.graphics.Typeface;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -24,7 +26,6 @@ import org.osmdroid.views.MapView;
 import org.osmdroid.views.Projection;
 import org.osmdroid.views.overlay.MapEventsOverlay;
 import org.osmdroid.views.overlay.Polyline;
-import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,15 +50,22 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
 
     private boolean night;
     private MapView map;
-    private MyLocationNewOverlay loc;
+    private SmoothLocationOverlay loc;
     private DockView dock;
     private ChromeView chrome;
     private boolean hasFix;
     private float currentSpeedMs;
     private float currentBearing;
     private boolean centeredOnce;
-    // Plytna animacja obrotu mapy (heading-up).
-    private ValueAnimator headingAnimator;
+    // Wygladzanie ruchu i obrotu (heading-up). GPS daje fix raz na sekunde
+    // (MapState), a mapa i znacznik maja sie poruszac CIAGLE - patrz HeadingSmoother.
+    private final HeadingSmoother smooth = new HeadingSmoother();
+    private final GeoPoint tmpPoint = new GeoPoint(0d, 0d);
+    private final Handler h = new Handler(Looper.getMainLooper());
+    private boolean loopRunning;
+    private boolean followPaused;   // uzytkownik przesunal mape - nie ciagujemy go
+    private static final long FRAME_MS = 33L;   // ~30 fps w ruchu
+    private static final long IDLE_MS = 200L;   // na postoju - nie mielimy GPU
     private boolean hasDest;
     private GeoPoint dest;
     private Polyline destLine;
@@ -88,16 +96,23 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
             map.setMultiTouchControls(true);
             map.setTilesScaledToDpi(true);
             map.setUseDataConnection(Prefs.mapOnline(this));
-            map.setBackgroundColor(night ? 0xFF0B0C0E : 0xFFE8E8ED);
+            MapConfig.applyNight(map, night);   // tlo + filtr kafli (dzien/noc)
             map.getController().setZoom(Math.round(Prefs.mapLastZoom(this)));
             map.setMinZoomLevel(3d);
             map.setMaxZoomLevel(19d);
-            loc = new MyLocationNewOverlay(map);
+            // Wlasny renderer znacznika: bez sluchacza GPS w overlayu.
+            // GpsMyLocationProvider bierze GPS + NETWORK z minTime = 0
+            // i dokarmial znacznik surowymi fixami - stad skakanie strzalki.
+            loc = new SmoothLocationOverlay(map);
             loc.setDrawAccuracyEnabled(true);
-            if (MapState.hasPermission(this)) {
-                loc.enableMyLocation();
-                if (Prefs.mapFollow(this)) loc.enableFollowLocation();
-            }
+            loc.setNight(night);
+            loc.setOnUserTouch(new Runnable() {
+                @Override
+                public void run() {
+                    // uzytkownik chwycil mape - przestajemy ja ciagnac
+                    followPaused = true;
+                }
+            });
             map.getOverlays().add(loc);
             destLine = new Polyline();
             destLine.setColor(night ? 0xFF0A84FF : 0xFF0A6CFF);
@@ -215,10 +230,7 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
 private void toggleFollow() {
         boolean f = !Prefs.mapFollow(this);
         Prefs.setMapFollow(this, f);
-        if (loc != null) {
-            if (f) loc.enableFollowLocation();
-            else loc.disableFollowLocation();
-        }
+        followPaused = !f;   // po wlaczeniu "Sledz" znow ciagujemy mape
         invalidateControls();
     }
 
@@ -332,35 +344,57 @@ private void toggleFollow() {
             } catch (Throwable ignored) {
             }
         }
-        // Heading-up: plytny obrot mapy z kierunkiem jazdy na gorze.
-        // Wlacza sie od 10 km/h (~2.78 m/s). Animacja 250ms wygladza skoki.
-        rotateMapTo((hasFix && speedMs > 2.78f) ? -bearing : 0f);
-        invalidateControls();
+        // Pozycje i obrot wygladzamy MIEDZY fixami (petla tick()): przy 1 Hz GPS
+        // znacznik sunie, a mapa obraca sie ciagle, bez skokow co sekunde.
+        smooth.onFix(lat, lon, bearing, speedMs,
+                MapState.get(this).lastAccuracy(), SystemClock.uptimeMillis());
+        startLoop();
     }
 
-    /**
-     * Plytnie obraca mape do zadanego bearingu (stopnie).
-     */
-    private void rotateMapTo(float targetBearing) {
-        if (map == null) return;
-        if (headingAnimator != null && headingAnimator.isRunning()) {
-            headingAnimator.cancel();
+    // ---------------- wygladzanie ruchu i obrotu: jedna wspolna petla ----------------
+
+    private final Runnable frame = new Runnable() {
+        @Override
+        public void run() {
+            if (!loopRunning) return;
+            tick();
+            long now = SystemClock.uptimeMillis();
+            h.postDelayed(this, smooth.moving(now) ? FRAME_MS : IDLE_MS);
         }
-        float from = map.getMapOrientation();
-        float delta = targetBearing - from;
-        while (delta > 180f) delta -= 360f;
-        while (delta < -180f) delta += 360f;
-        float to = from + delta;
-        if (Math.abs(delta) < 3f) return;
-        headingAnimator = ValueAnimator.ofFloat(from, to);
-        headingAnimator.setDuration(250L);
-        headingAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator a) {
-                map.setMapOrientation((Float) a.getAnimatedValue());
+    };
+
+    private void startLoop() {
+        if (loopRunning) return;
+        loopRunning = true;
+        h.postDelayed(frame, FRAME_MS);
+    }
+
+    private void stopLoop() {
+        loopRunning = false;
+        h.removeCallbacks(frame);
+    }
+
+    private void tick() {
+        smooth.advance(SystemClock.uptimeMillis());
+        if (!smooth.hasFix() || !smooth.dirty()) return;
+        if (map != null) {
+            // false = bez requestLayout na kazdej klatce (rysujemy od razu nizej):
+            // requestLayout 30x/s na MT8163 to zbedny pomiar i uklad.
+            map.setMapOrientation(smooth.mapOrientation(), false);
+            if (Prefs.mapFollow(this) && !followPaused) {
+                tmpPoint.setCoords(smooth.lat(), smooth.lon());
+                map.getController().setCenter(tmpPoint);
             }
-        });
-        headingAnimator.start();
+            map.invalidate();
+        }
+        if (loc != null) {
+            loc.feed(smooth.lat(), smooth.lon(), smooth.markerBearing(),
+                    smooth.accuracy(), smooth.isMoving());
+        }
+        // kompas i wskaznik predkosci ida ta sama, wygladzona wartoscia
+        currentSpeedMs = smooth.speedMs();
+        currentBearing = smooth.markerBearing();
+        invalidateControls();
     }
 
     // ------------------------------------------------------------ cel / wyszukiwanie
@@ -518,11 +552,9 @@ private void toggleFollow() {
         if (map != null) {
             try { map.onResume(); } catch (Throwable ignored) {}
         }
-        if (loc != null && MapState.hasPermission(this)) {
-            loc.enableMyLocation();
-            if (Prefs.mapFollow(this)) loc.enableFollowLocation();
-        }
         MapState.get(this).addListener(this);
+        followPaused = false;
+        startLoop();
         applyImmersive();
     }
 
@@ -530,6 +562,7 @@ private void toggleFollow() {
     protected void onPause() {
         super.onPause();
         MapState.get(this).removeListener(this);
+        stopLoop();
         savePosition();
         if (map != null) {
             try { map.onPause(); } catch (Throwable ignored) {}

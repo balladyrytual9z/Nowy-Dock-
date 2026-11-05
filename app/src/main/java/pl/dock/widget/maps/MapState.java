@@ -168,4 +168,9 @@ public final class MapState {
     public float lastSpeed() {
         return last != null && last.hasSpeed() ? last.getSpeed() : 0f;
     }
+
+    /** Dokladnosc ostatniego fix'a w metrach (0 = brak danych) - kolo dokladnosci. */
+    public float lastAccuracy() {
+        return last != null && last.hasAccuracy() ? last.getAccuracy() : 0f;
+    }
 }

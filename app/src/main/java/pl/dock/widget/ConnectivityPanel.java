@@ -99,20 +99,25 @@ public class ConnectivityPanel extends LinearLayout {
         setBackground(Ui.popupBg(a, night));
         setPadding(dp(12), dp(12), dp(12), dp(10));
         setClickable(true);
-        // NAPRAWA (root cause): żadnej warstwy SOFTWARE na całym panelu.
-        // Wcześniej panel był rysowany warstwą SOFTWARE (API < 30), a każda
-        // klatka animacji otwarcia i każdy invalidate suwaków/przełączników
-        // re-renderował całą tę warstwę na CPU tabletu. DockView, ClockCard
-        // i pozostałe widoki launchera to te same custom Canvas views na tym
-        // samym GPU i działają bez warstwy SOFTWARE - panel też ma rysować
-        // normalnie, hardware.
+        // Panel na API >= 30 rysuje sie normalnie (hardware). Na starym GPU
+        // tabletu (ESSGOO / MT8163, Mali-T720, realny Android 9 = API 28) tresc
+        // panelu - suwaki PillSlider, NightShiftButton, ModeSegment i kafelki
+        // rail - NIE rysuje sie bez wlasnej warstwy: widoczne sa tylko tlo panelu
+        // i TextView z frameworka. Zmierzone rozmiary sa poprawne, wiec to nie
+        // uklad, a odtwarzanie nowo dodanego poddrzewa custom views z RenderNode.
         //
-        // setClipToOutline z Outline liczonym z getWidth()/getHeight() przy
-        // pierwszym pomiarze (0x0) przycinał CAŁY panel do pustego prostokata
-        // (panel VISIBLE, ale obcięty do zera). Na API < 30 nie ustawiamy
-        // clipowania w ogole; na nowszych guard na wymiary > 0. Clip nie jest
-        // wizualnie potrzebny - zaokrąglone tło rysuje GradientDrawable
-        // z Ui.popupBg.
+        // Warstwa SOFTWARE na API < 30 jest na tym urzadzeniu POTWIERDZONA
+        // (dziala z nia: widoczna pelna tresc panelu). Ustawiamy ja RAZ i NIE
+        // przelaczamy z powrotem na LAYER_TYPE_NONE - samo przelaczenie czyscilo
+        // bufor w trakcie animacji otwarcia i panel gasl (PR #9). Panel
+        // przerysowuje sie dopiero przy dotknieciu, wiec koszt CPU jest znikomy.
+        if (android.os.Build.VERSION.SDK_INT < 30) {
+            setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        }
+        // Clip tylko na API >= 30. Zaokraglone tlo rysuje GradientDrawable
+        // z Ui.popupBg, wiec clip nie jest wizualnie potrzebny, a Outline liczony
+        // z getWidth()/getHeight() przy pierwszym pomiarze (0x0) obcinal CALY
+        // panel do pustego prostokata - dlatego guard na wymiary > 0.
         if (android.os.Build.VERSION.SDK_INT >= 30) {
             setOutlineProvider(new ViewOutlineProvider() {
                 @Override
