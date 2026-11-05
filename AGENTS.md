@@ -159,6 +159,33 @@ pakiet `pl.dock.widget.maps`.
 (ostatni push 2024-11-20, ostatnie wydanie **6.1.20** z 2024-08-18;
 planowane 6.1.21 nigdy nie wyszło). Zero poprawek bezpieczeństwa.
 
+
+## 3a. Pulapka osmdroid: MapView ginie po odlaczeniu od okna
+
+`MapView` w osmdroid 6.1.18 ma `mDestroyModeOnDetach = true` (domyslnie).
+`onDetachedFromWindow()` wola wtedy `onDetach()`, ktore:
+- `mTileProvider.detach()` → `clearTileCache()` (kafle z RAM wyczyszczone),
+- `mProjection = null`, `mZoomController.onDetach()`, `mRepository.onDetach()`,
+- `mTileRequestCompleteHandler = null`, `mListners.clear()`.
+
+`onAttachedToWindow()` jest **puste** — nie ma ponownego podlaczenia. Czyli
+**jedno odlaczenie widoku = mapa martwa na zawsze** (rysuje sie na pusto).
+
+Objaw: kafelek mapy na ekranie glownym "miga i znika" po chwili od startu,
+a pelnoekranowa Nawigacja dziala (tworzy swiezy `MapView`).
+
+Przyczyna w naszym kodzie: `LauncherActivity.assemblePages()` robil
+`pager.removeAllViews()` + `addView(home)`, a `rebuildAppPages()` (po
+`loadApps()` z watku tla) wolal to tuz po starcie.
+
+Zasady na przyszlosc:
+1. **Nigdy** nie odlaczaj i nie dodawaj ponownie strony pagera, ktora juz w nim
+   jest. Kolejnosc ustawiaj przez `bringChildToFront()` (bez detach/attach).
+2. W `MapCard` ustawione jest `map.setDestroyMode(false)`; mape zwalniamy
+   (`onDetach()`) dopiero po 1,5 s od odlaczenia, jesli karta nie wrocila do okna.
+3. `map.onPause()` jest bezpieczne (TilesOverlay nie nadpisuje `onPause`),
+   wiec chowanie strony przez `setVisibility(INVISIBLE)` jest OK.
+
 ## 4. Cel: Organic Maps SDK (zamiast przepisywania OM)
 
 **Nie da się „przepisać" Organic Maps**: 17,2 mln linii C++, repo
