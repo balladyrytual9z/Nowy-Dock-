@@ -76,7 +76,6 @@ public class SmoothLocationOverlay extends MyLocationNewOverlay {
         fix.setLongitude(lon);
         fix.setBearing(bearingDeg);
         fix.setAccuracy(Math.max(0f, accuracyM));
-        arrow = moving;
         has = true;
     }
 
