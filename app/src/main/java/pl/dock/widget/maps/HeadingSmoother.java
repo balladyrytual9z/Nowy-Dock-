@@ -108,6 +108,9 @@ public final class HeadingSmoother {
     private float accuracy;
     private boolean dirty;
 
+    /** Czy mamy pozycje z pamieci ("gdzie zaparkowalem"), zanim przyszly fixy. */
+    private boolean seeded;
+
     /** Ostatni kurs z realnej jazdy - trzymamy go po zatrzymaniu. */
     private float holdHeading;
     private boolean holdHeadingSet;
@@ -148,6 +151,7 @@ public final class HeadingSmoother {
         speedMs = 0f;
         accuracy = 0f;
         dirty = true;
+        seeded = false;
         holdHeading = 0f;
         holdHeadingSet = false;
         pendingHits = 0;
@@ -183,8 +187,12 @@ public final class HeadingSmoother {
             holdHeadingSet = true;
         }
         if (!hasFix) {
-            // pierwszy fix - nie ma z czego interpolowac, ustawiamy od razu
             hasFix = true;
+            if (seeded) {
+                // Pozycje mamy z pamieci, wiec pierwszy fix NIE ustawia nas od zera -
+                // tylko ja doprecyzowuje (lecimy dalej nizej, zwykla sciezka).
+            } else {
+            // pierwszy fix - nie ma z czego interpolowac, ustawiamy od razu
             lat = fixLat;
             lon = fixLon;
             bearing = target;
@@ -201,6 +209,7 @@ public final class HeadingSmoother {
             accuracy = fixAccuracy;
             dirty = true;
             return;
+            }
         }
         if (fixAccuracy > MAX_USABLE_ACCURACY_M) {
             // Fix bezuzyteczny (np. zimny start) - nie psujemy nim pozycji, ale
@@ -240,6 +249,30 @@ public final class HeadingSmoother {
         fromBearing = bearing;
         toBearing = bearing + shortestDelta(target, bearing);
         dirty = true;
+    }
+
+    /**
+     * Pozycja z pamieci ("gdzie zaparkowalem"), zanim przyjdzie pierwszy fix.
+     * Dzieki temu po wejsciu do auta mapa jest od razu w dobrym miejscu, a GPS
+     * tylko ja doprecyzowuje - bez szukania miejsca od zera. Ignorowane, gdy
+     * mamy juz prawdziwy fix.
+     */
+    public void seed(double sLat, double sLon, long nowMs) {
+        if (hasFix) return;
+        lat = sLat;
+        lon = sLon;
+        fromLat = sLat;
+        fromLon = sLon;
+        toLat = sLat;
+        toLon = sLon;
+        seeded = true;
+        lastFixAt = nowMs;      // pierwszy fix oceniamy normalnie (na postoju: zapas 12 m)
+        dirty = true;
+    }
+
+    /** Czy pozycja pochodzi z pamieci ("gdzie zaparkowalem"), a fix jeszcze nie przyszedl. */
+    public boolean seededKnown() {
+        return seeded && !hasFix;
     }
 
     /** Kurs do trzymania na postoju: ostatni z jazdy, a bez jazdy - polnoc. */

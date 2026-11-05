@@ -2,6 +2,7 @@ package pl.dock.widget.maps;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
@@ -45,5 +46,23 @@ public class MapPlaceTest {
         assertEquals(16f, MapPlace.zoom(Float.NaN, 16f), 1e-3f);
         assertEquals(16f, MapPlace.zoom(99f, 16f), 1e-3f);
         assertEquals(MapPlace.MAX_ZOOM, MapPlace.zoom(MapPlace.MAX_ZOOM, 16f), 1e-3f);
+    }
+
+    @Test
+    public void naStarcieFixPrzedZaparkowanymMiejscem() {
+        // 1) swiezy fix GPS wygrywa ze wszystkim
+        double[] p = MapPlace.startupPlace(52.2d, 21.0d, 50.0d, 19.9d, 49.0d, 22.0d);
+        assertEquals(52.2d, p[0], 1e-9);
+        assertEquals(21.0d, p[1], 1e-9);
+        // 2) bez fixa - "gdzie zaparkowalem"
+        p = MapPlace.startupPlace(0d, 0d, 50.0d, 19.9d, 49.0d, 22.0d);
+        assertEquals(50.0d, p[0], 1e-9);
+        // 3) bez fixa i bez zaparkowanego - ostatni widok mapy
+        p = MapPlace.startupPlace(0d, 0d, 0d, 0d, 49.0d, 22.0d);
+        assertEquals(49.0d, p[0], 1e-9);
+        // 4) nic nie ma - null, czyli widok calej Polski
+        assertNull(MapPlace.startupPlace(0d, 0d, 0d, 0d, 0d, 0d));
+        // smieci tez nie przejda
+        assertNull(MapPlace.startupPlace(Double.NaN, 5d, Double.POSITIVE_INFINITY, 5d, 0d, 0d));
     }
 }
