@@ -809,9 +809,11 @@ private void toggleFollow() {
                 unitTf = pl.dock.widget.ui.DockTheme.interMedium();
             }
             String kphS = hasFix ? String.valueOf(Math.round(currentSpeedMs * 3.6f)) : "—";
-            drawTextTf(cv, kphS, speedRect.centerX(), speedRect.top + 25f * d,
+            // liczba i jednostka tuz obok siebie (bylo 25/46 dp - za duzo pustki
+            // w srodku plakietki); polozenie co do piksela jak na kafelku mapy
+            drawTextTf(cv, kphS, speedRect.centerX(), speedRect.top + 22f * d,
                     night ? 0xFFFFFFFF : 0xFF10131A, 26f, Paint.Align.CENTER, numTf);
-            drawTextTf(cv, "km/h", speedRect.centerX(), speedRect.top + 46f * d,
+            drawTextTf(cv, "km/h", speedRect.centerX(), speedRect.top + 41f * d,
                     night ? 0xFF8E8E93 : 0xFF6B7686, 11f, Paint.Align.CENTER, unitTf);
 
             // === przyciski (plywajace pigułki) ===
