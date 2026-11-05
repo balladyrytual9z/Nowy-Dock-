@@ -12,6 +12,24 @@ package pl.dock.widget.maps;
  * Nowy fix re-bazuje poczatek ruchu na biezaca, wygladzona wartosc, wiec nie ma
  * szarpnieca. Obrot idzie zawsze NAJKROTSZA droga (przez 0/360), a ponizej
  * {@link #NORTH_UP_SPEED_MS} mapa wyrownuje sie do polnocy.
+ *
+ * POSTOJ (2026-11-05): na postoju GPS "szumi" - kolejne fixy wypadaja o kilka
+ * metrow od siebie w losowych kierunkach, a kurs jest czystym szumem. Wtedy
+ * znacznik chodzil bez sensu (i kazdy taki fix przesuwal go o kilka metrow), a
+ * mapa krecila sie od losowego kursu. Dlatego fixy sa teraz wazone ZAUFANIEM:
+ *
+ *  - predkosc >= {@link #NORTH_UP_SPEED_MS} (10 km/h): zaufanie 1 - jedziemy,
+ *    pozycja i kurs ida dokladnie za fixem (jak dotad),
+ *  - predkosc {@link #STILL_SPEED_MS}..{@link #NORTH_UP_SPEED_MS}: zaufanie
+ *    proporcjonalne do predkosci (min. {@link #CREEP_TRUST}) - szum jest tlumiony,
+ *    ale wolny ruch nadal jest sledzony,
+ *  - predkosc < {@link #STILL_SPEED_MS} (3.6 km/h): postoj. Dopoki fix jest blizej
+ *    niz {@link #STILL_RADIUS_M} (albo niz dokladnosc GPS), znacznik NIE rusza sie
+ *    w ogole, predkosc na liczniku to 0, a kurs jest trzymany (zero krecenia mapa).
+ *    Jesli fix wypadnie dalej (np. GPS po zimnym starcie sie poprawil), dochodzimy
+ *    do niego po {@link #CREEP_TRUST} na fix - bez skoku.
+ *
+ * Fix gorszy niz {@link #MAX_USABLE_ACCURACY_M} jest odrzucany w calosci.
  */
 public final class HeadingSmoother {
 
@@ -20,6 +38,16 @@ public final class HeadingSmoother {
 
     /** Ponizej tej predkosci nie ma kursu - rysujemy ikone osoby, nie strzalke. */
     private static final float MIN_MOVE_SPEED_MS = 0.5f;
+
+    // ---- postoj: nie ruszamy znacznika, gdy GPS szumi w miejscu ----
+    /** Ponizej 3.6 km/h uznajemy, ze stoimy - to szum, nie jazda. */
+    private static final float STILL_SPEED_MS = 1.0f;
+    /** Promien "stania w miejscu" [m]. GPS na postoju chodzi o kilka metrow. */
+    private static final float STILL_RADIUS_M = 12f;
+    /** Krok dochodzenia do fix'a poza promieniem szumu (na fix) - bez skoku. */
+    private static final float CREEP_TRUST = 0.25f;
+    /** Fix z gorsza dokladnoscia niz tyle metrow jest bezuzyteczny. */
+    private static final float MAX_USABLE_ACCURACY_M = 100f;
 
     /** Ponizej takiego ruchu/obrotu nie ma po co przerysowywac klatki (postoj = zero pracy). */
     private static final double MIN_MOVE_DEG = 1e-7;
@@ -73,7 +101,11 @@ public final class HeadingSmoother {
      */
     public void onFix(double fixLat, double fixLon, float fixBearing, float fixSpeedMs,
                       float fixAccuracy, long nowMs) {
-        float target = fixSpeedMs >= MIN_MOVE_SPEED_MS ? normalize(fixBearing) : 0f;
+        // Kurs bierzemy tylko z realnej jazdy. Prog jest tu 10 km/h, a nie 1.8 km/h:
+        // przy wolnej jazdzie i na postoju GPS podaje kierunek z szumu, a wtedy mapa
+        // kreci sie na boki (to bylo widac na urzadzeniu przy zmianie predkosci
+        // 0.5 -> 0.6 m/s: raz kurs, raz polnoc).
+        float target = fixSpeedMs >= NORTH_UP_SPEED_MS ? normalize(fixBearing) : 0f;
         if (!hasFix) {
             // pierwszy fix - nie ma z czego interpolowac, ustawiamy od razu
             hasFix = true;
@@ -89,11 +121,20 @@ public final class HeadingSmoother {
             t0 = nowMs;
             durMs = DEFAULT_DUR_MS;
             lastFixAt = nowMs;
-            speedMs = fixSpeedMs;
+            speedMs = fixSpeedMs >= STILL_SPEED_MS ? fixSpeedMs : 0f;
             accuracy = fixAccuracy;
             dirty = true;
             return;
         }
+        if (fixAccuracy > MAX_USABLE_ACCURACY_M) {
+            // Fix bezuzyteczny (np. zimny start) - nie psujemy nim pozycji, ale
+            // odnotowujemy, ze GPS zyje (inaczej pozycja uznana za nieaktualna).
+            lastFixAt = nowMs;
+            return;
+        }
+        // Ile z tego fix'a bierzemy na wiare (0 = stoimy, 1 = jedziemy).
+        float trust = trustFor(fixLat, fixLon, fixSpeedMs, fixAccuracy);
+
         long gap = nowMs - lastFixAt;
         durMs = gap < MIN_DUR_MS ? MIN_DUR_MS : (gap > MAX_DUR_MS ? MAX_DUR_MS : gap);
         lastFixAt = nowMs;
@@ -101,13 +142,42 @@ public final class HeadingSmoother {
         // start z biezacej (wygladzonej) wartosci - nowy fix nie robi skoku
         fromLat = lat;
         fromLon = lon;
-        toLat = fixLat;
-        toLon = fixLon;
+        // Cel to punkt o "trust" blizej fix'a. Przy postoju (trust = 0) celem jest
+        // biezaca pozycja, czyli znacznik stoi w miejscu mimo szumu GPS.
+        toLat = lat + (fixLat - lat) * trust;
+        toLon = lon + (fixLon - lon) * trust;
+        speedMs = trust <= 0f ? 0f : fixSpeedMs;
+        if (trust > 0f) accuracy = fixAccuracy;
         fromBearing = bearing;
         toBearing = bearing + shortestDelta(target, bearing);
-        speedMs = fixSpeedMs;
-        accuracy = fixAccuracy;
         dirty = true;
+    }
+
+    /**
+     * Ile zaufania dac temu fix'owi: 0 = postoj (nie ruszamy znacznika),
+     * 1 = pelna jazda (pozycja idzie dokladnie za fixem).
+     */
+    private float trustFor(double fixLat, double fixLon, float fixSpeedMs, float fixAccuracy) {
+        if (fixSpeedMs >= NORTH_UP_SPEED_MS) return 1f;                  // jedziemy
+        if (fixSpeedMs >= STILL_SPEED_MS) {                              // wolno, ale w ruchu
+            return Math.max(CREEP_TRUST, fixSpeedMs / NORTH_UP_SPEED_MS);
+        }
+        // Postoj: promien szumu rosnie z (nie)dokladnoscia GPS.
+        double dist = metersBetween(lat, lon, fixLat, fixLon);
+        float radius = Math.max(STILL_RADIUS_M, fixAccuracy);
+        return dist <= radius ? 0f : CREEP_TRUST;
+    }
+
+    /** Odleglosc w metrach (haversine). */
+    static double metersBetween(double lat1, double lon1, double lat2, double lon2) {
+        final double r = 6371000d;
+        double p1 = Math.toRadians(lat1);
+        double p2 = Math.toRadians(lat2);
+        double dp = p2 - p1;
+        double dl = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dp / 2d) * Math.sin(dp / 2d)
+                + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2d) * Math.sin(dl / 2d);
+        return r * 2d * Math.asin(Math.min(1d, Math.sqrt(a)));
     }
 
     /** Przelicza stan na chwile {@code nowMs}. Wolane w kazdej klatce animacji. */
@@ -180,7 +250,10 @@ public final class HeadingSmoother {
         return accuracy;
     }
 
-    /** Czy jedziemy (powyzej progu kursu) - decyduje, czy rysowac strzalke. */
+    /**
+     * Czy jedziemy - decyduje, czy rysowac strzalke (a nie ikone osoby).
+     * Na postoju speedMs jest zerowane, wiec nie ma migania strzalka/osoba.
+     */
     public boolean isMoving() {
         return speedMs >= MIN_MOVE_SPEED_MS;
     }
