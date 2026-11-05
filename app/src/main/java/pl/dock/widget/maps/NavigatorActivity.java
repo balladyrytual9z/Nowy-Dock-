@@ -669,6 +669,9 @@ private void toggleFollow() {
             return 52f * d + 60f * d;
         }
 
+        private RectF speedRect = new RectF();
+        private Typeface numTf, unitTf;
+
         private float speedR() {
             return 34f * d;
         }
@@ -725,20 +728,28 @@ private void toggleFollow() {
             float ccy = tb.centerY();
             drawCompass(cv, ccx, ccy, currentBearing);
 
-            // === kolo predkosci (Waze / CarPlay) ===
+            // === plakietka predkosci: prostokat z rogami (taki sam jak na kafelku
+            // mapy na ekranie glownym - ten sam rozmiar, promien i czcionki) ===
             float scx = speedCx();
             float scy = speedCy();
-            float sr = speedR();
+            float bw = 84f * d, bh = 64f * d;
+            speedRect.set(scx - bw / 2f, scy - bh / 2f, scx + bw / 2f, scy + bh / 2f);
             pt.setStyle(Paint.Style.FILL);
-            pt.setColor(0xCC000000);
-            cv.drawCircle(scx, scy, sr, pt);
+            pt.setColor(night ? 0xE60E0E0F : 0xE6F5F5F7);
+            cv.drawRoundRect(speedRect, 20f * d, 20f * d, pt);
             pt.setStyle(Paint.Style.STROKE);
             pt.setStrokeWidth(2f * d);
-            pt.setColor(0xFFFFFFFF);
-            cv.drawCircle(scx, scy, sr, pt);
-            int kph = hasFix ? Math.round(currentSpeedMs * 3.6f) : 0;
-            drawText(cv, String.valueOf(kph), scx, scy - 5f * d, 0xFFFFFFFF, 36f, Paint.Align.CENTER);
-            drawText(cv, "km/h", scx, scy + 15f * d, 0xFF909090, 10f, Paint.Align.CENTER);
+            pt.setColor(night ? 0xFF0A84FF : 0xFF0A6CFF);
+            cv.drawRoundRect(speedRect, 20f * d, 20f * d, pt);
+            if (numTf == null) {            // czcionki launchera - raz, nie co klatke
+                numTf = pl.dock.widget.ui.DockTheme.interSemiBold();
+                unitTf = pl.dock.widget.ui.DockTheme.interMedium();
+            }
+            String kphS = hasFix ? String.valueOf(Math.round(currentSpeedMs * 3.6f)) : "—";
+            drawTextTf(cv, kphS, speedRect.centerX(), speedRect.top + 25f * d,
+                    night ? 0xFFFFFFFF : 0xFF10131A, 26f, Paint.Align.CENTER, numTf);
+            drawTextTf(cv, "km/h", speedRect.centerX(), speedRect.top + 46f * d,
+                    night ? 0xFF8E8E93 : 0xFF6B7686, 11f, Paint.Align.CENTER, unitTf);
 
             // === przyciski (plywajace pigułki) ===
             String[] labs = labels();
@@ -779,6 +790,17 @@ private void toggleFollow() {
                 }
                 drawText(cv, ct, dr.centerX(), dr.centerY(), 0xFF0A84FF, 12f, Paint.Align.CENTER);
             }
+        }
+
+        /** Jak drawText, ale z podana czcionka (czcionki launchera dla plakietki). */
+        private void drawTextTf(Canvas cv, String s, float x, float cy, int color,
+                                float size, Paint.Align align, Typeface tf) {
+            tx.setTypeface(tf);
+            tx.setTextAlign(align);
+            tx.setTextSize(size * d);
+            tx.setColor(color);
+            Paint.FontMetrics fm = tx.getFontMetrics();
+            cv.drawText(s, x, cy - (fm.ascent + fm.descent) / 2f, tx);
         }
 
         private void drawText(Canvas cv, String s, float x, float cy, int color, float size, Paint.Align align) {
