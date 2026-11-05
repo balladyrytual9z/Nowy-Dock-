@@ -5,10 +5,10 @@ import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
-import android.animation.ValueAnimator;
 import android.graphics.Typeface;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
@@ -16,7 +16,6 @@ import android.widget.FrameLayout;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
-import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
 import pl.dock.widget.NightAware;
 import pl.dock.widget.Prefs;
@@ -35,19 +34,23 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
     private final float d;
     private boolean night = true;
     private MapView map;
-    private MyLocationNewOverlay loc;
+    private SmoothLocationOverlay loc;
     private boolean online;
 
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint t = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final RectF header = new RectF();
 
     private boolean hasFix;
     private float speedMs;
     private boolean started;
     private boolean centeredOnce;
-    // Plytna animacja obrotu mapy (heading-up).
-    private ValueAnimator headingAnimator;
+    // Wygladzanie ruchu i obrotu (heading-up). GPS daje fix raz na sekunde
+    // (MapState), a znacznik i mapa maja sie poruszac CIAGLE - patrz HeadingSmoother.
+    private final HeadingSmoother smooth = new HeadingSmoother();
+    private final GeoPoint tmpPoint = new GeoPoint(0d, 0d);
+    private boolean loopRunning;
+    private static final long FRAME_MS = 33L;   // ~30 fps w ruchu
+    private static final long IDLE_MS = 200L;   // na postoju - nie mielimy GPU
     // Mapa zostala zwolniona (onDetach) - przy powrocie do okna trzeba ja odbudowac.
     private boolean released;
 
@@ -113,12 +116,11 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
             m.setMinZoomLevel(3d);
             m.setMaxZoomLevel(19d);
             m.getController().setZoom(Math.round(Prefs.mapLastZoom(getContext())));
-            MyLocationNewOverlay l = new MyLocationNewOverlay(m);
+            // Wlasny renderer znacznika: bez sluchacza GPS w overlayu.
+            // GpsMyLocationProvider bierze GPS + NETWORK z minTime = 0 i to on
+            // dokarmial znacznik surowymi, czesto niedokladnymi fixami.
+            SmoothLocationOverlay l = new SmoothLocationOverlay(m);
             l.setDrawAccuracyEnabled(true);
-            if (MapState.hasPermission(getContext())) {
-                l.enableMyLocation();
-                if (Prefs.mapFollow(getContext())) l.enableFollowLocation();
-            }
             m.getOverlays().add(l);
             map = m;
             loc = l;
@@ -218,21 +220,15 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
         if (map != null) {
             try { map.onResume(); } catch (Throwable ignored) {}
         }
-        // Uprawnienie moze zostac nadane juz po utworzeniu karty - probujemy ponownie.
-        if (loc != null && MapState.hasPermission(getContext())) {
-            try {
-                loc.enableMyLocation();
-                if (Prefs.mapFollow(getContext())) loc.enableFollowLocation();
-            } catch (Throwable ignored) {
-            }
-        }
         MapState.get(getContext()).addListener(this);
+        startLoop();
     }
 
     private void stop() {
         if (!started) return;
         started = false;
         MapState.get(getContext()).removeListener(this);
+        stopLoop();
         savePosition();
         if (map != null) {
             try { map.onPause(); } catch (Throwable ignored) {}
@@ -308,80 +304,70 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
             } catch (Throwable ignored) {
             }
         }
-        // Heading-up: plytny obrot mapy z kierunkiem jazdy na gorze.
-        // Wlacza sie od 10 km/h (~2.78 m/s) - nizsze progi daja skaczacy obraz
-        // przez szum GPS na wolnym MT8163. Animacja 250ms wygladza skoki.
-        rotateMapTo((hasFix && speedMs > 2.78f) ? -bearing : 0f);
-        invalidate();
+        // Pozycje i obrot wygladzamy MIEDZY fixami (petla tick()): przy 1 Hz GPS
+        // znacznik sunie, a mapa obraca sie ciagle, bez skokow co sekunde.
+        smooth.onFix(lat, lon, bearing, speedMs,
+                MapState.get(getContext()).lastAccuracy(), SystemClock.uptimeMillis());
+        startLoop();
     }
 
-    /**
-     * Plytnie obraca mape do zadanego bearingu (stopnie).
-     * Uzywa ValueAnimator zeby uniknac skokow przy szumie GPS.
-     * Jesli animacja juz trwa, przerywa ja i startuje od nowa z obecnej pozycji.
-     */
-    private void rotateMapTo(float targetBearing) {
-        if (map == null) return;
-        if (headingAnimator != null && headingAnimator.isRunning()) {
-            headingAnimator.cancel();
+    // ---------------- wygladzanie ruchu i obrotu: jedna wspolna petla ----------------
+
+    private final Runnable frame = new Runnable() {
+        @Override
+        public void run() {
+            if (!loopRunning) return;
+            tick();
+            long now = SystemClock.uptimeMillis();
+            h.postDelayed(this, smooth.moving(now) ? FRAME_MS : IDLE_MS);
         }
-        float from = map.getMapOrientation();
-        // Najkrotsza droga: delta w zakresie [-180, 180]
-        float delta = targetBearing - from;
-        while (delta > 180f) delta -= 360f;
-        while (delta < -180f) delta += 360f;
-        float to = from + delta;
-        if (Math.abs(delta) < 3f) return; // pomijamy mikroskoki
-        headingAnimator = ValueAnimator.ofFloat(from, to);
-        headingAnimator.setDuration(250L);
-        headingAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator a) {
-                map.setMapOrientation((Float) a.getAnimatedValue());
+    };
+
+    private void startLoop() {
+        if (loopRunning) return;
+        loopRunning = true;
+        h.postDelayed(frame, FRAME_MS);
+    }
+
+    private void stopLoop() {
+        loopRunning = false;
+        h.removeCallbacks(frame);
+    }
+
+    private void tick() {
+        smooth.advance(SystemClock.uptimeMillis());
+        if (!smooth.hasFix() || !smooth.dirty()) return;
+        speedMs = smooth.speedMs();          // pigulka predkosci tez idzie plynnie
+        if (map != null) {
+            // false = bez requestLayout na kazdej klatce (rysujemy od razu nizej):
+            // requestLayout 30x/s na MT8163 to zbedny pomiar i uklad.
+            map.setMapOrientation(smooth.mapOrientation(), false);
+            if (Prefs.mapFollow(getContext())) {
+                tmpPoint.setCoords(smooth.lat(), smooth.lon());
+                map.getController().setCenter(tmpPoint);
             }
-        });
-        headingAnimator.start();
+            map.invalidate();
+        }
+        if (loc != null) {
+            loc.feed(smooth.lat(), smooth.lon(), smooth.markerBearing(),
+                    smooth.accuracy(), smooth.isMoving());
+        }
+        invalidate();   // nakladka karty (pigulka predkosci)
     }
 
-    // ---- rysowanie nakladki (naglowek + pigulka predkosci) ----
-
-    @Override
-    protected void onSizeChanged(int w, int h, int ow, int oh) {
-        super.onSizeChanged(w, h, ow, oh);
-        float pad = 10f * d;
-        header.set(pad, pad, w - pad, pad + 34f * d);
-    }
+    // ---- rysowanie nakladki (pigulka predkosci) ----
 
     @Override
     protected void dispatchDraw(Canvas cv) {
         // Najpierw mapa (dzieci), potem nasza nakladka na wierzchu.
         super.dispatchDraw(cv);
-        if (header.width() <= 0) return;
         int w = getWidth();
         int h = getHeight();
 
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(night ? 0x99000000 : 0xCCFFFFFF);
-        cv.drawRoundRect(header, 14f * d, 14f * d, p);
-
-        t.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-        t.setTextAlign(Paint.Align.LEFT);
-        t.setTextSize(11f * d);
-        t.setColor(night ? 0xFFFFFFFF : 0xFF10131A);
-        cv.drawText("MAPY", header.left + 12f * d, header.top + 15f * d, t);
-        t.setTypeface(Typeface.DEFAULT);
-        t.setTextSize(9f * d);
-        t.setColor(night ? 0xFF8E8E93 : 0xFF6B7686);
-        cv.drawText(online ? "offline + sieć" : "offline", header.left + 12f * d,
-                header.top + 27f * d, t);
-
-        t.setTextAlign(Paint.Align.RIGHT);
-        t.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-        t.setTextSize(10f * d);
-        t.setColor(night ? 0xFFFFFFFF : 0xFF10131A);
-        cv.drawText("NAWIGACJA  ›", header.right - 12f * d, header.top + 21f * d, t);
-
-        // pigulka z predkoscia (jak w CarPlay) w prawym dolnym rogu
+        // Kafelek to SAMA MAPA + wskaznik predkosci. Paska "MAPY / offline /
+        // NAWIGACJA" tu nie ma (usuniety na zyczenie uzytkownika, 2026-11-05).
+        //
+        // Pigulka z predkoscia (jak w CarPlay) w prawym dolnym rogu
         float kmh = speedMs * 3.6f;
         String val = hasFix ? String.valueOf(Math.round(kmh)) : "—";
         float pw = 84f * d;
