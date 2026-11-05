@@ -538,6 +538,16 @@ public class ConfigActivity extends BaseActivity {
             }
         }));
         sep(g);
+        g.addView(row(Icons.builtin(this, "nav"), "Wyczyść zapisaną pozycję mapy",
+                "gdyby otwierała się w złym miejscu", true, p.accent,
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        Prefs.clearMapLast(ConfigActivity.this);
+                        changed();
+                    }
+                }));
+        sep(g);
         g.addView(toggle("Podążaj za pozycją GPS", Prefs.mapFollow(this), new BoolSetter() {
             @Override
             public void set(boolean v) {

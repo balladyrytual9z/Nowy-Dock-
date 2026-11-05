@@ -994,9 +994,18 @@ public class Prefs {
     }
 
     public static void setMapLast(Context c, double lat, double lon, float zoom) {
+        // Nie zapisujemy smieci: niezainicjalizowana mapa osmdroid oddaje srodek
+        // (0,0) - "null wyspa" na Atlantyku, gdzie nie ma kafli (pusty ekran).
+        if (!pl.dock.widget.maps.MapPlace.usable(lat, lon)) return;
         ed(c).putString("map_lat", String.valueOf(lat))
                 .putString("map_lon", String.valueOf(lon))
-                .putFloat("map_zoom", zoom).apply();
+                .putFloat("map_zoom", pl.dock.widget.maps.MapPlace.zoom(zoom, 16f))
+                .apply();
+    }
+
+    /** Kasuje zapamietana pozycje mapy (Ustawienia -> Mapy). */
+    public static void clearMapLast(Context c) {
+        ed(c).remove("map_lat").remove("map_lon").remove("map_zoom").apply();
     }
 
     // wybrany styl kafli: "mapnik" (ulice) albo "topo" (teren)
