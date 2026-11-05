@@ -53,6 +53,21 @@ Root `build.gradle` trzyma wersje wtyczek; `settings.gradle` ma
 przy zatrzymaniu agenta — lokalnie padnie, bo brak Gradle. Nie jest to
 błąd kodu.
 
+### Weryfikacja gotowego APK bez Android SDK
+
+Skoro lokalnie nie ma aapt/apkanalyzer, służy do tego
+`tools/check_apk.py` (tylko biblioteka standardowa Pythona). Czyta
+**binarny** `AndroidManifest.xml` i listę `.so` wprost z APK:
+
+```
+python3 tools/check_apk.py <plik.apk>
+```
+
+Sprawdzone tym narzędziem na APK z CI (v1.0.177): `minSdk 26`,
+`targetSdk 28`, `compileSdk 35`, `extractNativeLibs=false`, zero
+bibliotek natywnych. W **Fazie 1 tym samym skryptem potwierdzać, że APK
+zawiera `lib/armeabi-v7a/`** — to warunek działania na tym tablecie.
+
 ## 2a. Android 9 (API 28) — potwierdzony sprzęt i konsekwencje
 
 Urządzenie: **ESSGOO 9" head unit** (Honda). Pełna specyfikacja:
