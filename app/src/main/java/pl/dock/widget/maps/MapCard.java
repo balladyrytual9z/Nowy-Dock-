@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.animation.ValueAnimator;
 import android.graphics.Typeface;
 import android.os.Handler;
 import android.os.Looper;
@@ -45,8 +46,8 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
     private float speedMs;
     private boolean started;
     private boolean centeredOnce;
-    // Ostatnia wartosc obrotu mapy (heading-up). Zawsze w stopniach; 0 = polnoc na gorze.
-    private float lastMapOrientation;
+    // Plytna animacja obrotu mapy (heading-up).
+    private ValueAnimator headingAnimator;
     // Mapa zostala zwolniona (onDetach) - przy powrocie do okna trzeba ja odbudowac.
     private boolean released;
 
@@ -307,16 +308,39 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
             } catch (Throwable ignored) {
             }
         }
-        // Heading-up: obracamy mape tak, by kierunek jazdy byl na gorze ekranu.
-        // Gdy stoimy (speedMs < 1 km/h ~ 0.28 m/s) wracamy do polnocy na gorze.
-        if (map != null) {
-            float target = (hasFix && speedMs > 0.28f) ? bearing : 0f;
-            if (Math.abs(target - lastMapOrientation) > 3f) {
-                map.setMapOrientation(target);
-                lastMapOrientation = target;
-            }
-        }
+        // Heading-up: plytny obrot mapy z kierunkiem jazdy na gorze.
+        // Wlacza sie od 10 km/h (~2.78 m/s) - nizsze progi daja skaczacy obraz
+        // przez szum GPS na wolnym MT8163. Animacja 250ms wygladza skoki.
+        rotateMapTo((hasFix && speedMs > 2.78f) ? bearing : 0f);
         invalidate();
+    }
+
+    /**
+     * Plytnie obraca mape do zadanego bearingu (stopnie).
+     * Uzywa ValueAnimator zeby uniknac skokow przy szumie GPS.
+     * Jesli animacja juz trwa, przerywa ja i startuje od nowa z obecnej pozycji.
+     */
+    private void rotateMapTo(float targetBearing) {
+        if (map == null) return;
+        if (headingAnimator != null && headingAnimator.isRunning()) {
+            headingAnimator.cancel();
+        }
+        float from = map.getMapOrientation();
+        // Najkrotsza droga: delta w zakresie [-180, 180]
+        float delta = targetBearing - from;
+        while (delta > 180f) delta -= 360f;
+        while (delta < -180f) delta += 360f;
+        float to = from + delta;
+        if (Math.abs(delta) < 3f) return; // pomijamy mikroskoki
+        headingAnimator = ValueAnimator.ofFloat(from, to);
+        headingAnimator.setDuration(250L);
+        headingAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator a) {
+                map.setMapOrientation((Float) a.getAnimatedValue());
+            }
+        });
+        headingAnimator.start();
     }
 
     // ---- rysowanie nakladki (naglowek + pigulka predkosci) ----

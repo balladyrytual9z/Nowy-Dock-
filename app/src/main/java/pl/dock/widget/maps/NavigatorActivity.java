@@ -6,6 +6,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.animation.ValueAnimator;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -55,8 +56,8 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
     private float currentSpeedMs;
     private float currentBearing;
     private boolean centeredOnce;
-    // Heading-up: ostatni obrot mapy. 0 = polnoc na gorze.
-    private float lastMapOrientation;
+    // Plytna animacja obrotu mapy (heading-up).
+    private ValueAnimator headingAnimator;
     private boolean hasDest;
     private GeoPoint dest;
     private Polyline destLine;
@@ -331,15 +332,35 @@ private void toggleFollow() {
             } catch (Throwable ignored) {
             }
         }
-        // Heading-up: obracamy mape tak, by kierunek jazdy byl na gorze ekranu.
-        if (map != null) {
-            float target = (hasFix && speedMs > 0.28f) ? bearing : 0f;
-            if (Math.abs(target - lastMapOrientation) > 3f) {
-                map.setMapOrientation(target);
-                lastMapOrientation = target;
-            }
-        }
+        // Heading-up: plytny obrot mapy z kierunkiem jazdy na gorze.
+        // Wlacza sie od 10 km/h (~2.78 m/s). Animacja 250ms wygladza skoki.
+        rotateMapTo((hasFix && speedMs > 2.78f) ? bearing : 0f);
         invalidateControls();
+    }
+
+    /**
+     * Plytnie obraca mape do zadanego bearingu (stopnie).
+     */
+    private void rotateMapTo(float targetBearing) {
+        if (map == null) return;
+        if (headingAnimator != null && headingAnimator.isRunning()) {
+            headingAnimator.cancel();
+        }
+        float from = map.getMapOrientation();
+        float delta = targetBearing - from;
+        while (delta > 180f) delta -= 360f;
+        while (delta < -180f) delta += 360f;
+        float to = from + delta;
+        if (Math.abs(delta) < 3f) return;
+        headingAnimator = ValueAnimator.ofFloat(from, to);
+        headingAnimator.setDuration(250L);
+        headingAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator a) {
+                map.setMapOrientation((Float) a.getAnimatedValue());
+            }
+        });
+        headingAnimator.start();
     }
 
     // ------------------------------------------------------------ cel / wyszukiwanie
