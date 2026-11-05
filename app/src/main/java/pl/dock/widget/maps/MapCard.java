@@ -504,6 +504,7 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
         t.setTypeface(tfUnit);
         t.setTextSize(11f * d);
         t.setColor(night ? 0xFF8E8E93 : 0xFF6B7686);
-        cv.drawText("km/h", cx, speedRect.top + 50f * d, t);   // jednostka pod liczba
+        // jednostka tuz pod liczba (bylo 50 dp - za duzo pustki w srodku plakietki)
+        cv.drawText("km/h", cx, speedRect.top + 46f * d, t);
     }
 }
