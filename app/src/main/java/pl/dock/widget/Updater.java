@@ -35,8 +35,8 @@ import java.security.MessageDigest;
  * i PROBUJE zainstalowac bez udzialu uzytkownika:
  *
  *   1. root (jesli urzadzenie ma "su"): "pm install -r" - calkowicie cicho,
- *   2. PackageInstaller z setRequiresUserAction(false): jesli system jednak pozada
- *      potwierdzenia, sami otwieramy to okno - zostaje jedno dotkniecie,
+ *   2. PackageInstaller: jesli system pozada potwierdzenia, sami otwieramy to okno
+ *      (zostaje jedno dotkniecie); na czesci radiow OEM sesja idzie bez okna,
  *   3. klasyczny instalator systemowy (ACTION_VIEW) - ostatnia deska ratunku.
  *
  * Bez roota Android NIE pozwala zwyklej aplikacji instalowac pakietow po cichu -
@@ -369,10 +369,10 @@ public class Updater {
     }
 
     /**
-     * Instalacja przez PackageInstaller z prosba o brak okna. Gdy system jednak
-     * pozada potwierdzenia, dostajemy STATUS_PENDING_USER_ACTION i sami otwieramy
-     * to okno - uzytkownik ma tylko jedno dotkniecie. Przy bledzie ratujemy sie
-     * klasycznym instalatorem.
+     * Instalacja przez PackageInstaller. Gdy system pozada potwierdzenia, dostajemy
+     * STATUS_PENDING_USER_ACTION i sami otwieramy to okno - uzytkownik ma tylko jedno
+     * dotkniecie. Gdy sesja przejdzie bez okna (czesc radiow OEM), instaluje sie
+     * calkiem cicho. Przy bledzie ratujemy sie klasycznym instalatorem.
      */
     private static boolean installWithSession(final Context c, final File apk) {
         try {
@@ -380,7 +380,11 @@ public class Updater {
             PackageInstaller.SessionParams p = new PackageInstaller.SessionParams(
                     PackageInstaller.SessionParams.MODE_FULL_INSTALL);
             p.setAppPackageName(c.getPackageName());
-            p.setRequiresUserAction(false);
+            // Uwaga: nie ma publicznego API "zainstaluj bez okna" - o tym, czy system
+            // pokaze potwierdzenie, decyduje platforma (na czesci radiow OEM sesja
+            // przechodzi bez okna, na czystym Androidzie nie). Dlatego NIE zakladamy
+            // z gory, jaki bedzie wynik: obsluga STATUS_PENDING_USER_ACTION nizej
+            // otwiera okno systemu sama, a STATUS_SUCCESS konczy sie po cichu.
             int sid = pi.createSession(p);
             PackageInstaller.Session s = pi.openSession(sid);
             OutputStream os = s.openWrite("dock", 0, apk.length());
