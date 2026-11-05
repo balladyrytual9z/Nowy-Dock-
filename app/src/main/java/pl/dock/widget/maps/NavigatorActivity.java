@@ -165,16 +165,37 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
             String la = Prefs.mapLastLat(this);
             String lo = Prefs.mapLastLon(this);
             if (la.length() > 0 && lo.length() > 0) {
-                lat = Double.parseDouble(la);
-                lon = Double.parseDouble(lo);
+                double sLat = Double.parseDouble(la);
+                double sLon = Double.parseDouble(lo);
+                if (MapPlace.usable(sLat, sLon)) {     // smieci i (0,0) odrzucamy
+                    lat = sLat;
+                    lon = sLon;
+                    hasSaved = true;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        // GPS ma pierwszenstwo nad pamiecia: swiezy fix wygrywa z zapisana pozycja
+        // (inaczej po kazdym restarcie, a wiec i po kazdej aktualizacji, mapa
+        // otwierala sie w miejscu z poprzedniego wyjazdu).
+        try {
+            MapState st = MapState.get(this);
+            if (st.hasFix() && st.lastFixAt() > 0L
+                    && System.currentTimeMillis() - st.lastFixAt() < 60000L
+                    && MapPlace.usable(st.lastLat(), st.lastLon())) {
+                lat = st.lastLat();
+                lon = st.lastLon();
                 hasSaved = true;
             }
         } catch (Throwable ignored) {
         }
-        map.getController().setCenter(new GeoPoint(lat, lon));
-        // Bez zapisanej pozycji startujemy z widokiem calej Polski.
-        if (!hasSaved && Prefs.mapPoland(this)) {
-            map.getController().setZoom(6d);
+        try {
+            map.getController().setCenter(new GeoPoint(lat, lon));
+            // Bez zapisanej pozycji startujemy z widokiem calej Polski.
+            if (!hasSaved && Prefs.mapPoland(this)) {
+                map.getController().setZoom(6d);
+            }
+        } catch (Throwable ignored) {
         }
     }
 

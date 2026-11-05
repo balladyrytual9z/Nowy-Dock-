@@ -176,9 +176,26 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
             String la = Prefs.mapLastLat(getContext());
             String lo = Prefs.mapLastLon(getContext());
             if (la.length() > 0 && lo.length() > 0) {
-                lat = Double.parseDouble(la);
-                lon = Double.parseDouble(lo);
-                hasSaved = true;
+                double sLat = Double.parseDouble(la);
+                double sLon = Double.parseDouble(lo);
+                if (MapPlace.usable(sLat, sLon)) {     // smieci i (0,0) odrzucamy
+                    lat = sLat;
+                    lon = sLon;
+                    hasSaved = true;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        // GPS ma pierwszenstwo nad pamiecia: jesli mamy swiezy fix, to jestesmy TAM,
+        // a zapisana pozycja (np. z wyjazdu w gory) nie moze nas przenosic wstecz.
+        try {
+            MapState st = MapState.get(getContext());
+            if (st.hasFix() && st.lastFixAt() > 0L
+                    && System.currentTimeMillis() - st.lastFixAt() < 60000L
+                    && MapPlace.usable(st.lastLat(), st.lastLon())) {
+                lat = st.lastLat();
+                lon = st.lastLon();
+                hasSaved = true;      // pozycja znana - nie nadpisujemy jej "Polska"
             }
         } catch (Throwable ignored) {
         }
