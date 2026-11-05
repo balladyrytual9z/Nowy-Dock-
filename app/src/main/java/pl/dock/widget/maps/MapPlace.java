@@ -39,6 +39,25 @@ public final class MapPlace {
         return Math.abs(lat) > NULL_ISLAND || Math.abs(lon) > NULL_ISLAND;
     }
 
+    /**
+     * Co pokazac na starcie mapy. Kolejnosc waznosci:
+     *   1) swiezy fix GPS (wiemy na pewno, gdzie jestesmy),
+     *   2) ostatnia DOBRA pozycja GPS - "gdzie zaparkowalem" (uzytkownik: "jak wsiadam
+     *      do auta, to nie moze od nowa szukac miejsca, tylko ma pamietac, gdzie
+     *      zostawilem auto i od razu pokazac wlasciwa mape"),
+     *   3) ostatni widok mapy (gdzie uzytkownik patrzyl),
+     *   4) null - czyli widok calej Polski.
+     * Dla pozycji "brak" wystarczy podac (0,0) - {@link #usable} je odrzuca.
+     */
+    public static double[] startupPlace(double fixLat, double fixLon,
+                                        double goodLat, double goodLon,
+                                        double viewLat, double viewLon) {
+        if (usable(fixLat, fixLon)) return new double[]{fixLat, fixLon};
+        if (usable(goodLat, goodLon)) return new double[]{goodLat, goodLon};
+        if (usable(viewLat, viewLon)) return new double[]{viewLat, viewLon};
+        return null;
+    }
+
     /** Zoom z zapisu, a gdy jest bez sensu - wartosc zapasowa. */
     public static float zoom(float z, float fallback) {
         if (Float.isNaN(z) || z < MIN_ZOOM || z > MAX_ZOOM) return fallback;

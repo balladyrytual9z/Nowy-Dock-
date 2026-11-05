@@ -544,6 +544,7 @@ public class ConfigActivity extends BaseActivity {
                     @Override
                     public void onClick(View v) {
                         Prefs.clearMapLast(ConfigActivity.this);
+                        Prefs.clearPosLast(ConfigActivity.this);
                         changed();
                     }
                 }));

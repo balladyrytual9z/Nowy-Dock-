@@ -430,4 +430,44 @@ public class HeadingSmootherTest {
         assertEquals("pozycja ma stac w miejscu",
                 0d, HeadingSmoother.metersBetween(52.0d, 19.0d, s.lat(), s.lon()), 1d);
     }
+
+    // ---------------- start z pamieci: "gdzie zaparkowalem" ----------------
+
+    @Test
+    public void startZZapamietanejPozycjiDoprecyzowujeBezSzukania() {
+        // Wsiadamy do auta: mamy zapamietane miejsce, a GPS po chwili podaje prawie
+        // to samo (pare metrow obok). Znacznik ma byc od razu na miejscu.
+        HeadingSmoother s = new HeadingSmoother();
+        s.seed(52.0d, 19.0d, 1000L);
+        assertEquals(52.0d, s.lat(), 1e-9);
+        s.advance(1500L);
+        s.onFix(52.00005d, 19.0d, 0f, 0f, 8f, 2000L);      // ~5,5 m dalej
+        s.advance(3000L);
+        double off = HeadingSmoother.metersBetween(52.00005d, 19.0d, s.lat(), s.lon());
+        assertTrue("ma byc od razu na miejscu (jest " + off + " m)", off < 8d);
+    }
+
+    @Test
+    public void startZZapamietanejPozycjiNieSzukaOdZera() {
+        // Zly pierwszy fix (np. stara pozycja z AGPS 5 km dalej) NIE moze nas
+        // przeniesc - startujemy z zaparkowanego miejsca, GPS tylko doprecyzowuje.
+        HeadingSmoother s = new HeadingSmoother();
+        s.seed(52.0d, 19.0d, 1000L);
+        s.advance(1500L);
+        s.onFix(52.045d, 19.0d, 0f, 0f, 8f, 2000L);
+        s.advance(3000L);
+        double moved = HeadingSmoother.metersBetween(52.0d, 19.0d, s.lat(), s.lon());
+        assertTrue("zly pierwszy fix nie przenosi nas (ruszylismy sie " + moved + " m)",
+                moved < 40d);
+        // a prawdziwe fixy (w miejscu zaparkowania) dochodza normalnie
+        long t = 3000L;
+        for (int i = 0; i < 6; i++) {
+            t += 1000L;
+            s.advance(t);
+            s.onFix(52.00002d, 19.0d, 0f, 0f, 6f, t);
+        }
+        double left = HeadingSmoother.metersBetween(52.00002d, 19.0d, s.lat(), s.lon());
+        assertTrue("po prawdziwych fixach jestesmy na miejscu (jest " + left + " m)",
+                left < 20d);
+    }
 }

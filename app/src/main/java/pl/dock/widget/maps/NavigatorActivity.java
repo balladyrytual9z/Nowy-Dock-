@@ -159,43 +159,65 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
 
     private void restoreCenter() {
         if (map == null) return;
-        double lat = 52.07d, lon = 19.48d;   // cala Polska
-        boolean hasSaved = false;
-        try {
-            String la = Prefs.mapLastLat(this);
-            String lo = Prefs.mapLastLon(this);
-            if (la.length() > 0 && lo.length() > 0) {
-                double sLat = Double.parseDouble(la);
-                double sLon = Double.parseDouble(lo);
-                if (MapPlace.usable(sLat, sLon)) {     // smieci i (0,0) odrzucamy
-                    lat = sLat;
-                    lon = sLon;
-                    hasSaved = true;
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-        // GPS ma pierwszenstwo nad pamiecia: swiezy fix wygrywa z zapisana pozycja
-        // (inaczej po kazdym restarcie, a wiec i po kazdej aktualizacji, mapa
-        // otwierala sie w miejscu z poprzedniego wyjazdu).
+        // Kolejnosc waznosci (patrz MapPlace.startupPlace):
+        //   1) swiezy fix GPS, 2) "gdzie zaparkowalem" (ostatnia dobra pozycja GPS),
+        //   3) ostatni widok mapy, 4) cala Polska.
+        double fLat = 0d, fLon = 0d;
+        boolean hasFreshFix = false;
         try {
             MapState st = MapState.get(this);
             if (st.hasFix() && st.lastFixAt() > 0L
                     && System.currentTimeMillis() - st.lastFixAt() < 60000L
                     && MapPlace.usable(st.lastLat(), st.lastLon())) {
-                lat = st.lastLat();
-                lon = st.lastLon();
-                hasSaved = true;
+                fLat = st.lastLat();
+                fLon = st.lastLon();
+                hasFreshFix = true;
             }
         } catch (Throwable ignored) {
         }
+        double gLat = 0d, gLon = 0d;
+        try {
+            String ga = Prefs.posLastLat(this);
+            String go = Prefs.posLastLon(this);
+            if (ga.length() > 0 && go.length() > 0) {
+                gLat = Double.parseDouble(ga);
+                gLon = Double.parseDouble(go);
+            }
+        } catch (Throwable ignored) {
+        }
+        double vLat = 0d, vLon = 0d;
+        try {
+            String va = Prefs.mapLastLat(this);
+            String vo = Prefs.mapLastLon(this);
+            if (va.length() > 0 && vo.length() > 0) {
+                vLat = Double.parseDouble(va);
+                vLon = Double.parseDouble(vo);
+            }
+        } catch (Throwable ignored) {
+        }
+        double[] place = MapPlace.startupPlace(fLat, fLon, gLat, gLon, vLat, vLon);
+        double lat = 52.07d, lon = 19.48d;      // cala Polska - ostatnia deska ratunku
+        boolean hasSaved = false;
+        if (place != null) {
+            lat = place[0];
+            lon = place[1];
+            hasSaved = true;
+        }
         try {
             map.getController().setCenter(new GeoPoint(lat, lon));
-            // Bez zapisanej pozycji startujemy z widokiem calej Polski.
-            if (!hasSaved && Prefs.mapPoland(this)) {
+            if (hasSaved) {
+                // ten sam zoom, jaki byl zapisany (sprawdzony co do zakresu)
+                map.getController().setZoom(
+                        (double) MapPlace.zoom(Prefs.mapLastZoom(this), 16f));
+            } else if (Prefs.mapPoland(this)) {
                 map.getController().setZoom(6d);
             }
         } catch (Throwable ignored) {
+        }
+        // Pozycja z pamieci ("gdzie zaparkowalem") jest od razu punktem wyjscia dla
+        // znacznika - GPS tylko ja doprecyzuje, bez szukania miejsca od zera.
+        if (!hasFreshFix && hasSaved) {
+            smooth.seed(lat, lon, SystemClock.uptimeMillis());
         }
     }
 
@@ -344,6 +366,7 @@ private void toggleFollow() {
         // Najpierw smoother: on odrzuca bledne fixy (skoki GPS o kilometry).
         smooth.onFix(lat, lon, bearing, speedMs,
                 MapState.get(this).lastAccuracy(), SystemClock.uptimeMillis());
+        saveLastGood();
         // Auto-centrowanie TYLKO na swiezym i PRZYJETYM fix'ie GPS (stara "ostatnia
         // znana pozycja" nie jest podstawa do skoku - wtedy mapa by znikala).
         // Bierzemy pozycje ze smoothera, nie surowa, zeby pojedynczy blad GPS nie
@@ -400,7 +423,9 @@ private void toggleFollow() {
 
     private void tick() {
         smooth.advance(SystemClock.uptimeMillis());
-        if (!smooth.hasFix() || !smooth.dirty()) return;
+        // pozycja z pamieci ("gdzie zaparkowalem") tez ma pokazac znacznik -
+        // dzieki temu po wejsciu do auta mapa jest od razu wlasciwa
+        if ((!smooth.hasFix() && !smooth.seededKnown()) || !smooth.dirty()) return;
         if (map != null) {
             // false = bez requestLayout na kazdej klatce (rysujemy od razu nizej):
             // requestLayout 30x/s na MT8163 to zbedny pomiar i uklad.
@@ -593,16 +618,30 @@ private void toggleFollow() {
         }
     }
 
+
+    private long lastGoodAt;
+
+    /** Zapamietuje ostatnia dobra pozycje ("gdzie zaparkowalem") - najwyzej co 10 s. */
+    private void saveLastGood() {
+        if (!smooth.hasFix()) return;
+        long now = System.currentTimeMillis();
+        if (now - lastGoodAt < 10000L) return;
+        lastGoodAt = now;
+        Prefs.setPosLast(this, smooth.lat(), smooth.lon(), now);
+    }
+
     private void savePosition() {
         if (map == null) return;
         try {
             org.osmdroid.api.IGeoPoint c = map.getMapCenter();
             if (c != null) {
-                Prefs.setMapLast(this, c.getLatitude(), c.getLongitude(),
+                Prefs.setMapLast(%(C)s, c.getLatitude(), c.getLongitude(),
                         (float) map.getZoomLevelDouble());
             }
         } catch (Throwable ignored) {
         }
+        lastGoodAt = 0L;            // przy zamykaniu zapisujemy pozycje na pewno
+        saveLastGood();
     }
 
     @Override

@@ -1003,6 +1003,31 @@ public class Prefs {
                 .apply();
     }
 
+    // ostatnia DOBRA pozycja GPS ("gdzie zaparkowalem") - zeby po wejsciu do auta
+    // mapa od razu pokazala wlasciwe miejsce, bez szukania
+    public static String posLastLat(Context c) {
+        return sp(c).getString("pos_lat", "");
+    }
+
+    public static String posLastLon(Context c) {
+        return sp(c).getString("pos_lon", "");
+    }
+
+    public static long posLastAt(Context c) {
+        return sp(c).getLong("pos_at", 0L);
+    }
+
+    public static void setPosLast(Context c, double lat, double lon, long at) {
+        if (!pl.dock.widget.maps.MapPlace.usable(lat, lon)) return;   // smieci nie zapisujemy
+        ed(c).putString("pos_lat", String.valueOf(lat))
+                .putString("pos_lon", String.valueOf(lon))
+                .putLong("pos_at", at).apply();
+    }
+
+    public static void clearPosLast(Context c) {
+        ed(c).remove("pos_lat").remove("pos_lon").remove("pos_at").apply();
+    }
+
     /** Kasuje zapamietana pozycje mapy (Ustawienia -> Mapy). */
     public static void clearMapLast(Context c) {
         ed(c).remove("map_lat").remove("map_lon").remove("map_zoom").apply();
