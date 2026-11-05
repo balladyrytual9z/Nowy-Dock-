@@ -45,6 +45,8 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
     private float speedMs;
     private boolean started;
     private boolean centeredOnce;
+    // Ostatnia wartosc obrotu mapy (heading-up). Zawsze w stopniach; 0 = polnoc na gorze.
+    private float lastMapOrientation;
     // Mapa zostala zwolniona (onDetach) - przy powrocie do okna trzeba ja odbudowac.
     private boolean released;
 
@@ -303,6 +305,15 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
                 // Uzytkownik widzi swoja lokalizacje na ogolnym tle,
                 // a w NavigatorActivity moze przyblizyc recznie.
             } catch (Throwable ignored) {
+            }
+        }
+        // Heading-up: obracamy mape tak, by kierunek jazdy byl na gorze ekranu.
+        // Gdy stoimy (speedMs < 1 km/h ~ 0.28 m/s) wracamy do polnocy na gorze.
+        if (map != null) {
+            float target = (hasFix && speedMs > 0.28f) ? bearing : 0f;
+            if (Math.abs(target - lastMapOrientation) > 3f) {
+                map.setMapOrientation(target);
+                lastMapOrientation = target;
             }
         }
         invalidate();
