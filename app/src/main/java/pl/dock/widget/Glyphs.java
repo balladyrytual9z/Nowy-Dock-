@@ -54,6 +54,37 @@ public final class Glyphs {
     }
 
     /**
+     * Wi-Fi w stylu iOS: trzy wspolsrodkowe luki z ZAOKRAGLONYMI koncami i kropka,
+     * ciasny wachlarz (~130 stopni). Rysowane kodem, bo na tym GPU wektory XML
+     * z przezroczystym wypelnieniem wychodza puste. "off" doklada przekreslenie.
+     */
+    private static void wifiIos(Canvas cv, float cx, float cy, float pol, int color, boolean off) {
+        Paint p = GP;
+        RectF rc = RC;
+        float w = Math.max(2f, pol * 0.23f);            // grubosc luku
+        float cyA = cy - pol * 0.10f;                   // srodek wachlarza (kropka nizej)
+        float r0 = pol * 0.30f, r1 = pol * 0.58f, r2 = pol * 0.88f;
+        p.reset();
+        p.setAntiAlias(true);
+        p.setColor(color);
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeCap(Paint.Cap.ROUND);
+        p.setStrokeWidth(w);
+        float[] rs = {r2, r1, r0};
+        for (float R : rs) {
+            rc.set(cx - R, cyA - R, cx + R, cyA + R);
+            cv.drawArc(rc, 205f, 130f, false, p);       // gorny wachlarz, symetrycznie do pionu
+        }
+        p.setStyle(Paint.Style.FILL);
+        cv.drawCircle(cx, cyA + r0 * 1.05f, w * 0.92f, p);
+        if (off) {
+            p.setStyle(Paint.Style.STROKE);
+            float d = pol * 0.94f;
+            cv.drawLine(cx - d * 0.70f, cyA - d * 0.70f, cx + d * 0.70f, cyA + d * 0.70f, p);
+        }
+    }
+
+    /**
      * Rysuje ikone z siatki 24x24 (jak SVG Material) wypelniona kolorem:
      * wifi, wifi_off, bt. Bok 24 jednostek -> 2 * pol (ikona zajmuje ~92% srednicy).
      */
@@ -148,7 +179,11 @@ pa.moveTo(3.27f, 2f);
         // starszej wersji aplikacji i wygladaly dobrze). Rysujemy je KODEM, bo na
         // docelowym sprzecie (ESSGOO MT8163 / Mali-T720, Android 9) wektory z XML
         // po filtrze SRC_IN ginely.
-        if ("wifi".equals(g) || "wifi_off".equals(g) || "bt".equals(g)) {
+        if ("wifi".equals(g) || "wifi_off".equals(g)) {
+            wifiIos(cv, cx, cy, s, color, "wifi_off".equals(g));
+            return;
+        }
+        if ("bt".equals(g)) {
             svg24(cv, g, cx, cy, s, color);
             return;
         }
