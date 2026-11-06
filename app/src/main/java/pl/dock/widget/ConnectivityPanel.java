@@ -122,7 +122,8 @@ public class ConnectivityPanel extends LinearLayout {
         t.setTextColor(0xFF0A84FF);
         t.setGravity(Gravity.CENTER);
         t.setPadding(dp(16), 0, dp(16), 0);
-        t.setBackground(Ui.round(night ? 0x33FFFFFF : 0x14000000, 18, act));
+        // pigułka jak w iOS: szarość systemowa 787880, nie zwykła biel/czerń
+        t.setBackground(Ui.round(night ? 0x33787880 : 0x1F787880, 18, act));
         return t;
     }
 
@@ -176,7 +177,9 @@ public class ConnectivityPanel extends LinearLayout {
         });
         // stale dp zamiast weight: na tym GPU (Mali-T720) dzieci z weight potrafia
         // wyjsc zerowe - caly uklad panelu uzywa wylacznie stalych dp.
-        LayoutParams blp = new LayoutParams(dp(159), dp(172));
+        // Suwaki maja 240 dp wysokosci - tyle samo, co karta lacznosci obok
+        // (jak w iOS: suwaki i modul lacznosci sa jednej wysokosci).
+        LayoutParams blp = new LayoutParams(dp(159), dp(240));
         blp.rightMargin = dp(6);
         sliders.addView(briSlider, blp);
         volSlider = new PillSlider(act, false, volumeValue());
@@ -191,45 +194,53 @@ public class ConnectivityPanel extends LinearLayout {
                 openAndClose("android.settings.SOUND_SETTINGS");
             }
         });
-        LayoutParams vlp = new LayoutParams(dp(159), dp(172));
+        LayoutParams vlp = new LayoutParams(dp(159), dp(240));
         vlp.leftMargin = dp(6);
         sliders.addView(volSlider, vlp);
         left.addView(sliders);
 
-        // pod suwakami: Night Shift + tryb wygladu (ukrywalne w Ustawieniach)
-        if (Prefs.showNightShift(act) || Prefs.showModeButtons(act)) {
-            LinearLayout btns = new LinearLayout(act);
-            btns.setOrientation(HORIZONTAL);
-            if (Prefs.showNightShift(act)) {
-                nightRow = new NightShiftRow(act);
-                LayoutParams nlp = new LayoutParams(dp(146), dp(58));
-                nlp.topMargin = dp(10);
-                nlp.rightMargin = dp(6);
-                btns.addView(nightRow, nlp);
-            }
-            if (Prefs.showModeButtons(act)) {
-                modeSeg = new ModeSegmentView(act);
-                LayoutParams mlp = new LayoutParams(dp(178), dp(58));
-                mlp.topMargin = dp(10);
-                mlp.leftMargin = dp(6);
-                btns.addView(modeSeg, mlp);
-            }
-            left.addView(btns);
-        }
+        // lewa kolumna: dwa suwaki (159 + 6 + 6 + 159 = 330 dp) x 240 dp
+        main.addView(left, new LayoutParams(dp(330), dp(240)));
 
-        // lewa kolumna 330 dp = 159 + 159 suwaki, 146 + 178 przyciski (jak wczesniej)
-        main.addView(left, new LayoutParams(dp(330), ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        // prawa kolumna: trzy kafelki Wi-Fi / Bluetooth / Hotspot
+        // prawa kolumna: karta lacznosci jak w iOS - zaokraglony modul ze szkla
+        // z trzema kafelkami Wi-Fi / Bluetooth / Hotspot (kolo + etykieta)
         LinearLayout rail = new LinearLayout(act);
         rail.setOrientation(VERTICAL);
+        rail.setPadding(dp(6), dp(6), dp(6), dp(6));
+        rail.setBackground(Ui.round(night ? 0x1FFFFFFF : 0x14000000, 24, act));
         buildRail(rail);
-        LayoutParams rlp = new LayoutParams(dp(78), dp(240));
+        LayoutParams rlp = new LayoutParams(dp(86), dp(240));
         rlp.leftMargin = dp(10);
         main.addView(rail, rlp);
 
         addView(main, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        // ===== MODUL WYSWIETLACZA (jak w iOS) =====
+        // Pelnoszerokosciowa karta pod modulem glownym - jak modul z okraglymi
+        // przyciskami Tryb ciemny / Night Shift / True Tone w Control Center.
+        // NightShiftRow to okragly przycisk z podpisem i podpodpisem stanu,
+        // ModeSegmentView to trzy okragle przyciski trybu wygladu.
+        if (Prefs.showNightShift(act) || Prefs.showModeButtons(act)) {
+            LinearLayout dcard = new LinearLayout(act);
+            dcard.setOrientation(HORIZONTAL);
+            dcard.setGravity(Gravity.CENTER);
+            dcard.setPadding(dp(8), dp(8), dp(8), dp(8));
+            dcard.setBackground(Ui.round(night ? 0x1FFFFFFF : 0x14000000, 24, act));
+            if (Prefs.showNightShift(act)) {
+                nightRow = new NightShiftRow(act);
+                LayoutParams nlp = new LayoutParams(dp(124), dp(88));
+                nlp.rightMargin = dp(8);
+                dcard.addView(nightRow, nlp);
+            }
+            if (Prefs.showModeButtons(act)) {
+                modeSeg = new ModeSegmentView(act);
+                dcard.addView(modeSeg, new LayoutParams(dp(252), dp(88)));
+            }
+            LayoutParams dlp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(104));
+            dlp.topMargin = dp(12);
+            addView(dcard, dlp);
+        }
 
         // podpis trybu automatycznego (od zachodu do wschodu slonca)
         note = new TextView(act);
@@ -307,9 +318,9 @@ public class ConnectivityPanel extends LinearLayout {
                     return true;
                 }
             });
-            LayoutParams tlp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(70));
-            tlp.topMargin = dp(5);
-            tlp.bottomMargin = dp(5);
+            LayoutParams tlp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(72));
+            tlp.topMargin = dp(6);
+            tlp.bottomMargin = dp(6);
             rail.addView(tile, tlp);
             railTiles.add(tile);
         }
@@ -586,7 +597,7 @@ public class ConnectivityPanel extends LinearLayout {
         warmthRow.setOrientation(HORIZONTAL);
         warmthRow.setGravity(Gravity.CENTER_VERTICAL);
         warmthRow.setPadding(dp(6), dp(2), dp(6), dp(2));
-        warmthRow.setBackground(Ui.round(night ? 0x33FFFFFF : 0x14000000, 18, act));
+        warmthRow.setBackground(Ui.round(night ? 0x33787880 : 0x1F787880, 20, act));
 
         TextView cool = new TextView(act);
         cool.setText("Chlodniejsze");
@@ -811,33 +822,49 @@ public class ConnectivityPanel extends LinearLayout {
     }
 
     // ---------------------------------------------------------------- Night Shift (framework-only)
+    // Okragly przycisk jak w Control Center (screen "Night Shift / wl."):
+    // kolko z ikona slonca, pod nim pogrubiony podpis "Night Shift"
+    // i drobny podpodpis ze stanem. Tap = cykl trybow, przytrzymanie = cieplo.
     private class NightShiftRow extends LinearLayout {
+        private final View circleBg;
         private final TextView label;
-        private final View[] dots = new View[3];
+        private final TextView sub;
         private String mode = "off";
         private boolean on;
 
         NightShiftRow(Context c) {
             super(c);
-            setOrientation(HORIZONTAL);
-            setGravity(Gravity.CENTER_VERTICAL);
-            setPadding(dp(10), dp(4), dp(10), dp(4));
+            setOrientation(VERTICAL);
+            setGravity(Gravity.CENTER_HORIZONTAL);
+
+            FrameLayout circ = new FrameLayout(c);
+            circleBg = new View(c);
+            FrameLayout.LayoutParams clp = new FrameLayout.LayoutParams(dp(48), dp(48),
+                    Gravity.CENTER);
+            circ.addView(circleBg, clp);
             ImageView icon = new ImageView(c);
-            icon.setImageBitmap(iconBitmap("sun", dp(11), 0xFFFFFFFF));
-            addView(icon, new LayoutParams(dp(22), dp(22)));
+            icon.setImageBitmap(glyphBitmap("sun", dp(24), 0xFFFFFFFF));
+            FrameLayout.LayoutParams ilp = new FrameLayout.LayoutParams(dp(26), dp(26),
+                    Gravity.CENTER);
+            circ.addView(icon, ilp);
+            addView(circ, new LayoutParams(dp(48), dp(48)));
+
             label = new TextView(c);
-            label.setTextSize(13);
+            label.setText("Night Shift");
+            label.setTextSize(12);
             label.setTypeface(null, Typeface.BOLD);
-            addView(label, new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            LinearLayout dotsRow = new LinearLayout(c);
-            dotsRow.setOrientation(HORIZONTAL);
-            for (int i = 0; i < 3; i++) {
-                dots[i] = new View(c);
-                dots[i].setBackground(Ui.round(0x66000000, 999, c));
-                dotsRow.addView(dots[i], new LinearLayout.LayoutParams(dp(5), dp(5)));
-                ((LinearLayout.LayoutParams) dots[i].getLayoutParams()).leftMargin = dp(5);
-            }
-            addView(dotsRow);
+            label.setGravity(Gravity.CENTER);
+            label.setTextColor(night ? 0xFFFFFFFF : 0xFF111114);
+            addView(label, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+
+            sub = new TextView(c);
+            sub.setTextSize(10);
+            sub.setGravity(Gravity.CENTER);
+            sub.setTextColor(night ? 0x99EBEBF5 : 0x993C3C43);
+            addView(sub, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+
             refresh();
             setOnClickListener(new OnClickListener() {
                 @Override
@@ -857,16 +884,11 @@ public class ConnectivityPanel extends LinearLayout {
         void refresh() {
             mode = NightShift.mode(act);
             on = NightShift.isOn(act);
-            label.setText("sunset".equals(mode) ? "Automatyczny"
-                    : ("on".equals(mode) ? "Wlaczony" : "Wylaczony"));
-            label.setTextColor(on ? 0xFFFFFFFF : (night ? 0xFFFFFFFF : 0xFF1C1C1E));
-            setBackground(Ui.round(on ? 0xFFFF9F0A
-                    : (night ? 0x33FFFFFF : 0x14000000), 18, act));
-            int sel = "sunset".equals(mode) ? 2 : ("on".equals(mode) ? 1 : 0);
-            for (int i = 0; i < 3; i++) {
-                dots[i].setBackground(Ui.round(i == sel ? (on ? 0xFFFFFFFF : 0xFF0A84FF)
-                        : (night ? 0x66FFFFFF : 0x33000000), 999, act));
-            }
+            // kolko: pomaranczowe jak w iOS gdy wlaczone, inaczej systemowa szarosc
+            circleBg.setBackground(Ui.round(on ? 0xFFFF9F0A
+                    : (night ? 0x4D787880 : 0xFFE4E4EA), 999, act));
+            sub.setText("sunset".equals(mode) ? "Automatyczny"
+                    : ("on".equals(mode) ? "Włączony" : "Wyłączony"));
         }
 
         private void cycle() {
@@ -882,30 +904,53 @@ public class ConnectivityPanel extends LinearLayout {
     }
 
     // ---------------------------------------------------------------- tryb wygladu (framework-only)
+    // Trzy okragle przyciski jak w module wyswietlacza iOS (screeny "Tryb ciemny"):
+    // slonce = Dzienny, ksiiezyc = Nocny, pol-kolo = Auto. Wybrany ma niebieskie
+    // kolko i pogrubiony podpis. Logika wyboru bez zmian (Prefs.setMode/followSystem).
     private class ModeSegmentView extends LinearLayout {
-        private final TextView[] btns = new TextView[3];
-        private final String[] labels = {"Dzienny", "Nocny", "Auto"};
+        private final View[] bgs = new View[3];
+        private final TextView[] labels = new TextView[3];
+        private final String[] glyphs = {"sun", "moon", "half"};
+        private final String[] texts = {"Dzienny", "Nocny", "Auto"};
 
         ModeSegmentView(Context c) {
             super(c);
             setOrientation(HORIZONTAL);
-            setPadding(dp(3), dp(3), dp(3), dp(3));
-            setBackground(Ui.round(night ? 0x33FFFFFF : 0x14000000, 18, c));
+            setGravity(Gravity.CENTER_VERTICAL);
             for (int i = 0; i < 3; i++) {
                 final int idx = i;
-                btns[i] = new TextView(c);
-                btns[i].setText(labels[i]);
-                btns[i].setTextSize(13);
-                btns[i].setGravity(Gravity.CENTER);
-                btns[i].setOnClickListener(new OnClickListener() {
+                LinearLayout btn = new LinearLayout(c);
+                btn.setOrientation(VERTICAL);
+                btn.setGravity(Gravity.CENTER_HORIZONTAL);
+
+                FrameLayout circ = new FrameLayout(c);
+                bgs[i] = new View(c);
+                FrameLayout.LayoutParams clp = new FrameLayout.LayoutParams(dp(48), dp(48),
+                        Gravity.CENTER);
+                circ.addView(bgs[i], clp);
+                ImageView icon = new ImageView(c);
+                icon.setImageBitmap(glyphBitmap(glyphs[i], dp(24), 0xFFFFFFFF));
+                FrameLayout.LayoutParams ilp = new FrameLayout.LayoutParams(dp(26), dp(26),
+                        Gravity.CENTER);
+                circ.addView(icon, ilp);
+                btn.addView(circ, new LayoutParams(dp(48), dp(48)));
+
+                labels[i] = new TextView(c);
+                labels[i].setText(texts[i]);
+                labels[i].setTextSize(11);
+                labels[i].setGravity(Gravity.CENTER);
+                btn.addView(labels[i], new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT));
+
+                btn.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
                         select(idx);
                     }
                 });
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(46), 1f);
-                lp.leftMargin = i == 0 ? 0 : dp(3);
-                addView(btns[i], lp);
+                LayoutParams blp = new LayoutParams(dp(84),
+                        ViewGroup.LayoutParams.WRAP_CONTENT);
+                addView(btn, blp);
             }
             refreshSelection();
         }
@@ -914,9 +959,11 @@ public class ConnectivityPanel extends LinearLayout {
             int sel = Prefs.followSystem(act) ? 2 : ("night".equals(Prefs.mode(act)) ? 1 : 0);
             for (int i = 0; i < 3; i++) {
                 boolean s = i == sel;
-                btns[i].setBackground(s ? Ui.round(0xFF0A84FF, 13, act) : null);
-                btns[i].setTextColor(s ? 0xFFFFFFFF : (night ? 0xFFFFFFFF : 0xFF1C1C1E));
-                btns[i].setTypeface(null, s ? Typeface.BOLD : Typeface.NORMAL);
+                bgs[i].setBackground(Ui.round(s ? 0xFF0A84FF
+                        : (night ? 0x4D787880 : 0xFFE4E4EA), 999, act));
+                labels[i].setTextColor(s ? 0xFFFFFFFF
+                        : (night ? 0x99EBEBF5 : 0x993C3C43));
+                labels[i].setTypeface(null, s ? Typeface.BOLD : Typeface.NORMAL);
             }
         }
 
@@ -936,12 +983,12 @@ public class ConnectivityPanel extends LinearLayout {
     }
 
     // ---------------------------------------------------------------- ikony (Bitmapa -> ImageView)
-    private Bitmap iconBitmap(String glyph, float r, int color) {
-        float den = getResources().getDisplayMetrics().density;
-        int px = (int) Math.ceil(r * 3f);
-        Bitmap b = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
+    // sizePx juz w pikselach ekranu (wolane z dp(24)); glif wypelnia ~85% ikony,
+    // dzieki czemu ikony w kafelkach maja proporcje jak w iOS Control Center.
+    private Bitmap glyphBitmap(String glyph, int sizePx, int color) {
+        Bitmap b = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888);
         Canvas cv = new Canvas(b);
-        PanelTool.glyph(cv, glyph, px / 2f, px / 2f, r, color);
+        PanelTool.glyph(cv, glyph, sizePx / 2f, sizePx / 2f, sizePx * 0.85f, color);
         return b;
     }
 
@@ -1083,7 +1130,7 @@ public class ConnectivityPanel extends LinearLayout {
             int px = (int) Math.ceil(38f * den);
             Bitmap b = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
             Canvas cv = new Canvas(b);
-            PanelTool.glyph(cv, sun ? "sun" : "speaker", px / 2f, px / 2f, 10f * den, ink);
+            PanelTool.glyph(cv, sun ? "sun" : "speaker", px / 2f, px / 2f, 32f * den, ink);
             return b;
         }
     }

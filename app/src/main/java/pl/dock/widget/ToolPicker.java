@@ -204,7 +204,8 @@ public final class ToolPicker {
             p.reset();
             p.setAntiAlias(true);
             p.setStyle(Paint.Style.FILL);
-            p.setColor(night ? 0xFF3A3A3C : 0xFF8E8E93);
+            // to samo koło szarości co kafelki panelu (spójny iOS-owy wygląd)
+            p.setColor(night ? 0x4D787880 : 0xFFE4E4EA);
             p.setAlpha(added ? 90 : 255);
             if (def.kind != PanelTool.K_APP) cv.drawCircle(cx, cy, dia / 2f, p);
             if (def.kind == PanelTool.K_APP) {

@@ -121,14 +121,21 @@ public class ToolGrid extends LinearLayout {
                         return true;
                     }
                 });
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(72), dp(72));
+                // siatka: kafelek 72 x 84 (koło 52 + dwuliniowa etykieta pod spodem)
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(72), dp(84));
                 lp.leftMargin = j == 0 ? 0 : dp(6);
+                // w siatce etykieta może się łamać na dwie linie (jak w Control Center)
+                TextView glbl = (TextView) tile.findViewWithTag("label");
+                if (glbl != null) {
+                    glbl.setMaxLines(2);
+                    glbl.setTextSize(10);
+                }
                 row.addView(tile, lp);
                 tiles.add(tile);
             }
             LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            if (i > 0) rp.topMargin = dp(6);
+            if (i > 0) rp.topMargin = dp(8);
             addView(row, rp);
         }
     }
@@ -141,51 +148,52 @@ public class ToolGrid extends LinearLayout {
 
     // ---------------------------------------------------------------- kafelek (framework-only)
 
-    /** Kafelek zbudowany WYŁĄCZNIE z widoków frameworka (zero onDraw). */
+    /** Kafelek zbudowany WYŁĄCZNIE z widoków frameworka (zero onDraw) — jak w iOS:
+     *  okrągłe koło z ikoną na środku i drobna etykieta POD kołem (nie w nim). */
     public static View createTile(Context c, boolean night, PanelTool.Def d) {
         FrameLayout box = new FrameLayout(c);
+        int dia = Ui.dp(c, 52);            // średnica koła jak w Control Center
 
-        // koło tła
+        // koło tła (View z GradientDrawable — pełne koło, nie owal)
         View bg = new View(c);
         bg.setTag("bg");
-        FrameLayout.LayoutParams bgLp = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        bgLp.setMargins(Ui.dp(c, 6), Ui.dp(c, 6), Ui.dp(c, 6), Ui.dp(c, 12));
+        FrameLayout.LayoutParams bgLp = new FrameLayout.LayoutParams(dia, dia,
+                Gravity.TOP | Gravity.CENTER_HORIZONTAL);
         box.addView(bg, bgLp);
 
         // ikona (bitmapa generowana raz, wyświetlana przez ImageView)
         ImageView icon = new ImageView(c);
         icon.setTag("icon");
         icon.setImageBitmap(tileIcon(c, d));
-        FrameLayout.LayoutParams ilp = new FrameLayout.LayoutParams(Ui.dp(c, 30), Ui.dp(c, 30));
-        ilp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-        ilp.topMargin = Ui.dp(c, 15);
+        int is = Ui.dp(c, 26);
+        FrameLayout.LayoutParams ilp = new FrameLayout.LayoutParams(is, is,
+                Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        ilp.topMargin = (dia - is) / 2;
         box.addView(icon, ilp);
 
-        // etykieta
+        // etykieta pod kołem (jak pod kafelkami w Control Center)
         TextView label = new TextView(c);
         label.setTag("label");
         label.setText(d.label);
         label.setTextSize(11);
         label.setMaxLines(1);
         label.setGravity(Gravity.CENTER);
-        label.setTextColor(0xFFFFFFFF);
         FrameLayout.LayoutParams llp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         llp.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
-        llp.bottomMargin = Ui.dp(c, 4);
         box.addView(label, llp);
 
-        // znak „−" (tylko tryb edycji)
+        // znak „−" (tylko tryb edycji) na prawym górnym skraju koła
         TextView minus = new TextView(c);
         minus.setTag("minus");
         minus.setText("−");
         minus.setTextColor(0xFFFFFFFF);
         minus.setGravity(Gravity.CENTER);
-        minus.setTextSize(16);
+        minus.setTextSize(14);
         minus.setBackground(Ui.round(0xFFFF3B30, 999, c));
         FrameLayout.LayoutParams mlp = new FrameLayout.LayoutParams(Ui.dp(c, 20), Ui.dp(c, 20));
         mlp.gravity = Gravity.TOP | Gravity.END;
+        mlp.rightMargin = Ui.dp(c, 1);
         box.addView(minus, mlp);
         minus.setVisibility(View.GONE);
 
@@ -193,19 +201,20 @@ public class ToolGrid extends LinearLayout {
         return box;
     }
 
-    /** Odświeża stan kafelka: kolor koła i etykiety wg on/off. */
+    /** Odświeża stan kafelka: kolor koła i etykiety wg on/off (paleta iOS). */
     public static void refreshTile(Context c, boolean night, View box, PanelTool.Def d) {
         View bg = box.findViewWithTag("bg");
         if (bg == null) return;
         boolean on = d.kind == PanelTool.K_TOGGLE ? PanelTool.isOn(c, d) : true;
         int color = on ? PanelTool.onColor(d)
                 : (night ? 0x4D787880 : 0xFFE4E4EA);
-        bg.setBackground(Ui.round(color, 40, c));
+        bg.setBackground(Ui.round(color, 999, c));
         ImageView icon = (ImageView) box.findViewWithTag("icon");
-        if (icon != null) icon.setAlpha(on ? 255 : 150);
+        if (icon != null) icon.setAlpha(255);   // jak w iOS: glif zawsze pelny
         TextView label = (TextView) box.findViewWithTag("label");
         if (label != null) {
-            label.setTextColor(on ? 0xFFFFFFFF : (night ? 0x66FFFFFF : 0x33000000));
+            label.setTextColor(on ? 0xFFFFFFFF
+                    : (night ? 0x99EBEBF5 : 0x993C3C43));
         }
     }
 
@@ -236,7 +245,9 @@ public class ToolGrid extends LinearLayout {
         int px = (int) Math.ceil(30f * den);
         Bitmap b = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
         Canvas cv = new Canvas(b);
-        PanelTool.glyph(cv, d.glyph, px / 2f, px / 2f, 11f * den, 0xFFFFFFFF);
+        // promien tak dobrany, zeby glif zajmowal ~40% srednicy kola (jak w iOS),
+        // a nie ~20% jak w poprzedniej, za malej wersji
+        PanelTool.glyph(cv, d.glyph, px / 2f, px / 2f, 25f * den, 0xFFFFFFFF);
         return b;
     }
 }
