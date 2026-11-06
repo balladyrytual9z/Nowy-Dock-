@@ -133,7 +133,6 @@ public class AppLibraryPage extends FrameLayout {
 
         int dockInset = Ui.dp(ctx, Ui.DOCK_OFFSET_DP);
         boolean dockLeft = Ui.dockLeft(ctx);
-        int extraL = dockLeft ? dockInset : 0;
         int extraR = dockLeft ? 0 : dockInset;
 
         // Glowny kontener: POZIOMO – alfabet z lewej, tresc z prawej
@@ -195,9 +194,11 @@ public class AppLibraryPage extends FrameLayout {
             }
         });
 
-        // letterBar dostaje stala szerokosc + offset docka po lewej
-        page.addView(letterBar, new LinearLayout.LayoutParams(
-                dp(38) + extraL, ViewGroup.LayoutParams.MATCH_PARENT));
+        // letterBar: stala szerokosc + margines z lewej na dock
+        LinearLayout.LayoutParams lbLp = new LinearLayout.LayoutParams(
+                dp(38), ViewGroup.LayoutParams.MATCH_PARENT);
+        if (dockLeft) lbLp.leftMargin = dockInset;
+        page.addView(letterBar, lbLp);
 
         // ---- PRAWY PANEL: search bar + lista ----
         LinearLayout contentPane = new LinearLayout(ctx);
