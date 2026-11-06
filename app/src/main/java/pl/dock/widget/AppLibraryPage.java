@@ -142,29 +142,25 @@ public class AppLibraryPage extends FrameLayout {
         page.setClipChildren(false);
         page.setClipToPadding(false);
 
-        // ---- LEWY PANEL: pionowy pasek liter A-Z ----
-        int letterBarWidth = dp(32);
-        FrameLayout letterPane = new FrameLayout(ctx);
-        letterPane.setClipChildren(false);
-        letterPane.setClipToPadding(false);
-        // polprzezroczyste tlo dla czytelnosci na kazdej tapecie
-        letterPane.setBackgroundColor(night ? 0xCC1C1C1E : 0xCCFFFFFF);
-
+        // ---- LEWY PANEL: pionowy pasek liter A-Z (bezposrednio w page) ----
         letterBar = new LinearLayout(ctx);
         letterBar.setOrientation(LinearLayout.VERTICAL);
         letterBar.setGravity(Gravity.CENTER);
         letterBar.setClipChildren(false);
         letterBar.setClipToPadding(false);
         letterBar.setPadding(0, dp(8), 0, dp(8));
+        // polprzezroczyste tlo + elevacja zeby bylo NAD lista
+        letterBar.setBackgroundColor(night ? 0xCC1C1C1E : 0xCCFFFFFF);
+        letterBar.setElevation(dp(8));
         for (int i = 0; i < LETTERS.length(); i++) {
             final String letter = String.valueOf(LETTERS.charAt(i));
             TextView tv = new TextView(ctx);
             tv.setText(letter);
-            tv.setTextSize(12);
+            tv.setTextSize(13);
             tv.setTypeface(pl.dock.widget.ui.DockTheme.interMedium());
             tv.setTextColor(night ? 0xFF0A84FF : 0xFF007AFF);
             tv.setGravity(Gravity.CENTER);
-            tv.setPadding(0, dp(2), 0, dp(2));
+            tv.setPadding(0, dp(1), 0, dp(1));
             tv.setOnClickListener(new OnClickListener() {
                 @Override public void onClick(View v) {
                     scrollToLetter(letter, true);
@@ -198,12 +194,10 @@ public class AppLibraryPage extends FrameLayout {
                 return false;
             }
         });
-        letterPane.addView(letterBar, new FrameLayout.LayoutParams(
-                letterBarWidth, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER));
 
-        // padding po lewej (dock) i po prawej – letterPane ma staly rozmiar
-        page.addView(letterPane, new LinearLayout.LayoutParams(
-                letterBarWidth + extraL, ViewGroup.LayoutParams.MATCH_PARENT));
+        // letterBar dostaje stala szerokosc + offset docka po lewej
+        page.addView(letterBar, new LinearLayout.LayoutParams(
+                dp(38) + extraL, ViewGroup.LayoutParams.MATCH_PARENT));
 
         // ---- PRAWY PANEL: search bar + lista ----
         LinearLayout contentPane = new LinearLayout(ctx);
@@ -211,7 +205,7 @@ public class AppLibraryPage extends FrameLayout {
         contentPane.setClipChildren(false);
         contentPane.setClipToPadding(false);
 
-        // Search bar z efektem "frosted glass" (polprzezroczyste tlo)
+        // Search bar z efektem "frosted glass" (polprzezroczyste tlo + elevacja)
         LinearLayout searchHeader = new LinearLayout(ctx);
         searchHeader.setOrientation(LinearLayout.HORIZONTAL);
         searchHeader.setGravity(Gravity.CENTER_VERTICAL);
@@ -219,6 +213,7 @@ public class AppLibraryPage extends FrameLayout {
         searchHeader.setClipToPadding(false);
         searchHeader.setPadding(dp(12), dp(10), dp(12) + extraR, dp(10));
         searchHeader.setBackgroundColor(night ? 0xCC1C1C1E : 0xCCFFFFFF);
+        searchHeader.setElevation(dp(8));
 
         searchEt = new EditText(ctx);
         searchEt.setHint("Biblioteka aplikacji");
