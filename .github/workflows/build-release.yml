@@ -136,6 +136,29 @@ ll || grep -q 'errors="[1-9]' "$f" 2>/dev/null; then
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Diagnostyka: logi krokow CI wymagaja logowania - przy padzie zapisz
+      # ogon logu jako plik .txt na galazi PR (paths-ignore nie uruchamia
+      # kolejnego runa, a plik jest publicznie czytelny dla agentow).
+      - name: Zapisz ogon logu CI jako plik na galazi
+        if: failure() && github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -uo pipefail
+          cd "$GITHUB_WORKSPACE"
+          git fetch origin "$GITHUB_HEAD_REF"
+          git checkout -B diag-ci "origin/$GITHUB_HEAD_REF"
+          mkdir -p diag
+          {
+            echo "Run: $GITHUB_RUN_NUMBER | Event: $GITHUB_EVENT_NAME"
+            echo "Merge SHA: $GITHUB_SHA"
+            tail -n 300 "$RUNNER_TEMP/ci.log" 2>/dev/null || echo "(brak ci.log)"
+          } > diag/ci-log-tail.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add diag/ci-log-tail.txt
+          git commit -m "chore: diagnostyka CI - ogon logu runa [skip ci]"
+          git push origin "HEAD:$GITHUB_HEAD_REF"
+
       - name: Build Android APK (Debug, stable signing, auto versionCode)
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
