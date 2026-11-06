@@ -6,10 +6,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.Path;
-import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
@@ -19,6 +17,8 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -26,11 +26,21 @@ import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.List;
 
-// Centrum łączności w stylu iOS. Na górze stały moduł bazowy: suwak jasności i głośności,
-// pod nimi przełącznik Night Shift (włączony / wyłączony / automatyczny od zachodu do
-// wschodu słońca) i tryb wyglądu (dzienny / nocny / auto), po prawej trzy okrągłe
-// przełączniki: Wi-Fi / Bluetooth / hotspot. Pod spodem opcjonalna, edytowalna siatka
-// dodatkowych narzędzi (ToolGrid). Używane w launcherze (nakładka) i jako okno zapasowe.
+// =====================================================================
+// Centrum laczonosci w stylu iOS - PRZEBUDOWANE OD ZERA (2026-11-06).
+//
+// DLACZEGO OD ZERA: na tablecie (ESSGOO / MT8163 / Mali-T720 / API 28)
+// w nakladce launchera NIE rysowaly sie widoki z wlasnym onDraw()
+// (stary PillSlider, NightShiftButton, ModeSegment, kafelki ToolGrid) -
+// widac bylo tylko tlo panelu i TextView; po wielu iteracjach
+// (warstwy SOFTWARE, fade, animacje, re-layout - v1.0.244...256)
+// ustalono, ze w dynamicznie doczepianym poddrzewie renderuja sie
+// WLACZNIE widoki frameworka. Dlatego caly panel to LinearLayout /
+// FrameLayout / TextView / ImageView / View z tlem GradientDrawable /
+// SeekBar. Zaden widok nie ma wlasnego onDraw(): zaokraglenia to
+// GradientDrawable, a ikony to Bitmapy generowane raz (Canvas na
+// bitmapie = CPU) i wyswietlane przez ImageView.
+// =====================================================================
 public class ConnectivityPanel extends LinearLayout {
 
     public interface Host {
@@ -49,14 +59,13 @@ public class ConnectivityPanel extends LinearLayout {
     // narzedzia stalego modulu bazowego - nie moga sie powtarzac w edytowalnej siatce
     static final String[] BASE_IDS =
             {"bri", "vol", "nightshift", "mode", "wifi", "bt", "hot", "conn"};
-    private ModeSegment modeSeg;
-    private NightShiftButton nightBtn;
-    private final List<ToolGrid.Tile> railTiles = new ArrayList<ToolGrid.Tile>();
+    private NightShiftRow nightRow;
+    private ModeSegmentView modeSeg;
+    private final List<View> railTiles = new ArrayList<View>();
     private LinearLayout warmthRow;
     private android.widget.SeekBar warmthBar;
     private PillSlider volSlider;
     private PillSlider briSlider;
-    private ConnGroup connGroup;
     private BroadcastReceiver rc;
     private boolean editMode = false;
     private final Runnable refreshLater = new Runnable() {
@@ -70,7 +79,7 @@ public class ConnectivityPanel extends LinearLayout {
         return Ui.dp(act, v);
     }
 
-    /** Czysta logika (testowalna na JVM): wyczyść z listy narzędzi te z module bazowego. */
+    /** Czysta logika (testowalna na JVM): wyczysc z listy narzedzi te z modulu bazowego. */
     static List<String> withoutBaseTools(List<String> ids) {
         List<String> out = new ArrayList<String>();
         if (ids == null) return out;
@@ -97,26 +106,8 @@ public class ConnectivityPanel extends LinearLayout {
         setBackground(Ui.popupBg(a, night));
         setPadding(dp(12), dp(12), dp(12), dp(10));
         setClickable(true);
-        // Panel rysuje sie normalnie, sprzetowo - z JEDNYM wyjatkiem.
-        //
-        // Na starym GPU tabletu (ESSGOO / MT8163, Mali-T720, realny Android 9 =
-        // API 28) TRESC panelu (suwaki PillSlider, NightShiftButton, ModeSegment,
-        // kafelki rail) NIE rysuje sie bez wlasnej warstwy: widoczne sa tylko tlo
-        // panelu i TextView z frameworka. Zmierzone rozmiary sa poprawne, wiec to
-        // nie uklad, a odtwarzanie nowo dodanego poddrzewa custom views z RenderNode.
-        //
-        // Warstwa SOFTWARE na API < 30 jest na tym urzadzeniu POTWIERDZONA: z nia
-        // panel pokazuje cala tresc, bez niej jest PUSTY (regresja PR #17).
-        // Ustawiamy ja RAZ i NIE przelaczamy z powrotem na LAYER_TYPE_NONE - samo
-        // przelaczenie czyscilo bufor w trakcie animacji otwarcia i panel gasl (PR #9).
-        // Panel przerysowuje sie dopiero przy dotknieciu, wiec koszt CPU jest znikomy.
-        //
-        // Czego tu NIE ma i nie dokladamy: setElevation oraz setClipToOutline
-        // z OutlineProvider. Wczesniejsze proby naprawy dokladaly je po kolei i
-        // wzajemnie sie znosily - setElevation kazal GPU renderowac warstwe cienia
-        // (na Mali-T720 wychodzil pusty bufor), a Outline liczony z getWidth()/
-        // getHeight() przy pierwszym pomiarze (0x0) obcinal CALY panel. Zaokraglone
-        // tlo rysuje GradientDrawable z Ui.popupBg, wiec clip nie jest potrzebny.
+        // Warstwa SOFTWARE na API < 30 zostaje (potwierdzona w PR #14): dla widokow
+        // frameworka jest nieszkodliwa, a chroni, gdyby ktos dozyl widok z onDraw.
         if (android.os.Build.VERSION.SDK_INT < 30) {
             setLayerType(View.LAYER_TYPE_SOFTWARE, null);
         }
@@ -136,12 +127,16 @@ public class ConnectivityPanel extends LinearLayout {
     }
 
     private void build() {
-        // nagłówek: tytuł + przycisk Edytuj / Gotowe
+        // naglowek: tytul + przycisk Edytuj / Gotowe
         LinearLayout head = new LinearLayout(act);
         head.setOrientation(HORIZONTAL);
         head.setGravity(Gravity.CENTER_VERTICAL);
-        View titleSpacer = new View(act);
-        head.addView(titleSpacer, new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView title = new TextView(act);
+        title.setText("Łączność");
+        title.setTextSize(20);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
+        head.addView(title, new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         btnEdit = pill("Edytuj");
         btnEdit.setOnClickListener(new OnClickListener() {
             @Override
@@ -158,14 +153,13 @@ public class ConnectivityPanel extends LinearLayout {
         addView(head, hp);
 
         // ===== STALY MODUL BAZOWY (zawsze widoczny po otwarciu) =====
-        // suwak jasnosci | suwak glosnosci, pod nimi Night Shift + tryb wygladu,
-        // po prawej trzy okragle przelaczniki: Wi-Fi / Bluetooth / hotspot
         LinearLayout main = new LinearLayout(act);
         main.setOrientation(HORIZONTAL);
 
         LinearLayout left = new LinearLayout(act);
         left.setOrientation(VERTICAL);
 
+        // suwak jasnosci | suwak glosnosci (PillSlider - tylko widoki frameworka)
         LinearLayout sliders = new LinearLayout(act);
         sliders.setOrientation(HORIZONTAL);
         briSlider = new PillSlider(act, true, brightnessValue());
@@ -181,7 +175,7 @@ public class ConnectivityPanel extends LinearLayout {
             }
         });
         // stale dp zamiast weight: na tym GPU (Mali-T720) dzieci z weight potrafia
-        // wyjsc zerowe - stara, dzialajaca wersja panelu uzywala wylacznie stalych dp.
+        // wyjsc zerowe - caly uklad panelu uzywa wylacznie stalych dp.
         LayoutParams blp = new LayoutParams(dp(159), dp(172));
         blp.rightMargin = dp(6);
         sliders.addView(briSlider, blp);
@@ -202,70 +196,51 @@ public class ConnectivityPanel extends LinearLayout {
         sliders.addView(volSlider, vlp);
         left.addView(sliders);
 
-        // pod suwakami: przełącznik Night Shift + tryb dzienny/nocny/auto
-        LinearLayout btns = new LinearLayout(act);
-        btns.setOrientation(HORIZONTAL);
-        nightBtn = new NightShiftButton(act);
-        LayoutParams nlp = new LayoutParams(dp(146), dp(58));
-        nlp.topMargin = dp(10);
-        nlp.rightMargin = dp(6);
-        btns.addView(nightBtn, nlp);
-        modeSeg = new ModeSegment(act);
-        LayoutParams mlp = new LayoutParams(dp(178), dp(58));
-        mlp.topMargin = dp(10);
-        mlp.leftMargin = dp(6);
-        btns.addView(modeSeg, mlp);
-        left.addView(btns);
+        // pod suwakami: Night Shift + tryb wygladu (ukrywalne w Ustawieniach)
+        if (Prefs.showNightShift(act) || Prefs.showModeButtons(act)) {
+            LinearLayout btns = new LinearLayout(act);
+            btns.setOrientation(HORIZONTAL);
+            if (Prefs.showNightShift(act)) {
+                nightRow = new NightShiftRow(act);
+                LayoutParams nlp = new LayoutParams(dp(146), dp(58));
+                nlp.topMargin = dp(10);
+                nlp.rightMargin = dp(6);
+                btns.addView(nightRow, nlp);
+            }
+            if (Prefs.showModeButtons(act)) {
+                modeSeg = new ModeSegmentView(act);
+                LayoutParams mlp = new LayoutParams(dp(178), dp(58));
+                mlp.topMargin = dp(10);
+                mlp.leftMargin = dp(6);
+                btns.addView(modeSeg, mlp);
+            }
+            left.addView(btns);
+        }
 
-        // lewa kolumna 330 dp = 159+6+159 suwaki, 146+178 przyciski (jak w starej wersji)
+        // lewa kolumna 330 dp = 159 + 159 suwaki, 146 + 178 przyciski (jak wczesniej)
         main.addView(left, new LayoutParams(dp(330), ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        // prawa kolumna: trzy okragle przelaczniki jak w pierwszych wersjach
+        // prawa kolumna: trzy kafelki Wi-Fi / Bluetooth / Hotspot
         LinearLayout rail = new LinearLayout(act);
         rail.setOrientation(VERTICAL);
-        ToolGrid.Host railHost = new ToolGrid.Host() {
-            @Override
-            public View create(PanelTool.Def d) {
-                return null;
-            }
-
-            @Override
-            public void onTool(PanelTool.Def d, boolean longPress) {
-                runTool(d, longPress);
-            }
-
-            @Override
-            public void onChanged(List<String> ids) {
-            }
-        };
-        String[] railIds = {"wifi", "bt", "hot"};
-        for (String rid : railIds) {
-            PanelTool.Def def = PanelTool.find(rid);
-            if (def == null) continue;
-            ToolGrid.Tile t = new ToolGrid.Tile(act, def, night, railHost, null);
-            // kafelek rail: stala wysokosc 74 dp + marginesy 3+3 = 80, trzy kafelki = 240 dp
-            LayoutParams tlp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(74));
-            tlp.topMargin = dp(3);
-            tlp.bottomMargin = dp(3);
-            rail.addView(t, tlp);
-            railTiles.add(t);
-        }
-        // stala wysokosc 240dp = dokladnie wysokosc lewej kolumny (172 suwaki + 10 + 58 przyciski);
-        // MATCH_PARENT rozciagalo kolumne na caly ekran i panel mial wysokosc ekranu
-        LayoutParams rlp = new LayoutParams(dp(72), dp(240));
+        buildRail(rail);
+        LayoutParams rlp = new LayoutParams(dp(78), dp(240));
         rlp.leftMargin = dp(10);
         main.addView(rail, rlp);
 
         addView(main, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        // podpis trybu automatycznego (od zachodu do wschodu slonca)
+        note = new TextView(act);
+        note.setTextSize(13);
+        note.setTextColor(night ? 0xFF9A9AA0 : 0xFF6C6C70);
+        note.setPadding(dp(6), dp(6), 0, dp(4));
+        note.setVisibility(GONE);
+        addView(note);
+
         // ===== siatka dodatkowych narzedzi (edytowalna) =====
         grid = new ToolGrid(act, night, new ToolGrid.Host() {
-            @Override
-            public View create(PanelTool.Def d) {
-                return makeView(d);
-            }
-
             @Override
             public void onTool(PanelTool.Def d, boolean longPress) {
                 runTool(d, longPress);
@@ -278,13 +253,15 @@ public class ConnectivityPanel extends LinearLayout {
             }
         });
         List<String> toolIds = PanelTool.load(act);
-        // narzedzia z stalego modulu bazowego nigdy nie duplikuja sie w siatce
+        // narzedzia ze stalego modulu bazowego nigdy nie duplikuja sie w siatce
         toolIds = withoutBaseTools(toolIds);
         grid.setTools(toolIds);
-        addView(grid, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
+        LayoutParams gp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        gp.topMargin = dp(10);
+        addView(grid, gp);
 
-        // długie przytrzymanie tła = tryb edycji
+        // dlugie przytrzymanie tla = tryb edycji
         setOnLongClickListener(new OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
@@ -293,8 +270,8 @@ public class ConnectivityPanel extends LinearLayout {
             }
         });
 
-        // przycisk „Dodaj narzędzie” (widoczny tylko w trybie edycji)
-        btnAdd = pill("＋  Dodaj narzędzie");
+        // przycisk "Dodaj narzedzie" (widoczny tylko w trybie edycji)
+        btnAdd = pill("+  Dodaj narzedzie");
         btnAdd.setTextSize(15);
         btnAdd.setVisibility(GONE);
         btnAdd.setOnClickListener(new OnClickListener() {
@@ -307,73 +284,56 @@ public class ConnectivityPanel extends LinearLayout {
         ap.gravity = Gravity.CENTER_HORIZONTAL;
         ap.topMargin = dp(12);
         addView(btnAdd, ap);
-
-        note = new TextView(act);
-        note.setTextSize(13);
-        note.setTextColor(night ? 0xFF9A9AA0 : 0xFF6C6C70);
-        note.setPadding(dp(6), dp(6), 0, dp(4));
-        note.setVisibility(GONE);
-        addView(note);
     }
 
-    // własne widoki dla suwaków i przełącznika wyglądu; reszta to zwykłe kafelki
-    private View makeView(PanelTool.Def d) {
-        if (d.kind == PanelTool.K_VOLUME) {
-            PillSlider s = new PillSlider(act, false, volumeValue());
-            s.setListener(new PillSlider.Listener() {
+    // ---------------------------------------------------------------- kafelki Wi-Fi / BT / Hotspot
+    private void buildRail(LinearLayout rail) {
+        String[] railIds = {"wifi", "bt", "hot"};
+        for (String rid : railIds) {
+            final PanelTool.Def def = PanelTool.find(rid);
+            if (def == null) continue;
+            final View tile = ToolGrid.createTile(act, night, def);
+            tile.setTag(def);
+            tile.setOnClickListener(new OnClickListener() {
                 @Override
-                public void on(float v) {
-                    setVolume(v);
-                }
-
-                @Override
-                public void onLong() {
-                    openAndClose("android.settings.SOUND_SETTINGS");
-                }
-            });
-            volSlider = s;
-            return s;
-        }
-        if (d.kind == PanelTool.K_BRIGHT) {
-            PillSlider s = new PillSlider(act, true, brightnessValue());
-            s.setListener(new PillSlider.Listener() {
-                @Override
-                public void on(float v) {
-                    setBrightness(v);
-                }
-
-                @Override
-                public void onLong() {
-                    showWarmthSlider();   // jak w iOS: przytrzymanie jasnosci = cieplo ekranu
+                public void onClick(View v) {
+                    onRailTap(def);
                 }
             });
-            briSlider = s;
-            return s;
+            tile.setOnLongClickListener(new OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View v) {
+                    enterEditMode();
+                    return true;
+                }
+            });
+            LayoutParams tlp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(70));
+            tlp.topMargin = dp(5);
+            tlp.bottomMargin = dp(5);
+            rail.addView(tile, tlp);
+            railTiles.add(tile);
         }
-        if (d.kind == PanelTool.K_MODE) {
-            modeSeg = new ModeSegment(act);
-            return modeSeg;
+    }
+
+    private void onRailTap(PanelTool.Def d) {
+        String id = d.id;
+        if ("wifi".equals(id)) {
+            // wymaganie: dotkniecie otwiera OD RAZU ekran Wi-Fi, bez proby przelaczania
+            if (Net.openWifiSettings(act)) host.close();
+            else unavailable();
+        } else if ("hot".equals(id)) {
+            // wymaganie: dotkniecie otwiera ekran "Hotspot Wi-Fi"
+            if (Net.openTetherSettings(act)) host.close();
+            else unavailable();
+        } else if ("bt".equals(id)) {
+            // dzialanie wg ustawienia btAction (aplikacja / przelacz / auto)
+            toggleBt();
+        } else {
+            runTool(d, false);
         }
-        if (d.kind == PanelTool.K_GROUP) {
-            // grupa lacznosci 2x2 jak w iOS: samolotowy / hotspot / Wi-Fi / Bluetooth
-            String[] gids = {"air", "hot", "wifi", "bt"};
-            int n = 0;
-            for (String gid : gids) if (PanelTool.find(gid) != null) n++;
-            if (n == 0) return null;
-            PanelTool.Def[] defs = new PanelTool.Def[n];
-            int k = 0;
-            for (String gid : gids) {
-                PanelTool.Def gd = PanelTool.find(gid);
-                if (gd != null) defs[k++] = gd;
-            }
-            connGroup = new ConnGroup(act, defs);
-            return connGroup;
-        }
-        return null;
     }
 
     // ---------------------------------------------------------------- tryb edycji
-
     public void enterEditMode() {
         if (editMode) return;
         editMode = true;
@@ -414,7 +374,7 @@ public class ConnectivityPanel extends LinearLayout {
     }
 
     private void openPicker() {
-        // narzedzia stalego modulu bazowego pokazuj jako juz dodane (wyszarzone)
+        // narzedzia stalego modulu bazowego pokaz jako juz dodane (wyszarzone)
         List<String> have = grid.ids();
         for (String id : BASE_IDS) {
             if (!have.contains(id)) have.add(id);
@@ -427,8 +387,7 @@ public class ConnectivityPanel extends LinearLayout {
         });
     }
 
-    // ---------------------------------------------------------------- działanie narzędzi
-
+    // ---------------------------------------------------------------- dzialanie narzedzi
     private boolean startAction(String action) {
         try {
             Intent i = new Intent(action);
@@ -450,7 +409,7 @@ public class ConnectivityPanel extends LinearLayout {
     }
 
     private void unavailable() {
-        Toast.makeText(act, "Ta funkcja jest niedostępna na tym radiu", Toast.LENGTH_SHORT).show();
+        Toast.makeText(act, "Ta funkcja jest niedostepna na tym radiu", Toast.LENGTH_SHORT).show();
     }
 
     private void openShortcut(PanelTool.Def d) {
@@ -496,8 +455,6 @@ public class ConnectivityPanel extends LinearLayout {
             if (longPress) openAndClose("android.settings.AIRPLANE_MODE_SETTINGS");
             else toggleAirplane();
         } else if ("hot".equals(id)) {
-            // hotspot: sprobuj przeplaczyc bezposrednio (jak w pierwszych wersjach);
-            // zwykla aplikacja na Androidzie 9 czesto nie moze - wtedy otwiera ustawienia
             boolean before = Net.tethering(act);
             String res = Net.setTethering(act, !before);
             if ("ok".equals(res)) {
@@ -508,21 +465,8 @@ public class ConnectivityPanel extends LinearLayout {
                 unavailable();
             }
         } else if ("wifi".equals(id)) {
-            if (longPress) {
-                if (!Net.openWifiSettings(act)) unavailable();
-                else host.close();
-            } else {
-                // najpierw sprobuj przeplaczyc Wi-Fi bezposrednio (Android 9 pozwala);
-                // jesli sie nie da - otworz ustawienia Wi-Fi jak wroadziej
-                boolean before = Net.wifiEnabled(act);
-                if (Net.setWifi(act, !before)) {
-                    refreshSoon();
-                } else if (!Net.openWifiSettings(act)) {
-                    unavailable();
-                } else {
-                    host.close();
-                }
-            }
+            if (!Net.openWifiSettings(act)) unavailable();
+            else host.close();
         } else if ("bt".equals(id)) {
             if (longPress) {
                 Net.openBluetoothSettings(act);
@@ -554,7 +498,6 @@ public class ConnectivityPanel extends LinearLayout {
             if (longPress) {
                 showWarmthSlider();
             } else {
-                // cykl jak w iPhonie: wylaczony -> wlaczony -> od zachodu do wschodu
                 String next = NightShift.nextMode(NightShift.mode(act));
                 boolean ok = NightShift.setMode(act, next);
                 if (!ok) host.close();
@@ -574,7 +517,6 @@ public class ConnectivityPanel extends LinearLayout {
     private boolean askWriteSettings() {
         try {
             if (!Settings.System.canWrite(act)) {
-                // jednorazowa zgoda na zmianę ustawień systemu
                 Intent i = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS,
                         android.net.Uri.parse("package:" + act.getPackageName()));
                 i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -598,7 +540,6 @@ public class ConnectivityPanel extends LinearLayout {
             i.putExtra("state", next);
             act.sendBroadcast(i);
         } catch (Throwable t) {
-            // zwykła aplikacja nie może tego zmienić – otwórz ustawienia
             openAndClose("android.settings.AIRPLANE_MODE_SETTINGS");
         }
     }
@@ -647,10 +588,8 @@ public class ConnectivityPanel extends LinearLayout {
         warmthRow.setPadding(dp(6), dp(2), dp(6), dp(2));
         warmthRow.setBackground(Ui.round(night ? 0x33FFFFFF : 0x14000000, 18, act));
 
-        // Ten sam suwak co w Ustawienia > Ekran > Night Shift:
-        // Chlodniejsze <-> Cieplejsze (jak temperatury kolorow w iOS)
         TextView cool = new TextView(act);
-        cool.setText("Chłodniejsze");
+        cool.setText("Chlodniejsze");
         cool.setTextSize(13);
         cool.setTypeface(null, Typeface.BOLD);
         cool.setTextColor(night ? 0xB3FFFFFF : 0xFF3C3C43);
@@ -679,7 +618,7 @@ public class ConnectivityPanel extends LinearLayout {
                 if (!fromUser) return;
                 int strength = Math.max(5, Math.min(80, prog));
                 Prefs.setNightShiftStrength(act, strength);
-                NightShift.refresh(act);   // nakladka zmienia kolor na zywo
+                NightShift.refresh(act);
             }
 
             @Override
@@ -689,8 +628,6 @@ public class ConnectivityPanel extends LinearLayout {
 
             @Override
             public void onStopTrackingTouch(android.widget.SeekBar sb) {
-                // Caly mechanizm jest wbudowany w Docka - nowa sila zostala juz
-                // ustawiona na zywo w onProgressChanged (NightShift.refresh).
                 scheduleWarmthHide();
             }
         });
@@ -754,7 +691,7 @@ public class ConnectivityPanel extends LinearLayout {
             @Override
             public void run() {
                 if (Net.bluetoothOn() == before && isAttachedToWindow()) {
-                    Net.openBluetoothApp(act);   // radio przejmuje Bluetooth: otwórz jego aplikację
+                    Net.openBluetoothApp(act);   // radio przejmuje Bluetooth: otworz jego aplikacje
                     host.close();
                 }
             }
@@ -762,7 +699,7 @@ public class ConnectivityPanel extends LinearLayout {
         update();
     }
 
-    // ---------------------------------------------------------------- głośność / jasność
+    // ---------------------------------------------------------------- glosnosc / jasnosc
     private float volumeValue() {
         try {
             AudioManager am = (AudioManager) act.getSystemService(Context.AUDIO_SERVICE);
@@ -804,17 +741,19 @@ public class ConnectivityPanel extends LinearLayout {
     // ---------------------------------------------------------------- stan
     public void update() {
         if (grid != null) grid.refreshTiles();
-        if (connGroup != null) connGroup.refresh();
         if (volSlider != null) volSlider.setValue(volumeValue());
         if (briSlider != null) briSlider.setValue(brightnessValue());
         if (modeSeg != null) modeSeg.refreshSelection();
-        if (nightBtn != null) nightBtn.refresh();
-        for (int i = 0; i < railTiles.size(); i++) railTiles.get(i).refresh();
+        if (nightRow != null) nightRow.refresh();
+        for (int i = 0; i < railTiles.size(); i++) {
+            PanelTool.Def d = (PanelTool.Def) railTiles.get(i).getTag();
+            if (d != null) ToolGrid.refreshTile(act, night, railTiles.get(i), d);
+        }
         if (note != null) {
             boolean nsSun = "sunset".equals(NightShift.mode(act));
             boolean follow = Prefs.followSystem(act);
-            note.setText(nsSun ? "Night Shift automatyczny: od zachodu do wschodu słońca"
-                    : (follow ? "Wygląd automatyczny: od zachodu do wschodu słońca" : ""));
+            note.setText(nsSun ? "Night Shift automatyczny: od zachodu do wschodu slonca"
+                    : (follow ? "Wyglad automatyczny: od zachodu do wschodu slonca" : ""));
             note.setVisibility(note.getText().length() > 0 ? VISIBLE : GONE);
         }
     }
@@ -848,9 +787,8 @@ public class ConnectivityPanel extends LinearLayout {
             android.util.Log.w("Dock", "panel update", tr);
         }
 
-        // Siatka bezpieczenstwa na Mali-T720: nowo dodane poddrzewo custom views potrafi
-        // nie zostac odtworzone z RenderNode (pusty panel). Po doszlifowaniu ukladu
-        // wymuszamy pelny pomiar i przerysowanie - tanio, a odsiewa przypadki wyscigu.
+        // Siatka bezpieczenstwa na Mali-T720: po doszlifowaniu ukladu wymuszamy
+        // pelny pomiar i przerysowanie - tanio, a odsiewa przypadki wyscigu.
         postDelayed(new Runnable() {
             @Override
             public void run() {
@@ -872,376 +810,143 @@ public class ConnectivityPanel extends LinearLayout {
         rc = null;
     }
 
-    // ------------------------------------------------- grupa lacznosci 2x2 jak w Control Center iOS
-    // (tryb samolotowy / hotspot / Wi-Fi / Bluetooth w jednym zaokraglonym module)
-    private class ConnGroup extends View {
-        private final PanelTool.Def[] defs;
-        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final RectF r = new RectF();
-        private final float d = getResources().getDisplayMetrics().density;
-        private final boolean[] on = new boolean[4];
-        private int pressed = -1;
-        private boolean longFired;
-        private float downX, downY;
-        private Runnable longPress;
-
-        ConnGroup(Context c, PanelTool.Def[] defs) {
-            super(c);
-            this.defs = defs;
-            setClickable(true);
-            setContentDescription("Łączność");
-        }
-
-        void refresh() {
-            for (int i = 0; i < defs.length; i++) on[i] = PanelTool.isOn(act, defs[i]);
-            invalidate();
-        }
-
-        private int cols() {
-            return defs.length <= 2 ? 1 : 2;
-        }
-
-        private int hit(float x, float y) {
-            int n = defs.length;
-            if (n <= 1) return 0;
-            int c = cols();
-            int rows = (n + c - 1) / c;
-            int col = (int) Math.max(0, Math.min(c - 1, x / (getWidth() / (float) c)));
-            int row = (int) Math.max(0, Math.min(rows - 1, y / (getHeight() / (float) rows)));
-            return Math.min(n - 1, row * c + col);
-        }
-
-        @Override
-        protected void onDraw(Canvas cv) {
-            float w = getWidth();
-            float h = getHeight();
-            int n = defs.length;
-            // modul w tle: polprzezroczysty zaokraglony prostokat jak w iOS
-            float mod = 22f * d;
-            p.setStyle(Paint.Style.FILL);
-            p.setColor(night ? 0x2E787880 : 0x1E787880);
-            r.set(0, 0, w, h);
-            cv.drawRoundRect(r, mod, mod, p);
-
-            int c = cols();
-            int rows = (n + c - 1) / c;
-            float cw = w / c;
-            float ch = h / rows;
-            float dia = Math.min(cw, ch) - 12f * d;
-            if (dia < 20f * d) dia = Math.max(10f * d, Math.min(cw, ch) * 0.8f);
-            for (int i = 0; i < n; i++) {
-                int col = i % c;
-                int row = i / c;
-                float cx = cw * col + cw / 2f;
-                float cy = ch * row + ch / 2f;
-                p.setStyle(Paint.Style.FILL);
-                p.setColor(on[i] ? PanelTool.onColor(defs[i]) : (night ? 0x33FFFFFF : 0x2E3C3C43));
-                cv.drawCircle(cx, cy, dia / 2f, p);
-                if (i == pressed) {
-                    p.setColor(0x22000000);
-                    cv.drawCircle(cx, cy, dia / 2f, p);
-                }
-                int ink = on[i] ? 0xFFFFFFFF : (night ? 0xFFFFFFFF : 0xFF3C3C43);
-                PanelTool.glyph(cv, defs[i].glyph, cx, cy, dia * 0.32f, ink);
-            }
-        }
-
-        @Override
-        public boolean onTouchEvent(MotionEvent e) {
-            int a = e.getActionMasked();
-            if (a == MotionEvent.ACTION_DOWN) {
-                downX = e.getX();
-                downY = e.getY();
-                pressed = hit(downX, downY);
-                longFired = false;
-                performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
-                invalidate();
-                if (longPress != null) removeCallbacks(longPress);
-                // dlugie przytrzymanie = tryb edycji, jak przy pozostalych kafelkach
-                longPress = new Runnable() {
-                    @Override
-                    public void run() {
-                        longFired = true;
-                        pressed = -1;
-                        invalidate();
-                        performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
-                        enterEditMode();
-                    }
-                };
-                postDelayed(longPress, 550);
-                return true;
-            }
-            if (a == MotionEvent.ACTION_MOVE && longPress != null
-                    && (Math.abs(e.getX() - downX) > 10f * d || Math.abs(e.getY() - downY) > 10f * d)) {
-                removeCallbacks(longPress);
-                longPress = null;
-            }
-            if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
-                if (longPress != null) {
-                    removeCallbacks(longPress);
-                    longPress = null;
-                }
-                int pr = pressed;
-                int hitIdx = hit(e.getX(), e.getY());
-                pressed = -1;
-                invalidate();
-                if (!longFired && a == MotionEvent.ACTION_UP
-                        && pr >= 0 && pr == hitIdx && pr < defs.length) {
-                    runTool(defs[pr], false);
-                }
-                longFired = false;
-                return true;
-            }
-            return true;
-        }
-    }
-
-    // ------------------------------------------------- Night Shift: klik = cykl stanow,
-    // przytrzymanie = suwak ciepla ekranu (jak w iPhonie)
-    private class NightShiftButton extends View {
-        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final float d = getResources().getDisplayMetrics().density;
+    // ---------------------------------------------------------------- Night Shift (framework-only)
+    private class NightShiftRow extends LinearLayout {
+        private final TextView label;
+        private final View[] dots = new View[3];
         private String mode = "off";
         private boolean on;
-        private boolean pressed;
-        private float downX, downY;
-        private boolean longFired;
-        private Runnable longPress;
 
-        NightShiftButton(Context c) {
+        NightShiftRow(Context c) {
             super(c);
-            setClickable(true);
-            setContentDescription("Night Shift");
+            setOrientation(HORIZONTAL);
+            setGravity(Gravity.CENTER_VERTICAL);
+            setPadding(dp(10), dp(4), dp(10), dp(4));
+            ImageView icon = new ImageView(c);
+            icon.setImageBitmap(iconBitmap("sun", dp(11), 0xFFFFFFFF));
+            addView(icon, new LayoutParams(dp(22), dp(22)));
+            label = new TextView(c);
+            label.setTextSize(13);
+            label.setTypeface(null, Typeface.BOLD);
+            addView(label, new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            LinearLayout dotsRow = new LinearLayout(c);
+            dotsRow.setOrientation(HORIZONTAL);
+            for (int i = 0; i < 3; i++) {
+                dots[i] = new View(c);
+                dots[i].setBackground(Ui.round(0x66000000, 999, c));
+                dotsRow.addView(dots[i], new LinearLayout.LayoutParams(dp(5), dp(5)));
+                ((LinearLayout.LayoutParams) dots[i].getLayoutParams()).leftMargin = dp(5);
+            }
+            addView(dotsRow);
             refresh();
+            setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    cycle();
+                }
+            });
+            setOnLongClickListener(new OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View v) {
+                    showWarmthSlider();
+                    return true;
+                }
+            });
         }
 
         void refresh() {
             mode = NightShift.mode(act);
             on = NightShift.isOn(act);
-            invalidate();
-        }
-
-        @Override
-        protected void onDraw(Canvas cv) {
-            float w = getWidth();
-            float h = getHeight();
-            float rad = 18f * d;
-            RectF track = new RectF(0, 0, w, h);
-            p.setStyle(Paint.Style.FILL);
-            p.setColor(night ? 0xF0606767 : 0xFFE4E4EA);
-            cv.drawRoundRect(track, rad, rad, p);
-            float pad = 3f * d;
-            RectF pill = new RectF(pad, pad, w - pad, h - pad);
-            if (on) {
-                p.setColor(0xFFFF9F0A);   // pomaranczowy iOS, gdy filtr jest aktywny
-                cv.drawRoundRect(pill, rad - 2f * d, rad - 2f * d, p);
-            }
-            if (pressed) {
-                p.setColor(0x22000000);
-                cv.drawRoundRect(pill, rad - 2f * d, rad - 2f * d, p);
-            }
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(1.2f * d);
-            p.setColor(0x44FFFFFF);
-            cv.drawRoundRect(track, rad, rad, p);
-            p.setStyle(Paint.Style.FILL);
-
-            int ink = on ? 0xFFFFFFFF : (night ? 0xFFFFFFFF : 0xFF1C1C1E);
-            // ikona slonca po lewej
-            float gcx = 25f * d;
-            PanelTool.glyph(cv, "sun", gcx, h / 2f - 2f * d, 12f * d, ink);
-
-            // etykieta aktualnego stanu + kropki stanow (jak w przelaczniku wygladu)
-            p.setTextAlign(Paint.Align.CENTER);
-            p.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-            float sd = getResources().getDisplayMetrics().scaledDensity;
-            p.setTextSize(14f * sd);
-            p.setColor(ink);
-            String label = "sunset".equals(mode) ? "Automatyczny"
-                    : ("on".equals(mode) ? "Włączony" : "Wyłączony");
-            float tcx = gcx + 12f * d + (w - gcx - 12f * d) / 2f;
-            cv.drawText(label, tcx, h / 2f - 1f * d, p);
-            float dotR = 2.2f * d;
-            float gap = 9f * d;
-            float x0 = tcx - gap;
+            label.setText("sunset".equals(mode) ? "Automatyczny"
+                    : ("on".equals(mode) ? "Wlaczony" : "Wylaczony"));
+            label.setTextColor(on ? 0xFFFFFFFF : (night ? 0xFFFFFFFF : 0xFF1C1C1E));
+            setBackground(Ui.round(on ? 0xFFFF9F0A
+                    : (night ? 0x33FFFFFF : 0x14000000), 18, act));
             int sel = "sunset".equals(mode) ? 2 : ("on".equals(mode) ? 1 : 0);
             for (int i = 0; i < 3; i++) {
-                p.setColor(i == sel ? (on ? 0xFFFFFFFF : 0xFF0A84FF)
-                        : (night ? 0x66FFFFFF : 0x33000000));
-                cv.drawCircle(x0 + i * gap, h - 7f * d, dotR, p);
+                dots[i].setBackground(Ui.round(i == sel ? (on ? 0xFFFFFFFF : 0xFF0A84FF)
+                        : (night ? 0x66FFFFFF : 0x33000000), 999, act));
             }
         }
 
-        @Override
-        public boolean onTouchEvent(MotionEvent e) {
-            int a = e.getActionMasked();
-            if (a == MotionEvent.ACTION_DOWN) {
-                downX = e.getX();
-                downY = e.getY();
-                pressed = true;
-                longFired = false;
-                invalidate();
-                animate().scaleX(0.95f).scaleY(0.95f).setDuration(80).start();
-                performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
-                if (longPress != null) removeCallbacks(longPress);
-                longPress = new Runnable() {
-                    @Override
-                    public void run() {
-                        longFired = true;
-                        pressed = false;
-                        invalidate();
-                        performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
-                        showWarmthSlider();
-                    }
-                };
-                postDelayed(longPress, 550);
-                return true;
+        private void cycle() {
+            String next = NightShift.nextMode(mode);
+            boolean ok = NightShift.setMode(act, next);
+            if (!ok) {
+                host.close();
+                return;
             }
-            if (a == MotionEvent.ACTION_MOVE && longPress != null
-                    && (Math.abs(e.getX() - downX) > 10f * d
-                    || Math.abs(e.getY() - downY) > 10f * d)) {
-                removeCallbacks(longPress);
-                longPress = null;
-            }
-            if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
-                if (longPress != null) {
-                    removeCallbacks(longPress);
-                    longPress = null;
-                }
-                animate().scaleX(1f).scaleY(1f).setDuration(120).start();
-                pressed = false;
-                invalidate();
-                if (!longFired && a == MotionEvent.ACTION_UP) {
-                    // cykl jak w iPhonie: wylaczony -> wlaczony -> od zachodu do wschodu
-                    String next = NightShift.nextMode(NightShift.mode(act));
-                    boolean ok = NightShift.setMode(act, next);
-                    refresh();
-                    if (!ok) host.close();   // brak zgody na nakladke
-                    else refreshSoon();
-                }
-                longFired = false;
-                return true;
-            }
-            return true;
+            refresh();
+            update();
         }
     }
 
-    // ------------------------------------------------- jeden przycisk wygladu: klik = nastepny stan
-    // (Jasny -> Ciemny -> Auto -> Jasny), jak przycisk jasnosci w iPhonie
-    private class ModeSegment extends View {
-        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final float d = getResources().getDisplayMetrics().density;
-        private final String[] labels = {"Jasny", "Ciemny", "Auto"};
-        private int selected; // 0 day, 1 night, 2 auto
-        private boolean pressed = false;
+    // ---------------------------------------------------------------- tryb wygladu (framework-only)
+    private class ModeSegmentView extends LinearLayout {
+        private final TextView[] btns = new TextView[3];
+        private final String[] labels = {"Dzienny", "Nocny", "Auto"};
 
-        ModeSegment(Context c) {
+        ModeSegmentView(Context c) {
             super(c);
+            setOrientation(HORIZONTAL);
+            setPadding(dp(3), dp(3), dp(3), dp(3));
+            setBackground(Ui.round(night ? 0x33FFFFFF : 0x14000000, 18, c));
+            for (int i = 0; i < 3; i++) {
+                final int idx = i;
+                btns[i] = new TextView(c);
+                btns[i].setText(labels[i]);
+                btns[i].setTextSize(13);
+                btns[i].setGravity(Gravity.CENTER);
+                btns[i].setOnClickListener(new OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        select(idx);
+                    }
+                });
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(46), 1f);
+                lp.leftMargin = i == 0 ? 0 : dp(3);
+                addView(btns[i], lp);
+            }
             refreshSelection();
-            setClickable(true);
         }
 
         void refreshSelection() {
-            boolean follow = Prefs.followSystem(act);
-            String m = Prefs.mode(act);
-            if (follow) selected = 2;
-            else if ("night".equals(m)) selected = 1;
-            else selected = 0;
-            invalidate();
-        }
-
-        @Override protected void onDraw(Canvas cv) {
-            float w = getWidth();
-            float h = getHeight();
-            float rad = 18f * d;
-            RectF track = new RectF(0, 0, w, h);
-
-            // tl segmentu (jak w iOS)
-            p.setStyle(Paint.Style.FILL);
-            p.setColor(night ? 0xF0606767 : 0xFFE4E4EA);
-            cv.drawRoundRect(track, rad, rad, p);
-
-            // wybrana pigulka na cala szerokosc - podswietlona jak aktywny przycisk
-            float pad = 3f * d;
-            RectF pill = new RectF(pad, pad, w - pad, h - pad);
-            p.setColor(selected == 1 ? 0xFF0A84FF   // Ciemny - niebieski akcent
-                            : selected == 2 ? (night ? 0xFF48484A : 0xFFC7C7CC)
-                            : (night ? 0xFF3A3A3C : 0xFFFFFFFF));
-            cv.drawRoundRect(pill, rad - 2f, rad - 2f, p);
-            if (pressed) {
-                p.setColor(0x22000000);
-                cv.drawRoundRect(pill, rad - 2f, rad - 2f, p);
-            }
-
-            // subtelna ramka
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(1.2f * d);
-            p.setColor(0x44FFFFFF);
-            cv.drawRoundRect(track, rad, rad, p);
-
-            // etykieta aktualnego stanu + wskazowka kolejnego stanu
-            p.setStyle(Paint.Style.FILL);
-            p.setTextAlign(Paint.Align.CENTER);
-            p.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-            float sd = getResources().getDisplayMetrics().scaledDensity;
-            p.setTextSize(15f * sd);
-            int ink = selected == 1 ? 0xFFFFFFFF : (night ? 0xFFFFFFFF : 0xFF1C1C1E);
-            p.setColor(ink);
-            cv.drawText(labels[selected], w / 2f, h / 2f + 5.5f * d, p);
-
-            // male kropki stanow pod etykieta (1 z 3)
-            float dotR = 2.2f * d;
-            float gap = 9f * d;
-            float x0 = w / 2f - gap;
+            int sel = Prefs.followSystem(act) ? 2 : ("night".equals(Prefs.mode(act)) ? 1 : 0);
             for (int i = 0; i < 3; i++) {
-                p.setColor(i == selected ? (selected == 1 ? 0xFFFFFFFF : 0xFF0A84FF)
-                        : (night ? 0x66FFFFFF : 0x33000000));
-                cv.drawCircle(x0 + i * gap, h - 7f * d, dotR, p);
+                boolean s = i == sel;
+                btns[i].setBackground(s ? Ui.round(0xFF0A84FF, 13, act) : null);
+                btns[i].setTextColor(s ? 0xFFFFFFFF : (night ? 0xFFFFFFFF : 0xFF1C1C1E));
+                btns[i].setTypeface(null, s ? Typeface.BOLD : Typeface.NORMAL);
             }
         }
 
-        @Override public boolean onTouchEvent(MotionEvent e) {
-            int a = e.getActionMasked();
-            if (a == MotionEvent.ACTION_DOWN) {
-                pressed = true;
-                invalidate();
-                animate().scaleX(0.95f).scaleY(0.95f).setDuration(80).start();
-                return true;
+        private void select(int idx) {
+            if (idx == 0) {
+                Prefs.setFollowSystem(act, false);
+                Prefs.setMode(act, "day");
+            } else if (idx == 1) {
+                Prefs.setFollowSystem(act, false);
+                Prefs.setMode(act, "night");
+            } else {
+                Prefs.setFollowSystem(act, true);
             }
-            if (a == MotionEvent.ACTION_UP) {
-                animate().scaleX(1f).scaleY(1f).setDuration(120).start();
-                pressed = false;
-                invalidate();
-                performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
-                // cykl stanow: Jasny -> Ciemny -> Auto -> Jasny
-                int next = (selected + 1) % 3;
-                if (next == 0) {
-                    Prefs.setFollowSystem(act, false);
-                    Prefs.setMode(act, "day");
-                } else if (next == 1) {
-                    Prefs.setFollowSystem(act, false);
-                    Prefs.setMode(act, "night");
-                } else {
-                    Prefs.setFollowSystem(act, true);
-                }
-                refreshSelection();
-                applyMode();
-                if (host != null) host.modeChanged();
-                return true;
-            }
-            if (a == MotionEvent.ACTION_CANCEL) {
-                animate().scaleX(1f).scaleY(1f).setDuration(120).start();
-                pressed = false;
-                invalidate();
-            }
-            return true;
+            refreshSelection();
+            applyMode();
         }
     }
 
+    // ---------------------------------------------------------------- ikony (Bitmapa -> ImageView)
+    private Bitmap iconBitmap(String glyph, float r, int color) {
+        float den = getResources().getDisplayMetrics().density;
+        int px = (int) Math.ceil(r * 3f);
+        Bitmap b = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
+        Canvas cv = new Canvas(b);
+        PanelTool.glyph(cv, glyph, px / 2f, px / 2f, r, color);
+        return b;
+    }
 
-
-    // ---------------------------------------------------------------- pionowy suwak
-    public static class PillSlider extends View {
+    // ---------------------------------------------------------------- pionowy suwak (framework-only)
+    public static class PillSlider extends LinearLayout {
         public interface Listener {
             void on(float v);
 
@@ -1249,122 +954,92 @@ public class ConnectivityPanel extends LinearLayout {
             void onLong();
         }
 
+        private final float d = getResources().getDisplayMetrics().density;
         private float value;
         private boolean dragging;
         private float downY;
         private boolean longFired;
         private Runnable longPress;
-        private final boolean sun;
-        private final boolean night;
-        private final int tint;
+        private final View fill;
+        private final ImageView icon;
         private Listener l;
-        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final RectF r = new RectF();
-        private final float d = getResources().getDisplayMetrics().density;
+
+        private int dp(float v) {
+            return Math.round(v * d);
+        }
 
         public PillSlider(Context c, boolean sun, float v) {
             super(c);
-            this.sun = sun;
-            this.value = Math.max(0f, Math.min(1f, v));
-            this.night = Look.night(c);
-            this.tint = 0xFFFFFFFF;   // jak w iOS: biale wypelnienie obu suwakow
-            setContentDescription(sun ? "Jasność ekranu" : "Głośność");
+            setOrientation(VERTICAL);
+            // tor (track) rysuje GradientDrawable - framework
+            setBackground(Ui.round(Look.night(c) ? 0xFF3A3A3C : 0xFFD1D1D6, 80, c));
+            value = Math.max(0f, Math.min(1f, v));
+
+            // wypelnienie od dolu - zwykly View z bialym GradientDrawable
+            fill = new View(c);
+            fill.setBackground(Ui.round(0xFFFFFFFF, 80, c));
+            FrameLayout froot = new FrameLayout(c);
+            FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, 1, Gravity.BOTTOM);
+            flp.setMargins(dp(2), dp(2), dp(2), dp(2));
+            froot.addView(fill, flp);
+            addView(froot, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
+            // ikona na dole (Bitmapa -> ImageView, framework)
+            icon = new ImageView(c);
+            int ink = sun ? 0xFFF2C94C : 0xFF8E8E93;
+            icon.setImageBitmap(makeSliderIcon(c, sun, ink));
+            LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(dp(38), dp(38));
+            ilp.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+            ilp.bottomMargin = dp(6);
+            addView(icon, ilp);
+
+            setOnTouchListener(new OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent e) {
+                    return handleTouch(e);
+                }
+            });
         }
 
         public void setListener(Listener l) {
             this.l = l;
         }
 
-        // ustawia wartość z zewnątrz (nie w trakcie przesuwania palcem)
+        // ustawia wartosc z zewnatrz (nie w trakcie przesuwania palcem)
         public void setValue(float v) {
             if (dragging) return;
             value = Math.max(0f, Math.min(1f, v));
-            invalidate();
+            applyFill();
+            icon.setAlpha(value < 0.05f ? 120 : 255);
         }
 
         @Override
-        protected void onDraw(Canvas cv) {
-            float w = getWidth();
-            float h = getHeight();
-            float rad = w / 2f;
-            // Track (dark gray)
-            p.setStyle(Paint.Style.FILL);
-            p.setColor(night ? 0xFF3A3A3C : 0xFFD1D1D6);
-            r.set(0, 0, w, h);
-            cv.drawRoundRect(r, rad, rad, p);
-            // iOS 26 Liquid Glass: subtelny szklany obrys suwaka
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(1.2f * d);
-            p.setColor(night ? 0x33FFFFFF : 0x14000000);
-            cv.drawRoundRect(r, rad, rad, p);
-            p.setStyle(Paint.Style.FILL);
-            // White fill from bottom. NAPRAWA: zamiast cv.clipPath (jedyne
-            // clipPath w calej aplikacji; na Mali-T720/Android 9 wypelnieie
-            // przez clip potrafilo nie narysowac sie w ogole) rysujemy
-            // bezposrednio zaokraglony prostokat wypelnienia.
-            p.setColor(tint);
-            r.set(0, h * (1f - value), w, h);
-            cv.drawRoundRect(r, rad, rad, p);
-
-            // Icon at bottom (iOS style) – gray when value ~0
-            float cx = w / 2f;
-            float cy = h - 28f * d;
-            boolean dim = value < 0.05f;
-            int ink = dim ? 0xFF8E8E93 : (sun ? 0xFF1C1C1E : 0xFF8E8E93);
-            p.setStrokeCap(Paint.Cap.ROUND);
-            p.setStrokeWidth(2.6f * d);
-            if (sun) {
-                // Sun icon – size scales slightly with brightness
-                float scale = 0.85f + value * 0.25f;
-                p.setColor(dim ? 0xFF8E8E93 : 0xFFF2C94C);
-                p.setStyle(Paint.Style.FILL);
-                cv.drawCircle(cx, cy, 6.5f * d * scale, p);
-                p.setStyle(Paint.Style.STROKE);
-                for (int i = 0; i < 8; i++) {
-                    double a = Math.PI * i / 4.0;
-                    float inner = 10f * d * scale;
-                    float outer = 14.5f * d * scale;
-                    cv.drawLine(cx + (float) Math.cos(a) * inner, cy + (float) Math.sin(a) * inner,
-                            cx + (float) Math.cos(a) * outer, cy + (float) Math.sin(a) * outer, p);
-                }
-            } else {
-                // Speaker icon
-                p.setStyle(Paint.Style.FILL);
-                p.setColor(ink);
-                Path sp = new Path();
-                sp.moveTo(cx - 11f * d, cy - 5f * d);
-                sp.lineTo(cx - 5f * d, cy - 5f * d);
-                sp.lineTo(cx + 2f * d, cy - 11f * d);
-                sp.lineTo(cx + 2f * d, cy + 11f * d);
-                sp.lineTo(cx - 5f * d, cy + 5f * d);
-                sp.lineTo(cx - 11f * d, cy + 5f * d);
-                sp.close();
-                cv.drawPath(sp, p);
-                if (value > 0.15f) {
-                    p.setStyle(Paint.Style.STROKE);
-                    p.setColor(ink);
-                    cv.drawArc(new RectF(cx - 1f * d, cy - 7f * d, cx + 11f * d, cy + 7f * d), -50, 100, false, p);
-                }
-                if (value > 0.5f) {
-                    cv.drawArc(new RectF(cx + 1f * d, cy - 11f * d, cx + 16f * d, cy + 11f * d), -55, 110, false, p);
-                }
-            }
+        protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+            super.onSizeChanged(w, h, oldw, oldh);
+            applyFill();
         }
 
-        @Override
-        public boolean onTouchEvent(MotionEvent e) {
+        private void applyFill() {
+            int h = getHeight() - dp(4);
+            if (h <= 0) return;
+            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) fill.getLayoutParams();
+            lp.height = Math.max(1, Math.round(h * value));
+            fill.setLayoutParams(lp);
+        }
+
+        private boolean handleTouch(MotionEvent e) {
             int a = e.getActionMasked();
             if (a == MotionEvent.ACTION_DOWN) {
                 dragging = true;
                 longFired = false;
                 downY = e.getY();
                 getParent().requestDisallowInterceptTouchEvent(true);
-                animate().scaleX(0.97f).scaleY(0.97f).setDuration(90)
-                        .setInterpolator(pl.dock.widget.ui.DockMotion.IOS_SPRING).start();
                 if (longPress != null) removeCallbacks(longPress);
-                // iOS: dlugie przytrzymanie suwaka otwiera opcje (cisza / cieplo ekranu)
                 longPress = new Runnable() {
-                    @Override public void run() {
+                    @Override
+                    public void run() {
                         longFired = true;
                         dragging = false;
                         performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
@@ -1384,23 +1059,32 @@ public class ConnectivityPanel extends LinearLayout {
                     longPress = null;
                 }
                 dragging = false;
-                animate().scaleX(1f).scaleY(1f).setDuration(180)
-                        .setInterpolator(pl.dock.widget.ui.DockMotion.IOS_SPRING).start();
             }
             if (longFired && (a == MotionEvent.ACTION_MOVE || a == MotionEvent.ACTION_UP)) {
                 return true;   // po dlugim przytrzymaniu nie przestawiaj wartosci
             }
             if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_MOVE
                     || a == MotionEvent.ACTION_UP) {
-                value = Math.max(0f, Math.min(1f, 1f - e.getY() / getHeight()));
-                invalidate();
-                if (l != null && (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_MOVE)) {
-                    l.on(value);
+                int h = getHeight();
+                if (h > 0) {
+                    value = Math.max(0f, Math.min(1f, 1f - e.getY() / h));
+                    applyFill();
+                    icon.setAlpha(value < 0.05f ? 120 : 255);
+                    if (l != null && a != MotionEvent.ACTION_DOWN) {
+                        l.on(value);
+                    }
                 }
             }
             return true;
         }
+
+        private static Bitmap makeSliderIcon(Context c, boolean sun, int ink) {
+            float den = c.getResources().getDisplayMetrics().density;
+            int px = (int) Math.ceil(38f * den);
+            Bitmap b = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
+            Canvas cv = new Canvas(b);
+            PanelTool.glyph(cv, sun ? "sun" : "speaker", px / 2f, px / 2f, 10f * den, ink);
+            return b;
+        }
     }
 }
-
-

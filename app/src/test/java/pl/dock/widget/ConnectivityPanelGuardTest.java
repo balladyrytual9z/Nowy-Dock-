@@ -89,6 +89,25 @@ public class ConnectivityPanelGuardTest {
     }
 
     @Test
+    public void panelJestFrameworkowy() throws Exception {
+        File f = panelSource();
+        String src = new String(Files.readAllBytes(f.toPath()), Charset.forName("UTF-8"));
+
+        // PRZEBUDOWA (v1.0.257): na Mali-T720 w nakladce launchera NIE rysuja sie
+        // widoki z wlasnym onDraw - po dziesiatkach iteracji (warstwy/fade/animacje,
+        // v1.0.244...256) zawsze pusty panel z samym „Edytuj". Caly panel zostal
+        // przebudowany NA WIDOKACH FRAMEWORKA: ZADEN widok nie moze wrocic do
+        // wlasnego rysowania. Ikony tylko jako Bitmapy w ImageView, zaokraglenia
+        // tylko jako GradientDrawable.
+        assertFalse("Na tym GPU (Mali-T720) wlasne onDraw() w panelu = PUSTY PANEL"
+                        + " (v1.0.244...256). Panel jest framework-only - usun onDraw.",
+                src.contains("protected void onDraw("));
+        assertFalse("Wlasna podklasa View (extends View) w panelu to ryzyko pustego"
+                        + " panelu - buduj z LinearLayout/FrameLayout/TextView/ImageView",
+                src.matches("(?s).*class \\w+ extends View[^L].*"));
+    }
+
+    @Test
     public void gestSwipeUpMieszkaWPagerze() throws Exception {
         File f = launcherSource();
         String src = new String(Files.readAllBytes(f.toPath()), Charset.forName("UTF-8"));

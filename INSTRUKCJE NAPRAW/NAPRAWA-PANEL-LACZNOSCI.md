@@ -121,6 +121,34 @@ stan sprzed PR #14. Ustalenie na podstawie gita (commit b21e953):
   na overlayu**. Pilnują testy `overlayNieMaWlasnejWarstwy` i
   `overlayZachowujePotwierdzonaSekwencjeWejscia`.
 
+### 🔴 PRZEBUDOWA OD ZERA (v1.0.257) — rozstrzygnięcie definitywne
+
+Po v1.0.256 (konfiguracja PR #14 1:1: warstwa tylko na panelu, fade + animacja
+wejścia + withEndAction z requestLayout/invalidate) użytkownik potwierdził:
+**nadal pusto** — widać tylko okno i „Edytuj”. Zestawienie wszystkich wariantów
+„pojedynczej warstwy + animacji” również kończyło się pustym panelem. Teorie
+„braki w warstwach/fade/relayoucie” są więc **wyczerpane**.
+
+**Twardy wniosek z testów na urządzeniu:** w nakładce launchera (poddrzewo
+dołączane dynamicznie do istniejącego okna) na Mali-T720/API 28 renderują się
+**wyłącznie widoki frameworka**. Każdy widok z własnym `onDraw()` pozostawał
+niewidoczny (suwaki, Night Shift, tryb wyglądu, kafelki) przy poprawnych
+rozmiarach i poprawnym tle/TextView obok.
+
+**Fix: panel przebudowano od zera w 100% na widokach frameworka:**
+- `ConnectivityPanel` / `ToolGrid` / `PillSlider` / wiersz Night Shift /
+  segment trybu wyglądu — tylko `LinearLayout`/`FrameLayout`/`TextView`/
+  `ImageView`/`View` z tłem `GradientDrawable`/`SeekBar`;
+- **zero `onDraw()`** w całym panelu — strażnik `panelJestFrameworkowy`;
+- ikony: Bitmapy generowane raz (Canvas na bitmapie = CPU) → `ImageView`;
+- zaokrąglenia: `GradientDrawable` na `setBackground`;
+- kafelki Wi-Fi/BT/Hotspot i siatka narzędzi: koło-gradient + ikona + etykieta;
+- wymaganie: Wi-Fi/Hotspot — dotknięcie otwiera ekran ustawień; BT wg `btAction`;
+- przyciski ukrywalne przez `Prefs.showModeButtons` / `Prefs.showNightShift`;
+- wejście panelu: bez zmian (fade + animacja + withEndAction, PR #14).
+
+Pilnują: `panelJestFrameworkowy` + dotychczasowe strażniki overlayu.
+
 ## 6. Weryfikacja (kolejność obowiązkowa)
 
 1. CI: `gradle test` + `assembleDebug` zielone (testy `OverlayTriggerTest`, `withoutBaseTools` nie mogą paść).
@@ -135,13 +163,12 @@ stan sprzed PR #14. Ustalenie na podstawie gita (commit b21e953):
 - Nie przywracać `setClipToOutline` bez guardu `SDK>=30` i wymiarów >0 (PR #9: obcinało panel do 0×0 na stałe).
 - Nie dokładać animacji skali/pivot na panel „dla ładniejszego efektu" bez testu na urządzeniu — historia (#9→#14→#17) to seria łatek wzajemnie się znoszących; każda zmiana renderowania tego panelu MUSI przejść test z pkt. 6.5 (10× open/close).
 - Nie opierać logiki na `Build.VERSION.RELEASE` (sfalszowane na urządzeniu) — tylko `SDK_INT`.
-- Nie wracać do teorii „GPU nie umie custom views" ani „martwy gest" — wykluczone (sekcja 4).
+- Nie wracać do widoków z własnym `onDraw()` w panelu — potwierdzone na urządzeniu, że w nakładce launchera się nie renderują (v1.0.244…256); panel jest framework-only (strażnik `panelJestFrameworkowy`). Gest swipe-up mieszka w PagerView (działa, PR #47) — nie przenosić.
 
 ## 8. Ścieżki plików
 
-- `app/src/main/java/pl/dock/widget/ConnectivityPanel.java` — build(), konstruktor, CC_PANEL log
-- `app/src/main/java/pl/dock/widget/LauncherActivity.java` — showOverlayAt() ~1441, hideOverlay()
-- `app/src/main/java/pl/dock/widget/ToolGrid.java` — onMeasure/onLayout (poprawne, nie ruszać bez potrzeby)
-- `app/src/main/java/pl/dock/widget/PanelTool.java` — find/load/defaults (poprawne)
-- `app/src/main/java/pl/dock/widget/OverlayTrigger.java` — pozycjonowanie panelu (z testami)
-- Referencja działająca: `balladyrytual9z/Launcher-CarPlay` → `ConnectivityPanel.java` (stałe dp + setElevation + animacja panelu działa na tym samym urządzeniu)
+- `app/src/main/java/pl/dock/widget/ConnectivityPanel.java` — PRZEBUDOWANY: build(), kafelki rail, siatka (ToolGrid), Nagłówek, tryb edycji, suwaki frameworkowe
+- `app/src/main/java/pl/dock/widget/LauncherActivity.java` — showOverlayAt() ~1441, hideOverlay() (bez zmian; sekwencja wejścia PR #14)
+- `app/src/main/java/pl/dock/widget/ToolGrid.java` — PRZEBUDOWANY: kafelki framework-only (FrameLayout+GradientDrawable+ImageView+TextView), 4 w wierszu, minus w edycji
+- `app/src/main/java/pl/dock/widget/PanelTool.java` — find/load/defaults (bez zmian, poprawne)
+- `app/src/main/java/pl/dock/widget/OverlayTrigger.java` — pozycjonowanie panelu (z testami, bez zmian)
