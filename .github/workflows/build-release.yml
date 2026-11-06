@@ -4,9 +4,23 @@ on:
   push:
     branches:
       - 'main' # Release tworzy się TYLKO gdy kod trafi do głównej gałęzi
+    paths-ignore:
+      - 'AGENTS.md'
+      - 'README.md'
+      - '*.txt'
+      - '*.jpeg'
+      - '*.jpg'
+      - '*.png'
   pull_request:
     branches:
       - 'main' # Uruchamia się przy Pull Requeście, żeby agent widział błędy
+    paths-ignore:
+      - 'AGENTS.md'
+      - 'README.md'
+      - '*.txt'
+      - '*.jpeg'
+      - '*.jpg'
+      - '*.png'
   workflow_dispatch: # Pozwala na ręczne uruchomienie z panelu GitHuba
 
 permissions:

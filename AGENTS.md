@@ -221,9 +221,24 @@ Po KAŻDEJ zmianie w kodzie źródłowym (Java, Kotlin, XML, Gradle, AndroidMani
 
 - APK produkuje się wyłącznie przez CI (lokalnie brak narzędzi)
 - Testy (`gradle --no-daemon test`) muszą przejść, inaczej agent poprawia kod
-- Agent nie pushuje na `main` — zawsze przez PR
+- Agent nie pushuje na `main` — zawsze przez PR. **Wyjątek:** użytkownik wyraźnie każe pushnąć na main.
 - Po udanym CI → agent raportuje: gałąź + link do PR + nazwa artefaktu APK
 - Użytkownik może w każdej chwili powiedzieć „daj APK" → to samo co wyżej
+
+### Uwierzytelnianie do GitHuba
+
+Agent pushuje przez HTTPS. W sandboxie nie ma zapisanych danych logowania,
+dlatego:
+
+- Do pushowania agent używa `$GITHUB_PERSONAL_ACCESS_TOKEN`:
+  ```bash
+  git remote set-url origin "https://${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/balladyrytual9z/Nowy-Dock-.git"
+  git push origin <branch>
+  git remote set-url origin "https://github.com/balladyrytual9z/Nowy-Dock-.git"
+  ```
+  (po pushu przywrócić URL bez tokena, żeby nie leżał w konfiguracji)
+
+- Do sprawdzania CI: `gh run watch` lub curl z `Authorization: token $GITHUB_PERSONAL_ACCESS_TOKEN`
 
 ## 2026-11-05 (sesja: panel, ikony iOS, ładowanie mapy, ekran play)
 
