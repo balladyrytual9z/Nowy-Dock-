@@ -2,6 +2,23 @@
 
 Aplikacja Android (Java/Kotlin): CarPlay, OBD, Bluetooth.
 
+# 🧠 Pamięć Projektu "Nowy-Dock"
+
+## Kontekst techniczny
+- Aplikacja Android napisana w Java/Kotlin.
+- Obsługa CarPlay, OBD, Bluetooth BLE/SPP.
+- Budowanie APK odbywa się wyłącznie przez GitHub Actions (NIE instaluj Androida lokalnie).
+
+## Zasady pracy
+- ZAWSZE używaj języka polskiego w komunikacji z użytkownikiem.
+- ZAWSZE najpierw przedstaw plan i zadawaj pytania (tak/nie), zanim napiszesz kod.
+- NIGDY nie pushuj bezpośrednio na main przy zwykłych zmianach w kodzie (zawsze rób nowy branch i Pull Request). Wyjątkiem jest aktualizacja tego pliku AGENTS.md.
+- Nie instaluj ciężkich narzędzi (Docker, pełne SDK), pracujemy na lekkim środowisku.
+
+## Struktura projektu
+- Główny kod: `app/src/main/java/pl/dock/`
+- Zasoby UI: `app/src/main/res/`
+
 ## Zarządzanie pamięcią agenta
 
 Od teraz, Twoim głównym plikiem pamięci projektu jest plik `AGENTS.md` w głównym katalogu repozytorium.
