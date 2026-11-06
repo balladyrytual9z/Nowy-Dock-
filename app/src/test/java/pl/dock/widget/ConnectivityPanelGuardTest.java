@@ -52,6 +52,19 @@ public class ConnectivityPanelGuardTest {
                 src.contains("setLayerType(View.LAYER_TYPE_NONE"));
     }
 
+    @Test
+    public void overlayNakladkiMaWarstweSoftware() throws Exception {
+        File f = launcherSource();
+        String src = new String(Files.readAllBytes(f.toPath()), Charset.forName("UTF-8"));
+
+        // NAPRAWA (Mali-T720 / API 28): overlay z animacja alpha nie wyswietla
+        // custom views w panelu. Warstwa SOFTWARE na nakladce (nie tylko na panelu)
+        // rozwiazuje ten przypadek - sciezka frameworka renderuje poprawnie.
+        assertTrue("Brak setLayerType na overlayu w LauncherActivity - animacja alpha"
+                        + " overlayu gasi custom views na Mali-T720",
+                src.contains("overlay.setLayerType(View.LAYER_TYPE_SOFTWARE, null)"));
+    }
+
     private static File panelSource() {
         String rel = "src/main/java/pl/dock/widget/ConnectivityPanel.java";
         File f = new File(rel);
@@ -59,6 +72,16 @@ public class ConnectivityPanelGuardTest {
         f = new File("app/" + rel);
         if (f.isFile()) return f;
         throw new IllegalStateException("Nie znalazlem ConnectivityPanel.java (cwd="
+                + new File(".").getAbsolutePath() + ")");
+    }
+
+    private static File launcherSource() {
+        String rel = "src/main/java/pl/dock/widget/LauncherActivity.java";
+        File f = new File(rel);
+        if (f.isFile()) return f;
+        f = new File("app/" + rel);
+        if (f.isFile()) return f;
+        throw new IllegalStateException("Nie znalazlem LauncherActivity.java (cwd="
                 + new File(".").getAbsolutePath() + ")");
     }
 }

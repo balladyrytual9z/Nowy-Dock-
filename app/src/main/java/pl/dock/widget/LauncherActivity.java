@@ -1356,6 +1356,13 @@ public class LauncherActivity extends BaseActivity {
         } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);
         }
         overlay = new FrameLayout(this);
+        // NAPRAWA (Mali-T720 / API 28): overlay z animacja alpha nie wyswietla
+        // poprawnie custom Canvas views w nowo-dodanym poddrzewie. Warstwa SOFTWARE
+        // renderuje cala nakladke do bitmapy - sciezka frameworka dziala poprawnie
+        // na tym GPU (potwierdzone: dziala z warstwa, pusta bez niej).
+        if (android.os.Build.VERSION.SDK_INT < 30) {
+            overlay.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        }
         if (snap != null) {
             ImageView glass = new ImageView(this);
             glass.setScaleType(ImageView.ScaleType.FIT_XY);
