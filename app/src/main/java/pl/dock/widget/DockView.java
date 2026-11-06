@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.Typeface;
@@ -62,6 +63,7 @@ public class DockView extends View {
     private final Paint homePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint card = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF rect = new RectF();
+    private final Path glassClip = new Path();   // clip tla szkla do zaokraglonych rogow
 
     private int pressed = -1;
     private float downX, downY;
@@ -293,6 +295,15 @@ public class DockView extends View {
         if (glass) {
             // Liquid Glass: rozmyte + rozjasnione tlo pod dokia, a na nim warstwy
             // swiatel - jasny rim u gory, wewnetrzny cien na dole, korpus szkla
+            // NAPRAWA: tlo szkla (snapshot i zapasowy drawable) przycinamy
+            // do zaokraglonych rogow doka (rad 22 dp) - wczesniej rysowalo sie
+            // w kwadracie i w naroznikach wystawaly kwadratowe plamy tla
+            // poza obwodka szkla.
+            rect.set(l, t, rr, bt);
+            glassClip.reset();
+            glassClip.addRoundRect(rect, rad, rad, Path.Direction.CW);
+            cv.save();
+            cv.clipPath(glassClip);
             if (glassBmp != null) {
                 // wycinek pelnoekranowego snapshota spod doka (1:1 z tlem ekranu),
                 // nie miniatura calego ekranu scisnieta do paska doka
@@ -303,6 +314,7 @@ public class DockView extends View {
                 bg.setBounds((int) l, (int) t, (int) rr, (int) bt);
                 bg.draw(cv);
             }
+            cv.restore();
             // 1) korpus szkla: rozblysk u gory, wyrazny poblask na dole (glebia)
             Paint body = new Paint(Paint.ANTI_ALIAS_FLAG);
             body.setStyle(Paint.Style.FILL);
