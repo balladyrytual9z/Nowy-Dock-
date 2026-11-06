@@ -265,3 +265,17 @@ Ustalenia z użytkownikiem, żeby nikt tego nie „poprawił” z powrotem:
   zakładka w Ustawieniach, nie jako strona launchera.
 - ⚠️ W sandboxie nie ma JDK/SDK — weryfikacja wyłącznie przez GitHub Actions
   (push gałęzi → PR → `gh run watch`).
+
+## 2026-11-06 (sesja: panel łączności — wciąż pusty w launcherze)
+
+- **Panel miał już warstwę SOFTWARE na samym panelu (`ConnectivityPanel`), ale
+  w nakładce launchera nadal był pusty.** Root cause (wg NAPRAWA-PANEL-LACZNOSCI.md,
+  Krok 5): animacja alpha na `overlay` (FrameLayout) uniemożliwia Mali-T720
+  odtworzenie nowo-dodanego poddrzewa custom Canvas views z RenderNode.
+- **Fix (PR #46, v1.0.244):** w `LauncherActivity.showOverlayAt()` dodana
+  `overlay.setLayerType(LAYER_TYPE_SOFTWARE, null)` dla API < 30 — cała nakładka
+  renderuje się do bitmapy. Pilnuje tego test
+  `ConnectivityPanelGuardTest.overlayNakladkiMaWarstweSoftware()`.
+  ⚠️ **Nie usuwać tej linii** — na tym GPU overlay bez niej = pusty panel.
+- Panele w `ConnectivityActivity` (osobne okno) i w nakładce launchera to
+  **dwa różne konteksty renderowania**; naprawa jednego nie oznacza drugiego.
