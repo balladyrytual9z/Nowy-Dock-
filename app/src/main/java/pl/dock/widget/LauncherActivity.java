@@ -90,8 +90,8 @@ public class LauncherActivity extends BaseActivity {
     private boolean receiversOn;
     private FrameLayout overlay;
     private ConnectivityPanel panel;
-    private FrameLayout libraryOverlay;
-    private Bitmap libraryBlurBmp;
+    // pelna lista aplikacji dla ostatniej strony (lista alfabetyczna), ladowana w tle
+    private List<AppsGridPage.Item> libraryItems = new ArrayList<AppsGridPage.Item>();
     private VolumeHud hud;
 
     private final Handler h = new Handler(Looper.getMainLooper());
@@ -236,7 +236,6 @@ public class LauncherActivity extends BaseActivity {
         h.removeCallbacks(minuteTick);
         h.removeCallbacks(statusTick);
         hideOverlay(false);
-        closeLibraryFolder();
     }
 
     @Override
@@ -295,10 +294,6 @@ public class LauncherActivity extends BaseActivity {
         }
 
         if (pager == null) return;
-        if (libraryOverlay != null) {
-            closeLibraryFolder();
-            return;
-        }
         if (overlay != null) {
             hideOverlay(true);
             return;
@@ -335,9 +330,7 @@ public class LauncherActivity extends BaseActivity {
 
     @Override
     public void onBackPressed() {
-        if (libraryOverlay != null) {
-            closeLibraryFolder();
-        } else if (overlay != null) {
+        if (overlay != null) {
             hideOverlay(true);
         } else if (pager != null && pager.position() > homeIdx + 0.5f) {
             pager.goTo(homeIdx, true);
@@ -511,6 +504,10 @@ public class LauncherActivity extends BaseActivity {
             public void onSettled(int index) {
                 saveLastPage(index);
                 refreshGlass();
+                // wyjscie ze strony Biblioteki zamyka fokus i klawiature wyszukiwania
+                if (appLibraryPage != null && index != pager.count() - 1) {
+                    appLibraryPage.dismissSearch();
+                }
             }
         });
 
@@ -541,7 +538,7 @@ public class LauncherActivity extends BaseActivity {
                 private long downT;
                 @Override
                 public boolean onTouch(View v, android.view.MotionEvent e) {
-                    if (overlay != null || libraryOverlay != null) return false;
+                    if (overlay != null) return false;
                     switch (e.getActionMasked()) {
                         case android.view.MotionEvent.ACTION_DOWN:
                             downY = e.getY();
@@ -660,7 +657,7 @@ public class LauncherActivity extends BaseActivity {
         // App Library (Biblioteka aplikacji) - last page, iOS style
         ensureAppLibrary();
         if (appLibraryPage != null) {
-            appLibraryPage.setApps(items);
+            appLibraryPage.setApps(libraryItems);
             appLibraryPage.setNight(night);
             order.add(appLibraryPage);
         }
@@ -696,214 +693,52 @@ public class LauncherActivity extends BaseActivity {
 
             @Override
             public void onLibraryChanged() {
-                if (appLibraryPage != null) appLibraryPage.setApps(items);
+                if (appLibraryPage != null) appLibraryPage.setApps(libraryItems);
             }
 
             @Override
-            public void showCategoryFolder(String category, List<AppEntry> apps) {
-                showLibraryFolderPopup(category, apps);
+            public void setOnGrid(String pkg, boolean onGrid) {
+                setAppOnGrid(pkg, onGrid);
+            }
+
+            @Override
+            public void showAppInfo(String pkg) {
+                if (pkg == null || pkg.length() == 0) return;
+                startSystemSmooth(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:" + pkg)));
+            }
+
+            @Override
+            public void uninstall(String pkg) {
+                if (pkg == null || pkg.length() == 0) return;
+                Intent intent = new Intent(Intent.ACTION_UNINSTALL_PACKAGE);
+                intent.setData(Uri.parse("package:" + pkg));
+                intent.putExtra(Intent.EXTRA_RETURN_RESULT, true);
+                startSystemSmoothForResult(intent, AppsGridPage.REQ_UNINSTALL);
             }
         });
     }
 
-    private void showLibraryFolderPopup(String category, List<AppEntry> apps) {
-        if (apps == null) apps = new ArrayList<AppEntry>();
-        final boolean n = night;
-        final FrameLayout root = (FrameLayout) findViewById(android.R.id.content);
-        if (root == null) return;
-
-        // Full-screen iOS-style folder overlay with LiveBlur background
-        final FrameLayout overlay = new FrameLayout(this);
-        overlay.setClickable(true);
-        overlay.setFocusable(true);
-
-        // Capture + blur current content for glass background
-        Bitmap blurred = null;
-        try {
-            blurred = LiveBlur.captureAndBlur(root, root.getWidth(), root.getHeight());
-        } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);}
-        final Bitmap blurBmp = blurred;
-        libraryOverlay = overlay;
-        libraryBlurBmp = blurBmp;
-
-        View bg = new View(this) {
-            private final android.graphics.Paint p = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG | android.graphics.Paint.FILTER_BITMAP_FLAG);
-            @Override protected void onDraw(android.graphics.Canvas c) {
-                if (blurBmp != null && !blurBmp.isRecycled()) {
-                    android.graphics.Rect src = new android.graphics.Rect(0, 0, blurBmp.getWidth(), blurBmp.getHeight());
-                    android.graphics.Rect dst = new android.graphics.Rect(0, 0, getWidth(), getHeight());
-                    c.drawBitmap(blurBmp, src, dst, p);
+    // Dodaje / usuwa aplikacje z siatki aplikacji (strony z ikonami).
+    // Pusta lista wybranych znaczy "wszystkie widoczne", wiec przy usuwaniu trzeba ja
+    // najpierw zmaterializowac - inaczej odznaczenie jednej apki ukryloby cala reszte.
+    private void setAppOnGrid(String pkg, boolean onGrid) {
+        if (pkg == null || pkg.length() == 0) return;
+        List<String> sel = Prefs.selectedPkgs(this);
+        if (onGrid) {
+            if (sel.isEmpty()) return;               // wszystko juz jest na siatce
+            if (!sel.contains(pkg)) sel.add(pkg);
+        } else {
+            if (sel.isEmpty()) {
+                for (AppsGridPage.Item it : items) {
+                    if (it.pkg != null && it.pkg.length() > 0) sel.add(it.pkg);
                 }
-                p.setColor(n ? 0x99000000 : 0x66FFFFFF);
-                c.drawRect(0, 0, getWidth(), getHeight(), p);
             }
-        };
-        overlay.addView(bg, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-
-        // Content container
-        LinearLayout col = new LinearLayout(this);
-        col.setOrientation(LinearLayout.VERTICAL);
-        col.setPadding(Ui.dp(this, 24), Ui.dp(this, 48), Ui.dp(this, 24), Ui.dp(this, 24));
-        col.setClickable(true);
-
-        // Large title (iOS style) + przycisk X (fix: brakowalo sposobu zamkniecia)
-        LinearLayout headerRow = new LinearLayout(this);
-        headerRow.setOrientation(LinearLayout.HORIZONTAL);
-        headerRow.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title = new TextView(this);
-        title.setText(category);
-        title.setTextSize(34);
-        title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
-        title.setTextColor(n ? 0xFFFFFFFF : 0xFF1C1C1E);
-        headerRow.addView(title, new LinearLayout.LayoutParams(0,
-                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView closeBtn = new TextView(this);
-        closeBtn.setText("X");
-        closeBtn.setTextSize(20);
-        closeBtn.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        closeBtn.setTextColor(n ? 0x99FFFFFF : 0x991C1C1E);
-        closeBtn.setPadding(Ui.dp(this, 18), Ui.dp(this, 8), Ui.dp(this, 18), Ui.dp(this, 8));
-        closeBtn.setGravity(Gravity.CENTER);
-        closeBtn.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                closeLibraryFolder();
-            }
-        });
-        headerRow.addView(closeBtn);
-        headerRow.setPadding(0, 0, 0, Ui.dp(this, 20));
-        col.addView(headerRow);
-
-        // CarPlay iOS 26: POZIOMA lista duzych kafelkow (duze cele dotykowe w jezdzie)
-        android.widget.HorizontalScrollView hs = new android.widget.HorizontalScrollView(this);
-        hs.setHorizontalScrollBarEnabled(false);
-        hs.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(Ui.dp(this, 8), 0, Ui.dp(this, 24), 0);
-        hs.addView(row, new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
-
-        for (final AppEntry e : apps) {
-            LinearLayout cell = new LinearLayout(this);
-            cell.setOrientation(LinearLayout.VERTICAL);
-            cell.setGravity(Gravity.CENTER_HORIZONTAL);
-            cell.setPadding(Ui.dp(this, 10), 0, Ui.dp(this, 10), 0);
-
-            android.widget.ImageView iv = new android.widget.ImageView(this);
-            iv.setImageBitmap(Icons.forEntry(this, e));
-            iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-            cell.addView(iv, new LinearLayout.LayoutParams(Ui.dp(this, 96), Ui.dp(this, 96)));
-
-            TextView lb = new TextView(this);
-            lb.setText(appLabelSafe(e.pkg));
-            lb.setTextSize(14);
-            lb.setTextColor(n ? 0xFFFFFFFF : 0xFF1C1C1E);
-            lb.setGravity(Gravity.CENTER);
-            lb.setMaxLines(2);
-            lb.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            lb.setPadding(0, Ui.dp(this, 10), 0, 0);
-            cell.addView(lb, new LinearLayout.LayoutParams(
-                    Ui.dp(this, 124), ViewGroup.LayoutParams.WRAP_CONTENT));
-
-            cell.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) {
-                    closeLibraryFolder();
-                    openApp(e.pkg, Math.round(pager.position()));
-                }
-            });
-            // Press feedback
-            cell.setOnTouchListener(new View.OnTouchListener() {
-                @Override public boolean onTouch(View v, android.view.MotionEvent ev) {
-                    int a = ev.getActionMasked();
-                    if (a == android.view.MotionEvent.ACTION_DOWN) {
-                        v.animate().scaleX(0.92f).scaleY(0.92f).setDuration(80).start();
-                    } else if (a == android.view.MotionEvent.ACTION_UP || a == android.view.MotionEvent.ACTION_CANCEL) {
-                        v.animate().scaleX(1f).scaleY(1f).setDuration(120).start();
-                    }
-                    return false;
-                }
-            });
-
-            row.addView(cell, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            if (!sel.contains(pkg)) return;          // juz jej nie ma na siatce
+            sel.remove(pkg);
         }
-        if (apps.isEmpty()) {
-            TextView empty = new TextView(this);
-            empty.setText("Brak aplikacji w tej kategorii");
-            empty.setTextSize(16);
-            empty.setTextColor(n ? 0x99FFFFFF : 0x99666666);
-            empty.setPadding(Ui.dp(this, 32), 0, 0, 0);
-            empty.setGravity(Gravity.CENTER_VERTICAL);
-            row.addView(empty, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        }
-
-        col.addView(hs, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
-        overlay.addView(col, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-
-        // Tap outside / empty area closes
-        overlay.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                closeLibraryFolder();
-            }
-        });
-        col.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { /* consume */ }
-        });
-
-        // Animate in (scale + fade, spring-ish)
-        overlay.setAlpha(0f);
-        overlay.setScaleX(0.92f);
-        overlay.setScaleY(0.92f);
-        root.addView(overlay, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        overlay.animate()
-                .alpha(1f).scaleX(1f).scaleY(1f)
-                .setDuration(280)
-                .setInterpolator(pl.dock.widget.ui.DockMotion.IOS_SPRING)
-                .start();
-    }
-
-    private void closeLibraryFolder() {
-        FrameLayout ov = libraryOverlay;
-        Bitmap bmp = libraryBlurBmp;
-        libraryOverlay = null;
-        libraryBlurBmp = null;
-        if (ov != null) dismissLibraryOverlay(ov, bmp);
-    }
-
-    private void dismissLibraryOverlay(final FrameLayout overlay, final Bitmap blurBmp) {
-        if (overlay == null || overlay.getParent() == null) return;
-        overlay.animate()
-                .alpha(0f).scaleX(0.94f).scaleY(0.94f)
-                .setDuration(200)
-                .setInterpolator(pl.dock.widget.ui.DockMotion.IOS_STANDARD)
-                .withEndAction(new Runnable() {
-                    @Override public void run() {
-                        try {
-                            ((ViewGroup) overlay.getParent()).removeView(overlay);
-                        } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);}
-                        if (blurBmp != null && !blurBmp.isRecycled()) {
-                            try { blurBmp.recycle(); } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);}
-                        }
-                    }
-                }).start();
-    }
-
-    private String appLabelSafe(String pkg) {
-        if ("dock:settings".equals(pkg)) return "Ustawienia";
-        if ("dock:obd".equals(pkg)) return "Honda OBD";
-        if ("dock:carplay".equals(pkg)) return "CarPlay";
-        try {
-            return getPackageManager().getApplicationLabel(
-                    getPackageManager().getApplicationInfo(pkg, 0)).toString();
-        } catch (Throwable t) {
-            return pkg != null ? pkg : "";
-        }
+        Prefs.setSelectedPkgs(this, sel);
+        loadApps();                                  // odbuduj siatke i liste w tle
     }
 
     private void applyTheme() {
@@ -922,7 +757,7 @@ public class LauncherActivity extends BaseActivity {
         }
         if (appLibraryPage != null) {
             appLibraryPage.setNight(night);
-            appLibraryPage.setApps(items);
+            appLibraryPage.setApps(libraryItems);
         }
         lastDockSig = "";
         refreshDock();
@@ -1094,11 +929,24 @@ public class LauncherActivity extends BaseActivity {
                         Icons.forPackage(app, it.pkg);
                     }
                 }
+                // ostatnia strona (lista alfabetyczna) pokazuje WSZYSTKIE aplikacje -
+                // inne zrodlo danych niz siatka, wiec liczymy je tutaj, w tle
+                final List<AppsGridPage.Item> lib = buildLibraryItems(app);
+                for (AppsGridPage.Item it : lib) {
+                    if (it.settings) {
+                        Icons.builtin(app, "settings");
+                    } else if (it.builtinId.length() > 0) {
+                        Icons.builtin(app, it.builtinId);
+                    } else {
+                        Icons.forPackageRaw(app, it.pkg);
+                    }
+                }
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         if (isFinishing() || gen != loadGen.get()) return;   // stara lista nie nadpisze nowej
                         items = list;
+                        libraryItems = lib;
                         rebuildAppPages();
                     }
                 });
@@ -1163,6 +1011,46 @@ public class LauncherActivity extends BaseActivity {
         obd.action = "obd";
         out.add(obd);
         out.addAll(apps);
+        return out;
+    }
+
+    // Lista WSZYSTKICH aplikacji dla ostatniej strony (lista alfabetyczna).
+    // Rozni sie od buildItems: nie filtruje po wybranych do siatki, nie podmienia
+    // nazw (Overrides) i nie podmienia ikon - pokazuje oryginalna nazwe aplikacji.
+    // Wykluczony jest tylko wlasny pakiet Docka (nie pokazujemy sami siebie).
+    private List<AppsGridPage.Item> buildLibraryItems(Context c) {
+        PackageManager pm = c.getPackageManager();
+        Intent main = new Intent(Intent.ACTION_MAIN);
+        main.addCategory(Intent.CATEGORY_LAUNCHER);
+        List<ResolveInfo> ris = pm.queryIntentActivities(main, 0);
+        List<AppsGridPage.Item> out = new ArrayList<AppsGridPage.Item>();
+        Set<String> seen = new HashSet<String>();
+        for (ResolveInfo ri : ris) {
+            String pkg = ri.activityInfo.packageName;
+            if (pkg.equals(c.getPackageName())) continue;
+            if (!seen.add(pkg)) continue;
+            if (Prefs.isHiddenInLibrary(c, pkg)) continue;
+            AppsGridPage.Item it = new AppsGridPage.Item();
+            it.pkg = pkg;
+            it.label = ri.loadLabel(pm).toString();   // oryginalna nazwa (bez Overrides)
+            out.add(it);
+        }
+        // narzedzia launchera wchodza do tej samej listy i sortuja sie alfabetycznie
+        // (CarPlay pod C, Honda OBD pod H, Ustawienia pod U)
+        AppsGridPage.Item st = new AppsGridPage.Item();
+        st.settings = true;
+        st.label = "Ustawienia";
+        out.add(st);
+        AppsGridPage.Item cp = new AppsGridPage.Item();
+        cp.label = "CarPlay";
+        cp.builtinId = "carplay";
+        cp.action = "carplay";
+        out.add(cp);
+        AppsGridPage.Item obd = new AppsGridPage.Item();
+        obd.label = "Honda OBD";
+        obd.builtinId = "honda";
+        obd.action = "obd";
+        out.add(obd);
         return out;
     }
 

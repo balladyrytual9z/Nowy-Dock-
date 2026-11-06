@@ -165,3 +165,45 @@ kręciła się na boki). Progi to stałe w `HeadingSmoother`.
 - Wydanie tworzy się tylko z `push` na `main`
   (`if: github.event_name == 'push' && github.ref == 'refs/heads/main'`), więc
   ręczne uruchomienie workflow na gałęzi nic nie wypuści.
+
+## 2026-11-05 (sesja: lista aplikacji = ostatnia strona panelu)
+
+Ustalenia z użytkownikiem, żeby nikt tego nie „poprawił” z powrotem:
+
+- **Ostatnia strona pagera to PŁASKA lista alfabetyczna wszystkich aplikacji
+  zainstalowanych w tablecie** (`AppLibraryPage`). **Bez kategorii**, bez
+  nagłówków liter, bez przyklejonego nagłówka i bez pełnoekranowego okna
+  kategorii (`showLibraryFolderPopup` usunięte). Silnik kategoryzowania
+  (`AppCategorizer`) i kafelek folderu (`LibraryFolderView`) **zostają w kodzie
+  na później**, ale nie są nigdzie używane.
+- Źródło danych to **osobna lista** `buildLibraryItems()` w `LauncherActivity`
+  (nie `buildItems()`): nie filtruje po `Prefs.isAppSelected`, pokazuje
+  **oryginalne nazwy** (`ri.loadLabel`) i **oryginalne ikony**
+  (`Icons.forPackageRaw`, bez podmian `Overrides`). Wykluczony jest tylko własny
+  pakiet Docka. Trzy narzędzia launchera (Ustawienia, CarPlay, Honda OBD)
+  wchodzą do tej samej listy i sortują się alfabetycznie.
+- **Pasek liter A–Z jest poziomo, pod polem wyszukiwania, ale NIE na całą
+  szerokość**: zajmuje ~65% szerokości paska wyszukiwania i jest wyśrodkowany
+  (dwa równe odstępy po bokach). Nad paskiem jest odstęp 16 dp, a powiększenie
+  litery to skala 1.6 i wychylenie 6 dp — dzięki temu powiększona litera
+  **nie nachodzi na pole wyszukiwania**. Litery nigdy nie są wygaszane; litera pod palcem
+  powiększa się z animacją + haptyką, tapnięcie litery przewija listę.
+  Kierunek powiększania (w górę / w dół) to ustawienie
+  `Prefs.libLetterUp` (Ustawienia → Lista aplikacji), domyślnie w górę.
+  Pozycje liter liczymy z **tagu wiersza** (`row.setTag(item)`) — stara wersja
+  czytała tag z dzieci i pasek był martwy.
+- **Szukanie** idzie po oryginalnej nazwie **oraz** po nazwie podmienionej w
+  Docku (`Overrides`), ignorując wielkość liter i polskie ogony
+  (Ł→L, Ś→S, Ż→Z). Przykład: wpisane „AirDrop” pokazuje „LocalSend”.
+  Pole ma przycisk X (czyszczenie) i zamyka klawiaturę przy wyjściu ze strony.
+- **Menu długiego przytrzymania wiersza** (kolejność!):
+  „Informacje o aplikacji”, „Dodaj do siatki aplikacji” / „Usuń z siatki
+  aplikacji” (zależnie od stanu `Prefs.isAppSelected`), „Odinstaluj”.
+  Narzędzia launchera (Ustawienia/CarPlay/Honda OBD) **nie mają menu**.
+- **Pułapka `selectedPkgs`**: pusta lista znaczy „wszystkie widoczne”, więc
+  usuwanie z siatki musi ją najpierw zmaterializować (`setAppOnGrid`).
+- **Tryb minusów (edycja) jest tylko na siatce aplikacji** — na liście go nie ma.
+- Kropki stron: `panelPageCount()` nie liczy strony Biblioteki, kapsuła tylko na
+  ekranie głównym (to już było na `main`, nie ruszane).
+- Siatka aplikacji (drag-reorder między ekranami, minus bez potwierdzenia z
+  animacją znikania, trwała kolejność) to **osobne zadanie** — nie robione tutaj.

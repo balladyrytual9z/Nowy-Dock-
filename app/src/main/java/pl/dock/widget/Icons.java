@@ -148,6 +148,25 @@ public class Icons {
         return b;
     }
 
+    // Ikona DOKLADNIE taka jak w systemie - bez podmian Overrides (AirDrop, Pliki,
+    // App Store...). Uzywana przez liste aplikacji, ktora pokazuje oryginalne nazwy.
+    public static Bitmap forPackageRaw(Context c, String pkg) {
+        BuiltinIcons.init(c);
+        String fm = Prefs.frame(c);
+        String key = "r|" + pkg + "|" + fm + "|" + ver;
+        Bitmap b = cache.get(key);
+        if (b == null) {
+            try {
+                b = compose(drawableToBitmap(c.getPackageManager().getApplicationIcon(pkg)),
+                        false, fm);
+            } catch (Throwable t) {
+                b = compose(null, true, fm);
+            }
+            cache.put(key, b);
+        }
+        return b;
+    }
+
     // podgląd ikony w wybranym trybie ramki
     public static Bitmap preview(Context c, Bitmap raw, String fm) {
         return compose(raw, false, fm);

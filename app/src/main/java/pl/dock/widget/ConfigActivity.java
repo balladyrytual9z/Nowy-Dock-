@@ -368,6 +368,16 @@ public class ConfigActivity extends BaseActivity {
                     }
                 }));
         sep(g);
+        // kierunek powiekszania litery na liscie aplikacji (pasek A-Z pod wyszukiwaniem)
+        g.addView(segRow("Powiększanie litery na liście aplikacji",
+                new String[]{"W górę", "W dół"}, Prefs.libLetterUp(this) ? 0 : 1,
+                new OnSel() {
+                    @Override
+                    public void on(int i) {
+                        Prefs.setLibLetterUp(ConfigActivity.this, i == 0);
+                    }
+                }));
+        sep(g);
         for (final AppEntry e : apps) {
             String val = "";
             g.addView(row(Icons.forEntry(this, e), appLabel(e.pkg), val, true, p.text,
