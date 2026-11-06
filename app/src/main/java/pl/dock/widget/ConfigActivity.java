@@ -1130,7 +1130,7 @@ public class ConfigActivity extends BaseActivity {
                     if (allMatch) {
                         if (!first) sep(g);
                         first = false;
-                        g.addView(row(Icons.builtin(this, "grid"), "Wszystkie aplikacje",
+                        g.addView(row(Icons.builtin(ConfigActivity.this, "grid"), "Wszystkie aplikacje",
                                 "", true, p.text, new View.OnClickListener() {
                                     @Override
                                     public void onClick(View v) {
