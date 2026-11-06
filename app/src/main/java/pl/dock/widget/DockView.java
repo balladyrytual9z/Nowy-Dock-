@@ -46,7 +46,7 @@ public class DockView extends View {
     private boolean showPhone;
     private StatusCenter.Snap snap;
     private final Bitmap[] icons = new Bitmap[4];
-    private Bitmap bWifi, bTether, bBt, bBattery, bCharge, bGrid, bCp, bPhone;
+    private Bitmap bWifi, bTether, bBt, bBattery, bCharge, bCp, bPhone;
     private float bottomT;
     private Drawable bg;
     private int bgRes = -1;
@@ -168,7 +168,6 @@ public class DockView extends View {
         bBt = Glyphs.bitmap("bt", 96, s.bt ? fg : dimmer);
         bBattery = Icons.vector(c, R.drawable.ic_battery, 96, fg);
         bCharge = Icons.batteryCharging(c, 96, fg);
-        bGrid = Icons.vector(c, R.drawable.ic_grid, 128, fg);
         bCp = Icons.carplayMark(96, CarplayState.color(s.cp, fg));
         bPhone = phone >= 0 ? Icons.phoneBattery(phone, fg) : null;
         int res = Look.bg(glass, night);
@@ -181,7 +180,7 @@ public class DockView extends View {
         homePaint.setColor(fg);
     }
 
-    // 0 = siatka, 1 = symbol ekranu głównego
+    // 0 = ekran glowny (siatka 9 kwadratow), 1 = lista aplikacji (jeden kwadrat z zaokraglonymi rogami)
     public void setBottomProgress(float t) {
         t = Math.max(0f, Math.min(1f, t));
         if (Math.abs(t - bottomT) < 0.004f) return;
@@ -335,20 +334,17 @@ public class DockView extends View {
             postInvalidateOnAnimation();   // wiruje ~1 obrót/s, dopóki PHONE
         }
 
-        // przycisk dolny: ekran główny = jeden kwadrat z zaokrąglonymi rogami,
-        // strony aplikacji = siatka 9 kwadratow (3x3) jak w CarPlay; crossfade w czasie przejazdu
+        // przycisk dolny - kontrakt (zgodny z LauncherActivity.onBottom()):
+        //   ekran glowny / strony widzetow -> siatka 9 kwadratow (3x3) = "lista aplikacji",
+        //   strony aplikacji i Biblioteka -> jeden kwadrat z zaokraglonymi rogami = "ekran glowny".
+        // Czyli glif pokazuje CEL dotkniecia, a nie miejsce, w ktorym jestesmy.
+        // Crossfade w czasie przejazdu miedzy stronami (bottomT 0..1).
         float by = bottomCy();
         int pa = pressed == BOTTOM ? 150 : 255;
         float g = 20f * d;
         if (bottomT < 0.999f) {
-            // jestesmy przy ekranie glownym: jeden zaokraglony kwadrat
+            // nie jestesmy jeszcze na liscie aplikacji: siatka 9 kwadratow (3x3)
             homePaint.setAlpha((int) (pa * (1f - bottomT)));
-            rect.set(cx - g / 2f, by - g / 2f, cx + g / 2f, by + g / 2f);
-            cv.drawRoundRect(rect, 6f * d, 6f * d, homePaint);
-        }
-        if (bottomT > 0.001f) {
-            // jestesmy przy stronach aplikacji: siatka 9 kwadratow (3x3)
-            homePaint.setAlpha((int) (pa * bottomT));
             homePaint.setStyle(Paint.Style.FILL);
             float gap = g / 3f;
             float q = gap * 0.62f;
@@ -362,6 +358,12 @@ public class DockView extends View {
                 }
             }
             homePaint.setStyle(Paint.Style.STROKE);
+        }
+        if (bottomT > 0.001f) {
+            // jestesmy na liscie aplikacji: jeden kwadrat z zaokraglonymi rogami
+            homePaint.setAlpha((int) (pa * bottomT));
+            rect.set(cx - g / 2f, by - g / 2f, cx + g / 2f, by + g / 2f);
+            cv.drawRoundRect(rect, 6f * d, 6f * d, homePaint);
         }
     }
 
