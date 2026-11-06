@@ -369,67 +369,30 @@ public class Icons {
         return out;
     }
 
-    // Tethering (hotspot) jak w iPhonie: dwa splecione ogniwa łańcucha; slash = wyłączony
+    // Tethering (hotspot): ZAWSZE ten sam glif „hot” z Glyphs — jedno źródło prawdy
+    // dla panelu łączności, doka i widżetu (identyczna ikona udostępniania Internetu
+    // w całej aplikacji); slash = wyłączony
     public static Bitmap tether(int size, int color, boolean slash) {
         String key = "t|" + size + "|" + color + "|" + slash;
         Bitmap cached = cache.get(key);
         if (cached != null) return cached;
-        Bitmap out = drawTether(size, color, slash);
+        Bitmap base = Glyphs.bitmap("hot", size, color);
+        Bitmap out;
+        if (!slash) {
+            out = base;
+        } else {
+            out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+            Canvas cv = new Canvas(out);
+            cv.drawBitmap(base, 0, 0, null);
+            Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeCap(Paint.Cap.ROUND);
+            p.setStrokeWidth(size * 0.08f);
+            p.setColor(color);
+            cv.drawLine(size * 0.16f, size * 0.10f, size * 0.84f, size * 0.78f, p);
+        }
         cache.put(key, out);
         return out;
-    }
-
-    private static Bitmap drawTether(int size, int color, boolean slash) {
-        Bitmap b = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-        Canvas cv = new Canvas(b);
-        float s = size;
-        float sw = s * 0.085f;
-        float gap = s * 0.05f;
-        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        p.setStyle(Paint.Style.STROKE);
-        p.setStrokeWidth(sw);
-        p.setColor(color);
-        Paint clear = new Paint(Paint.ANTI_ALIAS_FLAG);
-        clear.setStyle(Paint.Style.STROKE);
-        clear.setStrokeWidth(sw + 2 * gap);
-        clear.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
-
-        RectF a = new RectF(s * 0.08f, s * 0.16f, s * 0.68f, s * 0.50f);
-        RectF d = new RectF(s * 0.32f, s * 0.38f, s * 0.92f, s * 0.72f);
-        float r = a.height() / 2f;
-
-        cv.drawRoundRect(a, r, r, p);
-
-        Path c1 = new Path();
-        c1.addCircle(s * 0.33f, s * 0.50f, s * 0.11f, Path.Direction.CW);
-        cv.save();
-        cv.clipPath(c1);
-        cv.drawRoundRect(d, r, r, clear);
-        cv.restore();
-        cv.drawRoundRect(d, r, r, p);
-
-        Path c2 = new Path();
-        c2.addCircle(s * 0.67f, s * 0.38f, s * 0.11f, Path.Direction.CW);
-        cv.save();
-        cv.clipPath(c2);
-        cv.drawRoundRect(a, r, r, clear);
-        cv.drawRoundRect(a, r, r, p);
-        cv.restore();
-
-        if (slash) {
-            Paint cl = new Paint(Paint.ANTI_ALIAS_FLAG);
-            cl.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
-            cl.setStyle(Paint.Style.STROKE);
-            cl.setStrokeWidth(s * 0.20f);
-            cv.drawLine(s * 0.16f, s * 0.10f, s * 0.84f, s * 0.78f, cl);
-            Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
-            line.setStyle(Paint.Style.STROKE);
-            line.setStrokeCap(Paint.Cap.ROUND);
-            line.setStrokeWidth(sw);
-            line.setColor(color);
-            cv.drawLine(s * 0.16f, s * 0.10f, s * 0.84f, s * 0.78f, line);
-        }
-        return centered(b);
     }
 
     // Przesuwa zawartość tak, by jej środek leżał dokładnie w środku bitmapy
