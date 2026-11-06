@@ -20,7 +20,6 @@ import android.view.WindowManager;
 // Wspólne elementy interfejsu w stylu CarPlay / Apple
 public class Ui {
 
-    // Okna ustawień i podręczne zaczynają się obok docka, więc dock zostaje widoczny i klikalny
     public static final int DOCK_OFFSET_DP = 77;
 
     public static int dp(Context c, float v) {
@@ -53,7 +52,6 @@ public class Ui {
         return g;
     }
 
-    // tło ekranu ustawień – Apple-like soft wallpaper gradient with glass feel
     public static GradientDrawable pageBg(Context c, boolean night) {
         GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 night ? new int[]{0xFF0B0B12, 0xFF1A1A2E, 0xFF12121A, 0xFF000000}
@@ -64,7 +62,6 @@ public class Ui {
         return g;
     }
 
-    // karta z listą (jak w ustawieniach CarPlay / Apple)
     public static GradientDrawable cardBg(Context c, boolean night) {
         GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                 night ? new int[]{0xE0282830, 0xE01E1E24}
@@ -73,7 +70,6 @@ public class Ui {
         return g;
     }
 
-    // okno podręczne (jak wyskakujące menu Apple)
     public static GradientDrawable popupBg(Context c, boolean night) {
         GradientDrawable g = new GradientDrawable();
         g.setColor(night ? 0xF20E0E0F : 0xF2F5F5F7);
@@ -82,12 +78,10 @@ public class Ui {
         return g;
     }
 
-    // karta w kolorze docka (noc: #131418) z ramką jaśniejszą od lewego górnego rogu
     public static void ringCard(Canvas cv, RectF r, float radius, float stroke, boolean night,
                                 boolean ring) {
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setColor(night ? 0xFF131418 : 0xFFF2F2F5);
-        // Use squircle for more iOS-like corners when radius is large relative to size
         float side = Math.min(r.width(), r.height());
         if (radius > side * 0.18f) {
             Path sq = squirclePath(r, Math.min(radius / side, 0.45f));
@@ -98,15 +92,9 @@ public class Ui {
         if (ring) ringStroke(cv, r, radius, stroke, night);
     }
 
-    /**
-     * Przezroczysta karta widzetu (strona widzetow) jak Liquid Glass w CarPlay
-     * iOS 26: zamiast nieprzezroczystego wypelnienia karta ma lekko glebszy
-     * szklany ton + pas rozswietlenia ("polysk") pod gorna krawedzia + obwodke,
-     * wiec tlo (tapeta) prześwituje. Geometria jak w ringCard.
-     */
     public static void glassCard(Canvas cv, RectF r, float radius, float stroke, boolean night) {
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        p.setColor(night ? 0x2EFFFFFF : 0x1A000000);
+        p.setColor(night ? 0x36FFFFFF : 0x1E000000);
         float side = Math.min(r.width(), r.height());
         Path shape;
         if (radius > side * 0.18f) {
@@ -116,11 +104,10 @@ public class Ui {
             shape.addRoundRect(r, radius, radius, Path.Direction.CW);
         }
         cv.drawPath(shape, p);
-        // "polysk" Liquid Glass: rozswietlenie u gory karty, przyciete do ksztaltu
         float bandBottom = r.top + r.height() * 0.30f;
         Paint sp = new Paint(Paint.ANTI_ALIAS_FLAG);
         sp.setShader(new LinearGradient(r.left, r.top, r.left, bandBottom,
-                new int[]{night ? 0x38FFFFFF : 0x2EFFFFFF, 0x00FFFFFF},
+                new int[]{night ? 0x4DFFFFFF : 0x40FFFFFF, 0x00FFFFFF},
                 new float[]{0f, 1f}, Shader.TileMode.CLAMP));
         cv.save();
         cv.clipPath(shape);
@@ -129,13 +116,6 @@ public class Ui {
         ringStroke(cv, r, radius, stroke, night);
     }
 
-    /**
-     * Sama obwodka karty (bez wypelnienia).
-     *
-     * Dla widzetow, ktore nie moga zostac zamalowane kolorem karty, bo maja pod
-     * obwodka "zywa" tresc - np. kafelek mapy, gdzie pod obwodka jest MapView
-     * z mapa. Kolory i geometria sa te same, co w {@link #ringCard}.
-     */
     public static void ringStroke(Canvas cv, RectF r, float radius, float stroke, boolean night) {
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setStyle(Paint.Style.STROKE);
@@ -156,27 +136,17 @@ public class Ui {
         p.setShader(null);
     }
 
-    /**
-     * Approximate iOS squircle (superellipse) using cubic Bezier control points.
-     * @param curvature 0.2–0.45 (higher = closer to circle)
-     */
     public static Path squirclePath(RectF r, float curvature) {
         Path path = new Path();
         float left = r.left, top = r.top, right = r.right, bottom = r.bottom;
         float w = right - left, h = bottom - top;
-        // Control offset proportional to curvature (classic Apple-like ~0.45 for smooth corners)
-        float k = 0.5522847498f * (0.5f + curvature); // blend circle factor with extra roundness
+        float k = 0.5522847498f * (0.5f + curvature);
         float ox = w * k * 0.5f;
         float oy = h * k * 0.5f;
-        // Start at top-middle
         path.moveTo(left + w * 0.5f, top);
-        // Top-right corner
         path.cubicTo(right - ox, top, right, top + oy, right, top + h * 0.5f);
-        // Bottom-right
         path.cubicTo(right, bottom - oy, right - ox, bottom, left + w * 0.5f, bottom);
-        // Bottom-left
         path.cubicTo(left + ox, bottom, left, bottom - oy, left, top + h * 0.5f);
-        // Top-left
         path.cubicTo(left, top + oy, left + ox, top, left + w * 0.5f, top);
         path.close();
         return path;
@@ -186,10 +156,9 @@ public class Ui {
         cv.drawPath(squirclePath(r, curvature), p);
     }
 
-    // ------------------------------------------------------------ strzałka / znacznik
     public static class Chev extends View {
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final int dir;   // 0 >, 1 ^, 2 v, 3 <, 4 ✓
+        private final int dir;
 
         public Chev(Context c, int dir, int color) {
             super(c);
@@ -232,7 +201,6 @@ public class Ui {
         }
     }
 
-    // ------------------------------------------------------------ przełącznik jak w iOS
     public static class IosSwitch extends View {
         public interface Listener {
             void onChanged(boolean on);
@@ -273,10 +241,3 @@ public class Ui {
         }
     }
 }
-
-
-
-
-
-
-
