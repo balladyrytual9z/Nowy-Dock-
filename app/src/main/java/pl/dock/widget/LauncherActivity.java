@@ -419,13 +419,13 @@ public class LauncherActivity extends BaseActivity {
         // Page indicators keep side margin so they don't sit under the dock
         dotsTop = new PageDots(this, true);
         FrameLayout.LayoutParams dlp = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(40), Gravity.BOTTOM);
+                ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 28), Gravity.BOTTOM);
         if (left) {
             dlp.leftMargin = dockPx;
         } else {
             dlp.rightMargin = dockPx;
         }
-        dlp.bottomMargin = dp(4);
+        dlp.bottomMargin = Ui.dp(this, 6);
         root.addView(dotsTop, dlp);
 
         hud = new VolumeHud(this);
@@ -512,6 +512,7 @@ public class LauncherActivity extends BaseActivity {
 
         setContentView(root);
         bg.setStyle(Prefs.wallpaper(this), night);
+        buildWidgetPages();
         assemblePages();
         // Fix race condition: wskaznik od razu po zbudowaniu stron
         int panelCount = panelPageCount();
