@@ -55,6 +55,9 @@ public class AppsGridPage extends View implements EditModeController.Listener {
 
         // przeciagniecie ikony do krawedzi strony: przenies na sasiednia strone
         void onEdgeDrag(Item it, int direction);
+
+        // Usuniecie ikony z siatki (minus w trybie edycji)
+        void onRemoveItem(Item it);
     }
 
     private final float d;
@@ -96,6 +99,12 @@ public class AppsGridPage extends View implements EditModeController.Listener {
     // ten gest wlaczyl tryb edycji: puszczenie palca NIE zamyka trybu (zamyka dopiero tap w tlo)
     private boolean exitSuppressed = false;
     private long lastEdge = 0;   // debounce zmiany strony przy dragowaniu do krawedzi
+
+    // Fade-out animation przy usuwaniu ikony z siatki (minus bez okna potwierdzenia)
+    private int removingIndex = -1;
+    private float removeAlpha = 1f;
+    private static final int REMOVE_FADE_STEPS = 6;  // ~300 ms (6 x 50 ms)
+    private int removeStep = 0;
 
     private final Runnable longPress = new Runnable() {
         @Override
@@ -268,7 +277,41 @@ public class AppsGridPage extends View implements EditModeController.Listener {
                 cv.save();
             }
 
-            bmp.setAlpha(pressed == i && !dragActive ? 190 : 255);
+            // fade-out przy usuwaniu
+            if (removingIndex >= 0 && i > removingIndex) {
+                // Przesuniete w lewo: narysuj je tak, jakby usuniety element juz zniknal
+                int adjRow = (i - 1) / COLS;
+                int adjCol = (i - 1) % COLS;
+                float adjX = left + adjCol * colPitch;
+                float adjY = top + adjRow * rowPitch;
+                bmp.setAlpha((int)(255 * removeAlpha * (pressed == i && !dragActive ? 0.75f : 1f)));
+                r.set(adjX + inset, adjY + inset, adjX + iconSz - inset, adjY + iconSz - inset);
+                cv.drawBitmap(b, null, r, bmp);
+                float pw = it.textW + 24f * d * sc;
+                float px = adjX + iconSz / 2f - pw / 2f;
+                float py = adjY + iconSz + 7f * d * sc;
+                r.set(px, py, px + pw, py + pillH);
+                cv.drawRoundRect(r, pillH / 2f, pillH / 2f, pill);
+                cv.drawText(it.shown, adjX + iconSz / 2f,
+                        py + pillH / 2f - (text.descent() + text.ascent()) / 2f, text);
+                if (editMode && !dragActive) {
+                    cv.restore();
+                    if (!it.settings && it.action.length() == 0 && it.pkg != null && it.pkg.length() > 0) {
+                        drawRemoveBadge(cv, adjX, adjY);
+                    }
+                } else if (!editMode && it.pkg != null && it.pkg.length() > 0) {
+                    int count = i < badgeCache.length ? badgeCache[i] : 0;
+                    if (count > 0) {
+                        drawNotifBadge(cv, adjX + iconSz, adjY, count);
+                    }
+                }
+                continue;
+            }
+            if (removingIndex >= 0 && i == removingIndex) {
+                bmp.setAlpha((int)(255 * removeAlpha));
+            } else {
+                bmp.setAlpha(pressed == i && !dragActive ? 190 : 255);
+            }
             r.set(x + inset, y + inset, x + iconSz - inset, y + iconSz - inset);
             // ikony maja zaokraglone rogi wpisane w bitmape (Icons.compose),
             // rysowanie bez przycinania = pelna plynnosc na slabym GPU
@@ -487,6 +530,33 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         invalidate();
     }
 
+    // Tap na minus = natychmiastowe usuniecie ikony z siatki z animacja znikania
+    // (zamiast okna potwierdzenia). Po animacji zglasza listener.onRemoveItem().
+    private void startRemoveAnimation(final int index) {
+        if (index < 0 || index >= items.size()) return;
+        final Item it = items.get(index);
+        if (it.settings || it.action.length() > 0) return;
+        if (it.entry == null && (it.pkg == null || it.pkg.length() == 0)) return;
+        removingIndex = index;
+        removeAlpha = 1f;
+        removeStep = 0;
+        postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                removeStep++;
+                if (removeStep >= REMOVE_FADE_STEPS) {
+                    removingIndex = -1;
+                    removeAlpha = 1f;
+                    if (listener != null) listener.onRemoveItem(it);
+                    return;
+                }
+                removeAlpha = 1f - (float) removeStep / (float) REMOVE_FADE_STEPS;
+                invalidate();
+                postDelayed(this, 50);
+            }
+        }, 50);
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent e) {
         switch (e.getActionMasked()) {
@@ -589,7 +659,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
                 if (editMode) {
                     int badgeIndex = hitRemoveBadge(e.getX(), e.getY());
                     if (badgeIndex >= 0) {
-                        showRemoveDialog(badgeIndex);
+                        startRemoveAnimation(badgeIndex);
                         return true;
                     }
                     // tap w puste tlo zamyka tryb edycji, ALE nie ten gest,
