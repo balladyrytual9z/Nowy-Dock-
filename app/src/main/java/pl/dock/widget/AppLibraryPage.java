@@ -136,18 +136,89 @@ public class AppLibraryPage extends FrameLayout {
         int extraL = dockLeft ? dockInset : 0;
         int extraR = dockLeft ? 0 : dockInset;
 
+        // Glowny kontener: POZIOMO – alfabet z lewej, tresc z prawej
         LinearLayout page = new LinearLayout(ctx);
-        page.setOrientation(LinearLayout.VERTICAL);
+        page.setOrientation(LinearLayout.HORIZONTAL);
         page.setClipChildren(false);
         page.setClipToPadding(false);
 
-        LinearLayout header = new LinearLayout(ctx);
-        header.setOrientation(LinearLayout.VERTICAL);
-        header.setClipChildren(false);
-        header.setClipToPadding(false);
-        header.setPadding(dp(16) + extraL, dp(14), dp(16) + extraR, dp(2));
-        header.setBackgroundColor(night ? 0xFF1C1C1E : 0xFFFFFFFF);
-        header.setElevation(dp(4));
+        // ---- LEWY PANEL: pionowy pasek liter A-Z ----
+        int letterBarWidth = dp(32);
+        FrameLayout letterPane = new FrameLayout(ctx);
+        letterPane.setClipChildren(false);
+        letterPane.setClipToPadding(false);
+        // polprzezroczyste tlo dla czytelnosci na kazdej tapecie
+        letterPane.setBackgroundColor(night ? 0xCC1C1C1E : 0xCCFFFFFF);
+
+        letterBar = new LinearLayout(ctx);
+        letterBar.setOrientation(LinearLayout.VERTICAL);
+        letterBar.setGravity(Gravity.CENTER);
+        letterBar.setClipChildren(false);
+        letterBar.setClipToPadding(false);
+        letterBar.setPadding(0, dp(8), 0, dp(8));
+        for (int i = 0; i < LETTERS.length(); i++) {
+            final String letter = String.valueOf(LETTERS.charAt(i));
+            TextView tv = new TextView(ctx);
+            tv.setText(letter);
+            tv.setTextSize(12);
+            tv.setTypeface(pl.dock.widget.ui.DockTheme.interMedium());
+            tv.setTextColor(night ? 0xFF0A84FF : 0xFF007AFF);
+            tv.setGravity(Gravity.CENTER);
+            tv.setPadding(0, dp(2), 0, dp(2));
+            tv.setOnClickListener(new OnClickListener() {
+                @Override public void onClick(View v) {
+                    scrollToLetter(letter, true);
+                }
+            });
+            letterBar.addView(tv, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        }
+        // przesuwanie palcem (pionowo) po pasku liter
+        letterBar.setOnTouchListener(new View.OnTouchListener() {
+            private int selected = -1;
+
+            @Override public boolean onTouch(View v, MotionEvent ev) {
+                int a = ev.getActionMasked();
+                if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_MOVE) {
+                    int idx = letterIndexAt(ev.getY());   // pionowy pasek → wspolrzedna Y
+                    if (idx >= 0 && idx != selected) {
+                        if (selected >= 0) magnifyLetter(selected, false);
+                        selected = idx;
+                        magnifyLetter(idx, true);
+                        v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+                        scrollToLetter(String.valueOf(LETTERS.charAt(idx)), false);
+                    }
+                    return true;
+                }
+                if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
+                    if (selected >= 0) magnifyLetter(selected, false);
+                    selected = -1;
+                    return true;
+                }
+                return false;
+            }
+        });
+        letterPane.addView(letterBar, new FrameLayout.LayoutParams(
+                letterBarWidth, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER));
+
+        // padding po lewej (dock) i po prawej – letterPane ma staly rozmiar
+        page.addView(letterPane, new LinearLayout.LayoutParams(
+                letterBarWidth + extraL, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // ---- PRAWY PANEL: search bar + lista ----
+        LinearLayout contentPane = new LinearLayout(ctx);
+        contentPane.setOrientation(LinearLayout.VERTICAL);
+        contentPane.setClipChildren(false);
+        contentPane.setClipToPadding(false);
+
+        // Search bar z efektem "frosted glass" (polprzezroczyste tlo)
+        LinearLayout searchHeader = new LinearLayout(ctx);
+        searchHeader.setOrientation(LinearLayout.HORIZONTAL);
+        searchHeader.setGravity(Gravity.CENTER_VERTICAL);
+        searchHeader.setClipChildren(false);
+        searchHeader.setClipToPadding(false);
+        searchHeader.setPadding(dp(12), dp(10), dp(12) + extraR, dp(10));
+        searchHeader.setBackgroundColor(night ? 0xCC1C1C1E : 0xCCFFFFFF);
 
         searchEt = new EditText(ctx);
         searchEt.setHint("Biblioteka aplikacji");
@@ -186,78 +257,10 @@ public class AppLibraryPage extends FrameLayout {
             }
         });
         updateClear();
-        header.addView(searchEt, new LinearLayout.LayoutParams(
+        searchHeader.addView(searchEt, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        // poziomy pasek liter - dokladnie pod polem wyszukiwania, cala szerokosc
-        letterBar = new LinearLayout(ctx);
-        letterBar.setOrientation(LinearLayout.HORIZONTAL);
-        letterBar.setGravity(Gravity.CENTER);
-        letterBar.setClipChildren(false);
-        letterBar.setClipToPadding(false);
-        letterBar.setPadding(0, dp(4), 0, 0);
-        for (int i = 0; i < LETTERS.length(); i++) {
-            final String letter = String.valueOf(LETTERS.charAt(i));
-            TextView tv = new TextView(ctx);
-            tv.setText(letter);
-            tv.setTextSize(13);
-            tv.setTypeface(pl.dock.widget.ui.DockTheme.interMedium());
-            tv.setTextColor(night ? 0xFF0A84FF : 0xFF007AFF);
-            tv.setGravity(Gravity.CENTER);
-            tv.setOnClickListener(new OnClickListener() {
-                @Override public void onClick(View v) {
-                    scrollToLetter(letter, true);
-                }
-            });
-            letterBar.addView(tv, new LinearLayout.LayoutParams(0, dp(30), 1f));
-        }
-        // przesuwanie palcem po pasku: podswietlenie + powiekszenie litery i zywe przewijanie
-        letterBar.setOnTouchListener(new View.OnTouchListener() {
-            private int selected = -1;
-
-            @Override public boolean onTouch(View v, MotionEvent ev) {
-                int a = ev.getActionMasked();
-                if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_MOVE) {
-                    int idx = letterIndexAt(ev.getX());
-                    if (idx >= 0 && idx != selected) {
-                        if (selected >= 0) magnifyLetter(selected, false);
-                        selected = idx;
-                        magnifyLetter(idx, true);
-                        v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
-                        scrollToLetter(String.valueOf(LETTERS.charAt(idx)), false);
-                    }
-                    return true;
-                }
-                if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
-                    if (selected >= 0) magnifyLetter(selected, false);
-                    selected = -1;
-                    return true;
-                }
-                return false;
-            }
-        });
-        // Pasek liter ma ~65% szerokosci paska wyszukiwania i jest wysrodkowany.
-        // Odstep od gory (dp 16) jest po to, zeby POWIEKSZONA litera nie dotknela
-        // pola wyszukiwania, gdy rosnie w gore.
-        LinearLayout barRow = new LinearLayout(ctx);
-        barRow.setOrientation(LinearLayout.HORIZONTAL);
-        barRow.setGravity(Gravity.CENTER_VERTICAL);
-        barRow.setClipChildren(false);
-        barRow.setClipToPadding(false);
-        View gapL = new View(ctx);
-        View gapR = new View(ctx);
-        barRow.addView(gapL, new LinearLayout.LayoutParams(0, 1, 0.175f));
-        LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.65f);
-        barLp.topMargin = dp(16);
-        barRow.addView(letterBar, barLp);
-        barRow.addView(gapR, new LinearLayout.LayoutParams(0, 1, 0.175f));
-        header.addView(barRow, new LinearLayout.LayoutParams(
+        contentPane.addView(searchHeader, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        page.addView(header, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
 
         scrollView = new ScrollView(ctx);
         scrollView.setFillViewport(true);
@@ -266,12 +269,14 @@ public class AppLibraryPage extends FrameLayout {
 
         listCol = new LinearLayout(ctx);
         listCol.setOrientation(LinearLayout.VERTICAL);
-        listCol.setPadding(dp(14) + extraL, dp(4), dp(14) + extraR, dp(28));
+        listCol.setPadding(dp(14), dp(4), dp(14) + extraR, dp(28));
         scrollView.addView(listCol, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        page.addView(scrollView, new LinearLayout.LayoutParams(
+        contentPane.addView(scrollView, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
+        page.addView(contentPane, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
 
         addView(page, new LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -502,28 +507,24 @@ public class AppLibraryPage extends FrameLayout {
         }
     }
 
-    private int letterIndexAt(float x) {
+    private int letterIndexAt(float y) {
         if (letterBar == null) return -1;
         for (int i = 0; i < letterBar.getChildCount(); i++) {
             View ch = letterBar.getChildAt(i);
-            if (x >= ch.getLeft() && x <= ch.getRight()) return i;
+            if (y >= ch.getTop() && y <= ch.getBottom()) return i;
         }
         return -1;
     }
 
-    // powiekszenie litery pod palcem; kierunek (gora/dol) z Ustawien Docka
+    // powiekszenie litery pod palcem; litera rosnie W PRAWO (pivot na lewej krawedzi)
     private void magnifyLetter(int idx, boolean on) {
         if (letterBar == null || idx < 0 || idx >= letterBar.getChildCount()) return;
         View tv = letterBar.getChildAt(idx);
-        // litera rosnie w gore (albo w dol - ustawienie), ale w granicach odstepu
-        // nad paskiem, zeby nie nachodzila na pole wyszukiwania
-        // animacja: skala i translacja - pivot na srodku litery
-        float dy = on ? (Prefs.libLetterUp(ctx) ? -dp(6) : dp(6)) : 0f;
-        float s = on ? 1.6f : 1f;
-        // pivot na srodku view (0.5f, 0.5f) - zalezy od getWidth/Height
-        //tv.setPivotX(tv.getWidth() / 2f);
-        //tv.setPivotY(tv.getHeight() / 2f);
-        tv.animate().scaleX(s).scaleY(s).translationY(dy)
+        // pivot na LEWEJ krawedzi – litera rosnie w prawo, nie nachodzi na ikony
+        tv.setPivotX(0f);
+        tv.setPivotY(tv.getHeight() / 2f);
+        float s = on ? 1.5f : 1f;
+        tv.animate().scaleX(s).scaleY(s).translationX(on ? dp(6) : 0f)
                 .setDuration(on ? 180 : 260).start();
     }
 
