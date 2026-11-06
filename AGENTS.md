@@ -187,9 +187,21 @@ kręciła się na boki). Progi to stałe w `HeadingSmoother`.
   `setLayerType(LAYER_TYPE_SOFTWARE, null)`; pilnuje tego
   `ConnectivityPanelTest`/`ConnectivityPanelGuardTest` — **nie usuwać** tej warstwy.
 
+## Reguły rozmowy z użytkownikiem
+
+Zanim agent cokolwiek zrobi — **musi być pewien, że dobrze zrozumiał**.
+
+- Jeśli polecenie użytkownika jest niejasne, nieprecyzyjne, brakuje szczegółów technicznych albo agent ma więcej niż jedną interpretację — **agent MA OBOWIĄZEK dopytać**, zanim ruszy dalej.
+- Użytkownik mówi potocznie, po polsku, często nietechnicznie — to normalne. Agent nie zakłada, że wie o co chodzi. Dopytuje dopóki nie ma 100% pewności.
+- Agent nie zgaduje intencji. Nie domyśla się. Nie „robi coś, bo tak zwykle się robi".
+- Agent parafrazuje własnymi słowami to co zrozumiał i pyta „czy dobrze rozumiem?" — dopiero po potwierdzeniu przystępuje do działania.
+- Lepiej zadać 2-3 krótkie pytania niż zrobić coś źle.
+
+**Wyjątek:** jeśli użytkownik mówi wprost „zrób to" lub „nie pytaj, po prostu zrób" — agent robi bez dopytywania.
+
 ## Automatyczne budowanie APK — proces decyzyjny
 
-Agent **nie pyta użytkownika** „czy zbudować APK?" — robi to automatycznie.
+Agent **nie pyta użytkownika** „czy zbudować APK?" — robi to automatycznie, bo to już jest ustalone i potwierdzone.
 
 ### Kiedy agent buduje APK
 
