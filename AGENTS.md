@@ -377,3 +377,14 @@ Ustalenia z użytkownikiem, żeby nikt tego nie „poprawił” z powrotem:
   w subpaczce `pl.dock.widget.maps` — klasa z `pl.dock.widget` wymaga importu.
 - Konwencja wydania: po zmergowaniu PR na main automatyczny build tworzy
   release (np. v1.0.250); APK trafia też do `/workspace/project/apk-artifact/`.
+
+## 2026-11-06 (sesja 3: panel znów pusty PO animacji wejścia)
+
+- **Panel otwierany z HEADER doka (klik pod zegarem) bywał pusty PO zakończeniu
+  fade** — mimo warstwy SOFTWARE na panelu i na overlayu (PR #48, v1.0.252).
+  Działające `ConnectivityActivity` nie ma żadnej animacji wejścia — i zawsze
+  rysuje treść. Wniosek: na Mali-T720/API 28 **jakakolwiek animacja alpha na
+  nowo-dodanym poddrzewie custom views jest zawodna**. ✅ Na API < 30 overlay
+  wchodzi NATYCHMIAST (`setAlpha(1f)`, bez `animate()`); fade tylko na
+  SDK >= 30. ⚠️ **Nie przywracać fade na API < 30** — strażnik
+  `ConnectivityPanelGuardTest.overlayNaStarymApiNieAnimujeAlpha()`.
