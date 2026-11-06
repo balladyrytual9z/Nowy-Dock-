@@ -146,6 +146,8 @@ public class AppLibraryPage extends FrameLayout {
         header.setClipChildren(false);
         header.setClipToPadding(false);
         header.setPadding(dp(16) + extraL, dp(14), dp(16) + extraR, dp(2));
+        header.setBackgroundColor(night ? 0xFF1C1C1E : 0xFFFFFFFF);
+        header.setElevation(dp(4));
 
         searchEt = new EditText(ctx);
         searchEt.setHint("Biblioteka aplikacji");
@@ -253,8 +255,6 @@ public class AppLibraryPage extends FrameLayout {
         header.addView(barRow, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        page.addView(header, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         scrollView = new ScrollView(ctx);
         scrollView.setFillViewport(true);
@@ -268,6 +268,7 @@ public class AppLibraryPage extends FrameLayout {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         page.addView(scrollView, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
 
         addView(page, new LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -513,12 +514,14 @@ public class AppLibraryPage extends FrameLayout {
         View tv = letterBar.getChildAt(idx);
         // litera rosnie w gore (albo w dol - ustawienie), ale w granicach odstepu
         // nad paskiem, zeby nie nachodzila na pole wyszukiwania
+        // animacja: skala i translacja - pivot na srodku litery
         float dy = on ? (Prefs.libLetterUp(ctx) ? -dp(6) : dp(6)) : 0f;
         float s = on ? 1.6f : 1f;
-        tv.setPivotX(tv.getWidth() / 2f);
-        tv.setPivotY(tv.getHeight() / 2f);
+        // pivot na srodku view (0.5f, 0.5f) - zalezy od getWidth/Height
+        //tv.setPivotX(tv.getWidth() / 2f);
+        //tv.setPivotY(tv.getHeight() / 2f);
         tv.animate().scaleX(s).scaleY(s).translationY(dy)
-                .setDuration(on ? 90 : 130).start();
+                .setDuration(on ? 180 : 260).start();
     }
 
     // ---------------------------------------------------------------- narzedzia
