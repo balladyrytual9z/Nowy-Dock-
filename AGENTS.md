@@ -359,3 +359,21 @@ Ustalenia z użytkownikiem, żeby nikt tego nie „poprawił” z powrotem:
   ⚠️ **Nie usuwać tej linii** — na tym GPU overlay bez niej = pusty panel.
 - Panele w `ConnectivityActivity` (osobne okno) i w nakładce launchera to
   **dwa różne konteksty renderowania**; naprawa jednego nie oznacza drugiego.
+
+## 2026-11-06 (sesja 2: gest swipe-up + przezroczyste widżety)
+
+- **Gest swipe-up od dolnej krawędzi NIGDY nie działał** (PR #47, v1.0.250):
+  wykrywanie wisiało na `root.setOnTouchListener`, ale pełnoekranowy `PagerView`
+  konsumuje KAŻDY ACTION_DOWN u dzieci (`onTouchEvent` → `return true`), więc
+  listener na rootcie nigdy nie dostawał zdarzeń — martwy kod. ⚠️ **Nie wracać
+  do listenera na rootcie** (alarm w `ConnectivityPanelGuardTest.
+  gestSwipeUpMieszkaWPagerze`). Gest mieszka w `PagerView`
+  (onInterceptTouchEvent przejmuje dotyk tylko przy pionowym ruchu w górę
+  z dolnej strefy 120dp; tapy i przewijanie stron zostają nietknięte).
+- **Widżety na stronie widżetów (skrajnie lewa strona) są przezroczyste:**
+  nowy `GlassAware` + `Ui.glassCard` (lekki ton + obwódka, tapeta prześwituje).
+  `markGlass(v)` wywoływane tylko w ścieżce `stacksPage.addWidget(...)`;
+  ekran główny zostaje z nieprzezroczystymi kartami. ⚠️ `MapCard` jest
+  w subpaczce `pl.dock.widget.maps` — klasa z `pl.dock.widget` wymaga importu.
+- Konwencja wydania: po zmergowaniu PR na main automatyczny build tworzy
+  release (np. v1.0.250); APK trafia też do `/workspace/project/apk-artifact/`.
