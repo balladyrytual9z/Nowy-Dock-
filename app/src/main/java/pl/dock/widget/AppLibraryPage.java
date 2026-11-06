@@ -255,6 +255,9 @@ public class AppLibraryPage extends FrameLayout {
         header.addView(barRow, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        page.addView(header, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
 
         scrollView = new ScrollView(ctx);
         scrollView.setFillViewport(true);

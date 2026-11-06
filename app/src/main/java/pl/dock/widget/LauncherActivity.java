@@ -512,6 +512,7 @@ public class LauncherActivity extends BaseActivity {
 
         setContentView(root);
         bg.setStyle(Prefs.wallpaper(this), night);
+        buildWidgetPages();
         assemblePages();
         // Fix race condition: wskaznik od razu po zbudowaniu stron
         int panelCount = panelPageCount();
