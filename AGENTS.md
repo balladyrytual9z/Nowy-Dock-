@@ -12,8 +12,14 @@ Aplikacja Android (Java/Kotlin): CarPlay, OBD, Bluetooth.
 ## Zasady pracy
 - ZAWSZE używaj języka polskiego w komunikacji z użytkownikiem.
 - ZAWSZE najpierw przedstaw plan i zadawaj pytania (tak/nie), zanim napiszesz kod.
-- NIGDY nie pushuj bezpośrednio na main przy zwykłych zmianach w kodzie (zawsze rób nowy branch i Pull Request). Wyjątkiem jest aktualizacja tego pliku AGENTS.md.
+- Zmiany w kodzie pushuj bezpośrednio na `main`, bez branchy i Pull Requestów (reguła zmieniona 2026-11-06 na życzenie użytkownika).
 - Nie instaluj ciężkich narzędzi (Docker, pełne SDK), pracujemy na lekkim środowisku.
+
+## Komunikacja z użytkownikiem (na stałe)
+- Jeśli coś jest niejasne — NAJPIERW zapytaj, nie zgaduj.
+- Bądź ciekawy, o co chodzi użytkownikowi i dopytuj, gdy brakuje kontekstu.
+- Pytania formułuj maksymalnie prosto — odpowiedź to zawsze TAK/NIE.
+- Wszystkie pytania dawaj NA SAMYM KOŃCU wiadomości, w jednym zdaniu, żeby wyświetlały Ci się jako jeden łatwy do przeczytania kawałek tekstu.
 
 ## Struktura projektu
 - Główny kod: `app/src/main/java/pl/dock/`
@@ -60,10 +66,10 @@ Zasady zarządzania pamięcią:
 
 ## Zasady pracy z tym repo
 
-- Nigdy nie commituj/pushuj bezpośrednio na `main` — nowa gałąź + Pull Request.
-  **WYJĄTEK: aktualizacje pliku `AGENTS.md`** (pamięć agenta) są zawsze
-  commitujowane i pushowane bezpośrednio na `main`, bez PR — patrz sekcja
-  „Zarządzanie pamięcią agenta”.
+- Wszystkie zmiany (kod oraz `AGENTS.md`) są commitujowane i pushowane
+  bezpośrednio na `main`, bez gałęzi i Pull Requestów — reguła zmieniona
+  2026-11-06 na życzenie użytkownika (wcześniej: „nowa gałąź + PR”, z wyjątkiem
+  aktualizacji `AGENTS.md`).
 - Najpierw plan (jakie pliki), potem pytania `[tak/nie]`, potem kod.
 - `AGENTS.md` nie jest częścią źródeł aplikacji — nie wpływa na build APK.
 
