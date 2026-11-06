@@ -3,7 +3,7 @@ name: Build and publish CarPlay Launcher
 on:
   push:
     branches:
-      - 'main' # Release tworzy się TYLKO gdy kod trafi do głównej gałęzi
+      - 'main' # Release tworzy siÄ TYLKO gdy kod trafi do gÅÃ³wnej gaÅÄzi
     paths-ignore:
       - 'AGENTS.md'
       - 'README.md'
@@ -13,7 +13,7 @@ on:
       - '*.png'
   pull_request:
     branches:
-      - 'main' # Uruchamia się przy Pull Requeście, żeby agent widział błędy
+      - 'main' # Uruchamia siÄ przy Pull RequeÅcie, Å¼eby agent widziaÅ bÅÄdy
     paths-ignore:
       - 'AGENTS.md'
       - 'README.md'
@@ -21,7 +21,7 @@ on:
       - '*.jpeg'
       - '*.jpg'
       - '*.png'
-  workflow_dispatch: # Pozwala na ręczne uruchomienie z panelu GitHuba
+  workflow_dispatch: # Pozwala na rÄczne uruchomienie z panelu GitHuba
 
 permissions:
   contents: write
@@ -67,12 +67,11 @@ jobs:
           fi
 
       - name: Set up Java 17
-
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-          cache: 'gradle'   # <-- TA LINIA WŁĄCZA CACHE
+          cache: 'gradle'   # <-- TA LINIA WÅÄCZA CACHE
 
       - name: Locate Android SDK and install required packages
         shell: bash
@@ -94,13 +93,13 @@ jobs:
           gradle-version: '8.9'
           cache-read-only: ${{ github.ref != 'refs/heads/main' }} # <-- Cache tylko do odczytu dla PR
 
-      # NOWY KROK: Uruchomienie testów jednostkowych
+      # NOWY KROK: Uruchomienie testÃ³w jednostkowych
       - name: Run Unit Tests
         shell: bash
         run: |
           set -euo pipefail
           cd "$GITHUB_WORKSPACE"
-          echo "Uruchamianie testów..." | tee -a "$RUNNER_TEMP/ci.log"
+          echo "Uruchamianie testÃ³w..." | tee -a "$RUNNER_TEMP/ci.log"
           gradle --no-daemon test 2>&1 | tee -a "$RUNNER_TEMP/ci.log"
 
       # Diagnostyka: przy padzie testow wypisz failing testy i ogon logu
@@ -114,8 +113,7 @@ jobs:
           FOUND=0
           for f in app/build/test-results/*/*.xml; do
             [ -f "$f" ] || continue
-            if grep -q 'failures="[1-9]' "$f" 2>/dev/nu
-ll || grep -q 'errors="[1-9]' "$f" 2>/dev/null; then
+            if grep -q 'failures="[1-9]' "$f" 2>/dev/null || grep -q 'errors="[1-9]' "$f" 2>/dev/null; then
               FOUND=1
               {
                 echo "### Failing suite: $f"
@@ -135,29 +133,6 @@ ll || grep -q 'errors="[1-9]' "$f" 2>/dev/null; then
             tail -n 300 "$RUNNER_TEMP/ci.log" 2>/dev/null || echo "(brak ci.log)"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-
-      # Diagnostyka: logi krokow CI wymagaja logowania - przy padzie zapisz
-      # ogon logu jako plik .txt na galazi PR (paths-ignore nie uruchamia
-      # kolejnego runa, a plik jest publicznie czytelny dla agentow).
-      - name: Zapisz ogon logu CI jako plik na galazi
-        if: failure() && github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          set -uo pipefail
-          cd "$GITHUB_WORKSPACE"
-          git fetch origin "$GITHUB_HEAD_REF"
-          git checkout -B diag-ci "origin/$GITHUB_HEAD_REF"
-          mkdir -p diag
-          {
-            echo "Run: $GITHUB_RUN_NUMBER | Event: $GITHUB_EVENT_NAME"
-            echo "Merge SHA: $GITHUB_SHA"
-            tail -n 300 "$RUNNER_TEMP/ci.log" 2>/dev/null || echo "(brak ci.log)"
-          } > diag/ci-log-tail.txt
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add diag/ci-log-tail.txt
-          git commit -m "chore: diagnostyka CI - ogon logu runa [skip ci]"
-          git push origin "HEAD:$GITHUB_HEAD_REF"
 
       - name: Build Android APK (Debug, stable signing, auto versionCode)
         env:
@@ -180,14 +155,13 @@ ll || grep -q 'errors="[1-9]' "$f" 2>/dev/null; then
           if-no-files-found: error
           retention-days: 90
 
-      # Release tworzy się TYLKO przy pushu do main (nie przy Pull Requestach)
+      # Release tworzy siÄ TYLKO przy pushu do main (nie przy Pull Requestach)
       - name: Create GitHub Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: ncipollo/release-action@v1
         with:
           tag: v1.0.${{ github.run_number }}
-          name: CarPl
-ay Launcher v1.0.${{ github.run_number }}
+          name: CarPlay Launcher v1.0.${{ github.run_number }}
           commit: ${{ github.sha }}
           artifacts: "${{ runner.temp }}/release-assets/*"
           token: ${{ secrets.GITHUB_TOKEN }}
