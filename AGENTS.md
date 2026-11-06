@@ -207,3 +207,21 @@ Ustalenia z użytkownikiem, żeby nikt tego nie „poprawił” z powrotem:
   ekranie głównym (to już było na `main`, nie ruszane).
 - Siatka aplikacji (drag-reorder między ekranami, minus bez potwierdzenia z
   animacją znikania, trwała kolejność) to **osobne zadanie** — nie robione tutaj.
+
+## 2026-11-06 (sesja: drag-reorder siatki, minus z animacją)
+
+- **Minus bez okna potwierdzenia**: tap na minus w trybie edycji → natychmiastowa
+  animacja znikania (fade-out ~300 ms), podczas której pozostałe ikony przesuwają
+  się w lewo/górę, żeby wypełnić lukę (`AppsGridPage.java`: `startRemoveAnimation`,
+  `removingIndex` + przesunięcie elementów w `onDraw`). Po animacji `listener.onRemoveItem()`
+  → `LauncherActivity.removeItemFromGrid()` usuwa z `selectedPkgs` i `Prefs.apps()`.
+- **Żywe przeliczenie siatki**: po usunięciu `loadApps()` odbudowuje `items` ze źródeł,
+  a `rebuildAppPages()` przelicza rozkład ikon na stronach (15/s). Działa dla obu systemów
+  przechowywania: `Prefs.apps()` (kolejność) i `selectedPkgs` (widoczne/wybrane).
+- **Nowy callback `Listener.onRemoveItem(Item)`** w `AppsGridPage.java` — oddziela
+  logikę usuwania od odświeżania widoku.
+- `removeItemFromGrid()` w `LauncherActivity.java`: obsługuje podwójny zapis
+  (selectedPkgs + Prefs.apps), żeby ikona nie wróciła po rebuildzie.
+- Drag-reorder (w ramach strony i między stronami) działał już wcześniej; potwierdzono,
+  że `reorderItems()` persistuje kolejność przez `Prefs.saveApps`, a edge-scroll
+  (`onEdgeDrag` → `moveItemToAdjacentPage`) przenosi ikony między stronami.

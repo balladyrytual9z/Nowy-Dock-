@@ -741,6 +741,32 @@ public class LauncherActivity extends BaseActivity {
         loadApps();                                  // odbuduj siatke i liste w tle
     }
 
+    // Usuniecie ikony z siatki (minus w trybie edycji): zarowno z Prefs.apps (kolejnosc)
+    // jak i z selectedPkgs (widocznosc), jesli lista wybranych jest aktywna.
+    private void removeItemFromGrid(AppsGridPage.Item it) {
+        if (it == null) return;
+        // Usun z listy wybranych (selectedPkgs) jesli jest aktywna
+        List<String> sel = Prefs.selectedPkgs(this);
+        if (!sel.isEmpty() && it.pkg != null && it.pkg.length() > 0) {
+            sel.remove(it.pkg);
+            Prefs.setSelectedPkgs(this, sel);
+        }
+        // Usun z listy uporzadkowanej (Prefs.apps), zeby nie wrocil po rebuildzie
+        if (it.entry != null) {
+            Prefs.remove(this, it.entry.id);
+        } else if (it.pkg != null && it.pkg.length() > 0) {
+            // Fallback: usun z listy selectedPkgs i usun z items recznie
+        }
+        usunItemZListyPamieci(it);
+        loadApps();
+    }
+
+    // Usuwa Item z pamieci (items), zeby grid nie probowal go narysowac
+    private void usunItemZListyPamieci(AppsGridPage.Item it) {
+        int idx = items.indexOf(it);
+        if (idx >= 0) items.remove(idx);
+    }
+
     private void applyTheme() {
         bg.setStyle(Prefs.wallpaper(this), night);
         dotsTop.setLight(!night);
@@ -1098,6 +1124,11 @@ public class LauncherActivity extends BaseActivity {
                 @Override
                 public void onEdgeDrag(AppsGridPage.Item it, int direction) {
                     moveItemToAdjacentPage(it, direction);
+                }
+
+                @Override
+                public void onRemoveItem(AppsGridPage.Item it) {
+                    removeItemFromGrid(it);
                 }
             });
             appPages.add(p);
