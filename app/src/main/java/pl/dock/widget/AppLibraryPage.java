@@ -362,17 +362,27 @@ public class AppLibraryPage extends FrameLayout {
     }
 
     private String packageOf(AppsGridPage.Item it) {
-        if (it.settings) return Prefs.PKG_SETTINGS;
-        if (it.action != null && it.action.length() > 0) return "dock:" + it.action;
+        if (it.settings) return "dock:settings";
+        if (it.action != null && it.action.length() > 0) {
+            return "obd".equals(it.action) ? "dock:obd" : "dock:carplay";
+        }
         return it.pkg;
     }
 
-    private void showRowMenu(View anchor, final AppsGridPage.Item it) {
+    private void showRowMenu(final View anchor, final AppsGridPage.Item it) {
+        if (!(ctx instanceof android.app.Activity)) return;
+        final android.app.Activity a = (android.app.Activity) ctx;
         final String pkg = packageOf(it);
-        Popups.menu(ctx, it.label, new String[]{"Usuń z siatki aplikacji", "Informacje", "Odinstaluj"}, new Popups.OnSel() {
+        final boolean onGrid = Prefs.isAppSelected(ctx, it.pkg);
+        String[] items = new String[]{
+                "Informacje o aplikacji",
+                onGrid ? "Usuń z siatki aplikacji" : "Dodaj do siatki aplikacji",
+                "Odinstaluj"
+        };
+        Popups.menu(a, it.label, items, new Popups.OnSel() {
             @Override public void on(int i) {
-                if (i == 0 && host != null) host.setOnGrid(pkg, false);
-                else if (i == 1 && host != null) host.showAppInfo(pkg);
+                if (i == 0 && host != null) host.showAppInfo(pkg);
+                else if (i == 1 && host != null) host.setOnGrid(pkg, !onGrid);
                 else if (i == 2 && host != null) host.uninstall(pkg);
             }
         });
