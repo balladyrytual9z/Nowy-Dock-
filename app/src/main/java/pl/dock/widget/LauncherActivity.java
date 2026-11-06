@@ -1334,13 +1334,11 @@ public class LauncherActivity extends BaseActivity {
         } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);
         }
         overlay = new FrameLayout(this);
-        // NAPRAWA (Mali-T720 / API 28): overlay z animacja alpha nie wyswietla
-        // poprawnie custom Canvas views w nowo-dodanym poddrzewie. Warstwa SOFTWARE
-        // renderuje cala nakladke do bitmapy - sciezka frameworka dziala poprawnie
-        // na tym GPU (potwierdzone: dziala z warstwa, pusta bez niej).
-        if (android.os.Build.VERSION.SDK_INT < 30) {
-            overlay.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
-        }
+        // UWAGA: overlay NIE ma wlasnej warstwy. Potwierdzona konfiguracja (PR #14,
+        // commit b21e953 - uzytkownik potwierdzil dzialajaca tresc panelu) miala
+        // warstwe SOFTWARE TYLKO na ConnectivityPanel. Dodana pozniej warstwa na
+        // overlayu (PR #46) tworzyla DWIe zagniezdzone warstwy - i panel znów byl
+        // pusty. Warstwa tylko na panelu = sciezka frameworka, ktora dziala.
         if (snap != null) {
             ImageView glass = new ImageView(this);
             glass.setScaleType(ImageView.ScaleType.FIT_XY);
@@ -1394,27 +1392,38 @@ public class LauncherActivity extends BaseActivity {
             root.addView(overlay, new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         }
-        // NAPRAWA (root cause): ŻADNEJ animacji wejścia na samym panelu.
-        // Wcześniej ViewPropertyAnimator (scale/pivot/translate/Overshoot)
-        // wymuszał re-render całego panelu co klatkę, a każdy z dzieci-
-        // przycisków przy okazji invalide'ował drzewo. Na MT8163 (Mali-T720,
-        // Android 9) ViewPropertyAnimator na dzieciach nie wyświeżał
-        // rysowania - panel pojawiał się pusty. Teraz panel wchodzi od razu
-        // w finalnym rozmiarze/pozycji; animowany jest tylko overlay (alpha).
-        // Overlay to zwykły fade - nie skaluje i nie przesuwa dzieci.
+        // NAPRAWA (potwierdzona na urzadzeniu, PR #14, commit b21e953 - uzytkownik
+        // potwierdzil, ze tresc panelu sie rysuje): DOKLADNIE ta sekwencja wejscia -
+        // fade overlay + animacja panelu (skala 0.92 -> 1, translateY 40 -> 0,
+        // Overshoot) + withEndAction wymuszajacy re-layout i invalidate.
+        // Komentarz z tamtej poprawki: "na MT8163 pierwszy pomiar panelu
+        // w animowanej overlay potrafil wyjsc 0x0 i tresc nigdy sie nie rysowala" -
+        // koncowy requestLayout()+invalidate() przebudowuje pomiar i rysunek,
+        // dopiero wtedy custom Canvas views sie pojawiaja.
+        // ⚠️ NIE usuwac animacji ani withEndAction - bez tego panel jest pusty.
         overlay.setAlpha(0f);
-        // NAPRAWA (Mali-T720 / API 28): nawet z warstwa SOFTWARE animacja alpha
-        // na overlayu pozostaje zawodna dla nowo-dodanego poddrzewa custom views -
-        // tresc panelu potrafi sie nie odtworzyc po zakonczeniu fade (raport
-        // uzytkownika: panel otwierany z HEADER doka bywa pusty). Okno zapasowe
-        // ConnectivityActivity dziala zawsze, bo nie ma zadnej animacji wejscia.
-        // Dlatego na API < 30 nakladke pokazujemy NATYCHMIAST (ta sama sciezka
-        // renderowania, co dzialajace okno); fade zostaje tylko na nowszych API.
-        if (android.os.Build.VERSION.SDK_INT < 30 || Prefs.reduceMotion(this)) {
-            overlay.setAlpha(1f);
-        } else {
-            overlay.animate().alpha(1f).setDuration(200).start();
-        }
+        overlay.animate().alpha(1f).setDuration(Prefs.reduceMotion(this) ? 0 : 220).start();
+        panel.setScaleX(0.92f);
+        panel.setScaleY(0.92f);
+        panel.setTranslationY(Ui.dp(this, 40));
+        panel.setPivotX(panelW / 2f);
+        panel.setPivotY(0f);
+        panel.animate().scaleX(1f).scaleY(1f).translationY(0f)
+                .setDuration(Prefs.reduceMotion(this) ? 0 : 280)
+                .setInterpolator(new android.view.animation.OvershootInterpolator(0.9f))
+                .withEndAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        // w tym miejscu panel byl juz pierwszy raz wymierzony -
+                        // wymuszamy pelny re-layout + invalidate (mechanizm naprawczy)
+                        if (panel != null) {
+                            panel.requestLayout();
+                            panel.invalidate();
+                        }
+                        if (overlay != null) overlay.invalidate();
+                    }
+                })
+                .start();
     }
 
     private void hideOverlay(boolean animate) {
