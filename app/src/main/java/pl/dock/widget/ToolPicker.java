@@ -1,3 +1,4 @@
+// diag: run diagnostyczny panelu
 
 package pl.dock.widget;
 
@@ -57,7 +58,8 @@ public final class ToolPicker {
         search.setHintTextColor(Popups.sub(night));
         search.setBackground(Ui.round(night ? 0x33FFFFFF : 0x14000000, 18, a));
         search.setPadding(Ui.dp(a, 16), Ui.dp(a, 8), Ui.dp(a, 16), Ui.dp(a, 8));
-        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(
+        Linea
+rLayout.LayoutParams sp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(a, 42));
         sp.bottomMargin = Ui.dp(a, 8);
         c.addView(search, sp);
@@ -108,7 +110,8 @@ public final class ToolPicker {
 
         ref[0] = Popups.panel(a, c, 580, Gravity.CENTER);
         try {
-            ref[0].getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
+            ref[0].ge
+tWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
         } catch (Throwable ignored) {
         }
         ref[0].show();
@@ -145,7 +148,8 @@ public final class ToolPicker {
                         final boolean added = have.contains(def.id);
                         Cell cell = new Cell(a, def, night, added);
                         if (!added) {
-                            cell.setOnClickListener(new View.OnClickListener() {
+                            cell.se
+tOnClickListener(new View.OnClickListener() {
                                 @Override
                                 public void onClick(View v) {
                                     cb.pick(def.id);
@@ -199,7 +203,8 @@ public final class ToolPicker {
         protected void onDraw(Canvas cv) {
             float w = getWidth();
             float dia = 54f * d;
-            float cx = w / 2f;
+            float cx 
+= w / 2f;
             float cy = 4f * d + dia / 2f;
             p.reset();
             p.setAntiAlias(true);
@@ -242,7 +247,8 @@ public final class ToolPicker {
                 int mid = s.length() / 2;
                 int best = -1;
                 for (int i = 0; i < s.length(); i++) {
-                    if (s.charAt(i) == ' ' && (best < 0 || Math.abs(i - mid) < Math.abs(best - mid))) best = i;
+                    if (s.charAt(i) == ' ' && (best < 
+0 || Math.abs(i - mid) < Math.abs(best - mid))) best = i;
                 }
                 if (best < 0) {
                     cv.drawText(fit(s, maxW), cx, base, p);
