@@ -66,6 +66,19 @@ public class ConnectivityPanelGuardTest {
     }
 
     @Test
+    public void overlayNaStarymApiNieAnimujeAlpha() throws Exception {
+        File f = launcherSource();
+        String src = new String(Files.readAllBytes(f.toPath()), Charset.forName("UTF-8"));
+
+        // Animacja alpha na overlayu pozostaje zawodna na Mali-T720 nawet z warstwa
+        // SOFTWARE (treść panelu nie odtwarza się po fade). Na API < 30 nakładka
+        // musi wejść NATYCHMIAST - identyczna ścieżka jak działające ConnectivityActivity.
+        assertTrue("Brak natychmiastowego pokazania overlayu na API < 30 - panel"
+                        + " otwierany z HEADER doka bywa pusty po animacji alpha",
+                src.contains("SDK_INT < 30 || Prefs.reduceMotion(this)"));
+    }
+
+    @Test
     public void gestSwipeUpMieszkaWPagerze() throws Exception {
         File f = launcherSource();
         String src = new String(Files.readAllBytes(f.toPath()), Charset.forName("UTF-8"));
