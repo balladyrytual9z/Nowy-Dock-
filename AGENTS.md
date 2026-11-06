@@ -388,3 +388,12 @@ Ustalenia z użytkownikiem, żeby nikt tego nie „poprawił” z powrotem:
   wchodzi NATYCHMIAST (`setAlpha(1f)`, bez `animate()`); fade tylko na
   SDK >= 30. ⚠️ **Nie przywracać fade na API < 30** — strażnik
   `ConnectivityPanelGuardTest.overlayNaStarymApiNieAnimujeAlpha()`.
+
+## 2026-11-06 (sesja 4: Ustawienia bez przewijania)
+
+- **Ekran główny Ustawień (ConfigActivity, widok kategorii + „Szukaj ustawień…")**
+  miał się przewijać — za wysokie wiersze. Zwężono globalnie w ConfigActivity:
+  `row()`/`switchRow()` minHeight 68→52 dp, ikony 48→42 dp, `segRow()` padding
+  14→10 dp, tytuł 34→30 sp, pasek szukania 17→16 sp z mniejszymi paddingami,
+  paddingi ekranu 20/40→12/24 dp. ScrollView został jako fallback dla
+  ekranów podsekcji (tam przewijanie nadal potrzebne). (PR #49, v1.0.254).
