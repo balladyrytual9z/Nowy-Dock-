@@ -11,14 +11,12 @@ import android.view.ViewGroup;
 /** Wysokowydajny blur dla Androida 9 (bez RenderScript – brak w API 28 na części OEM). */
 public class LiveBlur {
 
-    private static final int SCALE = 6;     // downsampling 1/6
-    private static final int RADIUS = 6;    // box blur pass (x SCALE = ~36px na ekranie)
+    private static final int SCALE = 6;
+    private static final int RADIUS = 6;
     private static final int PASSES = 3;
 
-    // reuzywany bufor snapshota - zero alokacji przy zywym odswiezaniu szkla
     private static Bitmap buf;
 
-    /** Widok pomijany przy snapshocie (dock) - szkło nie może pokazywać własnego ducha. */
     public static volatile View snapshotExclude;
 
     private static final Paint regionPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
@@ -26,14 +24,11 @@ public class LiveBlur {
     private static final Paint legacyPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
 
     static {
-        // iOS-style liquid glass: szkło nie tylko rozmywa tło, ale też delikatnie
-        // NASYCA kolory (saturation boost) - bez tego blur wygląda jak mętna szarość
         ColorMatrix m = new ColorMatrix();
-        m.setSaturation(1.3f);
+        m.setSaturation(1.45f);
         regionPaint.setColorFilter(new ColorMatrixColorFilter(m));
     }
 
-    /** Zrzuca widok (root) do bitmapy i rozmywa. Zwraca bitmapę do narysowania. */
     public static Bitmap captureAndBlur(ViewGroup root, int srcW, int srcH) {
         try {
             int w = Math.max(1, srcW / SCALE);
@@ -41,7 +36,6 @@ public class LiveBlur {
             if (buf == null || buf.getWidth() != w || buf.getHeight() != h) {
                 buf = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
             }
-            // czyscimy bufor: resztki poprzedniej klatki nie moga przebic sie pod szklo
             buf.eraseColor(0);
             Canvas cv = new Canvas(buf);
             cv.scale(1f / SCALE, 1f / SCALE);
@@ -57,22 +51,16 @@ public class LiveBlur {
         }
     }
 
-    /** Rysuje rozmyte tło z lekkim przyciemnieniem/rozjaśnieniem w zależności od motywu. */
     public static void draw(Canvas cv, Bitmap b, int left, int top, int right, int bottom,
                             boolean night) {
         if (b == null) return;
         android.graphics.Rect src = new android.graphics.Rect(0, 0, b.getWidth(), b.getHeight());
         android.graphics.RectF dst = new android.graphics.RectF(left, top, right, bottom);
         cv.drawBitmap(b, src, dst, legacyPaint);
-        tintPaint.setColor(night ? 0x55000000 : 0x44FFFFFF);
+        tintPaint.setColor(night ? 0x48000000 : 0x38FFFFFF);
         cv.drawRect(dst, tintPaint);
     }
 
-    /**
-     * Rysuje WYCINEK pelnoekranowego snapshota odpowiadajacy prostokatowi doka.
-     * Wcześniej caly ekran byl rozciagany na pasek doka (efekt miniatury zbiorczej).
-     * src* = wspolrzedne w root (pelny ekran), dst* = wspolrzedne widoku doka.
-     */
     public static void drawRegion(Canvas cv, Bitmap b, int rootW, int rootH,
                                   int srcX0, int srcY0, int srcX1, int srcY1,
                                   float dstL, float dstT, float dstR, float dstB,
@@ -88,9 +76,7 @@ public class LiveBlur {
         android.graphics.Rect src = new android.graphics.Rect(sx, sy, ex, ey);
         android.graphics.RectF dst = new android.graphics.RectF(dstL, dstT, dstR, dstB);
         cv.drawBitmap(b, src, dst, regionPaint);
-        // delikatny welon zamiast plaskiej ciemnej plyty - "glebie" szkla buduja
-        // warstwy swiatel rysowane przez DockView na wierzchu
-        tintPaint.setColor(night ? 0x2E000000 : 0x16FFFFFF);
+        tintPaint.setColor(night ? 0x22000000 : 0x12FFFFFF);
         cv.drawRect(dst, tintPaint);
     }
 }
