@@ -99,20 +99,33 @@ public class Ui {
     }
 
     /**
-     * Przezroczysta karta widzetu (strona widzetow, jak w iOS): zamiast
-     * nieprzezroczystego wypelnienia ciemna/jasna karta ma tylko lekki szklany
-     * ton + obwodke, wiec tlo (tapeta) prześwituje. Geometria jak w ringCard.
+     * Przezroczysta karta widzetu (strona widzetow) jak Liquid Glass w CarPlay
+     * iOS 26: zamiast nieprzezroczystego wypelnienia karta ma lekko glebszy
+     * szklany ton + pas rozswietlenia ("polysk") pod gorna krawedzia + obwodke,
+     * wiec tlo (tapeta) prześwituje. Geometria jak w ringCard.
      */
     public static void glassCard(Canvas cv, RectF r, float radius, float stroke, boolean night) {
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        p.setColor(night ? 0x26FFFFFF : 0x14000000);
+        p.setColor(night ? 0x2EFFFFFF : 0x1A000000);
         float side = Math.min(r.width(), r.height());
+        Path shape;
         if (radius > side * 0.18f) {
-            Path sq = squirclePath(r, Math.min(radius / side, 0.45f));
-            cv.drawPath(sq, p);
+            shape = squirclePath(r, Math.min(radius / side, 0.45f));
         } else {
-            cv.drawRoundRect(r, radius, radius, p);
+            shape = new Path();
+            shape.addRoundRect(r, radius, radius, Path.Direction.CW);
         }
+        cv.drawPath(shape, p);
+        // "polysk" Liquid Glass: rozswietlenie u gory karty, przyciete do ksztaltu
+        float bandBottom = r.top + r.height() * 0.30f;
+        Paint sp = new Paint(Paint.ANTI_ALIAS_FLAG);
+        sp.setShader(new LinearGradient(r.left, r.top, r.left, bandBottom,
+                new int[]{night ? 0x38FFFFFF : 0x2EFFFFFF, 0x00FFFFFF},
+                new float[]{0f, 1f}, Shader.TileMode.CLAMP));
+        cv.save();
+        cv.clipPath(shape);
+        cv.drawRect(r.left, r.top, r.right, bandBottom, sp);
+        cv.restore();
         ringStroke(cv, r, radius, stroke, night);
     }
 

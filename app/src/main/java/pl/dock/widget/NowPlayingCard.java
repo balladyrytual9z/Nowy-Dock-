@@ -142,6 +142,12 @@ public class NowPlayingCard extends View implements MediaHub.Listener, NightAwar
         if (cardBg) {
             r.set(0, 0, w, hgt);
             Ui.ringCard(cv, r, 30f * d, 1.5f * d, night, ring);
+        } else {
+            // tryb szkla (strona widzetow): szklana karta jak w pozostalych
+            // widzetach (Liquid Glass). Wczesniej nie rysowano tu NIC - karta
+            // "plywala" bez tla, niespojnie z reszta strony widzetow.
+            r.set(0, 0, w, hgt);
+            Ui.glassCard(cv, r, 30f * d, 1.5f * d, night);
         }
 
         float y = pad;
