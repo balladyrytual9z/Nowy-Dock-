@@ -253,6 +253,8 @@ public class AppLibraryPage extends FrameLayout {
         header.addView(barRow, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        page.addView(header, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         scrollView = new ScrollView(ctx);
         scrollView.setFillViewport(true);
@@ -266,11 +268,6 @@ public class AppLibraryPage extends FrameLayout {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         page.addView(scrollView, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
-
-        // HEADER (pasek wyszukiwania i liter) - NA WIERZCHU, ponad lista (nowe)
-        FrameLayout.LayoutParams headerLp = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP);
-        page.addView(header, headerLp);
 
         addView(page, new LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -516,14 +513,12 @@ public class AppLibraryPage extends FrameLayout {
         View tv = letterBar.getChildAt(idx);
         // litera rosnie w gore (albo w dol - ustawienie), ale w granicach odstepu
         // nad paskiem, zeby nie nachodzila na pole wyszukiwania
-        // animacja: skala i translacja - pivot na srodku litery
         float dy = on ? (Prefs.libLetterUp(ctx) ? -dp(6) : dp(6)) : 0f;
         float s = on ? 1.6f : 1f;
-        // pivot na srodku view (0.5f, 0.5f) - zalezy od getWidth/Height
-        //tv.setPivotX(tv.getWidth() / 2f);
-        //tv.setPivotY(tv.getHeight() / 2f);
+        tv.setPivotX(tv.getWidth() / 2f);
+        tv.setPivotY(tv.getHeight() / 2f);
         tv.animate().scaleX(s).scaleY(s).translationY(dy)
-                .setDuration(on ? 180 : 260).start();
+                .setDuration(on ? 90 : 130).start();
     }
 
     // ---------------------------------------------------------------- narzedzia
