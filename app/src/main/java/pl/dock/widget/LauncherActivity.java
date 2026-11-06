@@ -418,17 +418,15 @@ public class LauncherActivity extends BaseActivity {
 
         // Page indicators keep side margin so they don't sit under the dock
         dotsTop = new PageDots(this, true);
-        for (PageDots dd : new PageDots[]{dotsTop}) {
-            FrameLayout.LayoutParams dlp = new FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dp(40), Gravity.BOTTOM);
-            if (left) {
-                dlp.leftMargin = dockPx;
-            } else {
-                dlp.rightMargin = dockPx;
-            }
-            dlp.bottomMargin = dp(4);
-            root.addView(dd, dlp);
+        FrameLayout.LayoutParams dlp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(40), Gravity.BOTTOM);
+        if (left) {
+            dlp.leftMargin = dockPx;
+        } else {
+            dlp.rightMargin = dockPx;
         }
+        dlp.bottomMargin = dp(4);
+        root.addView(dotsTop, dlp);
 
         hud = new VolumeHud(this);
         FrameLayout.LayoutParams hlp = new FrameLayout.LayoutParams(Ui.dp(this, 380),
@@ -514,8 +512,6 @@ public class LauncherActivity extends BaseActivity {
 
         setContentView(root);
         bg.setStyle(Prefs.wallpaper(this), night);
-        dotsTop.setLight(!night);
-        buildWidgetPages();
         assemblePages();
         // Fix race condition: wskaznik od razu po zbudowaniu stron
         int panelCount = panelPageCount();
@@ -713,7 +709,6 @@ public class LauncherActivity extends BaseActivity {
 
     private void applyTheme() {
         bg.setStyle(Prefs.wallpaper(this), night);
-        dotsTop.setLight(!night);
         if (stacksPage != null) stacksPage.setNight(night);
         home.setNight(night);
         for (int i = 0; i < appPages.size(); i++) {
