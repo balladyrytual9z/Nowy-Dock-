@@ -2,6 +2,15 @@
 
 Aplikacja Android (Java/Kotlin): CarPlay, OBD, Bluetooth.
 
+## Zarządzanie pamięcią agenta
+
+Od teraz, Twoim głównym plikiem pamięci projektu jest plik `AGENTS.md` w głównym katalogu repozytorium.
+
+Zasady zarządzania pamięcią:
+1. Za każdym razem, gdy ustalimy nową zasadę, podejmiesz ważną decyzję architektoniczną lub dowiesz się czegoś kluczowego o projekcie "Nowy-Dock", MUSISZ natychmiast dopisać tę informację do pliku `AGENTS.md`.
+2. Po zaktualizowaniu pliku `AGENTS.md`, MUSISZ zrobić commit i wypchnąć zmiany bezpośrednio na gałąź `main` (użyj `git add AGENTS.md`, `git commit -m "docs: aktualizacja pamięci agenta"`, `git push origin main`). Nie rób z tego Pull Requesta, to ma być natychmiastowa aktualizacja pamięci.
+3. Za każdym razem, gdy zaczynasz nowe zadanie, NAJPIERW przeczytaj plik `AGENTS.md`, aby przypomnieć sobie kontekst projektu.
+
 ## Środowisko pracy agenta
 
 - **ZAKAZ lokalnego builda.** W sandboxie NIE ma JDK, Android SDK ani Gradle
