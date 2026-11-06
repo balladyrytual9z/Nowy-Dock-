@@ -142,13 +142,13 @@ public class ConfigActivity extends BaseActivity {
         LinearLayout r = new LinearLayout(this);
         r.setOrientation(LinearLayout.HORIZONTAL);
         r.setGravity(Gravity.CENTER_VERTICAL);
-        r.setMinimumHeight(dp(68));
-        r.setPadding(dp(16), dp(8), dp(16), dp(8));
+        r.setMinimumHeight(dp(52));
+        r.setPadding(dp(16), dp(5), dp(16), dp(5));
         if (icon != null) {
             ImageView iv = new ImageView(this);
             iv.setImageBitmap(icon);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(48), dp(48));
-            lp.rightMargin = dp(14);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(42), dp(42));
+            lp.rightMargin = dp(12);
             r.addView(iv, lp);
         }
         TextView t = text(title, 19, titleColor, false);
@@ -168,8 +168,8 @@ public class ConfigActivity extends BaseActivity {
         LinearLayout r = new LinearLayout(this);
         r.setOrientation(LinearLayout.HORIZONTAL);
         r.setGravity(Gravity.CENTER_VERTICAL);
-        r.setMinimumHeight(dp(68));
-        r.setPadding(dp(16), dp(8), dp(16), dp(8));
+        r.setMinimumHeight(dp(52));
+        r.setPadding(dp(16), dp(5), dp(16), dp(5));
         r.addView(text(title, 19, p.text, false),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         Switch sw = new Switch(this);
@@ -182,7 +182,7 @@ public class ConfigActivity extends BaseActivity {
     private View segRow(String title, String[] labels, int sel, final OnSel cb) {
         LinearLayout v = new LinearLayout(this);
         v.setOrientation(LinearLayout.VERTICAL);
-        v.setPadding(dp(16), dp(14), dp(16), dp(14));
+        v.setPadding(dp(16), dp(10), dp(16), dp(10));
         v.addView(text(title, 19, p.text, false));
         LinearLayout seg = new LinearLayout(this);
         seg.setOrientation(LinearLayout.HORIZONTAL);
@@ -216,7 +216,7 @@ public class ConfigActivity extends BaseActivity {
         LinearLayout outer = new LinearLayout(this);
         outer.setOrientation(LinearLayout.VERTICAL);
         outer.setGravity(Gravity.CENTER_HORIZONTAL);
-        outer.setPadding(0, dp(20), 0, dp(40));
+        outer.setPadding(0, dp(12), 0, dp(24));
         sv.addView(outer, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -225,8 +225,8 @@ public class ConfigActivity extends BaseActivity {
         int w = Math.min(getResources().getDisplayMetrics().widthPixels - dp(32), dp(760));
         outer.addView(col, new LinearLayout.LayoutParams(w, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView title = text("Ustawienia", 34, p.text, true);
-        title.setPadding(dp(8), dp(4), 0, 0);
+        TextView title = text("Ustawienia", 30, p.text, true);
+        title.setPadding(dp(8), dp(2), 0, 0);
         col.addView(title);
 
         // --- Wygląd ---
@@ -1058,23 +1058,23 @@ public class ConfigActivity extends BaseActivity {
 
         if (isTopLevel) {
             col.addView(title);
-            TextView hint = text("Ustawienia pogrupowane jak w iOS — wybierz kategorię.", 14, p.sub, false);
-            hint.setPadding(dp(8), dp(2), dp(8), dp(8));
+            TextView hint = text("Ustawienia pogrupowane jak w iOS — wybierz kategorię.", 13, p.sub, false);
+            hint.setPadding(dp(8), dp(2), dp(8), dp(4));
             col.addView(hint);
 
             // Pasek wyszukiwania (filtruje kategorie i podsekcje)
             final EditText search = new EditText(this);
             search.setHint("Szukaj ustawień…");
-            search.setTextSize(17);
+            search.setTextSize(16);
             search.setTextColor(p.text);
             search.setHintTextColor(p.sub);
             search.setBackground(round(p.card, 14));
-            search.setPadding(dp(16), dp(12), dp(16), dp(12));
+            search.setPadding(dp(16), dp(9), dp(16), dp(9));
             search.setSingleLine(true);
             search.setText(searchQuery);
             LinearLayout.LayoutParams searchLp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            searchLp.bottomMargin = dp(14);
+            searchLp.bottomMargin = dp(8);
             searchLp.leftMargin = dp(4);
             searchLp.rightMargin = dp(4);
             col.addView(search, searchLp);
