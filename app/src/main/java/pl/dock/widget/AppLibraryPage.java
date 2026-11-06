@@ -63,6 +63,8 @@ public class AppLibraryPage extends FrameLayout {
     private boolean clearVisible;
     private int clearSize;
     private LinearLayout letterBar;
+    private LinearLayout searchHeader;
+    private View headerGap;
     private ScrollView scrollView;
     private LinearLayout listCol;
 
@@ -148,11 +150,9 @@ public class AppLibraryPage extends FrameLayout {
         letterBar.setClipChildren(false);
         letterBar.setClipToPadding(false);
         letterBar.setPadding(0, dp(8), 0, dp(8));
-        // polprzezroczyste tlo + elevacja zeby bylo NAD lista
-        letterBar.setBackgroundColor(night ? 0xCC1C1C1E : 0xCCFFFFFF);
-        letterBar.setElevation(dp(8));
+        // bez tla i cienia - pod paskiem liter normalnie widac tapete
         for (int i = 0; i < LETTERS.length(); i++) {
-            final String letter = String.valueOf(LETTERS.charAt(i));
+            String letter = String.valueOf(LETTERS.charAt(i));
             TextView tv = new TextView(ctx);
             tv.setText(letter);
             tv.setTextSize(13);
@@ -160,45 +160,78 @@ public class AppLibraryPage extends FrameLayout {
             tv.setTextColor(night ? 0xFF0A84FF : 0xFF007AFF);
             tv.setGravity(Gravity.CENTER);
             tv.setPadding(0, dp(1), 0, dp(1));
-            tv.setOnClickListener(new OnClickListener() {
-                @Override public void onClick(View v) {
-                    scrollToLetter(letter, true);
-                }
-            });
+            // celowo BEZ OnClickListener: klikalne TextView konsumowaly ACTION_DOWN,
+            // przez co pasek nie dostawal gestu i powiekszenie litery przy przesuwaniu
+            // nie dzialalo. Tap bez ruchu obsluguje teraz sam pasek (onTouch nizej).
             letterBar.addView(tv, new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         }
-        // przesuwanie palcem (pionowo) po pasku liter
+        // pasek liter obsluguje CALY gest sam: tap (plywny skok do litery) oraz
+        // przesuwanie palcem - lista przewija sie ANIMACYZNIE (smoothScrollTo),
+        // a litera pod palcem powieksza sie w miejscu, w prawo (jak w iOS)
         letterBar.setOnTouchListener(new View.OnTouchListener() {
             private int selected = -1;
+            private float downY;
+            private boolean dragged;
 
             @Override public boolean onTouch(View v, MotionEvent ev) {
                 int a = ev.getActionMasked();
-                if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_MOVE) {
-                    int idx = letterIndexAt(ev.getY());   // pionowy pasek → wspolrzedna Y
-                    if (idx >= 0 && idx != selected) {
-                        if (selected >= 0) magnifyLetter(selected, false);
-                        selected = idx;
-                        magnifyLetter(idx, true);
-                        v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
-                        scrollToLetter(String.valueOf(LETTERS.charAt(idx)), false);
-                    }
+                if (a == MotionEvent.ACTION_DOWN) {
+                    downY = ev.getY();
+                    dragged = false;
+                    dragSelect(ev.getY());
+                    return true;
+                }
+                if (a == MotionEvent.ACTION_MOVE) {
+                    if (Math.abs(ev.getY() - downY) > dp(4)) dragged = true;
+                    dragSelect(ev.getY());
                     return true;
                 }
                 if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
+                    // tap bez ruchu = plywny skok do litery (jak wczesniejszy klik)
+                    if (a == MotionEvent.ACTION_UP && !dragged && selected >= 0) {
+                        scrollToLetter(String.valueOf(LETTERS.charAt(selected)), true);
+                    }
                     if (selected >= 0) magnifyLetter(selected, false);
                     selected = -1;
                     return true;
                 }
                 return false;
             }
+
+            private void dragSelect(float y) {
+                int idx = letterIndexAt(y);   // pionowy pasek -> wspolrzedna Y
+                if (idx >= 0 && idx != selected) {
+                    if (selected >= 0) magnifyLetter(selected, false);
+                    selected = idx;
+                    magnifyLetter(idx, true);
+                    letterBar.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+                    scrollToLetter(String.valueOf(LETTERS.charAt(idx)), true);
+                }
+            }
         });
 
-        // letterBar: stala szerokosc + margines z lewej na dock
-        LinearLayout.LayoutParams lbLp = new LinearLayout.LayoutParams(
+        // pasek liter NIE biegnie od krawedzi do krawedzi: zaczyna sie DOKLADNIE
+        // pod paskiem wyszukiwania (odstep u gory dopasowywany po pomiarze w
+        // onLayout) i konczy na dolnej krawedzi dolnego przycisku docka
+        // (panelB-32d+10d = H-6d-22d = H-28d, zgodnie z geometria DockView)
+        LinearLayout leftCol = new LinearLayout(ctx);
+        leftCol.setOrientation(LinearLayout.VERTICAL);
+        leftCol.setClipChildren(false);
+        leftCol.setClipToPadding(false);
+        LinearLayout.LayoutParams colLp = new LinearLayout.LayoutParams(
                 dp(38), ViewGroup.LayoutParams.MATCH_PARENT);
-        if (dockLeft) lbLp.leftMargin = dockInset;
-        page.addView(letterBar, lbLp);
+        if (dockLeft) colLp.leftMargin = dockInset;
+
+        headerGap = new View(ctx);
+        leftCol.addView(headerGap, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(66)));
+
+        LinearLayout.LayoutParams lbLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+        lbLp.bottomMargin = dp(28);   // koniec na dolnej krawedzi przycisku docka
+        leftCol.addView(letterBar, lbLp);
+        page.addView(leftCol, colLp);
 
         // ---- PRAWY PANEL: search bar + lista ----
         LinearLayout contentPane = new LinearLayout(ctx);
@@ -207,7 +240,7 @@ public class AppLibraryPage extends FrameLayout {
         contentPane.setClipToPadding(false);
 
         // Search bar z efektem "frosted glass" (polprzezroczyste tlo + elevacja)
-        LinearLayout searchHeader = new LinearLayout(ctx);
+        searchHeader = new LinearLayout(ctx);
         searchHeader.setOrientation(LinearLayout.HORIZONTAL);
         searchHeader.setGravity(Gravity.CENTER_VERTICAL);
         searchHeader.setClipChildren(false);
@@ -566,6 +599,21 @@ public class AppLibraryPage extends FrameLayout {
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         dismissSearch();
+    }
+
+    // pasek liter zaczyna sie DOKLADNIE pod paskiem wyszukiwania: po pomiarze
+    // ustawiamy odstep u gory na realna wysokosc paska (dp(66) to tylko start)
+    @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);
+        if (headerGap != null && searchHeader != null && searchHeader.getHeight() > 0) {
+            LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) headerGap.getLayoutParams();
+            int h = searchHeader.getHeight();
+            if (lp.height != h) {
+                lp.height = h;
+                headerGap.setLayoutParams(lp);
+            }
+        }
     }
 
     private int dp(float v) {
