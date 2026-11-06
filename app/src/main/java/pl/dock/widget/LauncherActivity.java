@@ -62,7 +62,6 @@ public class LauncherActivity extends BaseActivity {
     private PagerView pager;
     private DockView dock;
     private PageDots dotsTop;
-    private PageDots dotsApps;
     private long lastBlurAt = 0;
     private WidgetPage stacksPage;
     private HomeSections home;
@@ -419,19 +418,17 @@ public class LauncherActivity extends BaseActivity {
 
         // Page indicators keep side margin so they don't sit under the dock
         dotsTop = new PageDots(this, true);
-        dotsApps = new PageDots(this, false);
-        for (PageDots dd : new PageDots[]{dotsTop, dotsApps}) {
+        for (PageDots dd : new PageDots[]{dotsTop}) {
             FrameLayout.LayoutParams dlp = new FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 28), Gravity.BOTTOM);
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(40), Gravity.BOTTOM);
             if (left) {
                 dlp.leftMargin = dockPx;
             } else {
                 dlp.rightMargin = dockPx;
             }
-            dlp.bottomMargin = Ui.dp(this, 6);
+            dlp.bottomMargin = dp(4);
             root.addView(dd, dlp);
         }
-        dotsApps.setAlpha(0f);
 
         hud = new VolumeHud(this);
         FrameLayout.LayoutParams hlp = new FrameLayout.LayoutParams(Ui.dp(this, 380),
@@ -489,13 +486,11 @@ public class LauncherActivity extends BaseActivity {
                 // (przechwytywanie calego ekranu + blur na watku UI tnilo gest na
                 // slabym GPU tabletu) - snapshot robimy dopiero po osiadnieciu strony
                 dotsTop.setAlpha(1f - t);
-                dotsApps.setAlpha(t);
                 // ZAWSZE realna liczba stron calego panelu (bez wyszukiwania), tak samo na
                 // kazdej stronie - zgloszenie: na stronie glownej byly 2 kropki,
                 // a na liscie aplikacji liczba aplikacji.
                 int panelCount = panelPageCount();
                 dotsTop.set(panelCount, Math.min(pos, panelCount - 1));
-                dotsApps.set(panelCount, Math.min(pos, panelCount - 1));
                 // biale tlo (kapsula) tylko na stronie glownej
                 dotsTop.setCapsule(Math.abs(pos - homeIdx) < 0.5f);
             }
@@ -520,16 +515,13 @@ public class LauncherActivity extends BaseActivity {
         setContentView(root);
         bg.setStyle(Prefs.wallpaper(this), night);
         dotsTop.setLight(!night);
-        dotsApps.setLight(!night);
         buildWidgetPages();
         assemblePages();
         // Fix race condition: wskaznik od razu po zbudowaniu stron
         int panelCount = panelPageCount();
         dotsTop.set(panelCount, homeIdx);
-        dotsApps.set(panelCount, homeIdx);
         dotsTop.setCapsule(true);
         dotsTop.setAlpha(1f);
-        dotsApps.setAlpha(0f);
         lastDockSig = "";
 
         // Gest swipe UP od dołu → centrum łączności (środek panelu nad palcem).
@@ -722,7 +714,6 @@ public class LauncherActivity extends BaseActivity {
     private void applyTheme() {
         bg.setStyle(Prefs.wallpaper(this), night);
         dotsTop.setLight(!night);
-        dotsApps.setLight(!night);
         if (stacksPage != null) stacksPage.setNight(night);
         home.setNight(night);
         for (int i = 0; i < appPages.size(); i++) {
