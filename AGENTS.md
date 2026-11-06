@@ -397,3 +397,21 @@ Ustalenia z użytkownikiem, żeby nikt tego nie „poprawił” z powrotem:
   14→10 dp, tytuł 34→30 sp, pasek szukania 17→16 sp z mniejszymi paddingami,
   paddingi ekranu 20/40→12/24 dp. ScrollView został jako fallback dla
   ekranów podsekcji (tam przewijanie nadal potrzebne). (PR #49, v1.0.254).
+
+## 2026-11-06 (sesja 5: PRZEBUDOWA panelu łączności — rozstrzygnięcie)
+
+- Po 4 wersjach (v1.0.244…256) panel łączności w nakładce launchera był pusty:
+  widać tylko okno z zaokrągleniami i pigułkę „Edytuj”, a **żadne custom Canvas
+  views się nie rysują** (nawet przy konfiguracji PR #14 1:1, v1.0.256).
+- **WNIOSEK (potwierdzony testami użytkownika): na Mali-T720/API 28 w dynamicznie
+  doczepianym poddrzewie nakładki renderują się WYŁĄCZNIE widoki frameworka.**
+- **Fix (v1.0.258, PR #52): ConnectivityPanel + ToolGrid przebudowane od zera —
+  ZERO widoków z własnym onDraw()**. Tylko LinearLayout/FrameLayout/TextView/
+  ImageView/View z GradientDrawable/SeekBar; ikony to Bitmapy (Canvas CPU, raz)
+  w ImageView; zaokrąglenia to GradientDrawable. Strażnik:
+  `ConnectivityPanelGuardTest.panelJestFrameworkowy`.
+- Zachowane: wejście nakładki PR #14 (fade + animacja + withEndAction re-layout),
+  brak warstwy na overlayu, warstwa SOFTWARE tylko na panelu (API<30),
+  Wi‑Fi/hotspot otwierają ekrany ustawień, BT wg `btAction`, ukrywanie wg
+  `Prefs.showModeButtons/showNightShift`.
+- ⚠️ **Nie dodawać do panelu widoków z onDraw() ani podklas View** — strażnik padnie.
