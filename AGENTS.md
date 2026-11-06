@@ -44,6 +44,9 @@ Zasady zarządzania pamięcią:
 ## Zasady pracy z tym repo
 
 - Nigdy nie commituj/pushuj bezpośrednio na `main` — nowa gałąź + Pull Request.
+  **WYJĄTEK: aktualizacje pliku `AGENTS.md`** (pamięć agenta) są zawsze
+  commitujowane i pushowane bezpośrednio na `main`, bez PR — patrz sekcja
+  „Zarządzanie pamięcią agenta”.
 - Najpierw plan (jakie pliki), potem pytania `[tak/nie]`, potem kod.
 - `AGENTS.md` nie jest częścią źródeł aplikacji — nie wpływa na build APK.
 
