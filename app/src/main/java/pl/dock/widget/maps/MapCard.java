@@ -18,6 +18,7 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 
+import pl.dock.widget.GlassAware;
 import pl.dock.widget.NightAware;
 import pl.dock.widget.Prefs;
 import pl.dock.widget.Ui;
