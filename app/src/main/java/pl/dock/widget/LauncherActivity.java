@@ -1270,7 +1270,9 @@ public class LauncherActivity extends BaseActivity {
 
     private void openSettings() {
         try {
-            startActivity(new Intent(this, ConfigActivity.class));
+            Intent i = new Intent(this, ConfigActivity.class);
+            i.putExtra("origin_page", Prefs.lastPage(this));
+            startActivity(i);
             overridePendingTransition(R.anim.cp_slide_in, R.anim.cp_fade_out);
         } catch (Throwable t) {
             android.util.Log.w("Dock", "openSettings", t);

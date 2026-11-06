@@ -99,8 +99,16 @@ public class ConnectivityActivity extends BaseActivity {
         dock.setData(night, "glass".equals(Prefs.style(this)), clock, s,
                 Prefs.showVoltage(this), dockIcons());
         dock.setCarplayState(s.cp);
+        // ikona dolnego przycisku = strona, z ktorej otwarto panel (origin page)
+        dock.setBottomMode(DockView.bottomModeFor(originPage()));
 
         setContentView(root);
+    }
+
+    /** Strona launchera, z ktorej otwarto ten ekran (fallback: ostatnia strona). */
+    private String originPage() {
+        String p = getIntent() == null ? null : getIntent().getStringExtra("origin_page");
+        return p != null ? p : Prefs.lastPage(this);
     }
 
     private android.graphics.Bitmap[] dockIcons() {

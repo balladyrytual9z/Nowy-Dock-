@@ -10,6 +10,7 @@ public class HeaderReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context c, Intent i) {
         Intent open = new Intent(c, ConnectivityActivity.class);
+        open.putExtra("origin_page", Prefs.lastPage(c));
         open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
             c.startActivity(open);

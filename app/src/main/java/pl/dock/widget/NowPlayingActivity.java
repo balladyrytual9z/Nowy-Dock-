@@ -74,12 +74,14 @@ public class NowPlayingActivity extends BaseActivity implements MediaHub.Listene
 
     private DockView buildDock() {
         dock = new DockView(this);
-        // Ikona dolnego przycisku: jeden kwadracik = ekran glowny (a nie siatka).
-        dock.setBottomProgress(1f);
+        // Ikona dolnego przycisku = strona, z ktorej otwarto Odtwarzane (origin page)
+        dock.setBottomMode(DockView.bottomModeFor(originPage()));
         dock.setListener(new DockView.Listener() {
             @Override public void onHeader() {
                 // panel lacznosci jako osobne okno (overlay dziala tylko w launcherze)
-                startActivity(new Intent(NowPlayingActivity.this, ConnectivityActivity.class));
+                Intent i = new Intent(NowPlayingActivity.this, ConnectivityActivity.class);
+                i.putExtra("origin_page", originPage());
+                startActivity(i);
             }
             @Override public void onApp(int index) {
                 java.util.List<AppEntry> top = Prefs.top(NowPlayingActivity.this, 3);
@@ -101,9 +103,8 @@ public class NowPlayingActivity extends BaseActivity implements MediaHub.Listene
                 }
             }
             @Override public void onBottom() {
-                // Ten sam dok co w reszcie systemu: dolny przycisk = powrot na
-                // STRONE GLOWNA (flaga + zamkniecie okna), a nie na losowa strone.
-                Prefs.setGoHome(NowPlayingActivity.this, true);
+                // NAPRAWA: dolny przycisk wraca na strone, z ktorej otwarto
+                // ten ekran (origin page) - bez wymuszania ekranu glownego.
                 finish();
             }
             @Override public void onBottomLong() {
@@ -112,6 +113,12 @@ public class NowPlayingActivity extends BaseActivity implements MediaHub.Listene
             }
         });
         return dock;
+    }
+
+    /** Strona launchera, z ktorej otwarto ten ekran (fallback: ostatnia strona). */
+    private String originPage() {
+        String p = getIntent() == null ? null : getIntent().getStringExtra("origin_page");
+        return p != null ? p : Prefs.lastPage(this);
     }
 
     private void refreshDockData() {

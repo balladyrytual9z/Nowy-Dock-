@@ -325,6 +325,7 @@ public class NowPlayingCard extends View implements MediaHub.Listener, NightAwar
             MediaHub.get().next();
         } else if (t.hasData()) {
             Intent i = new Intent(c, MediaCenterActivity.class);
+            i.putExtra("origin_page", Prefs.lastPage(c));
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             c.startActivity(i);
         }

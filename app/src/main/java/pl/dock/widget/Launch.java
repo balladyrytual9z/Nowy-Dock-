@@ -66,6 +66,7 @@ public class Launch {
         if (pkg == null || !pkg.startsWith("dock:")) return false;
         if ("dock:settings".equals(pkg)) {
             Intent i = new Intent(c, ConfigActivity.class);
+            i.putExtra("origin_page", Prefs.lastPage(c));
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             return start(c, i);
         }

@@ -59,9 +59,13 @@ public class MediaCenterActivity extends Activity implements MediaHub.Listener {
         else vLp.rightMargin = dockPx;
         frame.addView(view, vLp);
         dock = new DockView(this);
+        // ikona dolnego przycisku = strona, z ktorej otwarto Media Center (origin page)
+        dock.setBottomMode(DockView.bottomModeFor(originPage()));
         dock.setListener(new DockView.Listener() {
             @Override public void onHeader() {
-                startActivity(new Intent(MediaCenterActivity.this, ConnectivityActivity.class));
+                Intent i = new Intent(MediaCenterActivity.this, ConnectivityActivity.class);
+                i.putExtra("origin_page", originPage());
+                startActivity(i);
             }
             @Override public void onApp(int index) {
                 java.util.List<AppEntry> top = Prefs.top(MediaCenterActivity.this, 3);
@@ -315,6 +319,12 @@ public class MediaCenterActivity extends Activity implements MediaHub.Listener {
             float dx = x - cx, dy = y - cy;
             return (float) Math.sqrt(dx * dx + dy * dy);
         }
+    }
+
+    /** Strona launchera, z ktorej otwarto ten ekran (fallback: ostatnia strona). */
+    private String originPage() {
+        String p = getIntent() == null ? null : getIntent().getStringExtra("origin_page");
+        return p != null ? p : Prefs.lastPage(this);
     }
 
     public static void open(android.content.Context c) {

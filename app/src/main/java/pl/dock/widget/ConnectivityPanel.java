@@ -471,6 +471,7 @@ public class ConnectivityPanel extends LinearLayout {
         } else if ("@dock".equals(a)) {
             try {
                 Intent i = new Intent(act, ConfigActivity.class);
+                i.putExtra("origin_page", Prefs.lastPage(act));
                 i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 act.startActivity(i);
                 ok = true;

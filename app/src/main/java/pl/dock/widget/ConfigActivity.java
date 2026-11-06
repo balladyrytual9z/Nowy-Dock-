@@ -768,11 +768,15 @@ public class ConfigActivity extends BaseActivity {
                 dockPx, ViewGroup.LayoutParams.MATCH_PARENT,
                 dockLeft ? Gravity.START : Gravity.END);
         frame.addView(dock, dockLp);
+        // ikona dolnego przycisku = strona, z ktorej otwarto ustawienia (origin page)
+        dock.setBottomMode(DockView.bottomModeFor(originPage()));
 
         dock.setListener(new DockView.Listener() {
             @Override public void onHeader() {
                 // panel lacznosci jako osobne okno (overlay dziala tylko w launcherze)
-                startActivity(new Intent(ConfigActivity.this, ConnectivityActivity.class));
+                Intent i = new Intent(ConfigActivity.this, ConnectivityActivity.class);
+                i.putExtra("origin_page", originPage());
+                startActivity(i);
             }
             @Override public void onApp(int index) {
                 List<AppEntry> top = Prefs.top(ConfigActivity.this, 3);
@@ -819,6 +823,12 @@ public class ConfigActivity extends BaseActivity {
         }, 30000);
 
         setContentView(frame);
+    }
+
+    /** Strona launchera, z ktorej otwarto ten ekran (fallback: ostatnia strona). */
+    private String originPage() {
+        String p = getIntent() == null ? null : getIntent().getStringExtra("origin_page");
+        return p != null ? p : Prefs.lastPage(this);
     }
 
     // ---------- dane doka w ustawieniach ----------

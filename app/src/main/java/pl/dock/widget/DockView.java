@@ -22,6 +22,11 @@ import android.view.ViewConfiguration;
 // Rysowany jednym widokiem; odświeżany tylko przy zmianie danych.
 public class DockView extends View {
 
+    // ikona dolnego przycisku w ekranach wewnetrznych = strona, na ktora przycisk wroci
+    public static final int BOTTOM_GRID = 0;     // siatka 3x3 (strony aplikacji)
+    public static final int BOTTOM_HOME = 1;    // jeden kwadrat (ekran glowny)
+    public static final int BOTTOM_WIDGETS = 2; // trzy kwadraciki (strona widzetow)
+
     public interface Listener {
         void onHeader();
 
@@ -53,6 +58,7 @@ public class DockView extends View {
     private final Bitmap[] icons = new Bitmap[4];
     private Bitmap bWifi, bTether, bBt, bBattery, bCharge, bCp, bPhone;
     private float bottomT;
+    private int bottomMode = -1;   // -1 = crossfade launchera; >=0 = staly glif (ekrany wewnetrzne)
     private Drawable bg;
     private int bgRes = -1;
     private boolean showCp = true;
@@ -188,10 +194,24 @@ public class DockView extends View {
 
     // 0 = ekran glowny (siatka 9 kwadratow), 1 = lista aplikacji (jeden kwadrat z zaokraglonymi rogami)
     public void setBottomProgress(float t) {
+        bottomMode = -1;   // launcher: wroc do trybu crossfade
         t = Math.max(0f, Math.min(1f, t));
         if (Math.abs(t - bottomT) < 0.004f) return;
         bottomT = t;
         invalidate();
+    }
+
+    /** Ekrany wewnetrzne: staly glif dolnego przycisku = strona, na ktora wroci. */
+    public void setBottomMode(int mode) {
+        bottomMode = mode;
+        invalidate();
+    }
+
+    /** Tryb ikony dla strony launchera (null = ekran glowny). */
+    public static int bottomModeFor(String page) {
+        if (Prefs.PAGE_APPS.equals(page)) return BOTTOM_GRID;
+        if (Prefs.PAGE_WIDGETS.equals(page)) return BOTTOM_WIDGETS;
+        return BOTTOM_HOME;
     }
 
     // Liquid Glass ma "zyc": gdy cokolwiek na ekranie sie rusza (przewijanie stron,
@@ -432,7 +452,45 @@ public class DockView extends View {
         float by = bottomCy();
         int pa = pressed == BOTTOM ? 150 : 255;
         float g = 20f * d;
-        if (bottomT < 0.999f) {
+        if (bottomMode >= 0) {
+            // EKRANY WEWNETRZNE (Ustawienia, Media Center, Odtwarzane, panel
+            // lacznosci): glif pokazuje strone, na ktora przycisk WROCI
+            // (origin page), a nie cel przelaczenia jak w launcherze.
+            homePaint.setAlpha(pa);
+            if (bottomMode == BOTTOM_WIDGETS) {
+                // strona widzetow: trzy kwadraciki w rzedzie (nowa ikona)
+                homePaint.setStyle(Paint.Style.FILL);
+                float gap = g / 3f;
+                float q = gap * 0.66f;
+                float rr2 = q * 0.28f;
+                for (int gx = 0; gx < 3; gx++) {
+                    float qx = cx - g / 2f + gx * gap + (gap - q) / 2f;
+                    rect.set(qx, by - q / 2f, qx + q, by + q / 2f);
+                    cv.drawRoundRect(rect, rr2, rr2, homePaint);
+                }
+                homePaint.setStyle(Paint.Style.STROKE);
+            } else if (bottomMode == BOTTOM_HOME) {
+                // ekran glowny: jeden kwadrat z zaokraglonymi rogami
+                rect.set(cx - g / 2f, by - g / 2f, cx + g / 2f, by + g / 2f);
+                cv.drawRoundRect(rect, 6f * d, 6f * d, homePaint);
+            } else {
+                // strony aplikacji / Biblioteka: siatka 3x3
+                homePaint.setStyle(Paint.Style.FILL);
+                float gap = g / 3f;
+                float q = gap * 0.62f;
+                float rr2 = q * 0.28f;
+                for (int gy = 0; gy < 3; gy++) {
+                    for (int gx = 0; gx < 3; gx++) {
+                        float qx = cx - g / 2f + gx * gap + (gap - q) / 2f;
+                        float qy = by - g / 2f + gy * gap + (gap - q) / 2f;
+                        rect.set(qx, qy, qx + q, qy + q);
+                        cv.drawRoundRect(rect, rr2, rr2, homePaint);
+                    }
+                }
+                homePaint.setStyle(Paint.Style.STROKE);
+            }
+            homePaint.setAlpha(255);
+        } else if (bottomT < 0.999f) {
             // nie jestesmy jeszcze na liscie aplikacji: siatka 9 kwadratow (3x3)
             homePaint.setAlpha((int) (pa * (1f - bottomT)));
             homePaint.setStyle(Paint.Style.FILL);
@@ -449,7 +507,7 @@ public class DockView extends View {
             }
             homePaint.setStyle(Paint.Style.STROKE);
         }
-        if (bottomT > 0.001f) {
+        if (bottomMode < 0 && bottomT > 0.001f) {
             // jestesmy na liscie aplikacji: jeden kwadrat z zaokraglonymi rogami
             homePaint.setAlpha((int) (pa * bottomT));
             rect.set(cx - g / 2f, by - g / 2f, cx + g / 2f, by + g / 2f);
