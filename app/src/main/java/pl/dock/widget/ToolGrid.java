@@ -121,8 +121,9 @@ public class ToolGrid extends LinearLayout {
                         return true;
                     }
                 });
-                // siatka: kafelek 72 x 84 (koło 52 + dwuliniowa etykieta pod spodem)
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(72), dp(84));
+                // siatka: kafelek 126 x 84 (koło 52 + dwuliniowa etykieta pod spodem);
+                // 4 x 126 + 3 x 6 = 522 dp ~ pelna szerokosc panelu (jak w iOS)
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(126), dp(84));
                 lp.leftMargin = j == 0 ? 0 : dp(6);
                 // w siatce etykieta może się łamać na dwie linie (jak w Control Center)
                 TextView glbl = (TextView) tile.findViewWithTag("label");
@@ -192,8 +193,10 @@ public class ToolGrid extends LinearLayout {
         minus.setTextSize(14);
         minus.setBackground(Ui.round(0xFFFF3B30, 999, c));
         FrameLayout.LayoutParams mlp = new FrameLayout.LayoutParams(Ui.dp(c, 20), Ui.dp(c, 20));
-        mlp.gravity = Gravity.TOP | Gravity.END;
-        mlp.rightMargin = Ui.dp(c, 1);
+        // minus na rogu KOLA (kolo jest wysrodkowane w kafelku - przy szerszych
+        // kafelkach prawy krawedz boxa bylby daleko od kola)
+        mlp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        mlp.leftMargin = Ui.dp(c, 52);
         box.addView(minus, mlp);
         minus.setVisibility(View.GONE);
 

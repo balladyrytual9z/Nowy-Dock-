@@ -9,6 +9,7 @@ import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
@@ -103,8 +104,11 @@ public class ConnectivityPanel extends LinearLayout {
         this.host = host;
         PanelTool.init(a);
         setOrientation(VERTICAL);
-        setBackground(Ui.popupBg(a, night));
-        setPadding(dp(12), dp(12), dp(12), dp(10));
+        // iOS Control Center: brak karty - tresc lezy bezposrednio na rozmytym
+        // tle ekranu (migawka + Blur w LauncherActivity). Klikalne, by tap w tlo
+        // panelu nie zamykal nakladki.
+        setBackground(null);
+        setPadding(dp(16), dp(14), dp(16), dp(12));
         setClickable(true);
         // Warstwa SOFTWARE na API < 30 zostaje (potwierdzona w PR #14): dla widokow
         // frameworka jest nieszkodliwa, a chroni, gdyby ktos dozyl widok z onDraw.
@@ -125,6 +129,17 @@ public class ConnectivityPanel extends LinearLayout {
         // pigułka jak w iOS: szarość systemowa 787880, nie zwykła biel/czerń
         t.setBackground(Ui.round(night ? 0x33787880 : 0x1F787880, 18, act));
         return t;
+    }
+
+    /** Szklana karta modulu jak w iOS Control Center: lekkie wypelnienie
+     *  przepuszczajace rozmyte tlo ekranu + subtelna obwodka.
+     *  GradientDrawable = czysty framework (zero onDraw, patrz naglowek klasy). */
+    private GradientDrawable glassBg() {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(night ? 0x24FFFFFF : 0x14000000);
+        g.setCornerRadius(dp(28));
+        g.setStroke(Math.max(1, dp(1)), night ? 0x33FFFFFF : 0x1E787880);
+        return g;
     }
 
     private void build() {
@@ -154,11 +169,22 @@ public class ConnectivityPanel extends LinearLayout {
         addView(head, hp);
 
         // ===== STALY MODUL BAZOWY (zawsze widoczny po otwarciu) =====
+        // Jak w iOS: karta lacznosci po LEWEJ, suwaki po PRAWEJ.
+        // Stale dp zamiast weight (Mali-T720): 126 + 10 + 190 + 12 + 190 = 528 dp
+        // = panel 560 dp minus padding 2 x 16 dp; wysokosc modulow jednakowa.
         LinearLayout main = new LinearLayout(act);
         main.setOrientation(HORIZONTAL);
 
-        LinearLayout left = new LinearLayout(act);
-        left.setOrientation(VERTICAL);
+        // LEWA kolumna: szklana karta lacznosci jak w iOS - trzy okragle
+        // PRZELACZNIKI Wi-Fi / Bluetooth / Hotspot (kolo + etykieta pod spodem)
+        LinearLayout rail = new LinearLayout(act);
+        rail.setOrientation(VERTICAL);
+        rail.setPadding(dp(10), 0, dp(10), 0);
+        rail.setBackground(glassBg());
+        buildRail(rail);
+        LayoutParams rlp = new LayoutParams(dp(126), dp(240));
+        rlp.rightMargin = dp(10);
+        main.addView(rail, rlp);
 
         // suwak jasnosci | suwak glosnosci (PillSlider - tylko widoki frameworka)
         LinearLayout sliders = new LinearLayout(act);
@@ -179,7 +205,7 @@ public class ConnectivityPanel extends LinearLayout {
         // wyjsc zerowe - caly uklad panelu uzywa wylacznie stalych dp.
         // Suwaki maja 240 dp wysokosci - tyle samo, co karta lacznosci obok
         // (jak w iOS: suwaki i modul lacznosci sa jednej wysokosci).
-        LayoutParams blp = new LayoutParams(dp(159), dp(240));
+        LayoutParams blp = new LayoutParams(dp(190), dp(240));
         blp.rightMargin = dp(6);
         sliders.addView(briSlider, blp);
         volSlider = new PillSlider(act, false, volumeValue());
@@ -194,24 +220,10 @@ public class ConnectivityPanel extends LinearLayout {
                 openAndClose("android.settings.SOUND_SETTINGS");
             }
         });
-        LayoutParams vlp = new LayoutParams(dp(159), dp(240));
+        LayoutParams vlp = new LayoutParams(dp(190), dp(240));
         vlp.leftMargin = dp(6);
         sliders.addView(volSlider, vlp);
-        left.addView(sliders);
-
-        // lewa kolumna: dwa suwaki (159 + 6 + 6 + 159 = 330 dp) x 240 dp
-        main.addView(left, new LayoutParams(dp(330), dp(240)));
-
-        // prawa kolumna: karta lacznosci jak w iOS - zaokraglony modul ze szkla
-        // z trzema kafelkami Wi-Fi / Bluetooth / Hotspot (kolo + etykieta)
-        LinearLayout rail = new LinearLayout(act);
-        rail.setOrientation(VERTICAL);
-        rail.setPadding(dp(6), dp(6), dp(6), dp(6));
-        rail.setBackground(Ui.round(night ? 0x1FFFFFFF : 0x14000000, 24, act));
-        buildRail(rail);
-        LayoutParams rlp = new LayoutParams(dp(86), dp(240));
-        rlp.leftMargin = dp(10);
-        main.addView(rail, rlp);
+        main.addView(sliders, new LayoutParams(dp(392), dp(240)));
 
         addView(main, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -226,7 +238,7 @@ public class ConnectivityPanel extends LinearLayout {
             dcard.setOrientation(HORIZONTAL);
             dcard.setGravity(Gravity.CENTER);
             dcard.setPadding(dp(8), dp(8), dp(8), dp(8));
-            dcard.setBackground(Ui.round(night ? 0x1FFFFFFF : 0x14000000, 24, act));
+            dcard.setBackground(glassBg());
             if (Prefs.showNightShift(act)) {
                 nightRow = new NightShiftRow(act);
                 LayoutParams nlp = new LayoutParams(dp(124), dp(88));
@@ -314,13 +326,14 @@ public class ConnectivityPanel extends LinearLayout {
             tile.setOnLongClickListener(new OnLongClickListener() {
                 @Override
                 public boolean onLongClick(View v) {
-                    enterEditMode();
+                    onRailLong(def);
                     return true;
                 }
             });
+            // 3 x (72 + 8) = 240 dp = wysokosc karty (marginesy pionowe 4 dp)
             LayoutParams tlp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(72));
-            tlp.topMargin = dp(6);
-            tlp.bottomMargin = dp(6);
+            tlp.topMargin = dp(4);
+            tlp.bottomMargin = dp(4);
             rail.addView(tile, tlp);
             railTiles.add(tile);
         }
@@ -329,11 +342,19 @@ public class ConnectivityPanel extends LinearLayout {
     private void onRailTap(PanelTool.Def d) {
         String id = d.id;
         if ("wifi".equals(id)) {
-            // wymaganie: dotkniecie otwiera OD RAZU ekran Wi-Fi, bez proby przelaczania
-            if (Net.openWifiSettings(act)) host.close();
-            else unavailable();
+            // iOS: tap = przelacz Wi-Fi bezposrednio (Android 9 pozwala przez
+            // WifiManager; CHANGE_WIFI_STATE jest w manifieście).
+            boolean before = Net.wifiEnabled(act);
+            if (!Net.setWifi(act, !before)) {
+                // radio producenta potrafi blokowac przelaczanie: wtedy ustawienia
+                if (Net.openWifiSettings(act)) host.close();
+                else unavailable();
+                return;
+            }
+            update();   // stan przyjdzie tez broadcastem WIFI_STATE_CHANGED
         } else if ("hot".equals(id)) {
-            // wymaganie: dotkniecie otwiera ekran "Hotspot Wi-Fi"
+            // Android 9 nie pozwala aplikacji przelaczac hotspotu: tap prowadzi
+            // wprost do ekranu z androidowym przelacznikiem hotspotu
             if (Net.openTetherSettings(act)) host.close();
             else unavailable();
         } else if ("bt".equals(id)) {
@@ -341,6 +362,23 @@ public class ConnectivityPanel extends LinearLayout {
             toggleBt();
         } else {
             runTool(d, false);
+        }
+    }
+
+    /** Przytrzymanie kafelka lacznosci: ekran ustawien danej funkcji. */
+    private void onRailLong(PanelTool.Def d) {
+        String id = d.id;
+        if ("wifi".equals(id)) {
+            if (Net.openWifiSettings(act)) host.close();
+            else unavailable();
+        } else if ("bt".equals(id)) {
+            if (Net.openBluetoothSettings(act)) host.close();
+            else unavailable();
+        } else if ("hot".equals(id)) {
+            if (Net.openTetherSettings(act)) host.close();
+            else unavailable();
+        } else {
+            enterEditMode();
         }
     }
 
@@ -1019,12 +1057,16 @@ public class ConnectivityPanel extends LinearLayout {
             super(c);
             setOrientation(VERTICAL);
             // tor (track) rysuje GradientDrawable - framework
-            setBackground(Ui.round(Look.night(c) ? 0xFF3A3A3C : 0xFFD1D1D6, 80, c));
+            // tor = ciemne szklo przepuszczajace rozmyte tlo (pigulka jak w iOS)
+            GradientDrawable track = new GradientDrawable();
+            track.setColor(Look.night(c) ? 0x993A3A3C : 0xCCE1E1E7);
+            track.setCornerRadius(999f);
+            setBackground(track);
             value = Math.max(0f, Math.min(1f, v));
 
             // wypelnienie od dolu - zwykly View z bialym GradientDrawable
             fill = new View(c);
-            fill.setBackground(Ui.round(0xFFFFFFFF, 80, c));
+            fill.setBackground(Ui.round(0xF5FFFFFF, 999, c));
             FrameLayout froot = new FrameLayout(c);
             FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, 1, Gravity.BOTTOM);

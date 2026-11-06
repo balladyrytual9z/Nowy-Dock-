@@ -1307,7 +1307,9 @@ public class LauncherActivity extends BaseActivity {
         if (overlay != null) return;
         Bitmap snap = null;
         try {
-            int k = 6;
+            // migawka 1/4 rozmiaru ekranu (jak w iOS: gladziej rozmyte tlo
+            // rozciagane na caly ekran)
+            int k = 4;
             snap = Bitmap.createBitmap(Math.max(1, root.getWidth() / k),
                     Math.max(1, root.getHeight() / k), Bitmap.Config.ARGB_8888);
             Canvas cv = new Canvas(snap);
@@ -1334,7 +1336,7 @@ public class LauncherActivity extends BaseActivity {
                     ViewGroup.LayoutParams.MATCH_PARENT));
         }
         View tint = new View(this);
-        tint.setBackgroundColor(night ? 0x40000000 : 0x40FFFFFF);
+        tint.setBackgroundColor(night ? 0x59000000 : 0x4DFFFFFF);
         overlay.addView(tint, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
         overlay.setOnClickListener(new View.OnClickListener() {
