@@ -251,47 +251,8 @@ public class ConfigActivity extends BaseActivity {
                         changed();
                     }
                 }));
-        sep(g);
-        g.addView(switchRow("Podążaj za ustawieniami systemu", Prefs.followSystem(this),
-                new CompoundButton.OnCheckedChangeListener() {
-                    @Override
-                    public void onCheckedChanged(CompoundButton v, boolean on) {
-                        if (on == Prefs.followSystem(ConfigActivity.this)) return;
-                        Prefs.setFollowSystem(ConfigActivity.this, on);
-                        themeChanged();
-                    }
-                }));
-        if (!Prefs.followSystem(this)) {
-            sep(g);
-            String mode = Prefs.mode(this);
-            g.addView(segRow("Tryb", new String[]{"Dzienny", "Nocny", "Wg godzin"},
-                    "day".equals(mode) ? 0 : ("night".equals(mode) ? 1 : 2), new OnSel() {
-                        @Override
-                        public void on(int i) {
-                            Prefs.setMode(ConfigActivity.this,
-                                    i == 0 ? "day" : (i == 1 ? "night" : "time"));
-                            themeChanged();
-                        }
-                    }));
-            if ("time".equals(mode)) {
-                sep(g);
-                g.addView(row(null, "Noc zaczyna się o", hhmm(Prefs.nightStart(this)), true,
-                        p.text, new View.OnClickListener() {
-                            @Override
-                            public void onClick(View v) {
-                                pickTime(true);
-                            }
-                        }));
-                sep(g);
-                g.addView(row(null, "Noc kończy się o", hhmm(Prefs.nightEnd(this)), true,
-                        p.text, new View.OnClickListener() {
-                            @Override
-                            public void onClick(View v) {
-                                pickTime(false);
-                            }
-                        }));
-            }
-        }
+        footer(col, "Tryb jasny / ciemny, automatyczna zmiana i harmonogram znajdziesz "
+                + "w kategorii „Ekran” › „Ekran i jasność”.");
 
         // --- Górne aplikacje ---
         section(col, "Górne aplikacje");
@@ -316,33 +277,6 @@ public class ConfigActivity extends BaseActivity {
                 }));
         footer(col, "Na widżecie widać 3 aplikacje z listy poniżej (wg powyższego wyboru) "
                 + "oraz CarPlay na dole. Zliczane są kliknięcia na widżecie.");
-
-        // --- CarPlay ---
-        section(col, "Ikona CarPlay w docku");
-        g = group(col);
-        final AppEntry cp = Prefs.carplay(this);
-        g.addView(row(Icons.forEntry(this, cp), "Aplikacja",
-                cp.pkg.length() == 0 ? "Nie wybrano" : appLabel(cp.pkg), true, p.text,
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        pickApp(new OnPick() {
-                            @Override
-                            public void on(String pkg) {
-                                cp.pkg = pkg;
-                                Prefs.persist(ConfigActivity.this, cp);
-                                changed();
-                            }
-                        });
-                    }
-                }));
-        sep(g);
-        g.addView(row(null, "Ikona", iconModeName(cp), true, p.text, new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                iconMenu(cp);
-            }
-        }));
 
         // --- Lista aplikacji ---
         List<AppEntry> apps = Prefs.apps(this);
@@ -440,7 +374,33 @@ public class ConfigActivity extends BaseActivity {
                 }));
         footer(col, "Dodaj ile chcesz. Każda może mieć własną ikonę.");
 
-        // --- Przycisk siatki ---
+        // --- Ikona CarPlay w docku ---
+        section(col, "Ikona CarPlay w docku");
+        g = group(col);
+        final AppEntry cp = Prefs.carplay(this);
+        g.addView(row(Icons.forEntry(this, cp), "Aplikacja",
+                cp.pkg.length() == 0 ? "Nie wybrano" : appLabel(cp.pkg), true, p.text,
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        pickApp(new OnPick() {
+                            @Override
+                            public void on(String pkg) {
+                                cp.pkg = pkg;
+                                Prefs.persist(ConfigActivity.this, cp);
+                                changed();
+                            }
+                        });
+                    }
+                }));
+        sep(g);
+        g.addView(row(null, "Ikona", iconModeName(cp), true, p.text, new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                iconMenu(cp);
+            }
+        }));
+
         // --- Launcher ---
         section(col, "Launcher");
         g = group(col);
@@ -922,7 +882,8 @@ public class ConfigActivity extends BaseActivity {
                 || s.contains("wtyczki")
                 || s.contains("plugin")
                 || s.contains("obd")
-                || s.contains("dashboard")) {
+                || s.contains("dashboard")
+                || s.contains("odtwarzanie")) {
             return "Aplikacje";
         }
         // Połączenia
@@ -946,7 +907,6 @@ public class ConfigActivity extends BaseActivity {
         if (s.equals("wygląd") || s.equals("wyglad")
                 || s.contains("skala interfejsu")
                 || s.equals("tapeta")
-                || s.contains("odtwarzanie muzyki")
                 || s.contains("pasek stanu")) {
             return "Wygląd i dźwięk";
         }
@@ -1156,6 +1116,29 @@ public class ConfigActivity extends BaseActivity {
                                         searchQuery = "";
                                         build();
                                         slideIn();
+                                    }
+                                }));
+                    }
+                    // --- Wszystkie aplikacje (na samym końcu, zawsze) ---
+                    // nie znika przy wyszukiwaniu - pasuje do "aplikacje"/"wszystkie" i jest
+                    // poza kategoriami, jak dedykowana zakładka
+                    boolean allMatch = q.length() == 0
+                            || "wszystkie aplikacje".contains(q)
+                            || "wszystkie".contains(q)
+                            || "aplikacje".contains(q)
+                            || "aplikacji".contains(q);
+                    if (allMatch) {
+                        if (!first) sep(g);
+                        first = false;
+                        g.addView(row(Icons.builtin(this, "grid"), "Wszystkie aplikacje",
+                                "", true, p.text, new View.OnClickListener() {
+                                    @Override
+                                    public void onClick(View v) {
+                                        try {
+                                            startActivity(new Intent(ConfigActivity.this,
+                                                    AllAppsActivity.class));
+                                        } catch (Throwable ignored) {
+                                        }
                                     }
                                 }));
                     }

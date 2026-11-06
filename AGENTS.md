@@ -236,3 +236,26 @@ Ustalenia z użytkownikiem, żeby nikt tego nie „poprawił” z powrotem:
   ekranie głównym (to już było na `main`, nie ruszane).
 - Siatka aplikacji (drag-reorder między ekranami, minus bez potwierdzenia z
   animacją znikania, trwała kolejność) to **osobne zadanie** — nie robione tutaj.
+
+## 2026-11-06 (sesja: porządki w Ustawieniach + zakładka „Wszystkie aplikacje”)
+
+- **Uporządkowaliśmy Ustawienia (iOS-style)**: usunięte powielone ustawienia
+  trybu jasny/ciemny z sekcji „Wygląd” (zostaje tylko Styl + Ramka ikon; tryb,
+  harmonogram i jasność żyją wyłącznie w „Ekran i jasność”). Kolejność sekcji
+  w `ConfigActivity.build()`/`extraSections()` uporządkowana: w kategorii
+  „Aplikacje” lista aplikacji jest przed „Ikona CarPlay w docku”.
+- **„Odtwarzanie muzyki” przeniesione z „Wygląd i dźwięk” do „Aplikacje”**
+  (`categoryForSection` — dodany warunek `s.contains("odtwarzanie")`).
+  To integracja źródła odtwarzania (DiPlay), nie wygląd.
+- **Nowa aktywność `AllAppsActivity`** (zarejestrowana w manifeście): lista
+  WSZYSTKICH aplikacji podzielona na kategorie przez istniejący `AppCategorizer`
+  (Sugestie/Ostatnio dodane/Społeczności/Narzędzia/Rozrywka/Biurowe/Nawigacja/Inne),
+  karty w stylu ustawień, tapnięcie otwiera aplikację.
+- **Wejście „Wszystkie aplikacje”** na samym końcu listy kategorii w
+  `finishLayout()` (ikona `Icons.builtin(this, "grid")`, zawsze widoczne,
+  także przy wyszukiwaniu „wszystkie”/„aplikacje”).
+- ⚠️ Decyzja o **płaskiej** liście `AppLibraryPage` (ostatnia strona pagera,
+  bez kategorii) **pozostaje bez zmian** — kategorie weszły jako osobna
+  zakładka w Ustawieniach, nie jako strona launchera.
+- ⚠️ W sandboxie nie ma JDK/SDK — weryfikacja wyłącznie przez GitHub Actions
+  (push gałęzi → PR → `gh run watch`).
