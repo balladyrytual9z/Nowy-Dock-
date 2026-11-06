@@ -146,6 +146,8 @@ public class AppLibraryPage extends FrameLayout {
         header.setClipChildren(false);
         header.setClipToPadding(false);
         header.setPadding(dp(16) + extraL, dp(14), dp(16) + extraR, dp(2));
+        header.setBackgroundColor(night ? 0xFF1C1C1E : 0xFFFFFFFF);
+        header.setElevation(dp(4));
 
         searchEt = new EditText(ctx);
         searchEt.setHint("Biblioteka aplikacji");
@@ -267,10 +269,6 @@ public class AppLibraryPage extends FrameLayout {
         page.addView(scrollView, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
-        // HEADER (pasek wyszukiwania i liter) - NA WIERZCHU, ponad lista (nowe)
-        FrameLayout.LayoutParams headerLp = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP);
-        page.addView(header, headerLp);
 
         addView(page, new LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
