@@ -11,6 +11,8 @@ import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.ViewConfiguration;
@@ -38,6 +40,8 @@ public class DockView extends View {
     private Bitmap glassBmp;
     private int glassX;      // polozenie doka w root: wycinek pelnoekranowego snapshota
     private int rootW, rootH;
+    private ViewGroup glassSource;   // root: zywe odswiezanie szkla w trakcie przewijania
+    private long lastGlassAt;        // throttle snapshotow (~150 ms) dla plynnosci gestu
     private float blend;            // 0..1: strona widżetów w trybie dziennym robi dock nocny
     private String clock = "--:--";
     private String volt = "";
@@ -188,6 +192,60 @@ public class DockView extends View {
         invalidate();
     }
 
+    // Liquid Glass ma "zyc": gdy cokolwiek na ekranie sie rusza (przewijanie stron,
+    // gest, animacja), tresc przesuwa sie POD szklem i musi byc widoczna.
+    // Snapshot odswiezamy throttlowany (min 150 ms) przez OnPreDraw - czysto
+    // stagnujacy ekran nie robi zadnych dodatkowych snapshotow. Bufor w LiveBlur
+    // jest reuzywany (zero alokacji), wiec gest nie tnie na slabym GPU.
+    private void maybeRefreshGlass() {
+        if (!glass || glassSource == null) return;
+        long now = android.os.SystemClock.uptimeMillis();
+        if (now - lastGlassAt < 150L) return;
+        lastGlassAt = now;
+        post(glassCapture);
+    }
+
+    private final Runnable glassCapture = new Runnable() {
+        @Override public void run() {
+            if (!glass || glassSource == null) return;
+            Bitmap b = LiveBlur.captureAndBlur(glassSource,
+                    glassSource.getWidth(), glassSource.getHeight());
+            if (b != null) {
+                glassBmp = b;
+                rootW = glassSource.getWidth();
+                rootH = glassSource.getHeight();
+                invalidate();
+            }
+        }
+    };
+
+    private final ViewTreeObserver.OnPreDrawListener glassPreDraw =
+            new ViewTreeObserver.OnPreDrawListener() {
+                @Override public boolean onPreDraw() {
+                    maybeRefreshGlass();
+                    return true;
+                }
+            };
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        if (getParent() instanceof ViewGroup) glassSource = (ViewGroup) getParent();
+        // szkło nie moze pokazywac wlasnego ducha: snapshot tla pomija docka
+        LiveBlur.snapshotExclude = this;
+        getViewTreeObserver().addOnPreDrawListener(glassPreDraw);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        if (LiveBlur.snapshotExclude == this) LiveBlur.snapshotExclude = null;
+        try {
+            getViewTreeObserver().removeOnPreDrawListener(glassPreDraw);
+        } catch (Throwable ignored) {
+        }
+        super.onDetachedFromWindow();
+    }
+
     // ------------------------------------------------------------ geometria (dp -> px)
     private float panelL() {
         return 6f * d;
@@ -233,7 +291,8 @@ public class DockView extends View {
         float rad = 22f * d;
 
         if (glass) {
-            // Prawdziwy live blur tła + warstwa połysku Liquid Glass
+            // Liquid Glass: rozmyte + rozjasnione tlo pod dokia, a na nim warstwy
+            // swiatel - jasny rim u gory, wewnetrzny cien na dole, korpus szkla
             if (glassBmp != null) {
                 // wycinek pelnoekranowego snapshota spod doka (1:1 z tlem ekranu),
                 // nie miniatura calego ekranu scisnieta do paska doka
@@ -244,18 +303,37 @@ public class DockView extends View {
                 bg.setBounds((int) l, (int) t, (int) rr, (int) bt);
                 bg.draw(cv);
             }
-            Paint glassPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            glassPaint.setStyle(Paint.Style.FILL);
-            glassPaint.setShader(new LinearGradient(l, t, rr, bt,
-                    new int[]{0x44FFFFFF, 0x10FFFFFF, 0x04FFFFFF, 0x22FFFFFF},
-                    new float[]{0f, 0.25f, 0.7f, 1f}, Shader.TileMode.CLAMP));
+            // 1) korpus szkla: rozblysk u gory, wyrazny poblask na dole (glebia)
+            Paint body = new Paint(Paint.ANTI_ALIAS_FLAG);
+            body.setStyle(Paint.Style.FILL);
+            body.setShader(new LinearGradient(l, t, l, bt,
+                    new int[]{0x2EFFFFFF, 0x0DFFFFFF, 0x08FFFFFF, 0x24FFFFFF},
+                    new float[]{0f, 0.16f, 0.62f, 1f}, Shader.TileMode.CLAMP));
             rect.set(l, t, rr, bt);
-            cv.drawRoundRect(rect, rad, rad, glassPaint);
+            cv.drawRoundRect(rect, rad, rad, body);
+            // 2) wewnetrzny cien na dole - szklo "unosi sie" nad tlem
+            Paint bottomShade = new Paint(Paint.ANTI_ALIAS_FLAG);
+            bottomShade.setStyle(Paint.Style.FILL);
+            bottomShade.setShader(new LinearGradient(l, bt - 14f * d, l, bt,
+                    new int[]{0x00000000, 0x30000000},
+                    new float[]{0f, 1f}, Shader.TileMode.CLAMP));
+            rect.set(l + 2f * d, bt - 14f * d, rr - 2f * d, bt - 2f * d);
+            cv.drawRoundRect(rect, rad * 0.5f, rad * 0.5f, bottomShade);
+            // 3) jasny rim u gory - refrakcja swiatla na krawedzi szkla
+            Paint rim = new Paint(Paint.ANTI_ALIAS_FLAG);
+            rim.setStyle(Paint.Style.STROKE);
+            rim.setStrokeWidth(2f * d);
+            rim.setShader(new LinearGradient(l, t, l, t + 22f * d,
+                    new int[]{0xE6FFFFFF, 0x4DFFFFFF, 0x00FFFFFF},
+                    new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP));
+            rect.set(l + 1f * d, t + 1f * d, rr - 1f * d, bt - 1f * d);
+            cv.drawRoundRect(rect, rad - 1f * d, rad - 1f * d, rim);
+            // 4) obwodka - plynnie przejscie szkla w otoczenie
             Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
             edge.setStyle(Paint.Style.STROKE);
             edge.setStrokeWidth(1.4f * d);
             edge.setShader(new LinearGradient(l, t, rr, bt,
-                    new int[]{0xCCFFFFFF, 0x44FFFFFF, 0x14FFFFFF, 0x55FFFFFF},
+                    new int[]{0xB3FFFFFF, 0x40FFFFFF, 0x14FFFFFF, 0x40FFFFFF},
                     new float[]{0f, 0.3f, 0.75f, 1f}, Shader.TileMode.CLAMP));
             rect.set(l + d * 0.7f, t + d * 0.7f, rr - d * 0.7f, bt - d * 0.7f);
             cv.drawRoundRect(rect, rad - d * 0.7f, rad - d * 0.7f, edge);
@@ -463,10 +541,3 @@ public class DockView extends View {
         }
     }
 }
-
-
-
-
-
-
-
