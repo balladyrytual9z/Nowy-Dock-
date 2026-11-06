@@ -483,7 +483,10 @@ public class LauncherActivity extends BaseActivity {
                 // Liquid glass: ZADNE przechwytywanie/rozmycie w trakcie przewijania
                 // (przechwytywanie calego ekranu + blur na watku UI tnilo gest na
                 // slabym GPU tabletu) - snapshot robimy dopiero po osiadnieciu strony
-                dotsTop.setAlpha(1f - t);
+                // wskaźnik kropek ma być widoczny na wszystkich stronach siatki,
+                // znikać dopiero przy przejściu na ostatnią stronę (Biblioteka)
+                float toLibrary = Math.max(0f, Math.min(1f, pos - (pager.count() - 2)));
+                dotsTop.setAlpha(1f - toLibrary);
                 // ZAWSZE realna liczba stron calego panelu (bez wyszukiwania), tak samo na
                 // kazdej stronie - zgloszenie: na stronie glownej byly 2 kropki,
                 // a na liscie aplikacji liczba aplikacji.
