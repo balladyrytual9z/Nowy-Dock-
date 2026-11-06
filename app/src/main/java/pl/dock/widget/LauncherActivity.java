@@ -680,11 +680,7 @@ public class LauncherActivity extends BaseActivity {
 
             @Override
             public void uninstall(String pkg) {
-                if (pkg == null || pkg.length() == 0) return;
-                Intent intent = new Intent(Intent.ACTION_UNINSTALL_PACKAGE);
-                intent.setData(Uri.parse("package:" + pkg));
-                intent.putExtra(Intent.EXTRA_RETURN_RESULT, true);
-                startSystemSmoothForResult(intent, AppsGridPage.REQ_UNINSTALL);
+                uninstallApp(pkg);
             }
         });
     }
@@ -1067,6 +1063,11 @@ public class LauncherActivity extends BaseActivity {
                 public void onEdgeDrag(AppsGridPage.Item it, int direction) {
                     moveItemToAdjacentPage(it, direction);
                 }
+
+                @Override
+                public void onRemoveFromGrid(String pkg) {
+                    setAppOnGrid(pkg, false);
+                }
             });
             appPages.add(p);
         }
@@ -1115,7 +1116,7 @@ public class LauncherActivity extends BaseActivity {
     private void appMenu(final AppsGridPage.Item it) {
         if (it.settings || it.action.length() > 0) return;
         final String[] options = {
-                "Dodaj do ekranu głównego",
+                "Usuń z siatki aplikacji",
                 "Informacje o aplikacji",
                 "Usuń aplikację"
         };
@@ -1124,19 +1125,14 @@ public class LauncherActivity extends BaseActivity {
             public void on(int idx) {
                 switch (idx) {
                     case 0:
-                        // already on home list in most cases; ensure present
-                        Prefs.add(LauncherActivity.this, it.pkg);
-                        rebuildAppPages();
+                        setAppOnGrid(it.pkg, false);
                         break;
                     case 1:
                         startSystemSmooth(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                                 Uri.parse("package:" + it.pkg)));
                         break;
                     case 2:
-                        Intent intent = new Intent(Intent.ACTION_UNINSTALL_PACKAGE);
-                        intent.setData(Uri.parse("package:" + it.pkg));
-                        intent.putExtra(Intent.EXTRA_RETURN_RESULT, true);
-                        startSystemSmoothForResult(intent, AppsGridPage.REQ_UNINSTALL);
+                        uninstallApp(it.pkg);
                         break;
                 }
             }
@@ -1204,51 +1200,43 @@ public class LauncherActivity extends BaseActivity {
                 .start();
     }
 
-    /** Ekran systemowy (Ustawienia itp.): dok plynnie sie chowa, potem otwiera sie ekran. */
+    // NAPRAWA ("Odinstaluj" / "Informacje o aplikacji" nie dzialaly z menu):
+    // ekran systemowy startowal dopiero PO zakonczeniu 200 ms animacji doka
+    // (withEndAction). Zamkniecie menu zwracalo fokus launcherowi ->
+    // onWindowFocusChanged(true) -> dockSlideIn() -> animate().cancel()
+    // przerywalo te animacje w trakcie, wiec withEndAction nigdy nie odpalalo
+    // i zadne systemowe okno sie nie otwieralo. Teraz intencja startuje
+    // NATYCHMIAST; animacja doka jest czysto kosmetyczna, a po powrocie
+    // fokusu dok plynnie wraca (dockSlideIn).
+
+    /** Ekran systemowy (Ustawienia itp.): start natychmiast + kosmetyczne ukrycie doka. */
     private void startSystemSmooth(final Intent i) {
-        if (dock == null || Prefs.reduceMotion(this)) {
-            try {
-                startActivity(i);
-                overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);
-            } catch (Throwable t) {
-                android.util.Log.w("Dock", "startSystemSmooth", t);
-                Toast.makeText(this, "Nie mozna otworzyc", Toast.LENGTH_SHORT).show();
-            }
-            return;
+        try {
+            startActivity(i);
+            overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);
+            slideDockAside();
+        } catch (Throwable t) {
+            android.util.Log.w("Dock", "startSystemSmooth", t);
+            Toast.makeText(this, "Nie mozna otworzyc", Toast.LENGTH_SHORT).show();
         }
-        final boolean left = Ui.dockLeft(this);
-        dock.animate().cancel();
-        dock.animate()
-                .translationX(left ? -Ui.dp(this, 40) : Ui.dp(this, 40))
-                .alpha(0f)
-                .setDuration(200)
-                .setInterpolator(new android.view.animation.AccelerateInterpolator())
-                .withEndAction(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            startActivity(i);
-                            overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);
-                        } catch (Throwable t) {
-                            android.util.Log.w("Dock", "startSystemSmooth", t);
-                            dockSlideIn();
-                        }
-                    }
-                })
-                .start();
     }
 
     /** Jak startSystemSmooth, ale z wynikiem (np. odinstalowanie aplikacji). */
-    private void startSystemSmoothForResult(final Intent i, final int req) {
-        if (dock == null || Prefs.reduceMotion(this)) {
-            try {
-                startActivityForResult(i, req);
-                overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);
-            } catch (Throwable t) {
-                android.util.Log.w("Dock", "startSystemSmoothForResult", t);
-            }
-            return;
+    private boolean startSystemSmoothForResult(final Intent i, final int req) {
+        try {
+            startActivityForResult(i, req);
+            overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);
+            slideDockAside();
+            return true;
+        } catch (Throwable t) {
+            android.util.Log.w("Dock", "startSystemSmoothForResult", t);
+            return false;
         }
+    }
+
+    /** Kosmetyczne wysuniecie doka za krawedz (nie blokuje otwierania ekranu). */
+    private void slideDockAside() {
+        if (dock == null || Prefs.reduceMotion(this)) return;
         final boolean left = Ui.dockLeft(this);
         dock.animate().cancel();
         dock.animate()
@@ -1256,19 +1244,28 @@ public class LauncherActivity extends BaseActivity {
                 .alpha(0f)
                 .setDuration(200)
                 .setInterpolator(new android.view.animation.AccelerateInterpolator())
-                .withEndAction(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            startActivityForResult(i, req);
-                            overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);
-                        } catch (Throwable t) {
-                            android.util.Log.w("Dock", "startSystemSmoothForResult", t);
-                            dockSlideIn();
-                        }
-                    }
-                })
                 .start();
+    }
+
+    /** Odinstalowanie aplikacji: systemowy deinstalator + zapasowa intencja ACTION_DELETE. */
+    private void uninstallApp(String pkg) {
+        if (pkg == null || pkg.length() == 0) return;
+        try {
+            Intent i = new Intent(Intent.ACTION_UNINSTALL_PACKAGE);
+            i.setData(Uri.parse("package:" + pkg));
+            i.putExtra(Intent.EXTRA_RETURN_RESULT, true);
+            if (startSystemSmoothForResult(i, AppsGridPage.REQ_UNINSTALL)) return;
+        } catch (Throwable ignored) {
+        }
+        try {
+            Intent i = new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + pkg));
+            if (!startSystemSmoothForResult(i, AppsGridPage.REQ_UNINSTALL)) {
+                Toast.makeText(this, "Nie można otworzyć deinstalatora", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Throwable t) {
+            android.util.Log.w("Dock", "uninstallApp", t);
+            Toast.makeText(this, "Nie można otworzyć deinstalatora", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void openSettings() {

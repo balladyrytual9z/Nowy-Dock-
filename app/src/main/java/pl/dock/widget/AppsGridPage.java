@@ -55,6 +55,9 @@ public class AppsGridPage extends View implements EditModeController.Listener {
 
         // przeciagniecie ikony do krawedzi strony: przenies na sasiednia strone
         void onEdgeDrag(Item it, int direction);
+
+        // tap w minus na ikonie (tryb edycji): natychmiastowe usuniecie z siatki
+        void onRemoveFromGrid(String pkg);
     }
 
     private final float d;
@@ -203,30 +206,35 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         return Icons.forPackage(c, it.pkg);
     }
 
+    // minus jak w iOS: srodek przycisku DOKLADNIE na rogu zaokraglonego
+    // kwadratu ikony (polowa wystaje poza ikone); delikatny cien pod spodem
     private void drawRemoveBadge(Canvas cv, float x, float y) {
-        float r = 10f * d * sc;
-        float cx = x + r;
-        float cy = y + r;
-        // bialy przycisk z minusem jak w iOS (zamiast czerwonego plusa)
+        float r = 12f * d * sc;
         badgePaint.setStyle(Paint.Style.FILL);
+        badgePaint.setColor(0x40000000);
+        cv.drawCircle(x + 0.6f * d * sc, y + 0.6f * d * sc, r, badgePaint);
         badgePaint.setColor(0xE6FFFFFF);
-        cv.drawCircle(cx, cy, r, badgePaint);
+        cv.drawCircle(x, y, r, badgePaint);
         badgePaint.setColor(0xFF1C1C1E);
         badgePaint.setStyle(Paint.Style.STROKE);
         badgePaint.setStrokeWidth(2.2f * d * sc);
         float arm = r * 0.45f;
-        cv.drawLine(cx - arm, cy, cx + arm, cy, badgePaint);
+        cv.drawLine(x - arm, y, x + arm, y, badgePaint);
+        badgePaint.setStyle(Paint.Style.FILL);
     }
 
+    // cel dotyku wiekszy niz sam przycisk; narzedzia launchera
+    // (Ustawienia / CarPlay / Honda OBD) nie maja minusa - pomijamy je
     private int hitRemoveBadge(float x, float y) {
-        float badgeR = 14f * d * sc; // hit area slightly larger
+        float badgeR = 16f * d * sc;
         for (int i = 0; i < items.size(); i++) {
+            Item it = items.get(i);
+            if (it.settings || it.action.length() > 0
+                    || it.pkg == null || it.pkg.length() == 0) continue;
             int row = i / COLS;
             int col = i % COLS;
-            float ix = left + col * colPitch;
-            float iy = top + row * rowPitch;
-            float cx = ix + 10f * d * sc;
-            float cy = iy + 10f * d * sc;
+            float cx = left + col * colPitch;   // srodek NA rogu ikony
+            float cy = top + row * rowPitch;
             float dx = x - cx;
             float dy = y - cy;
             if (dx * dx + dy * dy <= badgeR * badgeR) return i;
@@ -354,108 +362,19 @@ public class AppsGridPage extends View implements EditModeController.Listener {
         return -1;
     }
 
-    // Menu kontekstowe w stylu iOS: ciemne szklo, zaokraglenia,
-    // opcja destrukcyjna ("Usun aplikacje") w kolorze czerwonym #FF3B30.
-    private void showRemoveDialog(final int index) {
+    // iOS: tap w minus = NATYCHMIASTOWE usuniecie ikony z siatki aplikacji
+    // (bez okienka). Aplikacja zostaje w Bibliotece aplikacji, skad mozna
+    // ja dodac z powrotem ("Dodaj do siatki aplikacji").
+    private void removeItem(final int index) {
         if (index < 0 || index >= items.size()) return;
-        final Item it = items.get(index);
+        Item it = items.get(index);
         if (it.settings || it.action.length() > 0) return;
-        Context ctx = getContext();
-        final Dialog dlg = new Dialog(ctx);
-        dlg.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        LinearLayout c = new LinearLayout(ctx);
-        c.setOrientation(LinearLayout.VERTICAL);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(night ? 0xD91C1C1E : 0xF6F2F2F7);
-        bg.setCornerRadius(20f * d);
-        bg.setStroke(Math.max(1, (int) (0.5f * d)), night ? 0x33FFFFFF : 0x1F000000);
-        c.setBackground(bg);
-
-        boolean canHide = it.entry != null;
-        // tytul aplikacji na gorze menu
-        addIosMenuRow(c, dlg, it.label, night ? 0xFF9A9AA0 : 0xFF6C6C70, Typeface.DEFAULT_BOLD, new Runnable() {
-            @Override public void run() { }
-        }, false);
-        int rowInk = night ? 0xFFFFFFFF : 0xFF1C1C1E;
-        addIosMenuRow(c, dlg, "Informacje o aplikacji", rowInk, Typeface.DEFAULT, new Runnable() {
-            @Override public void run() {
-                try {
-                    Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                    i.setData(Uri.parse("package:" + it.pkg));
-                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    getContext().startActivity(i);
-                } catch (Throwable ignored) { }
-            }
-        }, true);
-        if (canHide) {
-            addIosMenuRow(c, dlg, "Usuń z ekranu głównego", rowInk, Typeface.DEFAULT, new Runnable() {
-                @Override public void run() {
-                    Prefs.remove(getContext(), it.entry.id);
-                    if (listener != null) listener.onAppsChanged();
-                }
-            }, true);
-        }
-        addIosMenuRow(c, dlg, "Usuń aplikację", 0xFFFF3B30, Typeface.DEFAULT, new Runnable() {
-            @Override public void run() { uninstallPackage(it.pkg); }
-        }, true);
-
-        dlg.setContentView(c);
-        dlg.setCanceledOnTouchOutside(true);
-        Window w = dlg.getWindow();
-        if (w != null) {
-            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0x00000000));
-            w.setLayout((int) (280f * d), android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
-        }
-        dlg.show();
-    }
-
-    // jeden wiersz menu: 44dp wysokosci, ikona po lewej nie jest potrzebna w CarPlay
-    private void addIosMenuRow(LinearLayout parent, final Dialog dlg, String label, int color,
-                                Typeface tf, final Runnable act, boolean closeOnClick) {
-        TextView tv = new TextView(getContext());
-        tv.setText(label);
-        tv.setTextColor(color);
-        tv.setTypeface(tf);
-        tv.setTextSize(15);
-        tv.setGravity(Gravity.CENTER_VERTICAL);
-        tv.setPadding((int) (16f * d), 0, (int) (16f * d), 0);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT, (int) (44f * d));
-        parent.addView(tv, lp);
-        if (closeOnClick) {
-            tv.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) {
-                    try { dlg.dismiss(); } catch (Throwable ignored) { }
-                    act.run();
-                }
-            });
-        }
-        if (parent.getChildCount() > 1) {
-            // separator jak w iOS
-            android.view.View sep = new android.view.View(getContext());
-            sep.setBackgroundColor(night ? 0x33FFFFFF : 0x1F000000);
-            LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, (int) (0.5f * d)));
-            sp.leftMargin = (int) (16f * d);
-            sp.rightMargin = (int) (16f * d);
-            parent.addView(sep, parent.getChildCount() - 1, sp);
-        }
-    }
-
-    private void uninstallPackage(String pkg) {
-        if (pkg == null || pkg.length() == 0) return;
-        try {
-            Intent intent = new Intent(Intent.ACTION_UNINSTALL_PACKAGE);
-            intent.setData(Uri.parse("package:" + pkg));
-            intent.putExtra(Intent.EXTRA_RETURN_RESULT, true);
-            Context ctx = getContext();
-            if (ctx instanceof Activity) {
-                ((Activity) ctx).startActivityForResult(intent, REQ_UNINSTALL);
-            } else {
-                ctx.startActivity(intent);
-            }
-        } catch (Throwable ignored) {
-        }
+        if (it.pkg == null || it.pkg.length() == 0) return;
+        performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+        items.remove(index);
+        badgeVersion = -1L;   // przelicz liczniki powiadomien dla nowej listy
+        invalidate();
+        if (listener != null) listener.onRemoveFromGrid(it.pkg);
     }
 
     /** Swap/reorder icons in edit mode and persist via Prefs.apps order. */
@@ -589,7 +508,7 @@ public class AppsGridPage extends View implements EditModeController.Listener {
                 if (editMode) {
                     int badgeIndex = hitRemoveBadge(e.getX(), e.getY());
                     if (badgeIndex >= 0) {
-                        showRemoveDialog(badgeIndex);
+                        removeItem(badgeIndex);
                         return true;
                     }
                     // tap w puste tlo zamyka tryb edycji, ALE nie ten gest,
