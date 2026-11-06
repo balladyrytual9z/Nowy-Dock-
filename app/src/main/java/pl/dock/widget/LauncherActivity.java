@@ -509,6 +509,12 @@ public class LauncherActivity extends BaseActivity {
                     appLibraryPage.dismissSearch();
                 }
             }
+
+            @Override
+            public void onSwipeUp(float x) {
+                // gest ze strefy dolnej ekranu - centrum lacznosci
+                if (overlay == null) showOverlayAt(x);
+            }
         });
 
         setContentView(root);
@@ -527,42 +533,14 @@ public class LauncherActivity extends BaseActivity {
         lastDockSig = "";
 
         // Gest swipe UP od dołu → centrum łączności (środek panelu nad palcem).
-        // NAPRAWA (root cause): poprzednia wersja zwracała false w ACTION_DOWN,
-        // więc framework uznawał, że nikt nie konsumuje dotyku i ACTION_UP nigdy
-        // nie przychodził - warunek swipe'u był martwym kodem, panel nie otwierał
-        // się w ogóle. Teraz DOWN w dolnej strefie (120dp) jest konsumowany
-        // (return true), dzięki czemu MOVE/UP docierają i gest działa.
-        if (Prefs.overlayEnabled(this)) {
-            root.setOnTouchListener(new View.OnTouchListener() {
-                private float downY, downX;
-                private long downT;
-                @Override
-                public boolean onTouch(View v, android.view.MotionEvent e) {
-                    if (overlay != null) return false;
-                    switch (e.getActionMasked()) {
-                        case android.view.MotionEvent.ACTION_DOWN:
-                            downY = e.getY();
-                            downX = e.getX();
-                            downT = System.currentTimeMillis();
-                            // konsumujemy dotyk TYLKO w strefie gestu; poza nią
-                            // dotyk przechodzi normalnie do stron launchera
-                            return OverlayTrigger.inSwipeZone(downY, root.getHeight(),
-                                    Ui.dp(LauncherActivity.this, 120));
-                        case android.view.MotionEvent.ACTION_UP: {
-                            long dt = System.currentTimeMillis() - downT;
-                            if (OverlayTrigger.isSwipeUp(downY, e.getY(), dt,
-                                    Ui.dp(LauncherActivity.this, 80), 500)) {
-                                showOverlayAt(downX);
-                                return true;
-                            }
-                            return false;
-                        }
-                        default:
-                            return false;
-                    }
-                }
-            });
-        }
+        // NAPRAWA (root cause): wcześniej gest wisiał na listenerze dotyku roota -
+        // ale pełnoekranowy pager konsumuje KAŻDY ACTION_DOWN u dzieci, więc ten
+        // listener nigdy nie dostawał zdarzenia i gest był martwym kodem. Teraz
+        // wykrywanie mieszka w PagerView (onInterceptTouchEvent/onTouchEvent),
+        // które naprawdę widzi wszystkie dotyki; pager przejmuje gest tylko przy
+        // wyraznie pionowym ruchu w górę z dolnej strefy (tapy i przewijanie stron
+        // działają normalnie).
+        pager.setSwipeEnabled(Prefs.overlayEnabled(this));
 
         // iOS-like bounce po zbudowaniu UI (wybudzenie / pierwsze otwarcie)
         if (Prefs.wakeBounce(this) && !Prefs.reduceMotion(this)) {
@@ -1485,6 +1463,7 @@ public class LauncherActivity extends BaseActivity {
             }
             keep.add(e);
             if (e.where.startsWith("s")) {
+                markGlass(v);
                 stacksPage.addWidget(e, v);
             } else {
                 v.setTag(e);
@@ -1627,11 +1606,18 @@ public class LauncherActivity extends BaseActivity {
         if (e.where.startsWith("s")) {
             View v = createWidgetView(e);
             if (v == null || stacksPage == null) return;
+            markGlass(v);
             stacksPage.addWidget(e, v);
             stacksPage.applySelection();
         } else {
             rebuildHome(list);
         }
+    }
+
+    // widzety na stronie widzetow (skrajnie lewy ekran) sa przezroczyste ("szklo"):
+    // tapeta prześwituje zamiast nieprzezroczystej karty; ekran glowny bez zmian
+    private void markGlass(View v) {
+        if (v instanceof GlassAware) ((GlassAware) v).setGlass(true);
     }
 
     private void beginBind(AppWidgetProviderInfo info, String where) {

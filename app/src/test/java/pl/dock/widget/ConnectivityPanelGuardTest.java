@@ -65,6 +65,50 @@ public class ConnectivityPanelGuardTest {
                 src.contains("overlay.setLayerType(View.LAYER_TYPE_SOFTWARE, null)"));
     }
 
+    @Test
+    public void gestSwipeUpMieszkaWPagerze() throws Exception {
+        File f = launcherSource();
+        String src = new String(Files.readAllBytes(f.toPath()), Charset.forName("UTF-8"));
+
+        // Gest swipe-up NIE moze wrocic na root.setOnTouchListener: pelnoekranowy
+        // pager konsumuje kazdy ACTION_DOWN u dzieci, wiec listener na rootcie
+        // nigdy nie dostaje zdarzenia i gest jest martwym kodem. Gest musi byc
+        // wykrywany w PagerView, ktore naprawde widzi wszystkie dotyki.
+        assertFalse("root.setOnTouchListener = martwy gest (pager zjada DOWN) -"
+                        + " wykrywanie musi byc w PagerView",
+                src.contains("root.setOnTouchListener"));
+
+        assertTrue("Brak pager.setSwipeEnabled(...) - LauncherActivity musi wlaczyc"
+                        + " gest swipe-up w PagerView",
+                src.contains("pager.setSwipeEnabled("));
+
+        File pf = new File("src/main/java/pl/dock/widget/PagerView.java");
+        if (!pf.isFile()) pf = new File("app/" + pf.getPath());
+        String psrc = new String(Files.readAllBytes(pf.toPath()), Charset.forName("UTF-8"));
+        assertTrue("PagerView.Listener musi miec onSwipeUp(float) - na tym wisi gest",
+                psrc.contains("void onSwipeUp(float x)"));
+        assertTrue("Brak wlacznika setSwipeEnabled w PagerView",
+                psrc.contains("setSwipeEnabled"));
+    }
+
+    @Test
+    public void widzetyNaStronieSaPrzezroczyste() throws Exception {
+        File f = launcherSource();
+        String src = new String(Files.readAllBytes(f.toPath()), Charset.forName("UTF-8"));
+
+        // Widzety na skrajnie lewej stronie (WidgetPage) maja przezroczyste tlo
+        // ("szklo") zamiast nieprzezroczystej karty; ekran glowny bez zmian.
+        assertTrue("Brak markGlass(...) w LauncherActivity - widzety na stronie"
+                        + " widzetow nie sa przezroczyste",
+                src.contains("markGlass(v)"));
+
+        File uf = new File("src/main/java/pl/dock/widget/Ui.java");
+        if (!uf.isFile()) uf = new File("app/" + uf.getPath());
+        String usrc = new String(Files.readAllBytes(uf.toPath()), Charset.forName("UTF-8"));
+        assertTrue("Brak Ui.glassCard(...) - przezroczysta karta widzetu nie istnieje",
+                usrc.contains("public static void glassCard("));
+    }
+
     private static File panelSource() {
         String rel = "src/main/java/pl/dock/widget/ConnectivityPanel.java";
         File f = new File(rel);
