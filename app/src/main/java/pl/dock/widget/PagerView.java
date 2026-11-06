@@ -19,15 +19,27 @@ public class PagerView extends FrameLayout {
         void onScroll(float position);
 
         void onSettled(int index);
+
+        /**
+         * Swipe UP w dolnej strefie ekranu - gest otwarcia centrum lacznosci.
+         * x = pozycja X w chwili poczatku gestu (srodek panelu nad palcem).
+         */
+        void onSwipeUp(float x);
     }
 
     private float pos;
     private Listener listener;
     private ValueAnimator anim;
     private float downX, downY, lastX;
+    private long downMs;
     private boolean dragging;
+    private boolean inSwipe;
+    private boolean swipeEnabled;
     private final int slop;
     private final int minFling;
+    private final int swipeEdgePx;
+    private final int swipeMinDyPx;
+    private final long swipeMaxMs = 500L;
     private VelocityTracker vt;
     private boolean reduceMotion;
 
@@ -36,10 +48,18 @@ public class PagerView extends FrameLayout {
         ViewConfiguration vc = ViewConfiguration.get(c);
         slop = vc.getScaledTouchSlop();
         minFling = Math.max(vc.getScaledMinimumFlingVelocity() * 4, 700);
+        float dens = getResources().getDisplayMetrics().density;
+        swipeEdgePx = (int) (120f * dens);   // dolna strefa gestu (jak w OverlayTrigger)
+        swipeMinDyPx = (int) (80f * dens);   // minimalny dystans paluchem w góre
     }
 
     public void setListener(Listener l) {
         listener = l;
+    }
+
+    /** Wlacza/wylacza gest swipe-up (centrum lacznosci). */
+    public void setSwipeEnabled(boolean en) {
+        swipeEnabled = en;
     }
 
     public void setReduceMotion(boolean r) {
@@ -129,7 +149,9 @@ public class PagerView extends FrameLayout {
             case MotionEvent.ACTION_DOWN:
                 downX = lastX = e.getX();
                 downY = e.getY();
+                downMs = System.currentTimeMillis();
                 dragging = false;
+                inSwipe = false;
                 if (anim != null && anim.isRunning()) {
                     cancelAnim();
                     startTracking(e);
@@ -140,6 +162,15 @@ public class PagerView extends FrameLayout {
             case MotionEvent.ACTION_MOVE:
                 float dx = e.getX() - downX;
                 float dy = e.getY() - downY;
+                // Gest swipe-up z dolnej strefy ekranu: przejmujemy dotyk TYLKO gdy
+                // ruch jest wyraznie pionowy w gore (dy > 0 i dominuje nad poziomym).
+                // Zwykle tapniecia i poziome przewijanie stron nie sa przechwytywane.
+                if (swipeEnabled && !dragging && !inSwipe
+                        && OverlayTrigger.inSwipeZone(downY, getHeight(), swipeEdgePx)
+                        && dy > swipeMinDyPx && dy > Math.abs(dx) * 1.3f) {
+                    inSwipe = true;
+                    return true;
+                }
                 if (!dragging && Math.abs(dx) > slop && Math.abs(dx) > Math.abs(dy) * 1.3f) {
                     dragging = true;
                     startTracking(e);
@@ -151,7 +182,7 @@ public class PagerView extends FrameLayout {
             default:
                 break;
         }
-        return dragging;
+        return dragging || inSwipe;
     }
 
     private void startTracking(MotionEvent e) {
@@ -166,11 +197,25 @@ public class PagerView extends FrameLayout {
         if (a == MotionEvent.ACTION_DOWN) {
             downX = lastX = e.getX();
             downY = e.getY();
+            downMs = System.currentTimeMillis();
             startTracking(e);
             return true;
         }
-        if (vt == null) startTracking(e);
-        vt.addMovement(e);
+        if (vt == null && !inSwipe) startTracking(e);
+        if (vt != null) vt.addMovement(e);
+        if (inSwipe) {
+            // przejety gest swipe-up: czekamy tylko na UP i ewaluujemy swipa
+            if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
+                inSwipe = false;
+                if (listener != null && a == MotionEvent.ACTION_UP
+                        && OverlayTrigger.isSwipeUp(downY, e.getY(),
+                        System.currentTimeMillis() - downMs, swipeMinDyPx, swipeMaxMs)) {
+                    listener.onSwipeUp(downX);
+                }
+                return true;
+            }
+            return true;
+        }
         if (a == MotionEvent.ACTION_MOVE) {
             if (!dragging && Math.abs(e.getX() - downX) > slop) {
                 dragging = true;

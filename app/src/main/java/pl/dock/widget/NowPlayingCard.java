@@ -23,7 +23,7 @@ import android.view.ViewConfiguration;
 
 // Widżet "Odtwarzane" jak w CarPlay: okładka, tytuł, wykonawca, pasek postępu i sterowanie.
 // Dotknięcie okładki lub tytułu otwiera pełny ekran odtwarzania; przytrzymanie ◀◀ / ▶▶ przewija.
-public class NowPlayingCard extends View implements MediaHub.Listener, NightAware {
+public class NowPlayingCard extends View implements MediaHub.Listener, NightAware, GlassAware {
 
     private final float d;
     private MediaHub.Track t = new MediaHub.Track();
@@ -89,6 +89,12 @@ public class NowPlayingCard extends View implements MediaHub.Listener, NightAwar
         cardBg = card;
         this.ring = ring;
         invalidate();
+    }
+
+    // tryb "szkla" (strona widzetow): bez nieprzezroczystego wypelnienia, tylko obwodka
+    @Override
+    public void setGlass(boolean g) {
+        setFrame(!g, g);
     }
 
     @Override

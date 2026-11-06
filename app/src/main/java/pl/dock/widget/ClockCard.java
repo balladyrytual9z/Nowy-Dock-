@@ -13,10 +13,11 @@ import java.util.Calendar;
 
 // Zegar analogowy (wbudowany widżet jak w panelu widżetów CarPlay).
 // Odświeża się raz na minutę i tylko, gdy jest widoczny.
-public class ClockCard extends View implements NightAware {
+public class ClockCard extends View implements NightAware, GlassAware {
 
     private final float d;
     private boolean night = true;
+    private boolean glass;
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF rc = new RectF();
     private final Handler h = new Handler(Looper.getMainLooper());
@@ -38,6 +39,12 @@ public class ClockCard extends View implements NightAware {
     public void setNight(boolean n) {
         if (n == night) return;
         night = n;
+        invalidate();
+    }
+
+    @Override
+    public void setGlass(boolean g) {
+        glass = g;
         invalidate();
     }
 
@@ -63,7 +70,11 @@ public class ClockCard extends View implements NightAware {
     protected void onDraw(Canvas cv) {
         // karta jak w pozostalych widzetach (Data, Kalendarz, Zachod slonca)
         rc.set(0, 0, getWidth(), getHeight());
-        Ui.ringCard(cv, rc, 30f * d, 1.5f * d, night, false);
+        if (glass) {
+            Ui.glassCard(cv, rc, 30f * d, 1.5f * d, night);
+        } else {
+            Ui.ringCard(cv, rc, 30f * d, 1.5f * d, night, false);
+        }
         float cx = getWidth() / 2f;
         float cy = getHeight() / 2f;
         float r = Math.min(getWidth(), getHeight()) / 2f - 26f * d;

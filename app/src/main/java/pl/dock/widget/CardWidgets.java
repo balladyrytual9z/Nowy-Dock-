@@ -25,10 +25,11 @@ public class CardWidgets {
             "LIPIEC", "SIERPIEŃ", "WRZESIEŃ", "PAŹDZIERNIK", "LISTOPAD", "GRUDZIEŃ"};
 
     // wspólna baza: tryb, odświeżanie co minutę, rysowanie tekstu
-    abstract static class Base extends View implements NightAware {
+    abstract static class Base extends View implements NightAware, GlassAware {
         final float d;
         final float sd;
         boolean night = true;
+        boolean glass;
         final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         final RectF r = new RectF();
         private final Handler h = new Handler(Looper.getMainLooper());
@@ -62,6 +63,12 @@ public class CardWidgets {
         }
 
         @Override
+        public void setGlass(boolean g) {
+            glass = g;
+            invalidate();
+        }
+
+        @Override
         protected void onAttachedToWindow() {
             super.onAttachedToWindow();
             h.removeCallbacks(tick);
@@ -85,7 +92,11 @@ public class CardWidgets {
 
         void card(Canvas cv) {
             r.set(0, 0, getWidth(), getHeight());
-            Ui.ringCard(cv, r, 30f * d, 1.5f * d, night, false);
+            if (glass) {
+                Ui.glassCard(cv, r, 30f * d, 1.5f * d, night);
+            } else {
+                Ui.ringCard(cv, r, 30f * d, 1.5f * d, night, false);
+            }
         }
 
         // tekst; size w sp

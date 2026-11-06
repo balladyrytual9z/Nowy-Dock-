@@ -99,6 +99,24 @@ public class Ui {
     }
 
     /**
+     * Przezroczysta karta widzetu (strona widzetow, jak w iOS): zamiast
+     * nieprzezroczystego wypelnienia ciemna/jasna karta ma tylko lekki szklany
+     * ton + obwodke, wiec tlo (tapeta) prześwituje. Geometria jak w ringCard.
+     */
+    public static void glassCard(Canvas cv, RectF r, float radius, float stroke, boolean night) {
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setColor(night ? 0x26FFFFFF : 0x14000000);
+        float side = Math.min(r.width(), r.height());
+        if (radius > side * 0.18f) {
+            Path sq = squirclePath(r, Math.min(radius / side, 0.45f));
+            cv.drawPath(sq, p);
+        } else {
+            cv.drawRoundRect(r, radius, radius, p);
+        }
+        ringStroke(cv, r, radius, stroke, night);
+    }
+
+    /**
      * Sama obwodka karty (bez wypelnienia).
      *
      * Dla widzetow, ktore nie moga zostac zamalowane kolorem karty, bo maja pod

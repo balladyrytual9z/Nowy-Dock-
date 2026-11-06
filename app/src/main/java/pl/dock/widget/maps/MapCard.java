@@ -31,10 +31,11 @@ import pl.dock.widget.Ui;
  * sa rysowane przez te karte, a dotkniecie CALEGO kafelka otwiera pelna Nawigacje
  * (przesuwanie mapy w kafelku jest wylaczone, zeby nic nie "zjadalo" dotyku).
  */
-public class MapCard extends FrameLayout implements NightAware, MapState.Listener {
+public class MapCard extends FrameLayout implements NightAware, GlassAware, MapState.Listener {
 
     private final float d;
     private boolean night = true;
+    private boolean glass;
     private MapView map;
     private SmoothLocationOverlay loc;
     private boolean online;
@@ -255,6 +256,13 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
         // Motyw mapy jak reszta launchera: noc = przygaszone kafle + grafitowe tlo.
         MapConfig.applyNight(map, night);
         if (loc != null) loc.setNight(night);
+        invalidate();
+    }
+
+    // tryb "szkla" (strona widzetow): bez nieprzezroczystego wypelnienia pod mapa
+    @Override
+    public void setGlass(boolean g) {
+        glass = g;
         invalidate();
     }
 
@@ -480,7 +488,9 @@ public class MapCard extends FrameLayout implements NightAware, MapState.Listene
                     cardClip.addRoundRect(cardRect, rad, rad, Path.Direction.CW);
                 }
             }
-            Ui.ringCard(cv, cardRect, rad, CARD_STROKE_DP * d, night, false);   // wypelnienie
+            if (!glass) {
+                Ui.ringCard(cv, cardRect, rad, CARD_STROKE_DP * d, night, false);   // wypelnienie
+            }
             int save = cv.save();
             cv.clipPath(cardClip);                                              // rogi karty
             super.dispatchDraw(cv);
