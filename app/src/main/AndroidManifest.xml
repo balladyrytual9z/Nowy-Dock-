@@ -122,6 +122,12 @@
             android:exported="false" />
 
         <activity
+            android:name=".AllAppsActivity"
+            android:label="Wszystkie aplikacje"
+            android:launchMode="singleTop"
+            android:exported="false" />
+
+        <activity
             android:name=".AppsPickerActivity"
             android:label="Dock - aplikacje"
             android:exported="false" />
