@@ -101,6 +101,15 @@ ToolGrid + `PanelTool.init(a)` w konstruktorze to druga duża różnica vs lc. J
 
 `ConnectivityActivity` (osobne okno, root 0x66000000, DockView w środku) pokazuje ten sam panel w świeżej aktywności, bez fade overlay. Jeśli tam panel **działa** w nakładce launchera nie — problem siedzi w kontekście animacji alpha overlay (wtedy Krok 3 jest obligatoryjny: software-layer na `overlay` zamiast na panelu).
 
+**✅ WYKONANE 2026-11-06 (v1.0.251):** Krok 3 (SOFTWARE na panelu, API<30) i Krok 5
+(SOFTWARE na overlayu, API<30) są w kodzie, a mimo to panel otwierany z HEADER
+doka potrafił być pusty PO zakończeniu fade. Działające ConnectivityActivity
+NIE ma żadnej animacji wejścia — więc na API < 30 **animację alpha overlayu
+usunięto całkowicie** (nakładka wchodzi natychmiast, `overlay.setAlpha(1f)` bez
+animate). Fade zostaje tylko na SDK >= 30. Pilnuje test
+`ConnectivityPanelGuardTest.overlayNaStarymApiNieAnimujeAlpha()`.
+⚠️ **Nie przywracać fade na API < 30** — to był ostatni powód pustego panelu.
+
 ## 6. Weryfikacja (kolejność obowiązkowa)
 
 1. CI: `gradle test` + `assembleDebug` zielone (testy `OverlayTriggerTest`, `withoutBaseTools` nie mogą paść).

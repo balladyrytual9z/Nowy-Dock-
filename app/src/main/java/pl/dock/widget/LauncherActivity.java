@@ -1403,7 +1403,14 @@ public class LauncherActivity extends BaseActivity {
         // w finalnym rozmiarze/pozycji; animowany jest tylko overlay (alpha).
         // Overlay to zwykły fade - nie skaluje i nie przesuwa dzieci.
         overlay.setAlpha(0f);
-        if (Prefs.reduceMotion(this)) {
+        // NAPRAWA (Mali-T720 / API 28): nawet z warstwa SOFTWARE animacja alpha
+        // na overlayu pozostaje zawodna dla nowo-dodanego poddrzewa custom views -
+        // tresc panelu potrafi sie nie odtworzyc po zakonczeniu fade (raport
+        // uzytkownika: panel otwierany z HEADER doka bywa pusty). Okno zapasowe
+        // ConnectivityActivity dziala zawsze, bo nie ma zadnej animacji wejscia.
+        // Dlatego na API < 30 nakladke pokazujemy NATYCHMIAST (ta sama sciezka
+        // renderowania, co dzialajace okno); fade zostaje tylko na nowszych API.
+        if (android.os.Build.VERSION.SDK_INT < 30 || Prefs.reduceMotion(this)) {
             overlay.setAlpha(1f);
         } else {
             overlay.animate().alpha(1f).setDuration(200).start();
