@@ -1317,6 +1317,23 @@ public class LauncherActivity extends BaseActivity {
     }
 
     private void showOverlayAt(float gestureX) {
+        // OSTATECZNA NAPRAWA (ESSGOO / Mali-T720 / API 28): w oknie launchera
+        // żadna konfiguracja overlayu nie renderuje custom Canvas views panelu
+        // (przetestowane: warstwa na panelu; warstwa na panelu+overlayu; fade;
+        // animacja wejścia z wymuszonym re-layoutem — zawsze puste okno z samą
+        // pigułką „Edytuj”). Jedyna działająca ścieżka na tym urządzeniu to
+        // OSOBNE OKNO — ConnectivityActivity (ta sama klasa ConnectivityPanel,
+        // świeży kontekst okna, od zawsze używane z widżetu). Na API < 30
+        // centrum łączności otwieramy więc w osobnym oknie; blur-overlay
+        // zostaje tylko na SDK >= 30, gdzie nie ma tego problemu.
+        if (android.os.Build.VERSION.SDK_INT < 30) {
+            try {
+                startActivity(new Intent(this, ConnectivityActivity.class));
+            } catch (Throwable t) {
+                android.util.Log.w("Dock", "ConnectivityActivity", t);
+            }
+            return;
+        }
         if (overlay != null) return;
         Bitmap snap = null;
         try {

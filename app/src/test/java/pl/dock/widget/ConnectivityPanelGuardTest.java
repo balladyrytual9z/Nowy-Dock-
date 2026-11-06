@@ -89,6 +89,22 @@ public class ConnectivityPanelGuardTest {
     }
 
     @Test
+    public void naStarymApiCentrumOtwieraSieWOsobnymOknie() throws Exception {
+        File f = launcherSource();
+        String src = new String(Files.readAllBytes(f.toPath()), Charset.forName("UTF-8"));
+
+        // OSTATECZNY fix (v1.0.257): na API < 30 zaden overlay w oknie launchera
+        // nie renderuje custom Canvas views (testowane w 252/254/256 - zawsze
+        // puste okno z samym „Edytuj”). Na starych API centrum lacznosci musi
+        // otwierac sie w OSOBNYM OKNIE (ConnectivityActivity) - swiezy kontekst,
+        // ta sama sciezka co z widzetu. Overlay (blur) wolno tylko na SDK >= 30.
+        assertTrue("Brak przekierowania na API < 30 do ConnectivityActivity -"
+                        + " bez tego centrum lacznosci jest puste na ESSGOO",
+                src.contains("SDK_INT < 30")
+                        && src.contains("startActivity(new Intent(this, ConnectivityActivity.class))"));
+    }
+
+    @Test
     public void gestSwipeUpMieszkaWPagerze() throws Exception {
         File f = launcherSource();
         String src = new String(Files.readAllBytes(f.toPath()), Charset.forName("UTF-8"));

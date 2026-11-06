@@ -121,6 +121,31 @@ stan sprzed PR #14. Ustalenie na podstawie gita (commit b21e953):
   na overlayu**. Pilnują testy `overlayNieMaWlasnejWarstwy` i
   `overlayZachowujePotwierdzonaSekwencjeWejscia`.
 
+### 🔴 OSTATECZNE ROZSTRZYGNIĘCIE 2026-11-06 (v1.0.257) — osobne okno na API < 30
+
+Po przywróceniu konfiguracji PR #14 1:1 (v1.0.256) użytkownik potwierdził:
+**dalej pusto** („klikam pod zegarkiem → puste okno, widać tylko Edytuj”).
+Zestawienie wszystkich testowanych konfiguracji overlayu w oknie launchera:
+
+| Wersja | Warstwa panel | Warstwa overlay | Fade/animacje | Efekt |
+|---|---|---|---|---|
+| 252/254 | SOFTWARE | SOFTWARE | brak | ❌ pusto |
+| 256 | SOFTWARE | brak | fade+anim+re-layout (PR #14 1:1) | ❌ pusto |
+
+Żadna konfiguracja **w oknie launchera** nie renderuje custom Canvas views
+panel. Wniosek: problemem jest sam kontekst okna launchera (dynamicznie
+doczepiane poddrzewo w przebudowywanym oknie z wieloma warstwami), nie panel.
+
+✅ **Decyzja: na API < 30 centrum łączności otwiera się w OSOBNYM OKNIE —
+`ConnectivityActivity`** (ta sama klasa `ConnectivityPanel`, świeży kontekst
+okna; to ścieżka widżetu, która na tym urządzeniu działa od zawsze).
+Wszystkie trzy wejścia (klik pod zegarem, swipe-up, showOverlay) idą przez
+`showOverlayAt()`, a gałąź na początku metody przekierowuje na API < 30.
+Blur-overlay zostaje **tylko na SDK >= 30**. Strażnik:
+`naStarymApiCentrumOtwieraSieWOsobnymOknie`.
+
+⚠️ Nie „naprawiać” tego z powrotem na overlay — na tym urządzeniu nie da się.
+
 ## 6. Weryfikacja (kolejność obowiązkowa)
 
 1. CI: `gradle test` + `assembleDebug` zielone (testy `OverlayTriggerTest`, `withoutBaseTools` nie mogą paść).
