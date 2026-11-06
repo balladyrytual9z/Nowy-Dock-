@@ -1,5 +1,32 @@
 # AGENTS.md — pamięć repozytorium Nowy-Dock
 
+## 🛠️ Wymagane umiejętności (Skills)
+
+Agent powinien korzystać z następujących umiejętności. Jeśli któraś nie jest jeszcze zainstalowana, należy ją dodać za pomocą komendy `/add-skill` z adresem URL wskazanym w nawiasie.
+
+### Podstawowe
+*   `agent-canvas-environment` – poprawne działanie w środowisku Agent Canvas.
+*   `agent-memory` – zapamiętywanie kontekstu projektu.
+*   `add-skill` – dynamiczne dodawanie nowych umiejętności.
+
+### GitHub
+*   `github` – podstawowa obsługa repozytorium.
+*   `github-pr-reviewer` – recenzowanie Pull Requestów.
+*   `github-issue-to-pr` – zamiana Issues na PR-y.
+*   `release-notes` – generowanie notatek o wydaniu.
+
+### Jakość kodu
+*   `code-review` – przegląd kodu.
+*   `qa-changes` – weryfikacja zmian.
+*   `add-javadoc` – dokumentacja JavaDoc.
+*   `security` – audyt bezpieczeństwa.
+
+### UI i dokumentacja
+*   `frontend-design` – projektowanie interfejsu.
+*   `prd` – dokument wymagań produktowych.
+
+**Uwaga:** Przed instalacją jakiejkolwiek umiejętności sprawdź, czy nie jest już aktywna w panelu Customize → Skills. Unikaj duplikatów.
+
 Aplikacja Android (Java/Kotlin): CarPlay, OBD, Bluetooth.
 
 # 🧠 Pamięć Projektu "Nowy-Dock"
@@ -159,6 +186,32 @@ kręciła się na boki). Progi to stałe w `HeadingSmoother`.
 - Pusty panel łączności (Mali-T720/API 28) naprawiony przez
   `setLayerType(LAYER_TYPE_SOFTWARE, null)`; pilnuje tego
   `ConnectivityPanelTest`/`ConnectivityPanelGuardTest` — **nie usuwać** tej warstwy.
+
+## Automatyczne budowanie APK — proces decyzyjny
+
+Agent **nie pyta użytkownika** „czy zbudować APK?" — robi to automatycznie.
+
+### Kiedy agent buduje APK
+
+Po KAŻDEJ zmianie w kodzie źródłowym (Java, Kotlin, XML, Gradle, AndroidManifest):
+1. **Automatycznie** tworzy nową gałąź (jeśli nie istnieje) + commit + push
+2. **Automatycznie** otwiera Pull Request (jeśli nie istnieje) → to uruchamia CI
+3. **Automatycznie** czeka na wynik CI: `gh run watch` (sprawdza co 30 s)
+4. Gdy CI zakończy się sukcesem → raportuje użytkownikowi link do artefaktu APK
+5. Gdy CI padnie → analizuje log, próbuje naprawić błąd i pushuje poprawkę
+
+### Kiedy NIE budować
+
+- Zmiany w `AGENTS.md`, `README.md`, `*.txt`, `*.jpeg` — nie wymagają APK
+- CI jest już uruchomione dla tego samego commita (unikać duplikatów)
+
+### Zasady
+
+- APK produkuje się wyłącznie przez CI (lokalnie brak narzędzi)
+- Testy (`gradle --no-daemon test`) muszą przejść, inaczej agent poprawia kod
+- Agent nie pushuje na `main` — zawsze przez PR
+- Po udanym CI → agent raportuje: gałąź + link do PR + nazwa artefaktu APK
+- Użytkownik może w każdej chwili powiedzieć „daj APK" → to samo co wyżej
 
 ## 2026-11-05 (sesja: panel, ikony iOS, ładowanie mapy, ekran play)
 
