@@ -1,11 +1,9 @@
 package pl.dock.widget;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.app.TimePickerDialog;
 import android.widget.TimePicker;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -33,7 +31,6 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
-import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -157,7 +154,7 @@ public class ConfigActivity extends BaseActivity {
             r.addView(text(value, 17, p.sub, false));
         }
         if (chevron) {
-            TextView ch = text("  ›", 26, p.sub, false);
+            TextView ch = text("  ›", 26, night ? 0xFF636366 : 0xFFC7C7CC, false);
             r.addView(ch);
         }
         if (click != null) r.setOnClickListener(click);
@@ -172,10 +169,15 @@ public class ConfigActivity extends BaseActivity {
         r.setPadding(dp(16), dp(5), dp(16), dp(5));
         r.addView(text(title, 19, p.text, false),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        Switch sw = new Switch(this);
-        sw.setChecked(checked);
-        sw.setOnCheckedChangeListener(l);
-        r.addView(sw);
+        // Zielony przełącznik iOS zamiast systemowego android.widget.Switch
+        Ui.IosSwitch sw = new Ui.IosSwitch(this, checked,
+                night ? 0xFF3A3A3C : 0xFFE9E9EB, new Ui.IosSwitch.Listener() {
+                    @Override
+                    public void onChanged(boolean on) {
+                        if (l != null) l.onCheckedChanged(null, on);
+                    }
+                });
+        r.addView(sw, new LinearLayout.LayoutParams(dp(51), dp(31)));
         return r;
     }
 
@@ -1778,11 +1780,9 @@ public class ConfigActivity extends BaseActivity {
     private void iconMenu(final AppEntry e) {
         String[] items = {"Z pliku (obraz z tabletu)", "Ikona innej aplikacji",
                 "Wbudowane ikony (styl iOS / CarPlay)", "Domyślna ikona aplikacji"};
-        new AlertDialog.Builder(this)
-                .setTitle("Ikona")
-                .setItems(items, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface d, int which) {
+        Popups.menu(this, "Ikona", items, new Popups.OnSel() {
+            @Override
+            public void on(int which) {
                         if (which == 0) {
                             Intent i = new Intent(Intent.ACTION_GET_CONTENT);
                             i.setType("image/*");
@@ -1822,7 +1822,7 @@ public class ConfigActivity extends BaseActivity {
                             changed();
                         }
                     }
-                }).show();
+                });
     }
 
     @Override
@@ -1882,11 +1882,7 @@ public class ConfigActivity extends BaseActivity {
         });
 
         ListView lv = new ListView(this);
-        final AlertDialog dlg = new AlertDialog.Builder(this)
-                .setTitle("Wybierz aplikację")
-                .setView(lv)
-                .setNegativeButton("Anuluj", null)
-                .create();
+        final android.app.Dialog dlg = Popups.panel(this, lv, 520, Gravity.CENTER);
 
         lv.setAdapter(new ArrayAdapter<AppItem>(this, 0, items) {
             @Override
@@ -1924,6 +1920,10 @@ public class ConfigActivity extends BaseActivity {
         LinearLayout l = new LinearLayout(this);
         l.setOrientation(LinearLayout.VERTICAL);
         l.setPadding(dp(20), dp(8), dp(20), 0);
+        TextView ttl = text(title, 15, p.sub, true);
+        ttl.setGravity(Gravity.CENTER);
+        ttl.setPadding(0, dp(8), 0, dp(4));
+        l.addView(ttl);
         final EditText[] ets = new EditText[hints.length];
         for (int i = 0; i < hints.length; i++) {
             EditText e = new EditText(this);
@@ -1935,20 +1935,29 @@ public class ConfigActivity extends BaseActivity {
             l.addView(e);
             ets[i] = e;
         }
-        new AlertDialog.Builder(this)
-                .setTitle(title)
-                .setView(l)
-                .setNegativeButton("Anuluj", null)
-                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface d, int w) {
-                        String[] v = new String[ets.length];
-                        for (int i = 0; i < ets.length; i++) {
-                            v[i] = ets[i].getText().toString().trim();
-                        }
-                        cb.on(v);
-                    }
-                }).show();
+        final android.app.Dialog[] dr = new android.app.Dialog[1];
+        View hl = new View(this);
+        hl.setBackgroundColor(night ? 0x33FFFFFF : 0x22000000);
+        l.addView(hl, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp(1) / 2)));
+        TextView okBtn = text("OK", 20, p.accent, true);
+        okBtn.setGravity(Gravity.CENTER);
+        okBtn.setPadding(0, dp(14), 0, dp(16));
+        okBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String[] v2 = new String[ets.length];
+                for (int i = 0; i < ets.length; i++) {
+                    v2[i] = ets[i].getText().toString().trim();
+                }
+                dr[0].dismiss();
+                cb.on(v2);
+            }
+        });
+        l.addView(okBtn, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        dr[0] = Popups.panel(this, l, 440, Gravity.CENTER);
+        dr[0].show();
     }
 
     private void sourceChanged() {
@@ -1970,11 +1979,9 @@ public class ConfigActivity extends BaseActivity {
         labels.add("Własny broadcast…");
         labels.add("Klucz ustawień Androida…");
         labels.add("Z aplikacji OBD2 Dashboard (broadcast Docka)");
-        new AlertDialog.Builder(this)
-                .setTitle("Źródło napięcia")
-                .setItems(labels.toArray(new String[0]), new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface d, int which) {
+        Popups.menu(this, "Źródło napięcia", labels.toArray(new String[0]), new Popups.OnSel() {
+            @Override
+            public void on(int which) {
                         if (which == 0) {
                             Prefs.setVoltSource(ConfigActivity.this, "battery");
                             sourceChanged();
@@ -2025,7 +2032,7 @@ public class ConfigActivity extends BaseActivity {
                             sourceChanged();
                         }
                     }
-                }).show();
+                });
     }
 
     private void diagDialog() {
@@ -2037,11 +2044,15 @@ public class ConfigActivity extends BaseActivity {
         t.setText(Diag.report(this));
         ScrollView s = new ScrollView(this);
         s.addView(t);
-        new AlertDialog.Builder(this)
-                .setTitle("Diagnostyka")
-                .setView(s)
-                .setPositiveButton("Zamknij", null)
-                .show();
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        TextView ttl = text("Diagnostyka", 15, p.sub, true);
+        ttl.setGravity(Gravity.CENTER);
+        ttl.setPadding(0, dp(10), 0, dp(4));
+        box.addView(ttl);
+        box.addView(s, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        Popups.panel(this, box, 600, Gravity.CENTER).show();
     }
 
     private String hhmm(int m) {
@@ -2070,11 +2081,15 @@ public class ConfigActivity extends BaseActivity {
         gv.setNumColumns(4);
         gv.setVerticalSpacing(dp(12));
         gv.setPadding(dp(12), dp(8), dp(12), dp(8));
-        final AlertDialog dlg = new AlertDialog.Builder(this)
-                .setTitle("Wbudowane ikony")
-                .setView(gv)
-                .setNegativeButton("Anuluj", null)
-                .create();
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        TextView ttl = text("Wbudowane ikony", 15, p.sub, true);
+        ttl.setGravity(Gravity.CENTER);
+        ttl.setPadding(0, dp(10), 0, dp(4));
+        box.addView(ttl);
+        box.addView(gv, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        final android.app.Dialog dlg = Popups.panel(this, box, 560, Gravity.CENTER);
         gv.setAdapter(new ArrayAdapter<BuiltinIcons.Def>(this, 0, defs) {
             @Override
             public View getView(int pos, View cv, ViewGroup parent) {
