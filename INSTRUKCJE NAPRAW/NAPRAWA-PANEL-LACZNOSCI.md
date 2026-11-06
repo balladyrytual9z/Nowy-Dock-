@@ -101,14 +101,25 @@ ToolGrid + `PanelTool.init(a)` w konstruktorze to druga duża różnica vs lc. J
 
 `ConnectivityActivity` (osobne okno, root 0x66000000, DockView w środku) pokazuje ten sam panel w świeżej aktywności, bez fade overlay. Jeśli tam panel **działa** w nakładce launchera nie — problem siedzi w kontekście animacji alpha overlay (wtedy Krok 3 jest obligatoryjny: software-layer na `overlay` zamiast na panelu).
 
-**✅ WYKONANE 2026-11-06 (v1.0.251):** Krok 3 (SOFTWARE na panelu, API<30) i Krok 5
-(SOFTWARE na overlayu, API<30) są w kodzie, a mimo to panel otwierany z HEADER
-doka potrafił być pusty PO zakończeniu fade. Działające ConnectivityActivity
-NIE ma żadnej animacji wejścia — więc na API < 30 **animację alpha overlayu
-usunięto całkowicie** (nakładka wchodzi natychmiast, `overlay.setAlpha(1f)` bez
-animate). Fade zostaje tylko na SDK >= 30. Pilnuje test
-`ConnectivityPanelGuardTest.overlayNaStarymApiNieAnimujeAlpha()`.
-⚠️ **Nie przywracać fade na API < 30** — to był ostatni powód pustego panelu.
+**❌ UCHYLONA 2026-11-06 (v1.0.255):** poprzednia notatka opierała się na błędnej
+teorii („fade psuł treść”). Użytkownik potwierdził na urządzeniu, że objaw to
+**tło okna + pigułka „Edytuj" widoczne, żaden custom Canvas View nie** — dokładnie
+stan sprzed PR #14. Ustalenie na podstawie gita (commit b21e953):
+
+- **Potwierdzona przez użytkownika** konfiguracja (PR #14): warstwa SOFTWARE
+  **TYLKO na ConnectivityPanel** + **pełna sekwencja wejścia**: fade overlayu
+  (220ms/0ms przy reduceMotion) + animacja panelu (scale 0.92→1, translateY
+  40→0, Overshoot) + `withEndAction` z **`panel.requestLayout()` +
+  `panel.invalidate()` + `overlay.invalidate()`** — to jest mechanizm naprawczy
+  („pierwszy pomiar panelu w animowanej overlay potrafił wyjść 0×0 i treść nigdy
+  się nie rysowała”).
+- **Regresje, które to zepsuły:** (1) warstwa SOFTWARE na overlayu — PR #46
+  (commit 2907c5e): dwie zagnieżdżone warstwy na Mali-T720 nie renderują treści,
+  usunięta; (2) usunięcie animacji wejścia panelu i withEndAction — commit 73de241:
+  przywrócone 1:1.
+- ⚠️ **Nie usuwać animacji wejścia ani withEndAction** i **nie dodawać warstwy
+  na overlayu**. Pilnują testy `overlayNieMaWlasnejWarstwy` i
+  `overlayZachowujePotwierdzonaSekwencjeWejscia`.
 
 ## 6. Weryfikacja (kolejność obowiązkowa)
 

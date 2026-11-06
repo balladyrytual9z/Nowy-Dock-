@@ -53,29 +53,39 @@ public class ConnectivityPanelGuardTest {
     }
 
     @Test
-    public void overlayNakladkiMaWarstweSoftware() throws Exception {
+    public void overlayNieMaWlasnejWarstwy() throws Exception {
         File f = launcherSource();
         String src = new String(Files.readAllBytes(f.toPath()), Charset.forName("UTF-8"));
 
-        // NAPRAWA (Mali-T720 / API 28): overlay z animacja alpha nie wyswietla
-        // custom views w panelu. Warstwa SOFTWARE na nakladce (nie tylko na panelu)
-        // rozwiazuje ten przypadek - sciezka frameworka renderuje poprawnie.
-        assertTrue("Brak setLayerType na overlayu w LauncherActivity - animacja alpha"
-                        + " overlayu gasi custom views na Mali-T720",
-                src.contains("overlay.setLayerType(View.LAYER_TYPE_SOFTWARE, null)"));
+        // Warstwa SOFTWARE moze byc TYLKO na ConnectivityPanel (potwierdzona przez
+        // uzytkownika, PR #14). Warstwa dodana na overlayu (PR #46, commit 2907c5e)
+        // tworzyla DWIe zagniezdzone warstwy - tresc panelu przestala sie rysowac.
+        assertFalse("overlay.setLayerType na OVERLAYU psuje panel: dwie zagniezdzone"
+                        + " warstwy na Mali-T720 nie renderuja tresci - warstwa tylko"
+                        + " na ConnectivityPanel (PR #14)",
+                src.contains("overlay.setLayerType"));
     }
 
     @Test
-    public void overlayNaStarymApiNieAnimujeAlpha() throws Exception {
+    public void overlayZachowujePotwierdzonaSekwencjeWejscia() throws Exception {
         File f = launcherSource();
         String src = new String(Files.readAllBytes(f.toPath()), Charset.forName("UTF-8"));
 
-        // Animacja alpha na overlayu pozostaje zawodna na Mali-T720 nawet z warstwa
-        // SOFTWARE (treść panelu nie odtwarza się po fade). Na API < 30 nakładka
-        // musi wejść NATYCHMIAST - identyczna ścieżka jak działające ConnectivityActivity.
-        assertTrue("Brak natychmiastowego pokazania overlayu na API < 30 - panel"
-                        + " otwierany z HEADER doka bywa pusty po animacji alpha",
-                src.contains("SDK_INT < 30 || Prefs.reduceMotion(this)"));
+        // Potwierdzona na urzadzeniu sekwencja (PR #14, commit b21e953): fade
+        // overlayu + animacja wejscia panelu (skala/pivot/translate/Overshoot)
+        // + withEndAction z wymuszonym requestLayout()+invalidate(). Komentarz
+        // z tamtej poprawki: "pierwszy pomiar panelu w animowanej overlay potrafil
+        // wyjsc 0x0 i tresc nigdy sie nie rysowala" - bez tego panel jest pusty.
+        assertTrue("Brak wymuszonego re-layoutu panelu (panel.requestLayout() w"
+                        + " withEndAction) - to mechanizm naprawczy z PR #14",
+                src.contains("panel.requestLayout()"));
+        assertTrue("Brak overlay.invalidate() po animacji wejscia (PR #14)",
+                src.contains("overlay.invalidate()"));
+        assertTrue("Brak animacji wejscia panelu (panel.setScaleX(0.92f)) -"
+                        + " bez niej nie ma withEndAction i tresc nie odtwarza sie",
+                src.contains("panel.setScaleX(0.92f)"));
+        assertTrue("Brak withEndAction po animacji wejscia panelu (PR #14)",
+                src.contains("withEndAction"));
     }
 
     @Test
