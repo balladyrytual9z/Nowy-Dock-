@@ -10,6 +10,10 @@ import org.junit.Test;
  * Kluczowa wlasnosc: nasycony kolor overlayTint() trafia BIALYM dokladnie
  * w punkt bieli celu warmthWhitePoint() - dlatego ekran zolci sie jak
  * w iOS, a nie bladnie jak po refactorze z 3.11 (Kelvin liniowo + dim).
+ *
+ * UWAGA na arytmetyke FLOAT: asercje liczone sa tak, jak je liczy Java,
+ * czyli w float (Math.round(float)), a nie w double. Przy przepisywaniu
+ * tych asercji "z glowy" w double latwo o +-1 (patrz test alphy nizej).
  */
 public class ColorTempTest {
 
@@ -78,12 +82,15 @@ public class ColorTempTest {
             assertTrue("alpha w 0..255", t[0] >= 0 && t[0] <= 255);
             prev = t[0];
         }
-        // maksimum: 0.70 * 255 = 178.5 -> 179 przy pelnej glebi
+        // maksimum: 0.70f * 255f LICZONE W FLOAT zaokragla sie do DOKLADNIE
+        // 178.5f (float nie przechowuje 0.70 dokladnie), a Math.round(float)
+        // liczy half-up -> 179. W double wyszloby 0.70*255=178.5 -> tez 179.
+        // Nie "poprawiac" tej asercji na 178 po przeliczeniu w glowie w double.
         assertEquals(179, ColorTemp.overlayTint(1f)[0]);
     }
 
     @Test
-    public void kolorNakladkiJestNasycony() {
+    public void kolorNakladkiJestNasyconty() {
         // To jest roznica miedzy "zolty jak iOS" a "blady": przy typowym
         // ustawieniu (sila 40 -> f=0.5) kanaly koloru maja byc gleboko
         // sciete, a nie ledwo odjete jak przy liniowym Kelvinie.
