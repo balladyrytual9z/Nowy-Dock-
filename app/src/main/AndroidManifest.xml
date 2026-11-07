@@ -115,6 +115,17 @@
             android:configChanges="orientation|screenSize|keyboardHidden|density|uiMode|fontScale"
             android:exported="false" />
 
+        <!-- Zakladki i slady (jak w Organic Maps): zapisane miejsca, import/eksport
+             GPX/KML, slady jazdy i profil wysokosci. Ekran otwierany dlugim
+             przytrzymaniem "Zap"/"Slad" w Nawigacji. -->
+        <activity
+            android:name=".maps.bookmark.BookmarksActivity"
+            android:label="Zakladki"
+            android:launchMode="singleTop"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:configChanges="orientation|screenSize|keyboardHidden|density|uiMode|fontScale"
+            android:exported="false" />
+
         <activity
             android:name=".AppsActivity"
             android:label="Aplikacje"
