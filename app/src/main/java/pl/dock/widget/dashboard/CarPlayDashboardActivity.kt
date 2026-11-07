@@ -201,14 +201,14 @@ class CarPlayDashboardActivity : Activity() {
 
         // dolna sekcja przypieta - NIE przewija sie (pkt 15.2)
         dock.addView(quickBtn())
-        dock.addView(dockBtn("USTAWIENIA") {
+        dock.addView(dockBtn("USTAWIENIA", {
             startActivity(Intent(this, ObdSettingsActivity::class.java))
-        })
-        dock.addView(dockBtn("HOME") {
+        }))
+        dock.addView(dockBtn("HOME", {
             startActivity(Intent(this, LauncherActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             finish()
-        })
+        }))
         highlightActive()
         return dock
     }
@@ -683,7 +683,7 @@ class CarPlayDashboardActivity : Activity() {
         }
         chartsCol.addView(controls)
         chartsCol.addView(chartsArea)
-        page.addView(scroll)
+        page.addView(liveScroll)
         page.addView(chartsCol, LinearLayout.LayoutParams(
             0, LinearLayout.LayoutParams.MATCH_PARENT, 1.6f))
         livePage = page

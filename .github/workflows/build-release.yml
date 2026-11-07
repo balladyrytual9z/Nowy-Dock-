@@ -102,7 +102,7 @@ jobs:
           echo "Uruchamianie testów..." | tee -a "$RUNNER_TEMP/ci.log"
           if ! gradle --no-daemon test 2>&1 | tee -a "$RUNNER_TEMP/ci.log"; then
             echo "::error::gradle test padl - bledy z logu jako publiczne adnotacje:"
-            ERRS=$(grep -E "^e: |error: |FAILURE|Execution failed|FAILED" "$RUNNER_TEMP/ci.log" | head -n 8 || true)
+            ERRS=$(grep -E "^e: |error: |FAILURE|Execution failed|FAILED" "$RUNNER_TEMP/ci.log" | head -n 30 || true)
             if [ -n "$ERRS" ]; then
               while IFS= read -r l; do echo "::error::$l"; done <<< "$ERRS"
             else
