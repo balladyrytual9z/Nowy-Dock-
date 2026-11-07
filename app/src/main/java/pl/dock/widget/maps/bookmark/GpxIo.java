@@ -21,7 +21,7 @@ public final class GpxIo {
     private static final Pattern NAME = Pattern.compile(
             "<name>([^<]*)</name>");
     private static final Pattern WPT = Pattern.compile(
-            "<wpt[^>]*>(.*?)</wpt>", Pattern.DOTALL);
+            "<wpt\\b([^>]*)>(.*?)</wpt>", Pattern.DOTALL);
     private static final Pattern WPT_EMPTY = Pattern.compile(
             "<wpt\\b([^>]*)/>");
     private static final Pattern TRKPT = Pattern.compile(
@@ -101,10 +101,9 @@ public final class GpxIo {
         if (gpx == null) return out;
         Matcher m = WPT.matcher(gpx);
         while (m.find()) {
-            String block = m.group(1);
-            double[] ll = attr(block);
+            double[] ll = attr(m.group(1));
             if (ll == null) continue;
-            String name = first(NAME, block);
+            String name = unxml(first(NAME, m.group(2)));
             out.add(new Bookmark(0L, name, ll[0], ll[1], 0L));
         }
         // wpt bez zawartosci (samosiezajace)
@@ -140,7 +139,7 @@ public final class GpxIo {
             if (!c.find()) continue;
             double lon = Double.parseDouble(c.group(1));
             double lat = Double.parseDouble(c.group(2));
-            String name = first(NAME, block);
+            String name = unxml(first(NAME, block));
             out.add(new Bookmark(0L, name, lat, lon, 0L));
         }
         return out;
@@ -167,5 +166,12 @@ public final class GpxIo {
     private static String xml(String s) {
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                 .replace("\"", "&quot;").replace("'", "&apos;");
+    }
+
+    /** Dekoduje encje XML w nazwach odczytanych z GPX/KML (roundtrip nazw). */
+    private static String unxml(String s) {
+        return s.replace("&lt;", "<").replace("&gt;", ">")
+                .replace("&quot;", "\"").replace("&apos;", "'")
+                .replace("&amp;", "&");
     }
 }
