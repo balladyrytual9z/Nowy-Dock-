@@ -99,6 +99,14 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
     private float navEtaS = -1f;               // czas do celu [s]
     private final TrackRecorder recorder = new TrackRecorder();
     private boolean recording;                 // nagrywanie sladu jazdy
+    // ---------------- sesja 5: follow-track, warianty, limity predkosci, pasy ----------------
+    private boolean trackNav;                  // nawigacja za zapisanym sladem (bez OSRM)
+    private List<Route> routeAlternatives;      // warianty trasy z OSRM (alternatives)
+    private int routeAltIndex;                  // aktualnie wybrany wariant
+    private int navMaxKmh;                      // limit predkosci na segmencie (0 = nieznany)
+    private String navLaneHint = "";            // podpowiedz pasow nadchodzacego manewru
+    private long lastSpeedWarnAt;               // throttle ostrzezenia o predkosci (30 s)
+    private long lastOffRouteAt;                // throttle glosnego "zjazd z trasy" (15 s)
 
     @Override
     protected void onCreate(Bundle b) {
@@ -118,12 +126,10 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
 
         try {
             map = new MapView(this);
-            map.setTileSource("topo".equals(Prefs.mapStyle(this))
-                    ? TileSourceFactory.OpenTopo : TileSourceFactory.MAPNIK);
             map.setMultiTouchControls(true);
             map.setTilesScaledToDpi(true);
             map.setUseDataConnection(Prefs.mapOnline(this));
-            MapConfig.applyNight(map, night);   // tlo + filtr kafli (dzien/noc)
+            applyTileSource();   // kafle: CARTO dark (noc online) / OSM topo/mapnik
             map.getController().setZoom(Math.round(Prefs.mapLastZoom(this)));
             map.setMinZoomLevel(3d);
             map.setMaxZoomLevel(19d);
@@ -165,7 +171,7 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
 
                 @Override
                 public boolean longPressHelper(GeoPoint p) {
-                    setDestination(p);
+                    showMapMenu(p);
                     return true;
                 }
             }));
@@ -211,6 +217,9 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
             }
             if (i.hasExtra("track_path")) {
                 showTrack(i.getStringExtra("track_path"));
+            }
+            if (i.hasExtra("nav_track")) {
+                followTrack(i.getStringExtra("nav_track"));
             }
         } catch (Throwable ignored) {
         }
@@ -350,12 +359,46 @@ private void toggleFollow() {
         invalidateControls();
     }
 
+    /** Kafle mapy wg ustawien: noc + ciemne kafle online = CARTO dark,
+     *  inaczej OSM (topo/mapnik) z nocnym filtrem jak dotychczas. */
+    private void applyTileSource() {
+        if (map == null) return;
+        boolean dark = night && Prefs.mapNightTiles(this) && Prefs.mapOnline(this);
+        if (dark) {
+            try {
+                map.setTileSource(new org.osmdroid.tileprovider.tilesource.XYTileSource(
+                        "CartoDark", 0, 19, 256, ".png",
+                        new String[]{"https://a.basemaps.cartocdn.com/dark_all/"}));
+                // kafle CARTO sa juz ciemne - zdejmujemy filtr, tlo zostaje nocne
+                MapConfig.applyNight(map, false);
+                map.setBackgroundColor(MapConfig.NIGHT_BG);
+            } catch (Throwable t) {
+                dark = false;
+            }
+        }
+        if (!dark) {
+            map.setTileSource("topo".equals(Prefs.mapStyle(this))
+                    ? TileSourceFactory.OpenTopo : TileSourceFactory.MAPNIK);
+            MapConfig.applyNight(map, night);
+        }
+    }
+
+    /** Przelacza ciemne kafle nocne (przycisk "Noc"). */
+    private void toggleNightTiles() {
+        boolean v = !Prefs.mapNightTiles(this);
+        Prefs.setMapNightTiles(this, v);
+        applyTileSource();
+        Toast.makeText(this, v ? "Ciemne kafle nocą: włączone" : "Ciemne kafle nocą: wyłączone",
+                Toast.LENGTH_SHORT).show();
+        invalidateControls();
+    }
+
     private void toggleLayer() {
         if (map == null) return;
         boolean topo = "topo".equals(Prefs.mapStyle(this));
         String next = topo ? "mapnik" : "topo";
         Prefs.setMapStyle(this, next);
-        map.setTileSource("topo".equals(next) ? TileSourceFactory.OpenTopo : TileSourceFactory.MAPNIK);
+        applyTileSource();
         invalidateControls();
     }
 
@@ -363,6 +406,7 @@ private void toggleFollow() {
         boolean v = !Prefs.mapOnline(this);
         Prefs.setMapOnline(this, v);
         if (map != null) map.setUseDataConnection(v);
+        applyTileSource();   // ciemne kafle dzialaja tylko online
         Toast.makeText(this, v ? "Internet: mapy dociągają nowe obszary" : "Offline: tylko pobrane mapy",
                 Toast.LENGTH_SHORT).show();
         invalidateControls();
@@ -508,7 +552,9 @@ private void toggleFollow() {
                 navRemainingM = (float) u.remainingM;
                 navEtaS = (float) u.etaS;
                 navManeuverDistM = (float) u.distToManeuverM;
-                if (u.instruction != null && u.instruction.length() > 0) {
+                navMaxKmh = u.maxKmh;
+                navLaneHint = u.laneHint;
+                if (u.instruction != null && u.instruction.length() > 0 && !trackNav) {
                     navInstruction = u.instruction;
                 }
                 boolean speak = Prefs.mapVoice(this) && voice != null;
@@ -518,12 +564,29 @@ private void toggleFollow() {
                 } else if (u.prompt == Guidance.PROMPT_NOW) {
                     if (speak) voice.speak(u.instruction + ", teraz");
                 } else if (u.prompt == Guidance.PROMPT_ARRIVED) {
-                    if (speak) voice.speak("Dojechałeś do celu");
-                    Toast.makeText(this, "Cel osiągnięty", Toast.LENGTH_LONG).show();
+                    if (trackNav) {
+                        if (speak) voice.speak("Koniec śladu");
+                        Toast.makeText(this, "Koniec śladu", Toast.LENGTH_LONG).show();
+                    } else {
+                        if (speak) voice.speak("Dojechałeś do celu");
+                        Toast.makeText(this, "Cel osiągnięty", Toast.LENGTH_LONG).show();
+                    }
                     clearDestination();
                 } else if (u.prompt == Guidance.PROMPT_OFF_ROUTE) {
-                    if (speak) voice.speak("Zjechałeś z trasy. Przeliczam.");
-                    reroute();
+                    long now2 = SystemClock.uptimeMillis();
+                    if (now2 - lastOffRouteAt > 15000L) {
+                        lastOffRouteAt = now2;
+                        if (speak) {
+                            voice.speak(trackNav ? "Wróć na ślad" : "Zjechałeś z trasy. Przeliczam.");
+                        }
+                    }
+                    if (!trackNav) reroute();
+                }
+                // ostrzezenie o przekroczeniu limitu predkosci (raz na 30 s)
+                if (u.maxKmh > 0 && smooth.speedMs() * 3.6f > u.maxKmh + 7f
+                        && SystemClock.uptimeMillis() - lastSpeedWarnAt > 30000L) {
+                    lastSpeedWarnAt = SystemClock.uptimeMillis();
+                    if (speak) voice.speak("Ograniczenie prędkości " + u.maxKmh);
                 }
                 invalidateControls();
             } catch (Throwable ignored) {
@@ -594,11 +657,13 @@ private void toggleFollow() {
         Toast.makeText(this, "Wyznaczam trasę…", Toast.LENGTH_SHORT).show();
         final double fla = smooth.lat();
         final double flo = smooth.lon();
-        RouteClient.route(Prefs.mapRouteProfile(this), fla, flo,
-                dest.getLatitude(), dest.getLongitude(), new RouteClient.Callback() {
+        RouteClient.routes(Prefs.mapRouteProfile(this), fla, flo,
+                dest.getLatitude(), dest.getLongitude(), new RouteClient.RoutesCallback() {
                     @Override
-                    public void onRoute(Route r) {
-                        applyRoute(r, true);
+                    public void onRoutes(List<Route> rs) {
+                        routeAlternatives = rs;
+                        routeAltIndex = 0;
+                        applyRoute(rs.get(0), true);
                     }
 
                     @Override
@@ -610,14 +675,29 @@ private void toggleFollow() {
                 });
     }
 
+    /** Zmiana wariantu trasy: tap karty celu podczas nawigacji. */
+    private void cycleVariant() {
+        if (routeAlternatives == null || routeAlternatives.size() < 2) {
+            clearDestination();
+            return;
+        }
+        routeAltIndex = (routeAltIndex + 1) % routeAlternatives.size();
+        applyRoute(routeAlternatives.get(routeAltIndex), false);
+        Toast.makeText(this, "Wariant " + (routeAltIndex + 1) + "/" + routeAlternatives.size(),
+                Toast.LENGTH_SHORT).show();
+    }
+
     private void applyRoute(Route r, boolean announce) {
         route = r;
         guide = new Guidance(r);
         navigating = true;
+        trackNav = false;
         navInstruction = "Jedź zgodnie z trasą";
         navManeuverDistM = -1f;
         navRemainingM = (float) r.distanceM;
         navEtaS = (float) r.durationS;
+        navMaxKmh = 0;
+        navLaneHint = "";
         if (routeLine != null && map != null) {
             List<GeoPoint> pts = new ArrayList<GeoPoint>();
             for (int i = 0; i < r.pointCount(); i++) {
@@ -641,10 +721,15 @@ private void toggleFollow() {
         navigating = false;
         guide = null;
         route = null;
+        trackNav = false;
+        routeAlternatives = null;
+        routeAltIndex = 0;
         navInstruction = "";
         navManeuverDistM = -1f;
         navRemainingM = -1f;
         navEtaS = -1f;
+        navMaxKmh = 0;
+        navLaneHint = "";
         if (routeLine != null) routeLine.setPoints(new ArrayList<GeoPoint>());
         if (map != null) map.invalidate();
         if (speak && Prefs.mapVoice(this) && voice != null) {
@@ -661,11 +746,13 @@ private void toggleFollow() {
         if (!hasDest || dest == null || (!smooth.hasFix() && !smooth.seededKnown())) return;
         final double fla = smooth.lat();
         final double flo = smooth.lon();
-        RouteClient.route(Prefs.mapRouteProfile(this), fla, flo,
-                dest.getLatitude(), dest.getLongitude(), new RouteClient.Callback() {
+        RouteClient.routes(Prefs.mapRouteProfile(this), fla, flo,
+                dest.getLatitude(), dest.getLongitude(), new RouteClient.RoutesCallback() {
                     @Override
-                    public void onRoute(Route r) {
-                        applyRoute(r, false);
+                    public void onRoutes(List<Route> rs) {
+                        routeAlternatives = rs;
+                        routeAltIndex = 0;
+                        applyRoute(rs.get(0), false);
                     }
 
                     @Override
@@ -673,6 +760,129 @@ private void toggleFollow() {
                         // zostaje stara trasa; kolejny tick zjedzenia z trasy sprobuje znowu
                     }
                 });
+    }
+
+    /** Nawigacja za zapisanym sladem GPX (jak "follow track" w Organic Maps):
+     *  trasa syntetyczna z punktow sladu, bez przeliczania OSRM. */
+    private void followTrack(String path) {
+        if (path == null || map == null || trackLine == null) return;
+        try {
+            java.io.File f = new java.io.File(path);
+            if (!f.exists()) {
+                Toast.makeText(this, "Ślad nie istnieje", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            List<double[]> pts = GpxIo.parseTrack(TrackFiles.read(this, f));
+            if (pts.size() < 2) {
+                Toast.makeText(this, "Ślad za krótki", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            List<GeoPoint> gp = new ArrayList<GeoPoint>();
+            double[] lats = new double[pts.size()];
+            double[] lons = new double[pts.size()];
+            double total = 0d;
+            for (int i = 0; i < pts.size(); i++) {
+                lats[i] = pts.get(i)[0];
+                lons[i] = pts.get(i)[1];
+                if (i > 0) {
+                    total += Guidance.distM(lats[i - 1], lons[i - 1], lats[i], lons[i]);
+                }
+                gp.add(new GeoPoint(lats[i], lons[i]));
+            }
+            trackLine.setPoints(gp);
+            Route.Step[] steps = new Route.Step[]{
+                    new Route.Step(pts.size() - 1, "Koniec śladu", "", 0d, "arrive", null)};
+            Route r = new Route(lats, lons, total, Math.round(total / 3d), steps);
+            route = r;
+            routeAlternatives = null;
+            routeAltIndex = 0;
+            guide = new Guidance(r);
+            trackNav = true;
+            navigating = true;
+            navInstruction = "Jedź za śladem";
+            navManeuverDistM = -1f;
+            navRemainingM = (float) total;
+            navEtaS = (float) Math.round(total / 3d);
+            navMaxKmh = 0;
+            navLaneHint = "";
+            map.getController().setCenter(gp.get(0));
+            map.getController().setZoom(16d);
+            map.invalidate();
+            Toast.makeText(this, "Nawigacja za śladem: " + Maneuvers.distText(total),
+                    Toast.LENGTH_LONG).show();
+            if (Prefs.mapVoice(this) && voice != null) {
+                voice.speak("Nawigacja za śladem rozpoczęta");
+            }
+            invalidateControls();
+        } catch (Throwable tr) {
+            Toast.makeText(this, "Nie udało się wczytać śladu", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /** Menu dlugiego przytrzymania mapy (jak w Organic Maps): cel, zakladka,
+     *  kopiowanie wspolrzednych, udostepnienie linku OSM. */
+    private void showMapMenu(final GeoPoint p) {
+        if (p == null) return;
+        final double la = p.getLatitude();
+        final double lo = p.getLongitude();
+        final String[] items = {"Ustaw cel", "Zakładka tutaj",
+                "Kopiuj współrzędne", "Udostępnij"};
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(String.format(java.util.Locale.US, "%.5f, %.5f", la, lo))
+                .setItems(items, new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface d, int which) {
+                        if (which == 0) {
+                            setDestination(p);
+                        } else if (which == 1) {
+                            try {
+                                String name = new java.text.SimpleDateFormat("dd.MM HH:mm",
+                                        java.util.Locale.US).format(new java.util.Date());
+                                MapsDb.get(NavigatorActivity.this).addBookmark(name, la, lo);
+                                Toast.makeText(NavigatorActivity.this,
+                                        "Zapisano zakładkę: " + name,
+                                        Toast.LENGTH_SHORT).show();
+                            } catch (Throwable tr) {
+                                Toast.makeText(NavigatorActivity.this,
+                                        "Nie udało się zapisać zakładki",
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        } else if (which == 2) {
+                            try {
+                                android.content.ClipboardManager cm =
+                                        (android.content.ClipboardManager) getSystemService(
+                                                Context.CLIPBOARD_SERVICE);
+                                android.content.ClipData cd =
+                                        android.content.ClipData.newPlainText("Dock",
+                                                String.format(java.util.Locale.US,
+                                                        "%.6f, %.6f", la, lo));
+                                cm.setPrimaryClip(cd);
+                                Toast.makeText(NavigatorActivity.this, "Skopiowano",
+                                        Toast.LENGTH_SHORT).show();
+                            } catch (Throwable tr) {
+                                Toast.makeText(NavigatorActivity.this, "Brak schowka",
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        } else if (which == 3) {
+                            try {
+                                String link = "https://www.openstreetmap.org/?mlat="
+                                        + String.format(java.util.Locale.US, "%.6f", la)
+                                        + "&mlon=" + String.format(java.util.Locale.US, "%.6f", lo)
+                                        + "#map=17/" + String.format(java.util.Locale.US, "%.6f", la)
+                                        + "/" + String.format(java.util.Locale.US, "%.6f", lo);
+                                Intent i = new Intent(Intent.ACTION_SEND);
+                                i.setType("text/plain");
+                                i.putExtra(Intent.EXTRA_TEXT, link);
+                                startActivity(Intent.createChooser(i, "Udostępnij miejsce"));
+                            } catch (Throwable tr) {
+                                Toast.makeText(NavigatorActivity.this,
+                                        "Nie da się udostępnić", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    }
+                })
+                .setNegativeButton("Anuluj", null)
+                .show();
     }
 
     /** Rysuje slad z pliku GPX (track_path z BookmarksActivity). */
@@ -839,10 +1049,31 @@ private void toggleFollow() {
             }
         } catch (Throwable ignored) {
         }
+        final String poi = PoiCategories.lookup(q);
         final String url;
         try {
-            url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q="
-                    + java.net.URLEncoder.encode(q, "UTF-8");
+            if (poi != null) {
+                // kategoria POI (np. "apteka"): szukamy wokol pozycji, jak Organic Maps
+                double la;
+                double lo;
+                if (smooth.hasFix() || smooth.seededKnown()) {
+                    la = smooth.lat();
+                    lo = smooth.lon();
+                } else {
+                    la = Double.parseDouble(Prefs.posLastLat(this));
+                    lo = Double.parseDouble(Prefs.posLastLon(this));
+                }
+                double dLat = 0.045d;   // ~5 km w kazda strone
+                double dLon = dLat / Math.cos(Math.toRadians(la));
+                url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=12&bounded=1"
+                        + "&viewbox=" + java.net.URLEncoder.encode(
+                        String.format(java.util.Locale.US, "%.5f,%.5f,%.5f,%.5f",
+                                lo + dLon, la + dLat, lo - dLon, la - dLat), "UTF-8")
+                        + "&q=" + java.net.URLEncoder.encode(poi, "UTF-8");
+            } else {
+                url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q="
+                        + java.net.URLEncoder.encode(q, "UTF-8");
+            }
         } catch (Throwable tr) {
             showResults(names, pts);
             return;
@@ -867,7 +1098,18 @@ private void toggleFollow() {
                         org.json.JSONArray arr = new org.json.JSONArray(json);
                         for (int i = 0; i < arr.length(); i++) {
                             org.json.JSONObject o = arr.getJSONObject(i);
-                            names.add(o.optString("display_name", "?"));
+                            String dn = o.optString("display_name", "?");
+                            if (poi != null) {
+                                // kategorie POI: krotka nazwa (pierwszy czlon display_name)
+                                String shortName = o.optString("name", "");
+                                if (shortName.length() == 0 && dn.contains(",")) {
+                                    shortName = dn.split(",")[0].trim();
+                                }
+                                if (shortName.length() == 0) shortName = dn;
+                                names.add(shortName);
+                            } else {
+                                names.add(dn);
+                            }
                             pts.add(new GeoPoint(o.optDouble("lat", 0), o.optDouble("lon", 0)));
                         }
                     } finally {
@@ -1048,6 +1290,7 @@ private void toggleFollow() {
         private static final int BTN_SAVE = 7;
         private static final int BTN_TRACK = 8;
         private static final int BTN_NAV = 9;
+        private static final int BTN_NIGHT = 10;
 
         private final float d;
         private final Paint pt = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -1068,7 +1311,7 @@ private void toggleFollow() {
         }
 
         private float btnColY() {
-            int n = 10;
+            int n = 11;
             float total = n * (36f * d) + (n - 1) * (6f * d);
             return (getHeight() - total) / 2f;
         }
@@ -1103,8 +1346,10 @@ private void toggleFollow() {
         private RectF destCardRect() {
             float m = 12f * d;
             float w = 220f * d;
-            // podczas nawigacji karta jest wyzsza: manewr + dystanse
-            float h = (navigating ? 66f : 44f) * d;
+            // podczas nawigacji karta jest wyzsza: manewr + dystanse (+ pasy ruchu)
+            boolean showLane = navigating && navManeuverDistM >= 0f && navManeuverDistM < 300f
+                    && navLaneHint != null && navLaneHint.length() > 0;
+            float h = (navigating ? (showLane ? 84f : 66f) : 44f) * d;
             float y = getHeight() - h - m;
             boolean left = Ui.dockLeft(getContext());
             float x = left ? (Ui.dp(getContext(), Ui.DOCK_OFFSET_DP) + 12f * d) : 12f * d;
@@ -1123,7 +1368,8 @@ private void toggleFollow() {
                     "Szukaj",
                     "Zap",
                     "Ślad",
-                    "Jedź"
+                    "Jedź",
+                    "Noc"
             };
         }
 
@@ -1160,7 +1406,8 @@ private void toggleFollow() {
                         || (i == BTN_ONLINE && Prefs.mapOnline(getContext()))
                         || (i == BTN_LAYER && "topo".equals(Prefs.mapStyle(getContext())))
                         || (i == BTN_TRACK && recording)
-                        || (i == BTN_NAV && navigating);
+                        || (i == BTN_NAV && navigating)
+                        || (i == BTN_NIGHT && night && Prefs.mapNightTiles(getContext()));
                 pt.setStyle(Paint.Style.FILL);
                 pt.setColor(pressed == i ? 0xFF2C2C2E : 0xCC202020);
                 cv.drawRoundRect(rr, 16f * d, 16f * d, pt);
@@ -1182,9 +1429,19 @@ private void toggleFollow() {
                 pt.setStrokeWidth(1.5f * d);
                 pt.setColor(0xFF0A84FF);
                 cv.drawRoundRect(dr, 14f * d, 14f * d, pt);
+                // chip limitu predkosci (czerwony, nad karta) - jak w Organic Maps
+                if (navigating && navMaxKmh > 0) {
+                    RectF chip = new RectF(dr.left, dr.top - 34f * d,
+                            dr.left + 36f * d, dr.top - 6f * d);
+                    pt.setStyle(Paint.Style.FILL);
+                    pt.setColor(0xE6FF3B30);
+                    cv.drawRoundRect(chip, 8f * d, 8f * d, pt);
+                    drawText(cv, String.valueOf(navMaxKmh), chip.centerX(), chip.centerY(),
+                            0xFFFFFFFF, 12f, Paint.Align.CENTER);
+                }
                 String ct;
                 if (navigating) {
-                    // dwie linie: manewr + "manewr · do celu · czas"
+                    // linie: manewr + "manewr · do celu · czas" (+ pasy ruchu)
                     drawText(cv, navInstruction.length() > 0 ? navInstruction : "Jedź zgodnie z trasą",
                             dr.centerX(), dr.top + 20f * d, 0xFFFFFFFF, 11f, Paint.Align.CENTER);
                     StringBuilder sub = new StringBuilder();
@@ -1200,133 +1457,5 @@ private void toggleFollow() {
                     if (sub.length() == 0) sub.append("czekam na GPS");
                     drawText(cv, sub.toString(), dr.centerX(), dr.top + 46f * d,
                             0xFF30D158, 11f, Paint.Align.CENTER);
-                } else if (destDistM >= 0) {
-                    String dd = destDistM >= 1000
-                            ? String.format(java.util.Locale.US, "%.1f km", destDistM / 1000f)
-                            : String.format(java.util.Locale.US, "%.0f m", destDistM);
-                    ct = "↑  " + dd + "  " + Math.round(destBearing) + "°";
-                    drawText(cv, ct, dr.centerX(), dr.centerY(), 0xFF0A84FF, 12f, Paint.Align.CENTER);
-                } else {
-                    ct = "↑  Cel  (czekam na GPS)";
-                    drawText(cv, ct, dr.centerX(), dr.centerY(), 0xFF0A84FF, 12f, Paint.Align.CENTER);
-                }
-            }
-        }
-
-        /** Jak drawText, ale z podana czcionka (czcionki launchera dla plakietki). */
-        private void drawTextTf(Canvas cv, String s, float x, float cy, int color,
-                                float size, Paint.Align align, Typeface tf) {
-            tx.setTypeface(tf);
-            tx.setTextAlign(align);
-            tx.setTextSize(size * d);
-            tx.setColor(color);
-            Paint.FontMetrics fm = tx.getFontMetrics();
-            cv.drawText(s, x, cy - (fm.ascent + fm.descent) / 2f, tx);
-        }
-
-        private void drawText(Canvas cv, String s, float x, float cy, int color, float size, Paint.Align align) {
-            tx.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-            tx.setTextAlign(align);
-            tx.setTextSize(size * d);
-            tx.setColor(color);
-            Paint.FontMetrics fm = tx.getFontMetrics();
-            cv.drawText(s, x, cy - (fm.ascent + fm.descent) / 2f, tx);
-        }
-
-        private void drawCompass(Canvas cv, float cx, float cy, float bearingDeg) {
-            cv.save();
-            cv.rotate(bearingDeg, cx, cy);
-            android.graphics.Path p = new android.graphics.Path();
-            p.moveTo(cx, cy - 14f * d);
-            p.lineTo(cx - 7f * d, cy + 6f * d);
-            p.lineTo(cx + 7f * d, cy + 6f * d);
-            p.close();
-            pt.setStyle(Paint.Style.FILL);
-            pt.setColor(0xFFFF3B30);
-            cv.drawPath(p, pt);
-            p.reset();
-            p.moveTo(cx, cy + 14f * d);
-            p.lineTo(cx - 7f * d, cy - 6f * d);
-            p.lineTo(cx + 7f * d, cy - 6f * d);
-            p.close();
-            pt.setColor(0xFF909090);
-            cv.drawPath(p, pt);
-            cv.restore();
-        }
-
-        @Override
-        public boolean onTouchEvent(MotionEvent e) {
-            int a = e.getActionMasked();
-            int idx = -1;
-            String[] labs = labels();
-            for (int i = 0; i < labs.length; i++) {
-                if (rectFor(i).contains(e.getX(), e.getY())) {
-                    idx = i;
-                    break;
-                }
-            }
-            boolean onDest = hasDest && destCardRect().contains(e.getX(), e.getY());
-            if (a == MotionEvent.ACTION_DOWN) {
-                pressed = onDest ? -2 : idx;
-                if (pressed >= 0) invalidate();
-                return onDest || idx >= 0;
-            }
-            if (a == MotionEvent.ACTION_UP) {
-                int was = pressed;
-                pressed = -1;
-                invalidate();
-                if (onDest) {
-                    NavigatorActivity.this.clearDestination();
-                    return true;
-                }
-                if (idx >= 0 && idx == was) {
-                    // dlugie przytrzymanie = druga funkcja (jak w Organic Maps)
-                    if (e.getEventTime() - e.getDownTime() > 550L) {
-                        handleLongPress(idx);
-                    } else {
-                        handleButton(idx);
-                    }
-                    return true;
-                }
-                return false;
-            }
-            if (a == MotionEvent.ACTION_MOVE) {
-                int np = (onDest || idx >= 0) ? idx : -1;
-                if (np != pressed) { pressed = np; invalidate(); }
-                return pressed >= 0;
-            }
-            if (a == MotionEvent.ACTION_CANCEL) {
-                pressed = -1; invalidate(); return false;
-            }
-            return false;
-        }
-
-        private void handleLongPress(int i) {
-            // dlugie przytrzymanie otwiera managera; dla "Szukaj" - Wikipedie wokol
-            if (i == BTN_SAVE || i == BTN_TRACK) {
-                openBookmarks();
-            } else if (i == BTN_SEARCH) {
-                wikiNearby();
-            } else {
-                handleButton(i);
-            }
-        }
-
-        private void handleButton(int i) {
-            if (i == BTN_CLOSE) finish();
-            else if (i == BTN_ZOOM_IN && map != null) map.getController().zoomIn();
-            else if (i == BTN_ZOOM_OUT && map != null) map.getController().zoomOut();
-            else if (i == BTN_FOLLOW) toggleFollow();
-            else if (i == BTN_LAYER) toggleLayer();
-            else if (i == BTN_ONLINE) toggleOnline();
-            else if (i == BTN_SEARCH) openSearch();
-            else if (i == BTN_SAVE) saveBookmark();
-            else if (i == BTN_TRACK) toggleTrack();
-            else if (i == BTN_NAV) {
-                if (navigating) stopNavigation(true);
-                else startNavigation();
-            }
-        }
-    }
-}
-
+                    // podpowiedz pasow przed manewrem (< 300 m)
+                    if (navManeuverDistM >= 0f && navManeuverDistM < 300f
