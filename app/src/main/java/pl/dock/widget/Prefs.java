@@ -1125,5 +1125,17 @@ public class Prefs {
     public static void setMapVoice(Context c, boolean v) {
         ed(c).putBoolean("map_voice", v).apply();
     }
+
+    // ---------- nawigacja: ciemne kafle nocą ----------
+    // "map_night_tiles" = w trybie nocnym dokladamy ciemne kafle (CARTO dark)
+    // zamiast filtru jasnych kafli OSM. Domyslnie WLACZONE.
+    public static boolean mapNightTiles(Context c) {
+        return sp(c).getBoolean("map_night_tiles", true);
+    }
+
+    public static void setMapNightTiles(Context c, boolean v) {
+        ed(c).putBoolean("map_night_tiles", v).apply();
+    }
 }
+
 
