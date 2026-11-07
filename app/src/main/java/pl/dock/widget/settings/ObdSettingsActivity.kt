@@ -323,6 +323,22 @@ class ObdSettingsActivity : Activity() {
         b.addView(cycleBtn("multi_select_overflow", "5. parametr", arrayOf(
             Pair("fifo", "zastepuje najstarszy (FIFO)"),
             Pair("block", "blokuje z komunikatem"))))
+        b.addView(caption("Auto-Sort by Anomaly (pkt 17.3): parametr poza norma " +
+            "wchodzi na poczatek listy Live Data"))
+        b.addView(toggleBtn("auto_sort_anomaly", "Auto-sort po anomalii"))
+        b.addView(header("Zachowanie po zgaszeniu silnika (pkt 35.1)"))
+        b.addView(caption("Przypisania luk UFO w stanie Engine OFF - konfigurowalne"))
+        b.addView(cycleBtn("ufo_off_left", "Lewy luk po zgaszeniu", arrayOf(
+            Pair("VOLTS", "napiecie"),
+            Pair("ECT", "temperatura"),
+            Pair("BOOST", "doladowanie"),
+            Pair("AVG_TRIP_FUEL", "srednie zuzycie"))))
+        b.addView(cycleBtn("ufo_off_right", "Prawy luk po zgaszeniu", arrayOf(
+            Pair("AVG_TRIP_FUEL", "srednie zuzycie"),
+            Pair("FUEL", "AFR"),
+            Pair("TPS", "przepustnica"),
+            Pair("IAT", "temp. dolotowa"),
+            Pair("LTFT", "korekta paliwa"))))
         return p
     }
 

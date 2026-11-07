@@ -90,6 +90,9 @@ class CarPlayDashboardActivity : Activity() {
     private val charts = HashMap<String, ChartView>()
     private val selection = ArrayList<String>() // max 4 (pkt 17.2)
     private var overflowFifo = true
+    private var autoSort = true                  // pkt 17.3 Auto-Sort
+    private var expandedParam: String? = null   // pkt 17.4 pelny ekran
+    private val wasAnomaly = HashMap<String, Boolean>()
     private var chartRangeMs = 30_000L   // zakres osi czasu (pkt 18.4)
     private lateinit var rangeBtn: Button
     private lateinit var exportBtn: Button
@@ -137,6 +140,8 @@ class CarPlayDashboardActivity : Activity() {
             else -> Color.parseColor("#0A84FF")
         }
         overflowFifo = prefs.getString("multi_select_overflow", "fifo") != "block"
+        // pkt 17.3: domyslnie WL; uzytkownik moze wylaczyc w Ustawieniach
+        autoSort = prefs.getBoolean("auto_sort_anomaly", true)
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -504,6 +509,15 @@ class CarPlayDashboardActivity : Activity() {
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         ))
+        // ikona rozwiniecia (pkt 17.4): pelny ekran parametru
+        val expand = TextView(this).apply {
+            text = "\u2197"
+            textSize = 16f
+            setTextColor(accent)
+            setPadding(10, 0, 10, 0)
+        }
+        expand.setOnClickListener { expandParam(name) }
+        head.addView(expand)
         val value = TextView(this).apply {
             text = "--- " + unit
             textSize = 24f
@@ -601,6 +615,8 @@ class CarPlayDashboardActivity : Activity() {
             buildOverlay()
             return
         }
+        // pkt 17.4: rozwiniecie parametru wygrywa z matryca wykresow
+        expandedParam?.let { name -> buildExpanded(name); return }
         if (selection.isEmpty()) {
             chartsArea.addView(TextView(this).apply {
                 text = "Dotknij parametr, aby pokazac wykres (maks. 4)"
@@ -622,6 +638,50 @@ class CarPlayDashboardActivity : Activity() {
             chart.timeRangeMs = chartRangeMs
             charts[name] = chart
         }
+    }
+
+    /**
+     * Pelny ekran pojedynczego parametru (pkt 17.4): jeden wykres na
+     * calej dostepnej przestrzeni roboczej + ZAMKNIJ. Wykres jest w
+     * mapie charts, wiec telemetria plynie bez zmian.
+     */
+    private fun buildExpanded(name: String) {
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val head = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(12, 12, 12, 0)
+        }
+        head.addView(TextView(this).apply {
+            text = name + " (" + (params[name] ?: "") + ")"
+            textSize = 18f
+            setTextColor(cText())
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        head.addView(miniBtn("ZAMKNIJ") {
+            expandedParam = null
+            rebuildCharts()
+        }, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT))
+        col.addView(head)
+        val chart = ChartView(this)
+        chart.label = name
+        chart.unit = params[name] ?: ""
+        chart.timeRangeMs = chartRangeMs
+        col.addView(chart, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        chartsArea.addView(col, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT))
+        charts[name] = chart
+    }
+
+    /** Rozwiniecie parametru (pkt 17.4) - ikona strzalki w wierszu listy. */
+    private fun expandParam(name: String) {
+        expandedParam = name
+        rebuildCharts()
     }
 
     /** Matryca wykresow (pkt 18): 1 / 2 pionowo / 1+2 / 2x2. */
@@ -747,6 +807,17 @@ class CarPlayDashboardActivity : Activity() {
             isCritical(name, v) -> { st.text = "KRYTYCZNY"; st.setTextColor(Color.parseColor("#FF453A")) }
             else -> { st.text = "POZA ZAKRESEM"; st.setTextColor(Color.parseColor("#FF9F0A")) }
         }
+        // pkt 17.3 Auto-Sort by Anomaly: parametr poza norma wchodzi na
+        // poczatek listy; kolejnosc pozostalych parametrow pozostaje
+        // stabilna. Nie wraca automatycznie (bez migotania UI).
+        val anomaly = have && !stale && !inNormalRange(name, v)
+        if (anomaly && autoSort && wasAnomaly[name] != true) {
+            paramRows[name]?.let { row ->
+                paramList.removeView(row)
+                paramList.addView(row, 0)
+            }
+        }
+        wasAnomaly[name] = anomaly
     }
 
     private fun inNormalRange(name: String, v: Float): Boolean = when (name) {
