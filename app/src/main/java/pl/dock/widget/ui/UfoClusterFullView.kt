@@ -14,6 +14,7 @@ import android.graphics.SweepGradient
 import android.graphics.Typeface
 import android.view.MotionEvent
 import android.view.View
+import pl.dock.widget.repository.EngineStateLabel
 import pl.dock.widget.repository.VehicleUiState
 
 /**
@@ -47,13 +48,23 @@ import pl.dock.widget.repository.VehicleUiState
  *
  * Progi alarmow (ECT/VOLTS/LTFT/IAT) sa konfigurowalne z Ustawien OBD
  * (prefs alarm_*), tak jak exige pkt 10.7 specyfikacji.
+ *
+ * Motyw dzien/noc (pkt 34.2/34.3): setNight() - dzien tlo #121722 bez
+ * neonowej poswiaty, noc #05070B z ciepla skala #FFFDE7; bez ingerencji
+ * w systemowa jasnosc ekranu (pkt 34.4).
+ *
+ * Engine OFF (pkt 35.1/35.2): po zgaszeniu wskazowki opadaja do zera,
+ * luki przechodza na konfigurowalne przypisania OFF (domyslnie VOLTS /
+ * AVG_TRIP_FUEL), pojawia sie dyskretny E-RAPORT; po rozruchu luki
+ * wracaja do konfiguracji jazdy.
  */
 class UfoClusterFullView(context: Context) : View(context) {
 
     companion object {
         /** Parametry dostepne do przypisania na luki (menu long-press, pkt 10.5). */
         val ARC_PARAMS = arrayOf(
-            "ECT", "BOOST", "VOLTS", "FUEL", "TPS", "IAT", "LTFT", "STFT", "MAF", "BARO"
+            "ECT", "BOOST", "VOLTS", "FUEL", "TPS", "IAT", "LTFT", "STFT", "MAF", "BARO",
+            "AVG_TRIP_FUEL"
         )
 
         /** Parametry dostepne jako pozycja wykresu w MID (pkt 8.7).
@@ -73,12 +84,29 @@ class UfoClusterFullView(context: Context) : View(context) {
             "STFT" -> "STFT"
             "MAF" -> "MAF"
             "BARO" -> "BARO"
+            "AVG_TRIP_FUEL" -> "AVG L/100"
             else -> key
         }
+
+        /** Gestosc benzyny [g/l] - szacunek zuzycia trasy z MAF (pkt 35.1). */
+        private const val FUEL_DENSITY_G_PER_L = 745.0
+
+        /** Stechiometria benzyny [g powietrza / g paliwa]. */
+        private const val AFR_GAS = 14.7
     }
 
-    // ---------- Paleta (pkt 6) ----------
-    private val BG = Color.parseColor("#0A0D14")
+    // ---------- Paleta (pkt 6 + 34.2/34.3) ----------
+    // Dzien (34.2): tlo #121722, jasne elementy tarczy, neonowa poswiata
+    // WYLACZONA, ostre krawedzie wektorowe. Noc (34.3): tlo #05070B,
+    // ciepla skala #FFFDE7, aktywne pierscienie #0055FF, ograniczona
+    // intensywnosc efektow. Przejscie zmienia jasnosc TRESCI, nigdy
+    // systemowa jasnosc ekranu (pkt 34.4).
+    private val BG_DAY = Color.parseColor("#121722")
+    private val BG_NIGHT = Color.parseColor("#05070B")
+    private val TICK_DAY = Color.WHITE
+    private val TICK_NIGHT = Color.parseColor("#FFFDE7")
+    private var BG = BG_NIGHT
+    private var TICK = TICK_NIGHT
     private val DIAL_BG = Color.parseColor("#05070B")
     private val METAL_HI = Color.parseColor("#2A3448")
     private val METAL_LO = Color.parseColor("#141B29")
@@ -138,6 +166,20 @@ class UfoClusterFullView(context: Context) : View(context) {
     var onSpeedTap: () -> Unit = {}
     /** Long press na luku (powyzej 1 s, pkt 10.5): menu szybkiego przypisania. */
     var onArcAssign: (left: Boolean) -> Unit = { _ -> }
+
+    // ---------- Motyw dzien/noc (pkt 34.2/34.3) ----------
+    private var night = true
+
+    // ---------- Stan silnika OFF (pkt 35.1 / 35.2) ----------
+    private var engineOff = false
+    /** Konfiguracja jazdy luk - zapamietana i przywracana po rozruchu (35.2). */
+    private var savedLeftIndex = 0
+    private var savedRightIndex = 0
+    /** Konfigurowalne przypisania luk w stanie Engine OFF (35.1). */
+    var offLeftParam = "VOLTS"
+    var offRightParam = "AVG_TRIP_FUEL"
+    /** Dyskretny E-RAPORT po zgaszeniu (35.1): otwiera raport trasy. */
+    var onOpenEReport: () -> Unit = {}
 
     // ---------- LCD MID (pkt 8) ----------
     // Petla MID (pkt 8.6) + pozycje wykresow (pkt 8.7): wykres da sie
@@ -230,7 +272,21 @@ class UfoClusterFullView(context: Context) : View(context) {
 
     /** Pelny stan telemetrii (UI nigdy nie dotyka transportu). */
     fun update(s: VehicleUiState) {
-        rpmTarget = if (s.rpm < 0) 0f else s.rpm.toFloat()
+        val off = s.engineState == EngineStateLabel.OFF
+        if (off != engineOff) {
+            engineOff = off
+            if (off) {
+                // 35.1: zgaszenie - zapamietaj konfiguracje jazdy
+                savedLeftIndex = leftIndex
+                savedRightIndex = rightIndex
+            } else {
+                // 35.2: rozruch - luki wracaja do jazdy, E-RAPORT znika
+                leftIndex = savedLeftIndex
+                rightIndex = savedRightIndex
+            }
+        }
+        // 35.1: po zgaszeniu wskazowki plynnie opadaja do zera
+        rpmTarget = if (off || s.rpm < 0) 0f else s.rpm.toFloat()
         speedKmh = s.speedKmh
         voltage = s.voltage
         ectC = s.ectC
@@ -247,6 +303,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         connected = s.connected
         connecting = s.connecting
         if (s.connected) lastDataMs = System.currentTimeMillis()
+        accumulateTrip(System.currentTimeMillis())
         trackMidStats()
         pushAllHistory()
         postInvalidateOnAnimation()
@@ -254,8 +311,30 @@ class UfoClusterFullView(context: Context) : View(context) {
 
     fun toggleUnits() { useMph = !useMph }
 
-    /** Przypisanie parametru do luku z menu (pkt 10.5: long press). */
+    /**
+     * Motyw dzien/noc (pkt 34.2/34.3) - automatyczny wg NOAA Sunset Engine;
+     * host przekazuje pore dnia. Zmienia palete i odbudowuje warstwe
+     * statyczna; NIE rusza systemowej jasnsci ekranu (pkt 34.4).
+     */
+    fun setNight(n: Boolean) {
+        if (night == n) return
+        night = n
+        BG = if (n) BG_NIGHT else BG_DAY
+        TICK = if (n) TICK_NIGHT else TICK_DAY
+        if (width > 0 && height > 0) buildStaticLayer()
+        postInvalidateOnAnimation()
+    }
+
+    /**
+     * Przypisanie parametru do luku z menu (pkt 10.5: long press).
+     * W stanie Engine OFF konfiguruje przypisania OFF (pkt 35.1).
+     */
     fun setArcParam(left: Boolean, key: String) {
+        if (engineOff) {
+            if (left) offLeftParam = key else offRightParam = key
+            postInvalidateOnAnimation()
+            return
+        }
         if (left) {
             val i = leftLoop.indexOf(key)
             leftIndex = if (i >= 0) i else 0
@@ -279,6 +358,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         "STFT" -> stftPct
         "MAF" -> mafGs
         "BARO" -> baroKpa
+        "AVG_TRIP_FUEL" -> avgTripFuelL100()
         else -> Float.NaN
     }
 
@@ -290,6 +370,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         "TPS", "LTFT", "STFT" -> "%"
         "MAF" -> "g/s"
         "BARO" -> "kPa"
+        "AVG_TRIP_FUEL" -> "L/100"
         else -> ""
     }
 
@@ -302,6 +383,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         "TPS", "LTFT", "STFT" -> "% / TRIP"
         "MAF" -> "g/s / 5m"
         "BARO" -> "kPa / 1h"
+        "AVG_TRIP_FUEL" -> "L/100 / TRIP"
         else -> ""
     }
 
@@ -314,6 +396,28 @@ class UfoClusterFullView(context: Context) : View(context) {
         midAvgSum[key] = (midAvgSum[key] ?: 0f) + value
         midAvgCount[key] = (midAvgCount[key] ?: 0f) + 1f
     }
+
+    // ---------- Srednie zuzycie trasy (AVG_TRIP_FUEL, pkt 35.1) ----------
+    // Szacunek z MAF po stechiometrii 14.7 i gestosci benzyny 745 g/l,
+    // dystans ze speedKmh. NaN dopoki dystans < 0.2 km (bez fabrykacji).
+    private var tripFuelL = 0.0
+    private var tripDistKm = 0.0
+    private var lastTripMs = 0L
+
+    private fun accumulateTrip(now: Long) {
+        if (lastTripMs > 0L && now > lastTripMs) {
+            val dtH = (now - lastTripMs) / 3_600_000.0
+            if (!speedKmh.isNaN() && speedKmh >= 0) tripDistKm += speedKmh * dtH
+            if (!mafGs.isNaN() && mafGs > 0.5) {
+                tripFuelL += (mafGs / AFR_GAS / FUEL_DENSITY_G_PER_L) * dtH
+            }
+        }
+        lastTripMs = now
+    }
+
+    private fun avgTripFuelL100(): Float =
+        if (tripDistKm < 0.2) Float.NaN
+        else (tripFuelL / tripDistKm * 100.0).toFloat()
 
     // ---------- Cykl zycia ----------
 
@@ -375,9 +479,13 @@ class UfoClusterFullView(context: Context) : View(context) {
         pFill.color = DIAL_BG
         c.drawCircle(CX, CY, R_DIAL - 26f, pFill)
 
-        pFill.shader = RadialGradient(CX, CY, R_DIAL, 0x000055FF, 0x660055FF, Shader.TileMode.CLAMP)
-        c.drawCircle(CX, CY, R_DIAL, pFill)
-        pFill.shader = null
+        // neonowa poswiata tarczy: noc = ograniczona intensywnosc (34.3),
+        // dzien = wylaczona (34.2)
+        if (night) {
+            pFill.shader = RadialGradient(CX, CY, R_DIAL, 0x000055FF, 0x330055FF, Shader.TileMode.CLAMP)
+            c.drawCircle(CX, CY, R_DIAL, pFill)
+            pFill.shader = null
+        }
 
         // podzialki 0-8000, luk 240 stopni (pkt 7.2: 100/500/1000 RPM)
         val a0 = Math.toRadians(150.0)
@@ -441,6 +549,7 @@ class UfoClusterFullView(context: Context) : View(context) {
 
     private fun drawDynamic(c: Canvas) {
         drawHud(c)
+        drawEReport(c)
         drawNeedle(c)
         drawLcdMid(c)
         drawWingArc(c, left = true)
@@ -511,6 +620,22 @@ class UfoClusterFullView(context: Context) : View(context) {
         pFill.shader = hudGlowShader
         c.drawOval(380f, 130f, 660f, 170f, pFill)
         pFill.shader = null
+    }
+
+    /** Dyskretny przycisk E-RAPORT po zgaszeniu silnika (pkt 35.1). */
+    private fun drawEReport(c: Canvas) {
+        if (!engineOff) return
+        rectF.set(48f, 56f, 268f, 104f)
+        pStroke.strokeWidth = 2f
+        pStroke.color = METAL_HI
+        pStroke.style = Paint.Style.STROKE
+        c.drawRoundRect(rectF, 10f, 10f, pStroke)
+        pStroke.style = Paint.Style.FILL
+        pText.textAlign = Paint.Align.CENTER
+        pText.textSize = 24f
+        pText.typeface = tfBold
+        pText.color = TICK
+        c.drawText("E-RAPORT", 158f, 88f, pText)
     }
 
     private fun drawNeedle(c: Canvas) {
@@ -667,6 +792,7 @@ class UfoClusterFullView(context: Context) : View(context) {
     private fun fmtParam(key: String, v: Float): String = when (key) {
         "BOOST" -> String.format("%.2f", v)
         "FUEL" -> String.format("%.1f", v)
+        "AVG_TRIP_FUEL" -> String.format("%.1f", v)
         else -> if (v >= 100f || v == v.toInt().toFloat()) v.toInt().toString()
             else String.format("%.1f", v)
     }
@@ -789,7 +915,10 @@ class UfoClusterFullView(context: Context) : View(context) {
     }
 
         private fun drawWingArc(c: Canvas, left: Boolean) {
-        val key = if (left) leftLoop[leftIndex] else rightLoop[rightIndex]
+        // pkt 35.1: po zgaszeniu luki pokazuja przypisania stanu OFF
+        val key = if (engineOff) {
+            if (left) offLeftParam else offRightParam
+        } else if (left) leftLoop[leftIndex] else rightLoop[rightIndex]
         val v = paramValue(key)
         val alarm = arcAlarm(key, v)
 
@@ -845,6 +974,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         "STFT" -> if (v.isNaN()) 0f else ((v + 15f) / 30f).coerceIn(0f, 1f)
         "MAF" -> if (v.isNaN()) 0f else (v / 80f).coerceIn(0f, 1f)
         "BARO" -> if (v.isNaN()) 0f else ((v - 60f) / 45f).coerceIn(0f, 1f)
+        "AVG_TRIP_FUEL" -> if (v.isNaN()) 0f else (v / 20f).coerceIn(0f, 1f)
         else -> 0.5f
     }
 
@@ -958,6 +1088,12 @@ class UfoClusterFullView(context: Context) : View(context) {
             else -> return true
         }
         val holdMs = e.eventTime - downMs
+
+        // dyskretny E-RAPORT po zgaszeniu (pkt 35.1)
+        if (engineOff && x in 48f..268f && y in 56f..104f) {
+            onOpenEReport()
+            return true
+        }
 
         // FOOTER ma najwyzszy priorytet (sektory wg pkt 11, od lewej):
         // 1: CE/DTC, 2: ZAPISZ EVENT, 3: SWAP UI, 4: ustawienia, 5: status

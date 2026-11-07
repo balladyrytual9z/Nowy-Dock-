@@ -1,13 +1,15 @@
 package pl.dock.widget.ui
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import android.location.LocationManager
 import android.os.Bundle
 import android.view.View
-import android.view.WindowManager
 import android.widget.Toast
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import pl.dock.widget.ObdCoreService
@@ -15,7 +17,9 @@ import pl.dock.widget.dashboard.CarPlayDashboardActivity
 import pl.dock.widget.diagnostics.DtcManagerActivity
 import pl.dock.widget.diagnostics.KasujDtcActivity
 import pl.dock.widget.orchestration.ConnectionManager
+import pl.dock.widget.report.EReportActivity
 import pl.dock.widget.settings.ObdSettingsActivity
+import pl.dock.widget.util.SolarTimes
 
 /**
  * Pelnoekranowy host zegara Honda OEM UFO Cluster (1280x720).
@@ -40,8 +44,9 @@ class UfoClusterActivity : Activity() {
         cluster = UfoClusterFullView(this)
         setContentView(cluster)
 
-        // immersyjny tryb pelnoekranowy (Android 9, sticky)
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        // immersyjny tryb pelnoekranowy (Android 9, sticky).
+        // UWAGA pkt 37: celowo BEZ FLAG_KEEP_SCREEN_ON - apka nie blokuje
+        // wygaszania ekranu na sztywno.
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = (
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
@@ -72,6 +77,18 @@ class UfoClusterActivity : Activity() {
         cluster.onOpenSettings = { startActivity(Intent(this, ObdSettingsActivity::class.java)) }
         cluster.onSpeedTap = { onSpeedTapped() }
         cluster.onArcAssign = { left -> showArcAssignDialog(left) }
+        // dyskretny E-RAPORT po zgaszeniu (pkt 35.1)
+        cluster.onOpenEReport = { startActivity(Intent(this, EReportActivity::class.java)) }
+
+        // motyw dzien/noc: co 60 s przelicz pore dnia (pkt 34 - automat,
+        // bez recznego przelacznika; GPS = ostatnia znana pozycja)
+        scope.launch {
+            while (true) {
+                refreshLastKnownPosition()
+                applyDayNight()
+                delay(60_000)
+            }
+        }
 
         applyGaugePrefs()
         ObdCoreService.start(this)
@@ -126,11 +143,54 @@ class UfoClusterActivity : Activity() {
         cluster.iatMax = sp.getString("alarm_iat_max", "65")?.toFloatOrNull() ?: 65f
         // akcja tapniecia predkosci (pkt 9.7): units | dtc | none
         speedTapAction = sp.getString("speed_tap_action", "units") ?: "units"
+        // przypisania luk w stanie Engine OFF (pkt 35.1 - konfigurowalne)
+        cluster.offLeftParam = sp.getString("ufo_off_left", "VOLTS") ?: "VOLTS"
+        cluster.offRightParam = sp.getString("ufo_off_right", "AVG_TRIP_FUEL") ?: "AVG_TRIP_FUEL"
+    }
+
+    /**
+     * Motyw UFO dzien/noc (pkt 34.2/34.3): automatycznie wg NOAA Sunset
+     * Engine ze wspolrzednych (ostatnia znana pozycja GPS) i zegara
+     * systemowego. Bez night_auto = noc (standard samochodowy).
+     * Systemowa jasnosc ekranu pozostaje nietknieta (pkt 34.4).
+     */
+    private fun applyDayNight() {
+        val sp = getSharedPreferences("obd_settings", MODE_PRIVATE)
+        val n = if (sp.getBoolean("night_auto", false)) {
+            SolarTimes.isNight(
+                sp.getString("lat", "52.23")?.toDoubleOrNull() ?: 52.23,
+                sp.getString("lon", "21.01")?.toDoubleOrNull() ?: 21.01)
+        } else {
+            true
+        }
+        cluster.setNight(n)
+    }
+
+    /** Ostatnia znana pozycja GPS do NOAA Sunset Engine (pkt 34). */
+    private fun refreshLastKnownPosition() {
+        try {
+            val lm = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            var best: android.location.Location? = null
+            for (p in arrayOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)) {
+                try {
+                    @Suppress("MissingPermission")
+                    val l = lm.getLastKnownLocation(p)
+                    if (l != null && (best == null || l.time > best.time)) best = l
+                } catch (ignored: Exception) {}
+            }
+            if (best != null) {
+                getSharedPreferences("obd_settings", MODE_PRIVATE).edit()
+                    .putString("lat", best.latitude.toString())
+                    .putString("lon", best.longitude.toString())
+                    .apply()
+            }
+        } catch (ignored: Exception) {}
     }
 
     override fun onResume() {
         super.onResume()
         applyGaugePrefs()
+        applyDayNight()
     }
 
     override fun onStart() { super.onStart(); manager.onAppForeground() }
