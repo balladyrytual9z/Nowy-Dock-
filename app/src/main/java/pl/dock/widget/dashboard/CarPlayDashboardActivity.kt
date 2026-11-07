@@ -301,23 +301,65 @@ class CarPlayDashboardActivity : Activity() {
 
     // ---------- OVERVIEW (pkt 16) ----------
 
+    /**
+     * Kolumna kart Overview (pkt 16): pierwsza karta w kolejnosci = duza,
+     * pozostale w rzedach po 2. Kolejnosc i widocznosc sa TRWALE (16.1):
+     * prefs overview_cards_order + ov_card_*; Drag & Drop (long press,
+     * upuszczenie na innej karcie) zamienia karty miejscami.
+     */
     private fun buildOverviewPage(): View {
-        overviewPage = ScrollView(this).apply {
-            addView(LinearLayout(this@CarPlayDashboardActivity).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(28, 36, 28, 28)
-                addView(TextView(this@CarPlayDashboardActivity).apply {
-                    text = "OVERVIEW"
-                    textSize = 24f
-                    setTextColor(cText())
-                    typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                    setPadding(0, 0, 0, 20)
-                })
-            })
+        overviewPage = ScrollView(this)
+        ovColumn = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(28, 36, 28, 28)
         }
-        val col = (overviewPage as ScrollView).getChildAt(0) as LinearLayout
+        (overviewPage as ScrollView).addView(ovColumn)
+        populateOverview(ovColumn)
+        return overviewPage
+    }
 
-        // duza karta: RPM + SPEED (tap -> LIVE DATA, pkt 16)
+    private lateinit var ovColumn: LinearLayout
+
+    private val ovCardIds = listOf("RPM_SPEED", "BATTERY", "ECT", "DTC", "OBD")
+
+    /** Trwala kolejnosc kart (pkt 16.1) - prefs overview_cards_order. */
+    private fun cardOrder(): ArrayList<String> {
+        val saved = getSharedPreferences("obd_settings", MODE_PRIVATE)
+            .getString("overview_cards_order", null)?.split(",") ?: emptyList()
+        val order = ArrayList<String>()
+        for (id in saved) if (ovCardIds.contains(id) && !order.contains(id)) order.add(id)
+        for (id in ovCardIds) if (!order.contains(id)) order.add(id)
+        return order
+    }
+
+    private fun cardVisible(id: String): Boolean =
+        getSharedPreferences("obd_settings", MODE_PRIVATE).getBoolean("ov_card_" + id, true)
+
+    /** Budowa karty wg id (pkt 16.1: moduly wymienne, nic na stale). */
+    private fun buildCard(id: String): LinearLayout {
+        val cardView = when (id) {
+            "RPM_SPEED" -> overviewBigCard()
+            "BATTERY" -> cardWith(bigValue("BATTERY").also { ovVolt = it })
+            "ECT" -> cardWith(bigValue("ECT").also { ovEct = it })
+            "DTC" -> cardWith(bigValue("DTC").also { ovDtc = it })
+            else -> cardWith(bigValue("OBD").also { ovConn = it })
+        }
+        // akcje + start Drag & Drop z long-press (karty z animacja 16.2
+        // konsumuja DOWN w touch listenerze - drag startuje z tego samego
+        // timera; pozostale karty uzywaja klasycznego onLongClickListener)
+        when (id) {
+            "RPM_SPEED" -> pressable(cardView, { setActive(1) { showLive() } },
+                { startCardDrag(cardView, id) })
+            "DTC" -> pressable(cardView,
+                { startActivity(Intent(this, DtcManagerActivity::class.java)) },
+                { startCardDrag(cardView, id) })
+            else -> cardView.setOnLongClickListener { startCardDrag(cardView, id); true }
+        }
+        return cardView
+    }
+
+    /** Duza karta RPM + SPEED (tap -> LIVE DATA, pkt 16). */
+    private fun overviewBigCard(): LinearLayout {
         val bigCard = card()
         bigCard.orientation = LinearLayout.HORIZONTAL
         val bigColL = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -330,27 +372,71 @@ class CarPlayDashboardActivity : Activity() {
         bigColR.addView(ovSpeed)
         bigCard.addView(bigColL, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         bigCard.addView(bigColR, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        pressable(bigCard) { setActive(1) { showLive() } }
-        col.addView(bigCard)
+        return bigCard
+    }
 
-        // mniejsze karty: akumulator + temperatura (2 kolumny)
-        val row1 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        ovVolt = bigValue("BATTERY")
-        ovEct = bigValue("ECT")
-        row1.addView(cardWith(ovVolt), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        row1.addView(cardWith(ovEct), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        col.addView(row1)
+    /** Przebudowa kolumny kart wg trwalej kolejnosci i widocznosci. */
+    private fun populateOverview(col: LinearLayout) {
+        col.removeAllViews()
+        col.addView(TextView(this).apply {
+            text = "OVERVIEW"
+            textSize = 24f
+            setTextColor(cText())
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            setPadding(0, 0, 0, 20)
+        })
+        val ids = cardOrder().filter { cardVisible(it) }
+        var row: LinearLayout? = null
+        for ((i, id) in ids.withIndex()) {
+            val cardView = buildCard(id)
+            cardView.tag = id
+            attachDragSwap(cardView)
+            if (i == 0) {
+                col.addView(cardView)
+            } else {
+                if (i % 2 == 1) {
+                    row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                    col.addView(row)
+                }
+                row?.addView(cardView, LinearLayout.LayoutParams(0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            }
+        }
+    }
 
-        // DTC (licznik z 0101; tap -> DTC Manager) + status polaczenia
-        val row2 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        ovDtc = bigValue("DTC")
-        ovConn = bigValue("OBD")
-        val dtcCard = cardWith(ovDtc)
-        pressable(dtcCard) { startActivity(Intent(this, DtcManagerActivity::class.java)) }
-        row2.addView(dtcCard, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        row2.addView(cardWith(ovConn), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        col.addView(row2)
-        return overviewPage
+    // ---------- Drag & Drop kart (pkt 16.1) ----------
+
+    private var dragCardId: String? = null
+
+    private fun startCardDrag(cardView: View, id: String) {
+        dragCardId = id
+        val cd = android.content.ClipData.newPlainText("card", id)
+        cardView.startDragAndDrop(cd, View.DragShadowBuilder(cardView), null, 0)
+    }
+
+    /** Upuszczenie na innej karcie = zamiana miejscami + zapis kolejnosci. */
+    private fun attachDragSwap(cardView: LinearLayout) {
+        cardView.setOnDragListener { v, e ->
+            if (e.action == android.view.DragEvent.ACTION_DROP) {
+                val target = v.tag as String
+                val src = dragCardId
+                dragCardId = null
+                if (src != null && src != target) swapCards(src, target)
+            }
+            true
+        }
+    }
+
+    private fun swapCards(a: String, b: String) {
+        val order = cardOrder()
+        val ia = order.indexOf(a)
+        val ib = order.indexOf(b)
+        if (ia < 0 || ib < 0) return
+        order[ia] = b
+        order[ib] = a
+        getSharedPreferences("obd_settings", MODE_PRIVATE).edit()
+            .putString("overview_cards_order", order.joinToString(",")).apply()
+        populateOverview(ovColumn)
     }
 
     private fun bigValue(caption: String): TextView =
@@ -406,16 +492,22 @@ class CarPlayDashboardActivity : Activity() {
     /**
      * Animacja interakcji (pkt 16.2): press = delikatne zmniejszenie
      * karty do 97%, zwolnienie = powrot do 100%. Bez sprezynowania.
+     * onLongPress (opcjonalnie, pkt 16.1) startuje Drag & Drop - ten sam
+     * timer, bo touch listener konsumuje zdarzenia i klasyczny
+     * OnLongClickListener nigdy by nie zadzialal.
      */
-    private fun pressable(v: View, onTap: () -> Unit) {
+    private fun pressable(v: View, onTap: () -> Unit, onLongPress: (() -> Unit)? = null) {
+        val longPress = Runnable { onLongPress?.invoke() }
         v.setOnTouchListener { _, e ->
             when (e.action) {
                 MotionEvent.ACTION_DOWN -> {
                     v.scaleX = 0.97f; v.scaleY = 0.97f
+                    if (onLongPress != null) v.postDelayed(longPress, 550)
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     v.scaleX = 1f; v.scaleY = 1f
+                    v.removeCallbacks(longPress)
                     if (e.action == MotionEvent.ACTION_UP &&
                         isClick(e, v)) onTap()
                     true

@@ -339,6 +339,14 @@ class ObdSettingsActivity : Activity() {
             Pair("TPS", "przepustnica"),
             Pair("IAT", "temp. dolotowa"),
             Pair("LTFT", "korekta paliwa"))))
+        b.addView(header("Personalizacja Overview (pkt 16.1)"))
+        b.addView(caption("Widocznosc kart; kolejnosc zmienia sie przez " +
+            "przeciaganie (long press) na ekranie Overview"))
+        b.addView(toggleBtn("ov_card_RPM_SPEED", "Karta RPM / SPEED"))
+        b.addView(toggleBtn("ov_card_BATTERY", "Karta akumulator"))
+        b.addView(toggleBtn("ov_card_ECT", "Karta temperatura"))
+        b.addView(toggleBtn("ov_card_DTC", "Karta DTC"))
+        b.addView(toggleBtn("ov_card_OBD", "Karta status OBD"))
         return p
     }
 
