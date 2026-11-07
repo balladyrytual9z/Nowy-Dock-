@@ -549,3 +549,61 @@ BulkGuard, MapDownloadActivity — **NIETKNIĘTE**). Nowe moduły w
   TrackRecorderTest, ElevationProfileTest — deterministyczne dane, bez Androida/org.json.
 - Wszystko wypchnięte bezpośrednio na `main` (commity od "Mapy: kodek polyline…"
   do "Mapy: nawigacja jak w Organic Maps…"), build/release robi CI jak zwykle.
+
+
+## 2026-11-07 (sesja 5: follow-track, kategorie POI, limity prędkości, pasy ruchu, ciemne kafle, menu mapy, foldery zakładek, warianty trasy)
+
+Kolejne funkcje "jak w Organic Maps" — dobrobudowane na module z sesji 4
+(ekran główny i warstwy pod spodem nadal NIETKNIĘTE). Wypchnięte na `main`:
+
+- **Nawigacja za zapisanym śladem GPX ("follow track")**: `NavigatorActivity.
+  followTrack(path)` buduje syntetyczną `Route` z punktów śladu (steps = arrive
+  na końcu), `trackNav=true` wyłącza reroute OSRM; off-route mówi "Wróć na ślad"
+  (throttle 15 s, `lastOffRouteAt` — naprawia też krzyczenie TTS na każdym ticku);
+  ARRIVED → "Koniec śladu". Extra `nav_track` w handleIntent; w BookmarksActivity
+  tap śladu → menu (Pokaż na mapie / Jedź za śladem / Profil wysokości).
+- **Kategorie POI w Szukaj**: `PoiCategories.lookup(q)` (paczka `pl.dock.widget.
+  maps`) mapuje polskie frazy ("apteka", "stacje benzynowe", "parking",
+  "bankomaty", "stacja ładowania"…) na terminy OSM; `search()` dla kategorii
+  daje Nominatim z `viewbox&bounded=1` ~5 km wokół pozycji, limit 12, krótkie
+  nazwy (pole `name`/pierwszy człon display_name).
+- **Limity prędkości**: RouteClient `&annotations=true` → parsowanie
+  `legs[].annotation.maxspeed` (obiekt {speed,unit}, mph→km/h; ≤0/null→0;
+  brak annotation → null) do `Route.maxKmh` per segment (suma legów =
+  lats.length-1); `Guidance.Update.maxKmh`; czerwony chip nad kartą celu
+  + głos "Ograniczenie prędkości X" przy speed·3.6 > limit+7 (throttle 30 s,
+  `lastSpeedWarnAt`).
+- **Pasy ruchu**: RouteClient parsuje `step.intersections[0].lanes` (valid=true,
+  indications może być listą) → `Maneuvers.laneHint(String[])` ("prawy pas",
+  "pas prosty lub lewy"…); `Route.Step.laneHint` (7-arg ctor; 6-arg deleguje "");
+  trzecia linia karty celu (pomarańczowa) gdy dystans do manewru < 300 m
+  (karta rośnie do 84 dp).
+- **Ciemne kafle nocą**: `Prefs.mapNightTiles` (`map_night_tiles`, domyślnie
+  true); `applyTileSource()` — noc+online → `XYTileSource("CartoDark", 0-19,
+  256, .png, a.basemaps.cartocdn.com/dark_all/)` + `MapConfig.applyNight(map,false)`
+  + tło `NIGHT_BG`; w przeciwnym razie stare topo/mapnik z nocnym filtrem.
+  Nowy przycisk `BTN_NIGHT=10` "Noc" (kolumna n=11); toggleLayer/toggleOnline
+  też wołają applyTileSource(). Ciemne kafle są tylko online — offline wraca filtr.
+- **Menu długiego przytrzymania mapy** (zamiast od razu celu): `showMapMenu(GeoPoint)`
+  — Ustaw cel / Zakładka tutaj / Kopiuj współrzędne (ClipboardManager) /
+  Udostępnij (ACTION_SEND z linkiem openstreetmap.org).
+- **Foldery i kolory zakładek**: `Bookmark.folder/color` (paleta COLORS,
+  `colorAt()` — kolor auto wg liczby zakładek); `MapsDb` v2 (ALTER TABLE w
+  onUpgrade try/catch; listBookmarks sortuje folder COLLATE NOCASE ASC;
+  `setBookmarkFolder()`); `GpxIo` zapisuje folder w `<desc>` (GPX wpt + KML
+  Placemark) i parsuje go z powrotem; BookmarksActivity grupuje zakładki
+  sekcjami po folderze ("BEZ FOLDERU" gdy pusty), kolorowa kropka 10 dp w wierszu
+  (`itemRow` z int color), long-press → menu "Zmień folder" (EditText) / "Usuń".
+  ⚠️ rebuild() nadal zakłada 8 pierwszych dzieci rows = nagłówek+przyciski.
+- **Warianty trasy**: `RouteClient.routes()` + `RoutesCallback` (`alternatives=true`,
+  stara `route()` deleguje); `startNavigation`/`reroute` wołają routes();
+  `routeAlternatives`+`routeAltIndex`; tap karty celu podczas nawigacji →
+  `cycleVariant()` (toast "Wariant i/n"), bez wariantów → clearDestination
+  (dawne zachowanie). `stopNavigation` czyści trackNav/alternatives/limity/pasy.
+- **Testy JVM**: ManeuversTest (laneHint), GuidanceTest (maxKmh/laneHint na trasie
+  syntetycznej — uwaga: next manewr w Guidance NIE pomija "arrive"), GpxIoTest
+  (folder roundtrip GPX/KML), nowy PoiCategoriesTest. Wszystko deterministyczne,
+  bez Androida/org.json.
+- Konwencje bez zmian: Java 1.8, float z sufiksem `f`, pełne kwalifikacje nowych
+  klas Androida w NavigatorActivity (AlertDialog/Clipboard/ClipData), push
+  bezpośrednio na `main`, build/test/release robi CI.
