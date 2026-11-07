@@ -40,6 +40,18 @@ import pl.dock.widget.Prefs;
 import pl.dock.widget.RecentAppsPopup;
 import pl.dock.widget.StatusCenter;
 import pl.dock.widget.Ui;
+import pl.dock.widget.maps.bookmark.Bookmark;
+import pl.dock.widget.maps.bookmark.BookmarksActivity;
+import pl.dock.widget.maps.bookmark.GpxIo;
+import pl.dock.widget.maps.bookmark.MapsDb;
+import pl.dock.widget.maps.bookmark.TrackFiles;
+import pl.dock.widget.maps.bookmark.TrackRecorder;
+import pl.dock.widget.maps.route.Guidance;
+import pl.dock.widget.maps.route.Maneuvers;
+import pl.dock.widget.maps.route.Route;
+import pl.dock.widget.maps.route.RouteClient;
+import pl.dock.widget.maps.route.VoiceGuide;
+import pl.dock.widget.maps.wiki.WikiNearby;
 
 /**
  * Pelnoekranowa Nawigacja: mapa offline (OpenStreetMap) jak mapa w CarPlay.
@@ -73,6 +85,20 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
     private DestOverlay destOverlay;
     private float destDistM = -1f;
     private float destBearing = -1f;
+    // ---------------- nawigacja jak w Organic Maps: trasa + prowadzenie + glos ----------------
+    private Route route;                       // aktualna trasa z OSRM (null = brak)
+    private Guidance guide;                    // maszyna prowadzenia (manewry, zjazd z trasy)
+    private VoiceGuide voice;                  // komunikaty glosowe TTS (pl_PL)
+    private Polyline routeLine;                // zielona linia trasy
+    private Polyline trackLine;                // pomaranczowy slad jazdy
+    private boolean navigating;                // trasa aktywna: banner z manewrami
+    private long lastRerouteAt;                // throttle przeliczania trasy (15 s)
+    private String navInstruction = "";        // opis najblizszego manewru (banner)
+    private float navManeuverDistM = -1f;       // dystans do manewru
+    private float navRemainingM = -1f;         // dystans do celu
+    private float navEtaS = -1f;               // czas do celu [s]
+    private final TrackRecorder recorder = new TrackRecorder();
+    private boolean recording;                 // nagrywanie sladu jazdy
 
     @Override
     protected void onCreate(Bundle b) {
@@ -121,6 +147,15 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
             map.getOverlays().add(destLine);
             destOverlay = new DestOverlay();
             map.getOverlays().add(destOverlay);
+            // trasa nawigacji (zielona, jak w Organic Maps) i slad jazdy (pomaranczowy)
+            routeLine = new Polyline();
+            routeLine.setColor(0xFF30D158);
+            routeLine.setWidth(7f * getResources().getDisplayMetrics().density);
+            map.getOverlays().add(routeLine);
+            trackLine = new Polyline();
+            trackLine.setColor(0xFFFF9500);
+            trackLine.setWidth(5f * getResources().getDisplayMetrics().density);
+            map.getOverlays().add(trackLine);
             // dlugie przytrzymanie na mapie = cel podrozy
             map.getOverlays().add(new MapEventsOverlay(new org.osmdroid.events.MapEventsReceiver() {
                 @Override
@@ -156,6 +191,35 @@ public class NavigatorActivity extends BaseActivity implements MapState.Listener
         wireDock();
 
         setContentView(root);
+        voice = new VoiceGuide(this);
+        handleIntent(getIntent());
+    }
+
+    /** Docelowo z BookmarksActivity: cel (dest_lat/dest_lon) albo slad (track_path). */
+    private void handleIntent(Intent i) {
+        if (i == null) return;
+        try {
+            if (i.hasExtra("dest_lat") && i.hasExtra("dest_lon")) {
+                double la = i.getDoubleExtra("dest_lat", 0d);
+                double lo = i.getDoubleExtra("dest_lon", 0d);
+                if (MapPlace.usable(la, lo) && map != null) {
+                    GeoPoint p = new GeoPoint(la, lo);
+                    map.getController().setCenter(p);
+                    map.getController().setZoom(15d);
+                    setDestination(p);
+                }
+            }
+            if (i.hasExtra("track_path")) {
+                showTrack(i.getStringExtra("track_path"));
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent i) {
+        super.onNewIntent(i);
+        handleIntent(i);
     }
 
     private void restoreCenter() {
@@ -375,6 +439,10 @@ private void toggleFollow() {
         // Najpierw smoother: on odrzuca bledne fixy (skoki GPS o kilometry).
         smooth.onFix(lat, lon, bearing, speedMs,
                 MapState.get(this).lastAccuracy(), SystemClock.uptimeMillis());
+        // nagrywanie sladu: tylko przyjete fixy GPS (surowe wartosci, bez wygladzania)
+        if (recording && hasFix) {
+            recorder.add(lat, lon, System.currentTimeMillis());
+        }
         saveLastGood();
         // Auto-centrowanie TYLKO na swiezym i PRZYJETYM fix'ie GPS (stara "ostatnia
         // znana pozycja" nie jest podstawa do skoku - wtedy mapa by znikala).
@@ -432,6 +500,35 @@ private void toggleFollow() {
 
     private void tick() {
         smooth.advance(SystemClock.uptimeMillis());
+        // prowadzenie po trasie: dziala niezaleznie od odswiezania znacznika
+        if (navigating && guide != null && (smooth.hasFix() || smooth.seededKnown())) {
+            try {
+                Guidance.Update u = guide.update(smooth.lat(), smooth.lon(),
+                        smooth.markerBearing(), smooth.speedMs(), SystemClock.uptimeMillis());
+                navRemainingM = (float) u.remainingM;
+                navEtaS = (float) u.etaS;
+                navManeuverDistM = (float) u.distToManeuverM;
+                if (u.instruction != null && u.instruction.length() > 0) {
+                    navInstruction = u.instruction;
+                }
+                boolean speak = Prefs.mapVoice(this) && voice != null;
+                if (u.prompt == Guidance.PROMPT_FAR) {
+                    if (speak) voice.speak("Za " + Maneuvers.distText(u.distToManeuverM)
+                            + ": " + u.instruction);
+                } else if (u.prompt == Guidance.PROMPT_NOW) {
+                    if (speak) voice.speak(u.instruction + ", teraz");
+                } else if (u.prompt == Guidance.PROMPT_ARRIVED) {
+                    if (speak) voice.speak("Dojechałeś do celu");
+                    Toast.makeText(this, "Cel osiągnięty", Toast.LENGTH_LONG).show();
+                    clearDestination();
+                } else if (u.prompt == Guidance.PROMPT_OFF_ROUTE) {
+                    if (speak) voice.speak("Zjechałeś z trasy. Przeliczam.");
+                    reroute();
+                }
+                invalidateControls();
+            } catch (Throwable ignored) {
+            }
+        }
         // pozycja z pamieci ("gdzie zaparkowalem") tez ma pokazac znacznik -
         // dzieki temu po wejsciu do auta mapa jest od razu wlasciwa
         if ((!smooth.hasFix() && !smooth.seededKnown()) || !smooth.dirty()) return;
@@ -471,6 +568,7 @@ private void toggleFollow() {
     }
 
     private void clearDestination() {
+        stopNavigation(false);   // usuniecie celu konczy tez nawigacje (bez komunikatu)
         hasDest = false;
         dest = null;
         destDistM = -1f;
@@ -478,6 +576,227 @@ private void toggleFollow() {
         if (destLine != null) destLine.setPoints(new ArrayList<GeoPoint>());
         if (map != null) map.invalidate();
         invalidateControls();
+    }
+
+    // ---------------- nawigacja: trasa OSRM, prowadzenie, glos ----------------
+
+    /** Pobiera trase z OSRM (profil z ustawien: auto/rower/pieszo) i rozpoczyna prowadzenie. */
+    private void startNavigation() {
+        if (!hasDest || dest == null) {
+            Toast.makeText(this, "Najpierw ustaw cel — długie przytrzymanie na mapie",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (!smooth.hasFix() && !smooth.seededKnown()) {
+            Toast.makeText(this, "Czekam na GPS — nie mogę wyznaczyć trasy", Toast.LENGTH_LONG).show();
+            return;
+        }
+        Toast.makeText(this, "Wyznaczam trasę…", Toast.LENGTH_SHORT).show();
+        final double fla = smooth.lat();
+        final double flo = smooth.lon();
+        RouteClient.route(Prefs.mapRouteProfile(this), fla, flo,
+                dest.getLatitude(), dest.getLongitude(), new RouteClient.Callback() {
+                    @Override
+                    public void onRoute(Route r) {
+                        applyRoute(r, true);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        Toast.makeText(NavigatorActivity.this,
+                                "Brak trasy (internet?) — pokazuję tylko kierunek",
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
+    }
+
+    private void applyRoute(Route r, boolean announce) {
+        route = r;
+        guide = new Guidance(r);
+        navigating = true;
+        navInstruction = "Jedź zgodnie z trasą";
+        navManeuverDistM = -1f;
+        navRemainingM = (float) r.distanceM;
+        navEtaS = (float) r.durationS;
+        if (routeLine != null && map != null) {
+            List<GeoPoint> pts = new ArrayList<GeoPoint>();
+            for (int i = 0; i < r.pointCount(); i++) {
+                pts.add(new GeoPoint(r.lats[i], r.lons[i]));
+            }
+            routeLine.setPoints(pts);
+            map.getController().setZoom(16d);
+            map.invalidate();
+        }
+        String info = Maneuvers.distText(r.distanceM) + " · " + Maneuvers.minText(r.durationS);
+        if (announce) {
+            Toast.makeText(this, "Trasa: " + info, Toast.LENGTH_LONG).show();
+            if (Prefs.mapVoice(this) && voice != null) {
+                voice.speak("Nawigacja rozpoczęta. " + info + " do celu");
+            }
+        }
+        invalidateControls();
+    }
+
+    private void stopNavigation(boolean speak) {
+        navigating = false;
+        guide = null;
+        route = null;
+        navInstruction = "";
+        navManeuverDistM = -1f;
+        navRemainingM = -1f;
+        navEtaS = -1f;
+        if (routeLine != null) routeLine.setPoints(new ArrayList<GeoPoint>());
+        if (map != null) map.invalidate();
+        if (speak && Prefs.mapVoice(this) && voice != null) {
+            voice.speak("Nawigacja zakończona");
+        }
+        invalidateControls();
+    }
+
+    /** Przelicza trase po zjezdzie z kursu; nie czesciej niz raz na 15 s. */
+    private void reroute() {
+        long now = SystemClock.uptimeMillis();
+        if (now - lastRerouteAt < 15000L) return;
+        lastRerouteAt = now;
+        if (!hasDest || dest == null || (!smooth.hasFix() && !smooth.seededKnown())) return;
+        final double fla = smooth.lat();
+        final double flo = smooth.lon();
+        RouteClient.route(Prefs.mapRouteProfile(this), fla, flo,
+                dest.getLatitude(), dest.getLongitude(), new RouteClient.Callback() {
+                    @Override
+                    public void onRoute(Route r) {
+                        applyRoute(r, false);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        // zostaje stara trasa; kolejny tick zjedzenia z trasy sprobuje znowu
+                    }
+                });
+    }
+
+    /** Rysuje slad z pliku GPX (track_path z BookmarksActivity). */
+    private void showTrack(String path) {
+        if (path == null || map == null || trackLine == null) return;
+        try {
+            java.io.File f = new java.io.File(path);
+            if (!f.exists()) return;
+            String gpx = TrackFiles.read(this, f);
+            List<double[]> pts = GpxIo.parseTrack(gpx);
+            List<GeoPoint> gp = new ArrayList<GeoPoint>();
+            for (int i = 0; i < pts.size(); i++) {
+                gp.add(new GeoPoint(pts.get(i)[0], pts.get(i)[1]));
+            }
+            trackLine.setPoints(gp);
+            if (!gp.isEmpty()) {
+                map.getController().setCenter(gp.get(gp.size() / 2));
+                if (gp.size() > 1) map.getController().setZoom(15d);
+                map.invalidate();
+                Toast.makeText(this, "Ślad: " + gp.size() + " punktów", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Throwable tr) {
+            Toast.makeText(this, "Nie udało się wczytać śladu", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void toggleTrack() {
+        if (recording) {
+            recording = false;
+            if (recorder.size() < 2) {
+                Toast.makeText(this, "Za krótki ślad — nie zapisuję", Toast.LENGTH_SHORT).show();
+            } else {
+                String name = "slad-" + System.currentTimeMillis();
+                java.io.File f = TrackFiles.save(this, name,
+                        GpxIo.writeTrack(name, recorder.lats(), recorder.lons(), recorder.times()));
+                Toast.makeText(this, f != null
+                        ? "Ślad zapisany (" + Maneuvers.distText(recorder.totalM()) + ")"
+                        : "Nie udało się zapisać śladu", Toast.LENGTH_LONG).show();
+            }
+            recorder.reset();
+        } else {
+            recorder.reset();
+            recording = true;
+            Toast.makeText(this, "Nagrywanie śladu rozpoczęte", Toast.LENGTH_SHORT).show();
+        }
+        invalidateControls();
+    }
+
+    /** Awaryjny zapis sladu przy zamykaniu Nawigacji (przycisk X, HOME). */
+    private void saveTrackIfRecording() {
+        if (!recording || recorder.size() < 2) {
+            recording = false;
+            return;
+        }
+        try {
+            String name = "slad-" + System.currentTimeMillis();
+            TrackFiles.save(this, name,
+                    GpxIo.writeTrack(name, recorder.lats(), recorder.lons(), recorder.times()));
+        } catch (Throwable ignored) {
+        }
+        recording = false;
+    }
+
+    private void saveBookmark() {
+        if (!smooth.hasFix() && !smooth.seededKnown()) {
+            Toast.makeText(this, "Czekam na GPS — nie wiem, gdzie jesteś", Toast.LENGTH_LONG).show();
+            return;
+        }
+        try {
+            String name = new java.text.SimpleDateFormat("dd.MM HH:mm", java.util.Locale.US)
+                    .format(new java.util.Date());
+            MapsDb.get(this).addBookmark(name, smooth.lat(), smooth.lon());
+            Toast.makeText(this, "Zapisano zakładkę: " + name, Toast.LENGTH_SHORT).show();
+        } catch (Throwable tr) {
+            Toast.makeText(this, "Nie udało się zapisać zakładki", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void openBookmarks() {
+        try {
+            startActivity(new Intent(this, BookmarksActivity.class));
+        } catch (Throwable tr) {
+            Toast.makeText(this, "Zakładki niedostępne", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /** Miejsca z Wikipedii wokol pozycji (jak warstwa "Wikipedia" w Organic Maps). */
+    private void wikiNearby() {
+        double la;
+        double lo;
+        if (smooth.hasFix() || smooth.seededKnown()) {
+            la = smooth.lat();
+            lo = smooth.lon();
+        } else {
+            try {
+                la = Double.parseDouble(Prefs.posLastLat(this));
+                lo = Double.parseDouble(Prefs.posLastLon(this));
+            } catch (Throwable tr) {
+                Toast.makeText(this, "Nie wiem, gdzie jesteś", Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
+        Toast.makeText(this, "Szukam miejsc z Wikipedii…", Toast.LENGTH_SHORT).show();
+        WikiNearby.search(la, lo, 10000d, new WikiNearby.Callback() {
+            @Override
+            public void onResults(List<String> names, List<double[]> latlon) {
+                if (latlon.isEmpty()) {
+                    Toast.makeText(NavigatorActivity.this, "Brak miejsc w okolicy",
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                final List<GeoPoint> pts = new ArrayList<GeoPoint>();
+                for (int i = 0; i < latlon.size(); i++) {
+                    pts.add(new GeoPoint(latlon.get(i)[0], latlon.get(i)[1]));
+                }
+                showResults(names, pts);
+            }
+
+            @Override
+            public void onError(String message) {
+                Toast.makeText(NavigatorActivity.this, "Brak internetu",
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     // Wyszukiwanie adresow / miejsc przez Nominatim (otwarte mapy OSM).
@@ -504,19 +823,34 @@ private void toggleFollow() {
 
     private void search(final String q) {
         if (q.length() == 0) return;
+        // najpierw zapisane zakladki i zapamietane miejsca - dzialaja offline
+        final List<String> names = new ArrayList<String>();
+        final List<GeoPoint> pts = new ArrayList<GeoPoint>();
+        try {
+            List<Bookmark> bs = MapsDb.get(this).searchBookmarks(q, 5);
+            for (int i = 0; i < bs.size(); i++) {
+                names.add("★ " + bs.get(i).name);
+                pts.add(new GeoPoint(bs.get(i).lat, bs.get(i).lon));
+            }
+            List<Bookmark> ps = MapsDb.get(this).searchPlaces(q, 5);
+            for (int i = 0; i < ps.size(); i++) {
+                names.add(ps.get(i).name);
+                pts.add(new GeoPoint(ps.get(i).lat, ps.get(i).lon));
+            }
+        } catch (Throwable ignored) {
+        }
         final String url;
         try {
             url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q="
                     + java.net.URLEncoder.encode(q, "UTF-8");
         } catch (Throwable tr) {
+            showResults(names, pts);
             return;
         }
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    final List<String> names = new ArrayList<String>();
-                    final List<GeoPoint> pts = new ArrayList<GeoPoint>();
                     java.net.HttpURLConnection c = null;
                     try {
                         java.net.URL u = new java.net.URL(url);
@@ -549,8 +883,13 @@ private void toggleFollow() {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            Toast.makeText(NavigatorActivity.this,
-                                    "Brak wyników lub brak internetu", Toast.LENGTH_SHORT).show();
+                            // brak sieci, ale zakladki/miejsca offline sa - pokazujemy je
+                            if (!names.isEmpty()) {
+                                showResults(names, pts);
+                            } else {
+                                Toast.makeText(NavigatorActivity.this,
+                                        "Brak wyników lub brak internetu", Toast.LENGTH_SHORT).show();
+                            }
                         }
                     });
                 }
@@ -571,6 +910,12 @@ private void toggleFollow() {
                             public void onClick(android.content.DialogInterface d, int which) {
                                 if (map == null) return;
                                 GeoPoint p = pts.get(which);
+                                // zapamietaj miejsce - nastepnym razem znajdzie sie offline
+                                try {
+                                    MapsDb.get(NavigatorActivity.this).cachePlace(
+                                            names.get(which), p.getLatitude(), p.getLongitude());
+                                } catch (Throwable ignored) {
+                                }
                                 map.getController().setCenter(p);
                                 map.getController().setZoom(15d);
                                 setDestination(p);
@@ -655,6 +1000,10 @@ private void toggleFollow() {
 
     @Override
     protected void onDestroy() {
+        saveTrackIfRecording();
+        if (voice != null) {
+            try { voice.shutdown(); } catch (Throwable ignored) {}
+        }
         if (map != null) {
             try { map.onDetach(); } catch (Throwable ignored) {}
         }
@@ -696,6 +1045,9 @@ private void toggleFollow() {
         private static final int BTN_LAYER = 4;
         private static final int BTN_ONLINE = 5;
         private static final int BTN_SEARCH = 6;
+        private static final int BTN_SAVE = 7;
+        private static final int BTN_TRACK = 8;
+        private static final int BTN_NAV = 9;
 
         private final float d;
         private final Paint pt = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -716,7 +1068,7 @@ private void toggleFollow() {
         }
 
         private float btnColY() {
-            int n = 7;
+            int n = 10;
             float total = n * (36f * d) + (n - 1) * (6f * d);
             return (getHeight() - total) / 2f;
         }
@@ -751,7 +1103,8 @@ private void toggleFollow() {
         private RectF destCardRect() {
             float m = 12f * d;
             float w = 220f * d;
-            float h = 44f * d;
+            // podczas nawigacji karta jest wyzsza: manewr + dystanse
+            float h = (navigating ? 66f : 44f) * d;
             float y = getHeight() - h - m;
             boolean left = Ui.dockLeft(getContext());
             float x = left ? (Ui.dp(getContext(), Ui.DOCK_OFFSET_DP) + 12f * d) : 12f * d;
@@ -767,7 +1120,10 @@ private void toggleFollow() {
                     follow ? "Sledz" : "Sledz",
                     "Mapa",
                     "Net",
-                    "Szukaj"
+                    "Szukaj",
+                    "Zap",
+                    "Ślad",
+                    "Jedź"
             };
         }
 
@@ -802,7 +1158,9 @@ private void toggleFollow() {
                 RectF rr = rectFor(i);
                 boolean act = (i == BTN_FOLLOW && Prefs.mapFollow(getContext()))
                         || (i == BTN_ONLINE && Prefs.mapOnline(getContext()))
-                        || (i == BTN_LAYER && "topo".equals(Prefs.mapStyle(getContext())));
+                        || (i == BTN_LAYER && "topo".equals(Prefs.mapStyle(getContext())))
+                        || (i == BTN_TRACK && recording)
+                        || (i == BTN_NAV && navigating);
                 pt.setStyle(Paint.Style.FILL);
                 pt.setColor(pressed == i ? 0xFF2C2C2E : 0xCC202020);
                 cv.drawRoundRect(rr, 16f * d, 16f * d, pt);
@@ -825,15 +1183,33 @@ private void toggleFollow() {
                 pt.setColor(0xFF0A84FF);
                 cv.drawRoundRect(dr, 14f * d, 14f * d, pt);
                 String ct;
-                if (destDistM >= 0) {
+                if (navigating) {
+                    // dwie linie: manewr + "manewr · do celu · czas"
+                    drawText(cv, navInstruction.length() > 0 ? navInstruction : "Jedź zgodnie z trasą",
+                            dr.centerX(), dr.top + 20f * d, 0xFFFFFFFF, 11f, Paint.Align.CENTER);
+                    StringBuilder sub = new StringBuilder();
+                    if (navManeuverDistM >= 0f) sub.append(Maneuvers.distText(navManeuverDistM));
+                    if (navRemainingM >= 0f) {
+                        if (sub.length() > 0) sub.append("  ·  ");
+                        sub.append(Maneuvers.distText(navRemainingM));
+                    }
+                    if (navEtaS >= 0f) {
+                        if (sub.length() > 0) sub.append("  ·  ");
+                        sub.append(Maneuvers.minText(navEtaS));
+                    }
+                    if (sub.length() == 0) sub.append("czekam na GPS");
+                    drawText(cv, sub.toString(), dr.centerX(), dr.top + 46f * d,
+                            0xFF30D158, 11f, Paint.Align.CENTER);
+                } else if (destDistM >= 0) {
                     String dd = destDistM >= 1000
                             ? String.format(java.util.Locale.US, "%.1f km", destDistM / 1000f)
                             : String.format(java.util.Locale.US, "%.0f m", destDistM);
                     ct = "↑  " + dd + "  " + Math.round(destBearing) + "°";
+                    drawText(cv, ct, dr.centerX(), dr.centerY(), 0xFF0A84FF, 12f, Paint.Align.CENTER);
                 } else {
                     ct = "↑  Cel  (czekam na GPS)";
+                    drawText(cv, ct, dr.centerX(), dr.centerY(), 0xFF0A84FF, 12f, Paint.Align.CENTER);
                 }
-                drawText(cv, ct, dr.centerX(), dr.centerY(), 0xFF0A84FF, 12f, Paint.Align.CENTER);
             }
         }
 
@@ -904,7 +1280,12 @@ private void toggleFollow() {
                     return true;
                 }
                 if (idx >= 0 && idx == was) {
-                    handleButton(idx);
+                    // dlugie przytrzymanie = druga funkcja (jak w Organic Maps)
+                    if (e.getEventTime() - e.getDownTime() > 550L) {
+                        handleLongPress(idx);
+                    } else {
+                        handleButton(idx);
+                    }
                     return true;
                 }
                 return false;
@@ -920,6 +1301,17 @@ private void toggleFollow() {
             return false;
         }
 
+        private void handleLongPress(int i) {
+            // dlugie przytrzymanie otwiera managera; dla "Szukaj" - Wikipedie wokol
+            if (i == BTN_SAVE || i == BTN_TRACK) {
+                openBookmarks();
+            } else if (i == BTN_SEARCH) {
+                wikiNearby();
+            } else {
+                handleButton(i);
+            }
+        }
+
         private void handleButton(int i) {
             if (i == BTN_CLOSE) finish();
             else if (i == BTN_ZOOM_IN && map != null) map.getController().zoomIn();
@@ -928,6 +1320,13 @@ private void toggleFollow() {
             else if (i == BTN_LAYER) toggleLayer();
             else if (i == BTN_ONLINE) toggleOnline();
             else if (i == BTN_SEARCH) openSearch();
+            else if (i == BTN_SAVE) saveBookmark();
+            else if (i == BTN_TRACK) toggleTrack();
+            else if (i == BTN_NAV) {
+                if (navigating) stopNavigation(true);
+                else startNavigation();
+            }
         }
     }
 }
+
