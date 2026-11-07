@@ -817,3 +817,29 @@ kotwic (count==1), ASCII, bilansu klamer/nawiasow i race-checkem HEAD.
   (b) adnotacje ::error:: czytac przed jakimkolwiek zgadywaniem; (c) zmiana
   sygnatury helpera = przejrzenie wszystkich call-sites, takze tych
   pozostawionych w starym stylu.
+
+### Dopisek 5 (sesja 5 cd.: podwojny audyt OBD + 38.2 sloty MAF/BARO/AFR, v1.0.333)
+
+- AUDYT "sprawdz sie 2 razy": (1) poziom CI - run #331 zielony,
+  release v1.0.331 kompletny; (2) poziom zrodlowy - kazdy punkt
+  34/35/36/37/38/16.1/16.2/17.1-17.4 zweryfikowany marker po markerze
+  wg "ui obd.txt" (EngineState progi 12.4/13.2/500/2s, kolory UFO,
+  E-RAPORT, offLeft/RightParam, dock 50dp, brak FLAG_KEEP_SCREEN_ON
+  we WSZYSTKICH ekranach OBD, kolory widzetu). Jedyna znaleziona
+  kwestia: 38.2 - sloty widzetu mialy 10 parametrow (lista Live Data),
+  a apka ma tez MAF/BARO/AFR. User zatwierdzil rozszerzenie.
+- Commit 9ebe14dd: ObdWidgetProvider PARAMS 10 -> 13 (MAF "g/s",
+  BARO "kPa", AFR ":1" z lambdaAfr; NaN = "--") + paramValue dla
+  nowych kluczy + sloty widget_p1..p4 w Ustawieniach rozszerzone
+  (wszystkie 4 Triple dostaja MAF/BARO/AFR po 2 pierwszych pozycjach).
+  Asercja przed patchem: pola mafGs/baroKpa/lambdaAfr ISTNIEJA w
+  VehicleUiState (nie zgadac nazw pol).
+- PUŁAPKA concurrency: run #332 (widget) zostal CANCELLED przez push
+  rownoleglego agenta (Night Shift, commit 1f973bd5) - cancel-in-progress
+  zabija trwajacy build; brak release v1.0.332. To NIE jest blad:
+  commit widgetu jest RODZICEM commitu rownoleglego, wiec wszystko
+  pojechalo w runie #333 (zielony, release v1.0.333 z APK zawierajacym
+  oba zmiany). Przy rownoleglej pracy: po swoim pushu obserwowac KOLOR
+  CI, nie tylko "push poszedl" - wlasny run moze byc anulowany.
+- Stan: "ui obd.txt" w calosci wdrozony i zweryfikowany podwojnie;
+  wydane w v1.0.333. Zostaje wylacznie potwierdzenie na aucie.
