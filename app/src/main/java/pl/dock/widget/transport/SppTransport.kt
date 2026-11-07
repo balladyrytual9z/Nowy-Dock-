@@ -137,6 +137,7 @@ class SppTransport : ElmTransport {
                     if (n < 0) break
                     for (i in 0 until n) {
                         when (val c = buf[i].toInt() and 0xFF) {
+                            0x00 -> { /* filler ELM327 (dok. quirk tanich klonow) - gubi parsery */ }
                             0x0D, 0x0A -> {
                                 val line = sb.toString().trim()
                                 sb.setLength(0)

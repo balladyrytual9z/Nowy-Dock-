@@ -41,6 +41,8 @@ class ConnectionManager(
 ) {
     companion object {
         private const val TAG = "ConnectionManager"
+        private const val MAX_INIT_RETRIES = 5
+        private val INIT_RETRY_BACKOFF_MS = longArrayOf(1_000, 2_000, 4_000, 8_000, 16_000)
 
         @Volatile private var instance: ConnectionManager? = null
 
@@ -74,6 +76,12 @@ class ConnectionManager(
     private val engineState = EngineState()
     private val lifecycleMutex = Mutex()
 
+    // NAPRAWA initu (2026-11-07): licznik prob auto-retry + odlone
+    // zadanie ponowienia - porazka initialize() konczy sie Failure,
+    // a nie cichym "polaczono" z samego socketa SPP.
+    private var initAttempt = 0
+    private var retryJob: Job? = null
+
     // NAPRAWA: obserwator stanu transportu (zerwanie/reconnect) + flaga,
     // ze po auto-reconnectcie daemonem sesja ELM wymaga pelnej re-inicjalizacji
     private var stateJob: Job? = null
@@ -101,6 +109,9 @@ class ConnectionManager(
      * @param preferBle true -> BleTransport, false -> SppTransport
      */
     fun connect(address: String, preferBle: Boolean = false) {
+        initAttempt = 0   // reczne POLACZ zeruje licznik auto-retry
+        retryJob?.cancel()
+        retryJob = null
         scope.launch {
             lifecycleMutex.withLock { doConnect(address, preferBle) }
         }
@@ -112,6 +123,8 @@ class ConnectionManager(
         stopBtWatch()
         stateJob?.cancel()
         stateJob = null
+        retryJob?.cancel()   // wchodzimy z retry albo z POLACZ - jedno laczenie
+        retryJob = null
         try { scheduler?.shutdown() } catch (_: Exception) {}
         scheduler = null
         try { daemon?.stop() } catch (_: Exception) {}
@@ -138,7 +151,29 @@ class ConnectionManager(
                 .getBoolean("cranking_protect", true)
             val s = ElmSession(t, serviceMode = serviceMode)
             session = s
-            s.initialize()
+            val prefProto = appContext
+                .getSharedPreferences("obd_settings", Context.MODE_PRIVATE)
+                .getString("obd_protocol", null)
+                ?.trim()?.takeIf { it.isNotEmpty() }
+            val ok = when (val init = s.initialize(prefProto) { step ->
+                _uiState.value = _uiState.value.copy(initStep = step)
+            }) {
+                is ElmSession.InitResult.Success -> init
+                is ElmSession.InitResult.Failure -> {
+                    onInitFailure(address, preferBle, init)
+                    return
+                }
+            }
+            initAttempt = 0
+            // utrwal potwierdzony protokol (ATDPN) - nastepne laczenie
+            // bez auto-detekcji (szybszy start na klonie ELM327)
+            if (ok.protocolDigit != "0") {
+                appContext.getSharedPreferences("obd_settings", Context.MODE_PRIVATE)
+                    .edit().putString("obd_protocol", ok.protocolDigit).apply()
+            }
+            if (!ok.voltageV.isNaN()) {
+                engineState.updateVoltage(ok.voltageV)
+            }
 
             val sched = PidScheduler(
                 session = s,
@@ -175,20 +210,27 @@ class ConnectionManager(
                             if (needsReinit) {
                                 needsReinit = false
                                 scope.launch {
-                                    try {
-                                        session?.initialize()
-                                        _uiState.value = _uiState.value.copy(
-                                            connected = true,
-                                            connecting = false,
-                                            lastError = null
-                                        )
-                                        Log.i(TAG, "ELM session re-initialized after reconnect")
-                                    } catch (e: Exception) {
-                                        _uiState.value = _uiState.value.copy(
-                                            connected = false,
-                                            connecting = false,
-                                            lastError = e.message ?: "re-init failed"
-                                        )
+                                    val pref = appContext
+                                        .getSharedPreferences("obd_settings", Context.MODE_PRIVATE)
+                                        .getString("obd_protocol", null)
+                                        ?.trim()?.takeIf { it.isNotEmpty() }
+                                    when (val r = session?.initialize(pref)) {
+                                        is ElmSession.InitResult.Success -> {
+                                            _uiState.value = _uiState.value.copy(
+                                                connected = true,
+                                                connecting = false,
+                                                lastError = null
+                                            )
+                                            Log.i(TAG, "ELM session re-initialized after reconnect")
+                                        }
+                                        is ElmSession.InitResult.Failure -> {
+                                            _uiState.value = _uiState.value.copy(
+                                                connected = false,
+                                                connecting = false,
+                                                lastError = "re-init failed przy " + r.step + ": " + r.error
+                                            )
+                                        }
+                                        null -> {}
                                     }
                                 }
                             }
@@ -212,7 +254,10 @@ class ConnectionManager(
                 connected = true,
                 connecting = false,
                 adapterName = address,
-                protocol = "ISO 15765-4 CAN 11-bit 500k",
+                protocol = ok.protocolName,
+                initStep = "",
+                retryAttempt = 0,
+                lastError = null,
                 engineState = engineState.label
             )
         } catch (e: Exception) {
@@ -225,10 +270,55 @@ class ConnectionManager(
         }
     }
 
+    /**
+     * NAPRAWA initu: porazka initialize() nie jest cichym "OK" - zamykamy
+     * sesje i planujemy auto-retry z backoffem 1/2/4/8/16 s (max 5 prob).
+     * Tani klon ELM327 potrafi nie odpisac na pierwszej probie, a ECU
+     * Keihin potrzebuje chwili na CAN po zaplonie. Po wyczerpaniu prob
+     * status FAILED z czytelnym bledem - kolejna probe decyduje kierowca.
+     */
+    private suspend fun onInitFailure(address: String, preferBle: Boolean, f: ElmSession.InitResult.Failure) {
+        try { scheduler?.shutdown() } catch (_: Exception) {}
+        scheduler = null
+        try { session?.close() } catch (_: Exception) {}
+        session = null
+        try { transport?.disconnect() } catch (_: Exception) {}
+        transport = null
+        initAttempt++
+        Log.w(TAG, "init failed: " + f.step + " - " + f.error +
+            " (proba " + initAttempt + "/" + MAX_INIT_RETRIES + ")")
+        if (initAttempt >= MAX_INIT_RETRIES) {
+            _uiState.value = _uiState.value.copy(
+                connected = false,
+                connecting = false,
+                initStep = "",
+                retryAttempt = 0,
+                lastError = "INIT FAILED po " + MAX_INIT_RETRIES + " probach: " + f.step + " - " + f.error
+            )
+            initAttempt = 0
+            return
+        }
+        val delayMs = INIT_RETRY_BACKOFF_MS[minOf(initAttempt, INIT_RETRY_BACKOFF_MS.size) - 1]
+        _uiState.value = _uiState.value.copy(
+            connecting = true,
+            connected = false,
+            initStep = "",
+            retryAttempt = initAttempt,
+            lastError = "Ponawiam (" + initAttempt + "/" + MAX_INIT_RETRIES + "): " + f.step + " - " + f.error
+        )
+        retryJob = scope.launch {
+            delay(delayMs)
+            lifecycleMutex.withLock { doConnect(address, preferBle) }
+        }
+    }
+
     fun disconnect() {
         stopBtWatch()
         stateJob?.cancel()
         stateJob = null
+        retryJob?.cancel()
+        retryJob = null
+        initAttempt = 0
         needsReinit = false
         scope.launch {
             lifecycleMutex.withLock {

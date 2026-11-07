@@ -40,7 +40,11 @@ data class VehicleUiState(
     val staleFlags: StaleFlags = StaleFlags(),
     val engineState: EngineStateLabel = EngineStateLabel.UNKNOWN,
     val lastError: String? = null,
-    val protocol: String = ""
+    val protocol: String = "",
+    /** Aktualny krok initu ELM ("ATWS", "ATE0", "0100", ...) - pusty po sukcesie. */
+    val initStep: String = "",
+    /** Numer proby auto-retry initu (1..5; 0 = pierwsza proba / sukces). */
+    val retryAttempt: Int = 0
 )
 
 data class StaleFlags(

@@ -271,8 +271,11 @@ class ObdDiscoveryActivity : Activity() {
         (connBtn.background as GradientDrawable).setColor(
             if (s.connected) Color.parseColor("#FF453A") else Color.parseColor("#0A84FF"))
         statusTv.text = when {
-            s.connecting -> "Laczenie..."
-            s.connected -> "Polaczono - " + s.adapterName
+            s.connecting ->
+                (if (s.retryAttempt > 0) "Ponawiam (" + s.retryAttempt + "/5)" else "Laczenie") +
+                    (if (s.initStep.isNotEmpty()) " - " + s.initStep else "")
+            s.connected -> "Polaczono - " + s.adapterName +
+                (if (s.protocol.isNotEmpty()) " (" + s.protocol + ")" else "")
             else -> "Rozlaczono" + (s.lastError?.let { " - " + it } ?: "")
         }
         dataTv.text = buildString {
