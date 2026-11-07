@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import pl.dock.widget.ObdCoreService
 import pl.dock.widget.dashboard.CarPlayDashboardActivity
 import pl.dock.widget.diagnostics.DtcManagerActivity
+import pl.dock.widget.diagnostics.KasujDtcActivity
 import pl.dock.widget.orchestration.ConnectionManager
 import pl.dock.widget.settings.ObdSettingsActivity
 
@@ -20,15 +21,17 @@ import pl.dock.widget.settings.ObdSettingsActivity
  * Pelnoekranowy host zegara Honda OEM UFO Cluster (1280x720).
  * Tryb immersyjny, bez paskow systemowych - zgodnie ze specyfikacja radia.
  *
- * Dopracowanie: progi zegarow (redline/VTEC/ECO) sa aplikowane w onResume,
- * dzieki czemu powrot z Ustawien od razu pokazuje nowe wartosci;
- * korutyna telemetrii jest anulowana w onDestroy (brak wycieku).
+ * Progi zegarow i alarmow (redline/VTEC/ECO/ECT/VOLTS/LTFT/IAT) sa
+ * aplikowane w onResume - powrot z Ustawien od razu pokazuje nowe
+ * wartosci. Akcja tapniecia predkosciomierza jest konfigurowalna
+ * (prefs speed_tap_action), zgodnie z pkt 9.7 specyfikacji.
  */
 class UfoClusterActivity : Activity() {
 
     private lateinit var manager: ConnectionManager
     private lateinit var cluster: UfoClusterFullView
     private val scope = MainScope()
+    private var speedTapAction = "units"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,13 +52,10 @@ class UfoClusterActivity : Activity() {
                 or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
             )
 
-        // akcje footer + gesty (tapniecie predkosciomierza: km/h <-> mph)
+        // akcje footer + gesty (pkt 11 / 9.7 / 10.5)
         cluster.onOpenDtc = { startActivity(Intent(this, DtcManagerActivity::class.java)) }
         cluster.onSaveEvent = {
-            // ZAPISZ EVENT (NAPRAWA): przycisk musial faktycznie zapisac
-            // ostatnie ~30 s telemetrii do czarnej skrzynki. Wczesniej
-            // tylko startowal usluge i pokazywal toast. Teraz wysyla
-            // akcje SAVE_EVENT do ObdCoreService, ktory robi flush bufora.
+            // ZAPISZ EVENT: flush ostatnich ~30 s telemetrii do czarnej skrzynki
             val i = Intent(this, ObdCoreService::class.java)
             i.action = ObdCoreService.ACTION_SAVE_EVENT
             try {
@@ -70,20 +70,44 @@ class UfoClusterActivity : Activity() {
             finish()
         }
         cluster.onOpenSettings = { startActivity(Intent(this, ObdSettingsActivity::class.java)) }
-        cluster.onSpeedTap = { cluster.toggleUnits() }
+        cluster.onSpeedTap = { onSpeedTapped() }
+        cluster.onArcAssign = { left -> showArcAssignDialog(left) }
 
         applyGaugePrefs()
         ObdCoreService.start(this)
 
         scope.launch {
-            manager.uiState.collectLatest { s ->
-                cluster.update(
-                    s.rpm, s.speedKmh, s.voltage, s.ectC,
-                    s.tpsPct, s.mapKpa, s.iatC, s.ltftPct,
-                    s.connected, s.connecting
-                )
-            }
+            manager.uiState.collectLatest { s -> cluster.update(s) }
         }
+    }
+
+    /**
+     * Akcja tapniecia predkosciomierza - konfigurowalna (pkt 9.7):
+     * units = km/h <-> mph, dtc = szybkie kasowanie DTC, none = brak.
+     */
+    private fun onSpeedTapped() {
+        when (speedTapAction) {
+            "units" -> cluster.toggleUnits()
+            "dtc" -> startActivity(Intent(this, KasujDtcActivity::class.java))
+            "none" -> Unit
+        }
+    }
+
+    /**
+     * Menu szybkiego przypisania parametru do luku (pkt 10.5 - long press).
+     */
+    private fun showArcAssignDialog(left: Boolean) {
+        val params = UfoClusterFullView.ARC_PARAMS
+        val labels = params.map { UfoClusterFullView.labelOf(it) }.toTypedArray()
+        val title = if (left) "Lewy luk - parametr" else "Prawy luk - parametr"
+        android.app.AlertDialog.Builder(this)
+            .setTitle(title)
+            .setItems(labels) { d, which ->
+                cluster.setArcParam(left, params[which])
+                d.dismiss()
+            }
+            .setNegativeButton("Anuluj", null)
+            .show()
     }
 
     /** Progi z SharedPreferences - wolane przy starcie i po powrocie z Ustawien. */
@@ -94,6 +118,14 @@ class UfoClusterActivity : Activity() {
         cluster.ecoTps = sp.getString("eco_tps", "18")?.toFloatOrNull() ?: 18f
         cluster.ecoMap = sp.getString("eco_map", "48")?.toFloatOrNull() ?: 48f
         cluster.ecoRpm = sp.getString("eco_rpm", "2800")?.toFloatOrNull() ?: 2800f
+        // progi alarmowe luk (pkt 10.7 specyfikacji)
+        cluster.ectMaxC = sp.getString("alarm_ect_max", "102")?.toFloatOrNull() ?: 102f
+        cluster.voltMin = sp.getString("alarm_volt_min", "11.8")?.toFloatOrNull() ?: 11.8f
+        cluster.voltMax = sp.getString("alarm_volt_max", "14.8")?.toFloatOrNull() ?: 14.8f
+        cluster.ltftMax = sp.getString("alarm_ltft_max", "10")?.toFloatOrNull() ?: 10f
+        cluster.iatMax = sp.getString("alarm_iat_max", "65")?.toFloatOrNull() ?: 65f
+        // akcja tapniecia predkosci (pkt 9.7): units | dtc | none
+        speedTapAction = sp.getString("speed_tap_action", "units") ?: "units"
     }
 
     override fun onResume() {
@@ -116,7 +148,7 @@ class UfoClusterActivity : Activity() {
             window.decorView.systemUiVisibility = (
                 View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                     or View.SYSTEM_UI_FLAG_FULLSCREEN
-                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                 )
         }
     }
