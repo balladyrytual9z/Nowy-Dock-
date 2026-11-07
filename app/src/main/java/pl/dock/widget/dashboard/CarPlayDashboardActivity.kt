@@ -88,6 +88,9 @@ class CarPlayDashboardActivity : Activity() {
     private val charts = HashMap<String, ChartView>()
     private val selection = ArrayList<String>() // max 4 (pkt 17.2)
     private var overflowFifo = true
+    private var chartRangeMs = 30_000L   // zakres osi czasu (pkt 18.4)
+    private lateinit var rangeBtn: Button
+    private lateinit var exportBtn: Button
 
     private val params = linkedMapOf(
         "RPM" to "obr/min",
@@ -412,12 +415,32 @@ class CarPlayDashboardActivity : Activity() {
         scroll.addView(paramList)
         for ((name, unit) in params) paramList.addView(paramRow(name, unit))
 
-        chartsArea = FrameLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(0,
-                LinearLayout.LayoutParams.MATCH_PARENT, 1.6f)
+        // kolumna wykresow + kontrolki (zakres osi czasu, eksport PNG)
+        val chartsCol = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        rangeBtn = miniBtn("ZAKRES: 30 S") {
+            chartRangeMs = when (chartRangeMs) {
+                30_000L -> 60_000L
+                60_000L -> 300_000L
+                300_000L -> 0L
+                else -> 30_000L
+            }
+            applyRange()
         }
+        exportBtn = miniBtn("EKSPORT PNG") { exportCharts() }
+        controls.addView(rangeBtn, LinearLayout.LayoutParams(
+            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        controls.addView(exportBtn, LinearLayout.LayoutParams(
+            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        chartsArea = FrameLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+        }
+        chartsCol.addView(controls)
+        chartsCol.addView(chartsArea)
         page.addView(scroll)
-        page.addView(chartsArea)
+        page.addView(chartsCol, LinearLayout.LayoutParams(
+            0, LinearLayout.LayoutParams.MATCH_PARENT, 1.6f))
         livePage = page
         return page
     }
@@ -486,6 +509,58 @@ class CarPlayDashboardActivity : Activity() {
         return row
     }
 
+    /** Mini-przycisk w stylu docka (kontrolki wykresow). */
+    private fun miniBtn(label: String, onClick: (View) -> Unit): Button =
+        Button(this).apply {
+            text = label
+            textSize = 10f
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                cornerRadius = 40f
+                setColor(cBorder())
+            }
+            setOnClickListener { onClick(this) }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(8, 8, 8, 8) }
+        }
+
+    /** Przelaczanie zakresu osi czasu (pkt 18.4) - dotyczy wszystkich wykresow. */
+    private fun applyRange() {
+        rangeBtn.text = "ZAKRES: " + when (chartRangeMs) {
+            0L -> "CALA TRASA"
+            60_000L -> "1 MIN"
+            300_000L -> "5 MIN"
+            else -> "30 S"
+        }
+        for (ch in charts.values) ch.timeRangeMs = chartRangeMs
+    }
+
+    /** Eksport PNG (pkt 18.6): wszystkie widoczne wykresy, z legenda i data. */
+    private fun exportCharts() {
+        if (charts.isEmpty()) {
+            Toast.makeText(this, "Brak wykresow do eksportu", Toast.LENGTH_SHORT).show()
+            return
+        }
+        var ok = 0
+        var first: String? = null
+        for (ch in charts.values) {
+            val p = ch.exportPng()
+            if (p != null) {
+                ok++
+                if (first == null) first = p
+            }
+        }
+        if (ok == 0) {
+            Toast.makeText(this, "Brak danych do eksportu (pkt 47.5)", Toast.LENGTH_SHORT).show()
+        } else {
+            val dir = first?.substringBeforeLast('/')
+            Toast.makeText(this, "Zapisano $ok PNG: $dir", Toast.LENGTH_LONG).show()
+        }
+    }
+
     private fun rebuildCharts() {
         chartsArea.removeAllViews()
         charts.clear()
@@ -508,6 +583,7 @@ class CarPlayDashboardActivity : Activity() {
                 FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT))
+            chart.timeRangeMs = chartRangeMs
             charts[name] = chart
         }
     }
