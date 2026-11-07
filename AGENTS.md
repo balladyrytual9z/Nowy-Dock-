@@ -662,3 +662,21 @@ sie w wiekszosci zrobione wczesniej (audyt potwierdzil).
   (c) Multi-Overlay 19 z Correlation Ribbon, (d) ikony na kartach CarPlay
   (pkt 16), (e) klasyczny IgnitionMonitor OFF/ACC/RUN jako pelna maszyna
   stanow (obecnie watchdog+resume).
+
+
+### Dopisek (ten sam dzien, commit 0f382d74): wykres 30 s w LCD MID (pkt 8.7)
+
+- UfoClusterFullView: pozycje CHART:<param> w petli MID dla WSZYSTKICH
+  parametrow apki (CHART_KEYS: BOOST/ECT/VOLTS/TPS/IAT/LTFT/STFT/MAF/BARO/
+  FUEL - pelna lista, nic na stale; pkt 8.7 zabrania stalej listy).
+  Ring buffer 128 probek, min. odstep 250 ms (~30 s okno), zero alokacji
+  w onDraw. Rysunek: pikselowe wypelnienie 4x4 pod linia + gladka linia
+  wektorowa (wygladzanie quad), skala liczona z okna 30 s (min/max + 10%
+  marginesu) - bez zmyslonej skali. Brak probek = "ZBIERAM DANE...",
+  nie udany przebieg. Naglowek z tagiem "WYKRES 30 S"; panel MAX/AVG
+  i reset long-press (> 1.5 s) dzialaja tez na pozycji wykresu.
+- FIX przy okazji: pozycja petli MID miala klucz "VOLTAGE", a paramValue()
+  obsluguje "VOLTS" - pozycja VOLTAGE nigdy nie pokazala danych. Teraz VOLTS.
+- Punkt (a) listy "ZOSTAJE" z sesji 5 wykonany; zostaja (b) scrubber/eksport
+  PNG (18.x), (c) Multi-Overlay 19 z Correlation Ribbon, (d) ikony na kartach
+  CarPlay (pkt 16), (e) pelna maszyna stanow IgnitionMonitor.
