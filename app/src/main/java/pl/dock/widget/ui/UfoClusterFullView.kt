@@ -112,7 +112,6 @@ class UfoClusterFullView(context: Context) : View(context) {
     private val METAL_LO = Color.parseColor("#141B29")
     private val BLUE_GLOW = Color.parseColor("#0055FF")
     private val CYAN = Color.parseColor("#00E5FF")
-    private val TICK = Color.parseColor("#FFFEEA")
     private val RED = Color.parseColor("#FF0033")
     private val LCD_BG = Color.parseColor("#5E6F73")
     private val LCD_ON = Color.parseColor("#0D1517")
@@ -227,7 +226,7 @@ class UfoClusterFullView(context: Context) : View(context) {
 
     // ---------- Painty (prealokacja: zero alokacji w onDraw) ----------
     private val pFill = Paint()
-    private val pStroke = Paint(Paint.ANI_ALIAS_FLAG)
+    private val pStroke = Paint(Paint.ANTI_ALIAS_FLAG)
     private val pText = Paint(Paint.ANTI_ALIAS_FLAG)
     private val pItalic = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD_ITALIC)
@@ -407,7 +406,7 @@ class UfoClusterFullView(context: Context) : View(context) {
     private fun accumulateTrip(now: Long) {
         if (lastTripMs > 0L && now > lastTripMs) {
             val dtH = (now - lastTripMs) / 3_600_000.0
-            if (!speedKmh.isNaN() && speedKmh >= 0) tripDistKm += speedKmh * dtH
+            if (speedKmh >= 0) tripDistKm += speedKmh * dtH
             if (!mafGs.isNaN() && mafGs > 0.5) {
                 tripFuelL += (mafGs / AFR_GAS / FUEL_DENSITY_G_PER_L) * dtH
             }
