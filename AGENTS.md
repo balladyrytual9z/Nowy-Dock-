@@ -505,3 +505,47 @@ zdjęcie tabletu pokazuje stan obecny. Zmiany wypchnięte na `main` (commit ef01
   zniknął w trakcie przewijania za panelem).
 - Reszta zasad przycisku bez zmian: `onBottomLong` = ostatnie aplikacje,
   przytrzymanie nagłówka = toast, ekrany wewnętrzne = glif strony powrotu.
+
+## 2026-11-07 (sesja 4: nawigacja jak w Organic Maps — trasy, zakładki, ślady, Wikipedia)
+
+Dobudowane do istniejącego szkieleu Nawigacji (ekran główny, MapCard, MapState,
+HeadingSmoother, MapConfig, SmoothLocationOverlay, MapPlace, LoadingCover,
+BulkGuard, MapDownloadActivity — **NIETKNIĘTE**). Nowe moduły w
+`pl.dock.widget.maps` (wszystkie Java 1.8, komentarze po polsku, float z `f`):
+
+- **`route/`**: `PolylineCodec` (polyline OSRM precision 5, testy JVM z przykładem
+  kanonicznym Google), `Route`/`Route.Step` (model), `Maneuvers` (polskie opisy
+  manewrów + distText/minText — idą na banner i do TTS), `Guidance` (maszyna
+  prowadzenia: okno najbliższego punktu ±8/+60, prompty FAR/NOW/ARRIVED/OFF_ROUTE
+  z progami zależnymi od prędkości, "teraz" na przekroczony manewr),
+  `RouteClient` (OSRM https://routing.openstreetmap.de/routed-{car|bike|foot},
+  profil z Prefs: auto/rower/pieszo, callback na wątku UI), `VoiceGuide` (TTS pl_PL,
+  audio focus TRANSIENT_MAY_DUCK, USAGE_ASSISTANCE_NAVIGATION_GUIDANCE).
+- **`bookmark/`**: `Bookmark`, `GpxIo` (GPX/KML zapis+odczyt po regex — org.xmlpull
+  nie istnieje w testach JVM), `TrackRecorder` (odrzuca szum <7 m i <3 s),
+  `MapsDb` (SQLiteOpenHelper singleton: zakładki + cache miejsc — offline search),
+  `TrackFiles` (ślady GPX w filesDir/tracks), `BookmarksActivity` (manager:
+  zapis pozycji, import OPEN_DOCUMENT, eksport GPX/KML CREATE_DOCUMENT, listy
+  zakładek/śladów, profil wysokości; ⚠️ rebuild() zakłada 8 pierwszych dzieci rows
+  = nagłówek+przyciski — przy edycji zachować układ).
+- **`elevation/`**: `ElevationProfile` (pure), `ElevationClient` (opentopodata
+  srtm90m, 100 pkt/req, pauza 1100 ms), `ElevationProfileView` (Canvas, wypełnienie
+  pod krzywą, warstwa SOFTWARE jak inne custom views).
+- **`wiki/`**: `WikiNearby` (geosearch pl.wikipedia.org, promień ≤10 km).
+- **`NavigatorActivity`**: zielona linia trasy (0xFF30D158, 7 dp), pomarańczowy
+  ślad (0xFFFF9500), przyciski Zap/Ślad/Jedź (BTN_SAVE=7/TRACK=8/NAV=9, kolumna
+  n=10), długie przytrzymanie (>550 ms) Zap/Ślad → BookmarksActivity, Szukaj →
+  Wikipedia; karta celu wyższa (66 dp) i dwulinijkowa podczas nawigacji (manewr +
+  manewr·do celu·czas); tick() prowadzi Guidance i mówi TTS (Prefs.mapVoice);
+  OFF_ROUTE → reroute() z throttle 15 s; ARRIVED → toast + clearDestination;
+  zapisywanie śladu awaryjne w onDestroy; handleIntent/onNewIntent (singleTask)
+  czyta dest_lat/dest_lon/track_path z BookmarksActivity; wyszukiwanie najpierw
+  offline (zakładki + cache), potem Nominatim, wybór zapisuje miejsce do cache.
+- **`Prefs`**: `mapRouteProfile`/`setMapRouteProfile` (auto/rower/pieszo) i
+  `mapVoice`/`setMapVoice` (domyślnie true).
+- **Manifest**: dodany tylko wpis `BookmarksActivity` (singleTop, NoTitleBar.Fullscreen,
+  exported=false) — reszta bez zmian.
+- **Testy JVM**: PolylineCodecTest, GuidanceTest, ManeuversTest, GpxIoTest,
+  TrackRecorderTest, ElevationProfileTest — deterministyczne dane, bez Androida/org.json.
+- Wszystko wypchnięte bezpośrednio na `main` (commity od "Mapy: kodek polyline…"
+  do "Mapy: nawigacja jak w Organic Maps…"), build/release robi CI jak zwykle.
