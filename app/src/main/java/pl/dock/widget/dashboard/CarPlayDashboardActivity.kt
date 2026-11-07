@@ -11,6 +11,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -34,6 +35,7 @@ import pl.dock.widget.trip.TripActivity
 import pl.dock.widget.analytics.CorrelationAnalyzer
 import pl.dock.widget.ui.ChartView
 import pl.dock.widget.ui.OverlayChartView
+import pl.dock.widget.ui.UfoClusterActivity
 import pl.dock.widget.util.SolarTimes
 
 /**
@@ -120,6 +122,12 @@ class CarPlayDashboardActivity : Activity() {
     private val dockBtns = ArrayList<Button>()
     private var activePage = 0
 
+    // ---------- Multi-Window / Split-Screen (pkt 36) ----------
+    private var multiWindow = false
+    private lateinit var workArea: FrameLayout
+    private lateinit var liveScroll: ScrollView
+    private lateinit var chartsCol: LinearLayout
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         manager = ConnectionManager.get(applicationContext)
@@ -143,19 +151,14 @@ class CarPlayDashboardActivity : Activity() {
         // pkt 17.3: domyslnie WL; uzytkownik moze wylaczyc w Ustawieniach
         autoSort = prefs.getBoolean("auto_sort_anomaly", true)
 
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(cBg())
-        }
-
-        root.addView(buildDock())
-        root.addView(FrameLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(0,
-                LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+        // uklad korzenia zalezy od trybu okna (pkt 36 Multi-Window)
+        multiWindow = isInMultiWindowMode
+        workArea = FrameLayout(this).apply {
             addView(buildOverviewPage())
             addView(buildLivePage())
-        })
-        setContentView(root)
+        }
+        applyLiveStack()
+        setContentView(buildRoot())
 
         showOverview()
         observe()
@@ -164,6 +167,7 @@ class CarPlayDashboardActivity : Activity() {
     // ---------- DOCK (pkt 15) ----------
 
     private fun buildDock(): View {
+        dockBtns.clear()   // rebuild w Split-Screen nie dubluje zakladek
         val dock = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(cCard())
@@ -223,10 +227,11 @@ class CarPlayDashboardActivity : Activity() {
         }
     }
 
-    private fun dockBtn(label: String, onClick: (View) -> Unit): Button =
+    private fun dockBtn(label: String, onClick: (View) -> Unit,
+                        horizontal: Boolean = false): Button =
         Button(this).apply {
             text = label
-            textSize = 11f
+            textSize = if (horizontal) 9f else 11f
             setTextColor(Color.WHITE)
             isAllCaps = false
             background = GradientDrawable().apply {
@@ -234,7 +239,11 @@ class CarPlayDashboardActivity : Activity() {
                 setColor(cBorder())
             }
             setOnClickListener { onClick(this) }
-            layoutParams = LinearLayout.LayoutParams(
+            layoutParams = if (horizontal) LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.MATCH_PARENT
+            ).apply { setMargins(4, 6, 4, 6) }
+            else LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 72
             ).apply { setMargins(8, 8, 8, 0) }
         }
@@ -297,6 +306,115 @@ class CarPlayDashboardActivity : Activity() {
         manager.disconnect()
         manager.connect(mac, preferBle)
         Toast.makeText(this, "Reconnect: " + mac, Toast.LENGTH_SHORT).show()
+    }
+
+    // ---------- Multi-Window / Split-Screen (pkt 36) ----------
+
+    /**
+     * Split-Screen (pkt 36): w Multi-Window dok schodzi na dol jako
+     * poziomy pasek ~50dp, zawartosc robocza plynie w jednej kolumnie,
+     * wszystkie moduly pozostaja dostepne. Powrot do pelnego ekranu
+     * odtwarza klasyczny uklad i przywraca UFO (jesli CarPlay wszedl
+     * z UFO). Karty, zaznaczenia i wykresy to te same widoki
+     * (re-parent workArea), wiec zadna konfiguracja nie ginie;
+     * wymiary przelicza system po kazdym resize.
+     */
+    override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean) {
+        super.onMultiWindowModeChanged(isInMultiWindowMode)
+        if (multiWindow == isInMultiWindowMode) return
+        multiWindow = isInMultiWindowMode
+        applyLiveStack()
+        setContentView(buildRoot())
+        if (!multiWindow && intent.getBooleanExtra("from_ufo", false)) {
+            startActivity(Intent(this, UfoClusterActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            finish()
+        }
+    }
+
+    private fun buildRoot(): View {
+        val root = LinearLayout(this)
+        root.setBackgroundColor(cBg())
+        if (multiWindow) {
+            root.orientation = LinearLayout.VERTICAL
+            root.addView(workArea, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+            root.addView(buildDockBar(), LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(50)))
+        } else {
+            root.orientation = LinearLayout.HORIZONTAL
+            root.addView(buildDock())
+            root.addView(workArea, LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
+        }
+        return root
+    }
+
+    /** Live Data: jedna przewijana kolumna w Split-Screen (pkt 36). */
+    private fun applyLiveStack() {
+        (livePage as LinearLayout).orientation = if (multiWindow)
+            LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+        if (multiWindow) {
+            liveScroll.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+            chartsCol.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.6f)
+        } else {
+            liveScroll.layoutParams = LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+            chartsCol.layoutParams = LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.MATCH_PARENT, 1.6f)
+        }
+    }
+
+    /**
+     * Poziomy pasek dokowania na dole (pkt 36): przewijalna lista
+     * modulow + przypiete QUICK / USTAWIENIA / HOME - komplet modulow.
+     */
+    private fun buildDockBar(): View {
+        dockBtns.clear()
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setBackgroundColor(cCard())
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val scroll = HorizontalScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+        }
+        val list = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        scroll.addView(list)
+        fun mod(label: String, onClick: (View) -> Unit) {
+            val b = dockBtn(label, onClick, horizontal = true)
+            dockBtns.add(b)
+            list.addView(b)
+        }
+        mod("OVERVIEW") { setActive(0) { showOverview() } }
+        mod("LIVE DATA") { setActive(1) { showLive() } }
+        mod("TRIP") { startActivity(Intent(this, TripActivity::class.java)) }
+        mod("BLACK BOX") { startActivity(Intent(this, BlackBoxActivity::class.java)) }
+        mod("MISFIRE") { startActivity(Intent(this, MisfireLabActivity::class.java)) }
+        mod("DTC") { startActivity(Intent(this, DtcManagerActivity::class.java)) }
+        mod("E-RAPORT") { startActivity(Intent(this, EReportActivity::class.java)) }
+        mod("SERWIS") { startActivity(Intent(this, MaintenanceActivity::class.java)) }
+        bar.addView(scroll)
+        bar.addView(quickBtn(), LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.MATCH_PARENT))
+        bar.addView(dockBtn("USTAWIENIA", {
+            startActivity(Intent(this, ObdSettingsActivity::class.java))
+        }, horizontal = true), LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.MATCH_PARENT))
+        bar.addView(dockBtn("HOME", {
+            startActivity(Intent(this, LauncherActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            finish()
+        }, horizontal = true), LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.MATCH_PARENT))
+        highlightActive()
+        return bar
     }
 
     // ---------- OVERVIEW (pkt 16) ----------
@@ -527,7 +645,8 @@ class CarPlayDashboardActivity : Activity() {
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
         }
-        val scroll = ScrollView(this).apply {
+        livePage = page
+        liveScroll = ScrollView(this).apply {
             layoutParams = LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.MATCH_PARENT, 1f)
         }
@@ -535,11 +654,11 @@ class CarPlayDashboardActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(12, 24, 12, 24)
         }
-        scroll.addView(paramList)
+        liveScroll.addView(paramList)
         for ((name, unit) in params) paramList.addView(paramRow(name, unit))
 
         // kolumna wykresow + kontrolki (zakres osi czasu, eksport PNG)
-        val chartsCol = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        chartsCol = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         rangeBtn = miniBtn("ZAKRES: 30 S") {
             chartRangeMs = when (chartRangeMs) {

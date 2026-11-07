@@ -187,6 +187,20 @@ class UfoClusterActivity : Activity() {
         } catch (ignored: Exception) {}
     }
 
+    /**
+     * Split-Screen (pkt 36): w Multi-Window UFO ustepuje CarPlay
+     * Dashboardowi; powrot do pelnego ekranu przywraca UFO (CarPlay
+     * dostaje extra from_ufo i sam wraca do zegarow).
+     */
+    override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean) {
+        super.onMultiWindowModeChanged(isInMultiWindowMode)
+        if (isInMultiWindowMode) {
+            startActivity(Intent(this, CarPlayDashboardActivity::class.java)
+                .putExtra("from_ufo", true))
+            finish()
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         applyGaugePrefs()
