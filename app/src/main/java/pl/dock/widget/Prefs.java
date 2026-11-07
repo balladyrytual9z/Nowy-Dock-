@@ -1021,6 +1021,19 @@ public class Prefs {
         ed(c).putBoolean("go_home", v).apply();
     }
 
+    // Home nacisniety w DiPlay (aplikacja CarPlay) ma ZAWSZE wrocic na ekran
+    // glowny Docka, a nie na strone, z ktorej ja otwarto. Flage ustawia
+    // Launch.carplay(), a konsumuje ja LauncherActivity w onNewIntent
+    // przy pierwszym Home po powrocie; zerowana tez w onResume, zeby nie wisiala.
+    public static boolean diplayReturn(Context c) {
+        return sp(c).getBoolean("diplay_return", false);
+    }
+
+    public static void setDiplayReturn(Context c, boolean v) {
+        // flaga wewnetrzna - nie dotyka rysunku, wiec bez zwiekszania `version`
+        sp(c).edit().putBoolean("diplay_return", v).apply();
+    }
+
     // ostatnia DOBRA pozycja GPS ("gdzie zaparkowalem") - zeby po wejsciu do auta
     // mapa od razu pokazala wlasciwe miejsce, bez szukania
     public static String posLastLat(Context c) {

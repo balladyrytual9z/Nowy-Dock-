@@ -240,6 +240,14 @@ public class LauncherActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        // Flaga "powrot z DiPlay" (Home w CarPlay zawsze na ekran glowny) dotyczy
+        // tylko pierwszego Home po powrocie do Docka. Jezeli wracamy do launchera
+        // inaczej (np. przycisk Back w DiPlay albo quick switch), flaga nie moze
+        // wisiec - inaczej nastepny Home ze zwyklej aplikki wskoczylby na ekran
+        // glowny zamiast na strone zrodlowa. onNewIntent (konsument flagi) przy
+        // Home z DiPlay odpala sie ZAWSZE przed onResume, wiec tu nie zepsujemy
+        // wlasnie obslugiwanej prosby.
+        Prefs.setDiplayReturn(this, false);
         // Powrot na STRONE GLOWNA (przycisk home w doku Nawigacji ustawia te flage).
         if (Prefs.goHome(this)) {
             Prefs.setGoHome(this, false);
@@ -279,8 +287,12 @@ public class LauncherActivity extends BaseActivity {
         }
     }
 
-    // Przycisk Home: z innej aplikacji wraca na stronę, z której ją otwarto;
-    // na ekranie głównym wykonuje skonfigurowaną akcję (domyślnie otwiera CarPlay).
+    // Przycisk Home radia (hierarchia jak w CarPlay):
+    // - na ekranie glownym: akcja Home (domyslnie otwiera DiPlay/CarPlay);
+    // - na stronie widzetow, siatce aplikacji lub Bibliotece: najpierw wraca na
+    //   ekran glowny (kolejne Home dziala juz jak na glownym);
+    // - z DiPlay: ZAWSZE na ekran glowny (nie na strone, z ktorej ja otwarto);
+    // - z innych aplikacji: wraca na strone, z ktorej ja otwarto (origin page).
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
@@ -298,16 +310,26 @@ public class LauncherActivity extends BaseActivity {
             return;
         }
         if (!visible) {
-            int target = returnPage >= 0 && returnPage < pager.count() ? returnPage : homeIdx;
+            // Home nacisniety w aplikacji: z DiPlay (CarPlay) zawsze wracamy na
+            // EKRAN GLOWNY; inne aplikacje wracaja na strone, z ktorej je otwarto.
+            boolean fromDiplay = Prefs.diplayReturn(this);
+            Prefs.setDiplayReturn(this, false);
+            int target = fromDiplay ? homeIdx
+                    : (returnPage >= 0 && returnPage < pager.count() ? returnPage : homeIdx);
             returnPage = -1;
             pager.goTo(target, false);
             return;
         }
-        // Przelacznik Home: dziala z kazdej strony launchera (widzetow, glownej,
-        // aplikacji, biblioteki). Zapamietujemy aktualna strone - Home nacisniety
-        // w DiPlay wroci do Docka dokladnie na te strone, z ktorej przyszedles.
-        returnPage = Math.round(pager.position());
-        runHomeAction();
+        // Home na launcheronie: TYLKO na ekranie glownym wykonuje akcje Home
+        // (domyslnie otwiera DiPlay/CarPlay). Na kazdej innej stronie (widzety,
+        // siatka aplikacji, Biblioteka) pierwsze Home wraca na ekran glowny;
+        // dopiero kolejne Home dziala jak na ekranie glownym.
+        if (Math.abs(pager.position() - homeIdx) < 0.5f) {
+            returnPage = homeIdx;
+            runHomeAction();
+        } else {
+            pager.goTo(homeIdx, true);
+        }
     }
 
     private void runHomeAction() {

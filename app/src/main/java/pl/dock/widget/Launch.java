@@ -82,12 +82,18 @@ public class Launch {
 
     public static void carplay(Context c) {
         Intent i = carplayIntent(c);
-        if (i != null && start(c, i)) return;
-        Intent l = c.getPackageManager().getLaunchIntentForPackage(Prefs.diplayPkg(c));
-        if (l != null) {
-            l.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            start(c, l);
+        boolean ok = i != null && start(c, i);
+        if (!ok) {
+            Intent l = c.getPackageManager().getLaunchIntentForPackage(Prefs.diplayPkg(c));
+            if (l != null) {
+                l.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ok = start(c, l);
+            }
         }
+        // Home nacisniety w DiPlay zawsze wraca na EKRAN GLOWNY Docka, a nie na
+        // strone, z ktorej DiPlay otwarto. Flage ustawiamy przy udanym startcie,
+        // konsumuje ja LauncherActivity w onNewIntent przy pierwszym Home.
+        if (ok) Prefs.setDiplayReturn(c, true);
     }
 
     // do wyboru w ustawieniach: {nazwa klasy, "eksportowana"/"wewnętrzna"}
