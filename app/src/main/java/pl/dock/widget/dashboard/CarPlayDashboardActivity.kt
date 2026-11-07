@@ -7,46 +7,78 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import pl.dock.widget.LauncherActivity
+import pl.dock.widget.ObdCoreService
+import pl.dock.widget.blackbox.BlackBoxActivity
 import pl.dock.widget.diagnostics.DtcManagerActivity
+import pl.dock.widget.diagnostics.KasujDtcActivity
 import pl.dock.widget.diagnostics.MisfireLabActivity
+import pl.dock.widget.maintenance.MaintenanceActivity
 import pl.dock.widget.orchestration.ConnectionManager
 import pl.dock.widget.report.EReportActivity
 import pl.dock.widget.repository.VehicleUiState
+import pl.dock.widget.settings.ObdSettingsActivity
+import pl.dock.widget.trip.TripActivity
 import pl.dock.widget.ui.ChartView
+import pl.dock.widget.util.SolarTimes
 
 /**
- * CarPlay Dashboard: staly pionowy dock (~110dp) po lewej + obszar roboczy.
- * Moduly: Overview, Live Data (Multi-Select max 4 wykresy), Misfire Lab,
- * DTC Manager, E-Raport, Home. Karty #1C1C1E, radius 16dp, obramowanie #2C2C2E.
+ * CarPlay Dashboard (CZESC III dokumentu "ui obd.txt").
  *
- * Fix: korutyna renderujaca telemetrie jest anulowana w onDestroy
- * (wczesniej MainScope() zylo po zamknieciu aktywnosci).
+ * Struktura: staly pionowy dock ~110dp po lewej + obszar roboczy.
+ *  - dock: przewijalna lista modulow (pkt 15.1) + przypiete do dolu
+ *    QUICK BUTTON / USTAWIENIA / HOME (pkt 15.2 - nie przewijaja sie);
+ *  - aktywna zakladka = pigulka w kolorze akcentu (pkt 15);
+ *  - QUICK BUTTON: akcja wybierana w Ustawieniach (pkt 15.3): ZAPISZ
+ *    EVENT / wymus reconnect OBD / szybkie kasowanie DTC;
+ *  - Overview: karty z naglowkiem uppercase, wartoscia, statusem;
+ *    tap otwiera modul (pkt 16), press = delikatne 97% skali (pkt 16.2);
+ *  - Live Data: lista parametrow ze statusem (pkt 17.1) + Multi-Select
+ *    max 4 wykresy (pkt 17.2); nadmiar: FIFO albo BLOKADA z tostem -
+ *    dokument nie rozstrzygnal, wiec jest konfigurowalne
+ *    (multi_select_overflow, domyslnie FIFO - decyzja jawnie zapisana);
+ *  - dzien/noc wg slonca (pkt 20 - bez recznego przelacznika w UI);
+ *  - kolor akcentu konfigurowalny (pkt 13): blue / type-r red / emerald.
+ *
+ * Zakaz fabryzacji: kazdy parametr pokazuje wylacznie dane z VehicleUiState;
+ * brak odczytu = "---" + status BRAK DANYCH, nigdy zmyslona wartosc.
  */
 class CarPlayDashboardActivity : Activity() {
 
     private lateinit var manager: ConnectionManager
     private val scope = MainScope()
 
-    // Overview
+    // ---------- motyw (pkt 13 + 20) ----------
+    private var night = true
+    private var accent: Int = Color.parseColor("#0A84FF")
+    private fun cBg() = if (night) Color.parseColor("#121212") else Color.parseColor("#F2F2F7")
+    private fun cCard() = if (night) Color.parseColor("#1C1C1E") else Color.WHITE
+    private fun cBorder() = if (night) Color.parseColor("#2C2C2E") else Color.parseColor("#D1D1D6")
+    private fun cText() = if (night) Color.WHITE else Color.BLACK
+    private fun cCaption() = Color.parseColor("#8E8E93")
+
+    // ---------- Overview ----------
     private lateinit var ovRpm: TextView
     private lateinit var ovSpeed: TextView
     private lateinit var ovVolt: TextView
     private lateinit var ovEct: TextView
+    private lateinit var ovDtc: TextView
     private lateinit var ovConn: TextView
     private lateinit var overviewPage: View
 
-    // Live Data
+    // ---------- Live Data ----------
     private lateinit var livePage: View
     private lateinit var paramList: LinearLayout
     private lateinit var chartsArea: FrameLayout
@@ -54,7 +86,8 @@ class CarPlayDashboardActivity : Activity() {
     private val paramValueViews = HashMap<String, TextView>()
     private val paramStatusViews = HashMap<String, TextView>()
     private val charts = HashMap<String, ChartView>()
-    private val selection = ArrayList<String>() // FIFO, max 4
+    private val selection = ArrayList<String>() // max 4 (pkt 17.2)
+    private var overflowFifo = true
 
     private val params = linkedMapOf(
         "RPM" to "obr/min",
@@ -69,13 +102,34 @@ class CarPlayDashboardActivity : Activity() {
         "VOLT" to "V"
     )
 
+    // ---------- dock ----------
+    private val dockBtns = ArrayList<Button>()
+    private var activePage = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         manager = ConnectionManager.get(applicationContext)
 
+        // motyw dzien/noc wg slonca (pkt 20; bez recznego przelacznika)
+        val prefs = getSharedPreferences("obd_settings", MODE_PRIVATE)
+        if (!prefs.getBoolean("night_auto", false)) {
+            night = true   // domyslnie ciemny (samochodowy standard)
+        } else {
+            night = SolarTimes.isNight(
+                prefs.getString("lat", "52.23")?.toDoubleOrNull() ?: 52.23,
+                prefs.getString("lon", "21.01")?.toDoubleOrNull() ?: 21.01)
+        }
+        // kolor akcentu (pkt 13): Apple Blue / Type-R Red / Civic Emerald
+        accent = when (prefs.getString("carplay_accent", "blue")) {
+            "red" -> Color.parseColor("#FF3B30")
+            "green" -> Color.parseColor("#30D158")
+            else -> Color.parseColor("#0A84FF")
+        }
+        overflowFifo = prefs.getString("multi_select_overflow", "fifo") != "block"
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(Color.parseColor("#121212"))
+            setBackgroundColor(cBg())
         }
 
         root.addView(buildDock())
@@ -91,29 +145,66 @@ class CarPlayDashboardActivity : Activity() {
         observe()
     }
 
-    // ---------- DOCK ----------
+    // ---------- DOCK (pkt 15) ----------
 
     private fun buildDock(): View {
         val dock = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#1C1C1E"))
+            setBackgroundColor(cCard())
             layoutParams = LinearLayout.LayoutParams(dp(110),
                 LinearLayout.LayoutParams.MATCH_PARENT)
         }
-        dock.addView(dockBtn("OVERVIEW") { showOverview() })
-        dock.addView(dockBtn("LIVE DATA") { showLive() })
-        dock.addView(dockBtn("MISFIRE") { startActivity(Intent(this, MisfireLabActivity::class.java)) })
-        dock.addView(dockBtn("DTC") { startActivity(Intent(this, DtcManagerActivity::class.java)) })
-        dock.addView(dockBtn("E-RAPORT") { startActivity(Intent(this, EReportActivity::class.java)) })
-        val spacer = View(this)
-        spacer.layoutParams = LinearLayout.LayoutParams(1, 0, 1f)
-        dock.addView(spacer)
+
+        // lista modulow - przewijalna (pkt 15.1)
+        val scroll = ScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+        }
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        scroll.addView(list)
+
+        fun mod(label: String, onClick: (View) -> Unit): Button {
+            val b = dockBtn(label, onClick)
+            dockBtns.add(b)
+            list.addView(b)
+            return b
+        }
+        mod("OVERVIEW") { setActive(0) { showOverview() } }
+        mod("LIVE DATA") { setActive(1) { showLive() } }
+        mod("TRIP") { startActivity(Intent(this, TripActivity::class.java)) }
+        mod("BLACK BOX") { startActivity(Intent(this, BlackBoxActivity::class.java)) }
+        mod("MISFIRE") { startActivity(Intent(this, MisfireLabActivity::class.java)) }
+        mod("DTC") { startActivity(Intent(this, DtcManagerActivity::class.java)) }
+        mod("E-RAPORT") { startActivity(Intent(this, EReportActivity::class.java)) }
+        mod("SERWIS") { startActivity(Intent(this, MaintenanceActivity::class.java)) }
+        dock.addView(scroll)
+
+        // dolna sekcja przypieta - NIE przewija sie (pkt 15.2)
+        dock.addView(quickBtn())
+        dock.addView(dockBtn("USTAWIENIA") {
+            startActivity(Intent(this, ObdSettingsActivity::class.java))
+        })
         dock.addView(dockBtn("HOME") {
             startActivity(Intent(this, LauncherActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             finish()
         })
+        highlightActive()
         return dock
+    }
+
+    private fun setActive(idx: Int, show: () -> Unit) {
+        activePage = idx
+        highlightActive()
+        show()
+    }
+
+    /** Aktywna zakladka = pigulka w kolorze akcentu (pkt 15). */
+    private fun highlightActive() {
+        for ((i, b) in dockBtns.withIndex()) {
+            (b.background as GradientDrawable).setColor(
+                if (i == activePage) accent else cBorder())
+        }
     }
 
     private fun dockBtn(label: String, onClick: (View) -> Unit): Button =
@@ -124,7 +215,7 @@ class CarPlayDashboardActivity : Activity() {
             isAllCaps = false
             background = GradientDrawable().apply {
                 cornerRadius = 40f
-                setColor(Color.parseColor("#2C2C2E"))
+                setColor(cBorder())
             }
             setOnClickListener { onClick(this) }
             layoutParams = LinearLayout.LayoutParams(
@@ -132,7 +223,67 @@ class CarPlayDashboardActivity : Activity() {
             ).apply { setMargins(8, 8, 8, 0) }
         }
 
-    // ---------- OVERVIEW ----------
+    /**
+     * QUICK BUTTON (pkt 15.3): akcja wybierana w Ustawieniach OBD
+     * (quick_button_action). Etykieta zawsze opisuje dokladnie, co zrobi.
+     */
+    private fun quickBtn(): Button {
+        val prefs = getSharedPreferences("obd_settings", MODE_PRIVATE)
+        val action = prefs.getString("quick_button_action", "save") ?: "save"
+        val label = when (action) {
+            "reconnect" -> "QUICK: RECONNECT OBD"
+            "cleardtc" -> "QUICK: KASUJ DTC"
+            else -> "QUICK: ZAPISZ EVENT"
+        }
+        return Button(this).apply {
+            text = label
+            textSize = 10f
+            setTextColor(Color.WHITE)
+            isAllCaps = false
+            background = GradientDrawable().apply {
+                cornerRadius = 40f
+                setColor(accent)
+            }
+            setOnClickListener {
+                when (action) {
+                    "reconnect" -> forceReconnect()
+                    "cleardtc" -> startActivity(Intent(this@CarPlayDashboardActivity,
+                        KasujDtcActivity::class.java))
+                    else -> saveEvent()
+                }
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 72
+            ).apply { setMargins(8, 16, 8, 0) }
+        }
+    }
+
+    private fun saveEvent() {
+        val i = Intent(this, ObdCoreService::class.java)
+        i.action = ObdCoreService.ACTION_SAVE_EVENT
+        try {
+            startForegroundService(i)
+        } catch (e: Exception) {
+            try { startService(i) } catch (ignored: Exception) {}
+        }
+        Toast.makeText(this, "EVENT: zapisano telemetrie (30 s)", Toast.LENGTH_SHORT).show()
+    }
+
+    /** Wymus reconnect: rozlacz i polacz z zapamietanym adapterem. */
+    private fun forceReconnect() {
+        val prefs = getSharedPreferences("obd_settings", MODE_PRIVATE)
+        val mac = prefs.getString("adapter_mac", "")?.trim().orEmpty()
+        if (mac.isEmpty()) {
+            Toast.makeText(this, "Brak zapamietanego adaptera - najpierw skan", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val preferBle = prefs.getBoolean("prefer_ble", false)
+        manager.disconnect()
+        manager.connect(mac, preferBle)
+        Toast.makeText(this, "Reconnect: " + mac, Toast.LENGTH_SHORT).show()
+    }
+
+    // ---------- OVERVIEW (pkt 16) ----------
 
     private fun buildOverviewPage(): View {
         overviewPage = ScrollView(this).apply {
@@ -142,7 +293,7 @@ class CarPlayDashboardActivity : Activity() {
                 addView(TextView(this@CarPlayDashboardActivity).apply {
                     text = "OVERVIEW"
                     textSize = 24f
-                    setTextColor(Color.WHITE)
+                    setTextColor(cText())
                     typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                     setPadding(0, 0, 0, 20)
                 })
@@ -150,7 +301,7 @@ class CarPlayDashboardActivity : Activity() {
         }
         val col = (overviewPage as ScrollView).getChildAt(0) as LinearLayout
 
-        // duza karta: RPM + SPEED
+        // duza karta: RPM + SPEED (tap -> LIVE DATA, pkt 16)
         val bigCard = card()
         bigCard.orientation = LinearLayout.HORIZONTAL
         val bigColL = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -161,19 +312,24 @@ class CarPlayDashboardActivity : Activity() {
         bigColR.addView(ovSpeed)
         bigCard.addView(bigColL, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         bigCard.addView(bigColR, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        pressable(bigCard) { setActive(1) { showLive() } }
         col.addView(bigCard)
 
-        // mniejsze karty
+        // mniejsze karty: akumulator + temperatura (2 kolumny)
         val row1 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        ovVolt = bigValue("VOLTAGE")
+        ovVolt = bigValue("BATTERY")
         ovEct = bigValue("ECT")
         row1.addView(cardWith(ovVolt), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         row1.addView(cardWith(ovEct), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         col.addView(row1)
 
-        // status polaczenia
+        // DTC (licznik z 0101; tap -> DTC Manager) + status polaczenia
         val row2 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        ovDtc = bigValue("DTC")
         ovConn = bigValue("OBD")
+        val dtcCard = cardWith(ovDtc)
+        pressable(dtcCard) { startActivity(Intent(this, DtcManagerActivity::class.java)) }
+        row2.addView(dtcCard, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         row2.addView(cardWith(ovConn), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         col.addView(row2)
         return overviewPage
@@ -183,7 +339,7 @@ class CarPlayDashboardActivity : Activity() {
         TextView(this).apply {
             text = "---"
             textSize = 40f
-            setTextColor(Color.WHITE)
+            setTextColor(cText())
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             tag = caption
         }
@@ -192,8 +348,8 @@ class CarPlayDashboardActivity : Activity() {
         orientation = LinearLayout.VERTICAL
         background = GradientDrawable().apply {
             cornerRadius = 16f
-            setColor(Color.parseColor("#1C1C1E"))
-            setStroke(1, Color.parseColor("#2C2C2E"))
+            setColor(cCard())
+            setStroke(1, cBorder())
         }
         setPadding(24, 20, 24, 20)
         layoutParams = LinearLayout.LayoutParams(
@@ -207,13 +363,39 @@ class CarPlayDashboardActivity : Activity() {
         c.addView(TextView(this).apply {
             text = value.tag as String
             textSize = 12f
-            setTextColor(Color.parseColor("#8E8E93"))
+            setTextColor(cCaption())
         })
         c.addView(value)
         return c
     }
 
-    // ---------- LIVE DATA ----------
+    /**
+     * Animacja interakcji (pkt 16.2): press = delikatne zmniejszenie
+     * karty do 97%, zwolnienie = powrot do 100%. Bez sprezynowania.
+     */
+    private fun pressable(v: View, onTap: () -> Unit) {
+        v.setOnTouchListener { _, e ->
+            when (e.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    v.scaleX = 0.97f; v.scaleY = 0.97f
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    v.scaleX = 1f; v.scaleY = 1f
+                    if (e.action == MotionEvent.ACTION_UP &&
+                        isClick(e, v)) onTap()
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun isClick(e: MotionEvent, v: View): Boolean {
+        return e.x >= 0 && e.x <= v.width && e.y >= 0 && e.y <= v.height
+    }
+
+    // ---------- LIVE DATA (pkt 17-18) ----------
 
     private fun buildLivePage(): View {
         val page = LinearLayout(this).apply {
@@ -245,8 +427,8 @@ class CarPlayDashboardActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply {
                 cornerRadius = 16f
-                setColor(Color.parseColor("#1C1C1E"))
-                setStroke(1, Color.parseColor("#2C2C2E"))
+                setColor(cCard())
+                setStroke(1, cBorder())
             }
             setPadding(20, 14, 20, 14)
             layoutParams = LinearLayout.LayoutParams(
@@ -258,12 +440,12 @@ class CarPlayDashboardActivity : Activity() {
         head.addView(TextView(this).apply {
             text = name
             textSize = 13f
-            setTextColor(Color.WHITE)
+            setTextColor(cText())
         })
         val status = TextView(this).apply {
             text = "BRAK DANYCH"
             textSize = 11f
-            setTextColor(Color.parseColor("#8E8E93"))
+            setTextColor(cCaption())
             gravity = Gravity.END
         }
         head.addView(status, LinearLayout.LayoutParams(
@@ -273,7 +455,7 @@ class CarPlayDashboardActivity : Activity() {
         val value = TextView(this).apply {
             text = "--- " + unit
             textSize = 24f
-            setTextColor(Color.WHITE)
+            setTextColor(cText())
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
         row.addView(head)
@@ -282,12 +464,20 @@ class CarPlayDashboardActivity : Activity() {
         paramValueViews[name] = value
         paramStatusViews[name] = status
 
-        // Multi-Select: tap zaznacza/odznacza, max 4 (FIFO - najstarszy wypada)
+        // Multi-Select (pkt 17.2): max 4; nadmiar FIFO albo blokada z tostem
+        // (dokument nierozstrzygniety -> konfigurowalne, domyslnie FIFO)
         row.setOnClickListener {
             if (selection.contains(name)) {
                 selection.remove(name)
             } else {
-                if (selection.size >= 4) selection.removeAt(0)
+                if (selection.size >= 4) {
+                    if (!overflowFifo) {
+                        Toast.makeText(this, "Maksymalnie 4 wykresy",
+                            Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    selection.removeAt(0)
+                }
                 selection.add(name)
             }
             rebuildCharts()
@@ -303,7 +493,7 @@ class CarPlayDashboardActivity : Activity() {
         if (selection.isEmpty()) {
             chartsArea.addView(TextView(this).apply {
                 text = "Dotknij parametr, aby pokazac wykres (maks. 4)"
-                setTextColor(Color.parseColor("#8E8E93"))
+                setTextColor(cCaption())
                 textSize = 14f
                 gravity = Gravity.CENTER
             })
@@ -322,6 +512,7 @@ class CarPlayDashboardActivity : Activity() {
         }
     }
 
+    /** Matryca wykresow (pkt 18): 1 / 2 pionowo / 1+2 / 2x2. */
     private fun chartMatrix(n: Int) {
         when (n) {
             1 -> splitRow(hRow(), 1)
@@ -352,12 +543,12 @@ class CarPlayDashboardActivity : Activity() {
 
     private val cells = ArrayList<FrameLayout>()
 
+    /** Zaznaczenie = ramka w kolorze akcentu (pkt 17.2). */
     private fun highlightSelection() {
         for ((name, row) in paramRows) {
             (row.background as? GradientDrawable)?.setStroke(
                 if (selection.contains(name)) 3 else 1,
-                if (selection.contains(name)) Color.parseColor("#0A84FF")
-                else Color.parseColor("#2C2C2E")
+                if (selection.contains(name)) accent else cBorder()
             )
         }
     }
@@ -387,8 +578,17 @@ class CarPlayDashboardActivity : Activity() {
         ovSpeed.text = if (s.speedKmh >= 0) s.speedKmh.toString() + " km/h" else "---"
         ovVolt.text = if (s.voltage.isNaN()) "---" else String.format("%.1f V", s.voltage)
         ovEct.text = if (s.ectC.isNaN()) "---" else String.format("%.0f C", s.ectC)
+        // DTC z PID 0101 (pkt 16: karta z licznikiem; tap -> DTC Manager)
+        ovDtc.text = when {
+            s.milOn -> "MIL " + (if (s.dtcCount > 0) s.dtcCount else "!")
+            s.dtcCount > 0 -> s.dtcCount.toString()
+            s.dtcCount == 0 -> "0"
+            else -> "---"
+        }
+        ovDtc.setTextColor(if (s.milOn || s.dtcCount > 0)
+            Color.parseColor("#FF453A") else cText())
         ovConn.text = when {
-            s.connected -> "POLACZONO"
+            s.connected -> "OBD OK"
             s.connecting -> "LACZENIE..."
             else -> "OFFLINE"
         }
@@ -421,12 +621,13 @@ class CarPlayDashboardActivity : Activity() {
         if (!s.voltage.isNaN()) pushChart("VOLT", s.voltage, now)
     }
 
+    /** Status parametru (pkt 17.1) - bez fabrykacji: brak danych pozostaje neutralny. */
     private fun updateParam(name: String, v: Float, unit: String, have: Boolean, stale: Boolean) {
         val tv = paramValueViews[name] ?: return
         val st = paramStatusViews[name] ?: return
         tv.text = if (!have) "--- " + unit else fmt(v) + " " + unit
         when {
-            !have -> { st.text = "BRAK DANYCH"; st.setTextColor(Color.parseColor("#8E8E93")) }
+            !have -> { st.text = "BRAK DANYCH"; st.setTextColor(cCaption()) }
             stale -> { st.text = "NIEAKTUALNE"; st.setTextColor(Color.parseColor("#FF9F0A")) }
             inNormalRange(name, v) -> { st.text = "NORMAL"; st.setTextColor(Color.parseColor("#30D158")) }
             isCritical(name, v) -> { st.text = "KRYTYCZNY"; st.setTextColor(Color.parseColor("#FF453A")) }

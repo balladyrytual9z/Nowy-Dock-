@@ -308,6 +308,21 @@ class ObdSettingsActivity : Activity() {
             Pair("units", "km/h <-> mph"),
             Pair("dtc", "szybkie kasowanie DTC"),
             Pair("none", "brak akcji"))))
+        b.addView(header("CarPlay Dashboard (CZESC III)"))
+        b.addView(caption("Kolor akcentu interfejsu (pigulki, zaznaczenia, QUICK BUTTON)"))
+        b.addView(cycleBtn("carplay_accent", "Akcent", arrayOf(
+            Pair("blue", "niebieski"),
+            Pair("red", "czerwony Type-R"),
+            Pair("green", "zielony Civic"))))
+        b.addView(caption("QUICK BUTTON - przypity dolny pasek docka"))
+        b.addView(cycleBtn("quick_button_action", "Szybki przycisk", arrayOf(
+            Pair("save", "zapisz event (czarna skrzynka)"),
+            Pair("reconnect", "wymus reconnect OBD"),
+            Pair("cleardtc", "kasuj DTC"))))
+        b.addView(caption("Multi-Select: co sie dzieje z 5. parametrem przy pelnych 4 wykresach"))
+        b.addView(cycleBtn("multi_select_overflow", "5. parametr", arrayOf(
+            Pair("fifo", "zastepuje najstarszy (FIFO)"),
+            Pair("block", "blokuje z komunikatem"))))
         return p
     }
 
