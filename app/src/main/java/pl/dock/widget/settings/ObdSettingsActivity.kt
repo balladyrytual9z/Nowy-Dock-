@@ -353,6 +353,8 @@ class ObdSettingsActivity : Activity() {
         val slotDefs = arrayOf(
             Triple("widget_p1", "Slot 1", arrayOf(
                 Pair("RPM", "RPM"), Pair("SPEED", "predkosc"),
+                Pair("MAF", "przeplyw powietrza"), Pair("BARO", "cisnienie baro"),
+                Pair("AFR", "sonda AFR"),
                 Pair("LOAD", "obciazenie"), Pair("TPS", "przepustnica"),
                 Pair("MAP", "MAP"), Pair("ECT", "temp. plynu"),
                 Pair("IAT", "temp. dolotowa"), Pair("STFT", "korekta krotka"),
@@ -360,6 +362,8 @@ class ObdSettingsActivity : Activity() {
                 Pair("NONE", "pusty"))),
             Triple("widget_p2", "Slot 2", arrayOf(
                 Pair("SPEED", "predkosc"), Pair("RPM", "RPM"),
+                Pair("MAF", "przeplyw powietrza"), Pair("BARO", "cisnienie baro"),
+                Pair("AFR", "sonda AFR"),
                 Pair("LOAD", "obciazenie"), Pair("TPS", "przepustnica"),
                 Pair("MAP", "MAP"), Pair("ECT", "temp. plynu"),
                 Pair("IAT", "temp. dolotowa"), Pair("STFT", "korekta krotka"),
@@ -367,6 +371,8 @@ class ObdSettingsActivity : Activity() {
                 Pair("NONE", "pusty"))),
             Triple("widget_p3", "Slot 3", arrayOf(
                 Pair("NONE", "pusty"), Pair("ECT", "temp. plynu"),
+                Pair("MAF", "przeplyw powietrza"), Pair("BARO", "cisnienie baro"),
+                Pair("AFR", "sonda AFR"),
                 Pair("IAT", "temp. dolotowa"), Pair("LOAD", "obciazenie"),
                 Pair("TPS", "przepustnica"), Pair("MAP", "MAP"),
                 Pair("STFT", "korekta krotka"), Pair("LTFT", "korekta dluga"),
@@ -374,6 +380,8 @@ class ObdSettingsActivity : Activity() {
                 Pair("SPEED", "predkosc"))),
             Triple("widget_p4", "Slot 4", arrayOf(
                 Pair("NONE", "pusty"), Pair("LTFT", "korekta dluga"),
+                Pair("MAF", "przeplyw powietrza"), Pair("BARO", "cisnienie baro"),
+                Pair("AFR", "sonda AFR"),
                 Pair("VOLT", "napiecie"), Pair("ECT", "temp. plynu"),
                 Pair("IAT", "temp. dolotowa"), Pair("LOAD", "obciazenie"),
                 Pair("TPS", "przepustnica"), Pair("MAP", "MAP"),

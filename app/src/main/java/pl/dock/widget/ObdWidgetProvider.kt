@@ -41,6 +41,9 @@ class ObdWidgetProvider : AppWidgetProvider() {
             "IAT" to "C",
             "STFT" to "%",
             "LTFT" to "%",
+            "MAF" to "g/s",
+            "BARO" to "kPa",
+            "AFR" to ":1",
             "VOLT" to "V")
 
         @Volatile private var cached: VehicleUiState? = null
@@ -89,6 +92,9 @@ class ObdWidgetProvider : AppWidgetProvider() {
             "IAT" -> if (!s.iatC.isNaN()) String.format("%.0f", s.iatC) else "--"
             "STFT" -> if (!s.stftPct.isNaN()) String.format("%.1f", s.stftPct) else "--"
             "LTFT" -> if (!s.ltftPct.isNaN()) String.format("%.1f", s.ltftPct) else "--"
+            "MAF" -> if (!s.mafGs.isNaN()) String.format("%.1f", s.mafGs) else "--"
+            "BARO" -> if (!s.baroKpa.isNaN()) String.format("%.0f", s.baroKpa) else "--"
+            "AFR" -> if (!s.lambdaAfr.isNaN()) String.format("%.1f", s.lambdaAfr) else "--"
             "VOLT" -> if (!s.voltage.isNaN()) String.format("%.1f", s.voltage) else "--"
             else -> "--"
         }
