@@ -316,9 +316,11 @@ class CarPlayDashboardActivity : Activity() {
         val bigCard = card()
         bigCard.orientation = LinearLayout.HORIZONTAL
         val bigColL = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        bigColL.addView(captionRow("RPM"))
         ovRpm = bigValue("RPM")
         bigColL.addView(ovRpm)
         val bigColR = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        bigColR.addView(captionRow("SPEED"))
         ovSpeed = bigValue("SPEED")
         bigColR.addView(ovSpeed)
         bigCard.addView(bigColL, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -371,14 +373,30 @@ class CarPlayDashboardActivity : Activity() {
 
     private fun cardWith(value: TextView): LinearLayout {
         val c = card()
-        c.addView(TextView(this).apply {
-            text = value.tag as String
-            textSize = 12f
-            setTextColor(cCaption())
-        })
+        c.addView(captionRow(value.tag as String))
         c.addView(value)
         return c
     }
+
+    /**
+     * Naglowek karty: ikona wektorowa 24x24 + podpis (pkt 16).
+     * Glify w CardIcon - jeden spojny styl, bez plikow zasobow.
+     */
+    private fun captionRow(caption: String): View =
+        LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(View(this@CarPlayDashboardActivity).apply {
+                background = CardIcon.forCard(caption)
+                layoutParams = LinearLayout.LayoutParams(dp(24), dp(24)).apply {
+                    setMargins(0, 2, 10, 0)
+                }
+            })
+            addView(TextView(this@CarPlayDashboardActivity).apply {
+                text = caption
+                textSize = 12f
+                setTextColor(cCaption())
+            })
+        }
 
     /**
      * Animacja interakcji (pkt 16.2): press = delikatne zmniejszenie
