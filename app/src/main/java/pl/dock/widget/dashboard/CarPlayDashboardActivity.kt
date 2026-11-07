@@ -31,7 +31,9 @@ import pl.dock.widget.report.EReportActivity
 import pl.dock.widget.repository.VehicleUiState
 import pl.dock.widget.settings.ObdSettingsActivity
 import pl.dock.widget.trip.TripActivity
+import pl.dock.widget.analytics.CorrelationAnalyzer
 import pl.dock.widget.ui.ChartView
+import pl.dock.widget.ui.OverlayChartView
 import pl.dock.widget.util.SolarTimes
 
 /**
@@ -91,6 +93,12 @@ class CarPlayDashboardActivity : Activity() {
     private var chartRangeMs = 30_000L   // zakres osi czasu (pkt 18.4)
     private lateinit var rangeBtn: Button
     private lateinit var exportBtn: Button
+    private lateinit var overlayBtn: Button
+    private var overlayMode = false            // pkt 19 Multi-Overlay
+    private var overlayChart: OverlayChartView? = null
+    private var ribbon: TextView? = null        // Correlation Ribbon (pkt 19)
+    private val lastOvPushMs = HashMap<String, Long>()
+    private var lastAnalysisMs = 0L
 
     private val params = linkedMapOf(
         "RPM" to "obr/min",
@@ -428,9 +436,12 @@ class CarPlayDashboardActivity : Activity() {
             applyRange()
         }
         exportBtn = miniBtn("EKSPORT PNG") { exportCharts() }
+        overlayBtn = miniBtn("OVERLAY: OFF") { toggleOverlay() }
         controls.addView(rangeBtn, LinearLayout.LayoutParams(
             0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         controls.addView(exportBtn, LinearLayout.LayoutParams(
+            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        controls.addView(overlayBtn, LinearLayout.LayoutParams(
             0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         chartsArea = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -536,6 +547,7 @@ class CarPlayDashboardActivity : Activity() {
             else -> "30 S"
         }
         for (ch in charts.values) ch.timeRangeMs = chartRangeMs
+        overlayChart?.timeRangeMs = chartRangeMs
     }
 
     /** Eksport PNG (pkt 18.6): wszystkie widoczne wykresy, z legenda i data. */
@@ -565,6 +577,12 @@ class CarPlayDashboardActivity : Activity() {
         chartsArea.removeAllViews()
         charts.clear()
         cells.clear()
+        overlayChart = null
+        ribbon = null
+        if (overlayMode) {
+            buildOverlay()
+            return
+        }
         if (selection.isEmpty()) {
             chartsArea.addView(TextView(this).apply {
                 text = "Dotknij parametr, aby pokazac wykres (maks. 4)"
@@ -695,6 +713,8 @@ class CarPlayDashboardActivity : Activity() {
         if (!s.mapKpa.isNaN() && !s.staleFlags.map) pushChart("MAP", s.mapKpa, now)
         if (!s.iatC.isNaN() && !s.staleFlags.iat) pushChart("IAT", s.iatC, now)
         if (!s.voltage.isNaN()) pushChart("VOLT", s.voltage, now)
+
+        if (overlayMode) pushOverlay(s, now)
     }
 
     /** Status parametru (pkt 17.1) - bez fabrykacji: brak danych pozostaje neutralny. */
@@ -726,6 +746,86 @@ class CarPlayDashboardActivity : Activity() {
         "VOLT" -> v < 10.5f
         "LTFT" -> v > 20f || v < -20f
         else -> false
+    }
+
+    // ---------- Multi-Overlay + Correlation Ribbon (pkt 19) ----------
+
+    /** Overlay pokazuje ZAZNACZONE parametry (pkt 19: wybor parametrow). */
+    private fun toggleOverlay() {
+        overlayMode = !overlayMode
+        overlayBtn.text = if (overlayMode) "OVERLAY: ON" else "OVERLAY: OFF"
+        rebuildCharts()
+    }
+
+    private fun buildOverlay() {
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val oc = OverlayChartView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+            timeRangeMs = chartRangeMs
+        }
+        for (name in params.keys) oc.setUnit(name, params[name] ?: "")
+        overlayChart = oc
+        ribbon = TextView(this).apply {
+            text = "[BRAK] Zbieram dane do analizy korelacji..."
+            textSize = 12f
+            setTextColor(cCaption())
+            setPadding(16, 16, 16, 16)
+            background = GradientDrawable().apply {
+                cornerRadius = 12f
+                setColor(cCard())
+                setStroke(1, cBorder())
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(12, 8, 12, 12) }
+        }
+        col.addView(oc)
+        col.addView(ribbon)
+        chartsArea.addView(col, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT))
+    }
+
+    private fun paramValueOf(name: String, s: VehicleUiState): Pair<Float, Boolean> = when (name) {
+        "RPM" -> Pair(s.rpm.toFloat(), s.rpm >= 0)
+        "SPEED" -> Pair(s.speedKmh.toFloat(), s.speedKmh >= 0)
+        "LOAD" -> Pair(s.engineLoadPct, !s.engineLoadPct.isNaN())
+        "TPS" -> Pair(s.tpsPct, !s.tpsPct.isNaN())
+        "MAP" -> Pair(s.mapKpa, !s.mapKpa.isNaN())
+        "ECT" -> Pair(s.ectC, !s.ectC.isNaN())
+        "IAT" -> Pair(s.iatC, !s.iatC.isNaN())
+        "STFT" -> Pair(s.stftPct, !s.stftPct.isNaN())
+        "LTFT" -> Pair(s.ltftPct, !s.ltftPct.isNaN())
+        "VOLT" -> Pair(s.voltage, !s.voltage.isNaN())
+        else -> Pair(Float.NaN, false)
+    }
+
+    /**
+     * Push do overlay + Correlation Ribbon: UI prezentuje wylacznie
+     * tekst modulu analitycznego (pkt 19 - UI nie wymysla diagnozy).
+     * Analiza odswiezana najwyzej co 5 s, ze nie przeciazac UI.
+     */
+    private fun pushOverlay(s: VehicleUiState, now: Long) {
+        val oc = overlayChart ?: return
+        for (name in selection) {
+            val (v, have) = paramValueOf(name, s)
+            if (have && now - lastOvPushMs.getOrPut(name) { 0L } >= 250) {
+                lastOvPushMs[name] = now
+                oc.push(name, v, now)
+            }
+        }
+        if (now - lastAnalysisMs >= 5000) {
+            lastAnalysisMs = now
+            val rep = CorrelationAnalyzer.analyze(oc.snapshot())
+            ribbon?.text = "[" + rep.status + "] " + rep.text
+            ribbon?.setTextColor(when (rep.status) {
+                CorrelationAnalyzer.STATUS_INFO -> Color.parseColor("#FF9F0A")
+                CorrelationAnalyzer.STATUS_OK -> Color.parseColor("#30D158")
+                else -> cCaption()
+            })
+        }
     }
 
     private fun pushChart(name: String, v: Float, t: Long) {
