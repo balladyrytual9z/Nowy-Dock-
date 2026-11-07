@@ -90,7 +90,7 @@ public class ColorTempTest {
     }
 
     @Test
-    public void kolorNakladkiJestNasyconty() {
+    public void kolorNakladkiJestNasycony() {
         // To jest roznica miedzy "zolty jak iOS" a "blady": przy typowym
         // ustawieniu (sila 40 -> f=0.5) kanaly koloru maja byc gleboko
         // sciete, a nie ledwo odjete jak przy liniowym Kelvinie.
