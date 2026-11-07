@@ -66,6 +66,31 @@ public final class Maneuvers {
         return String.valueOf(Math.round(meters)) + " m";
     }
 
+    /** Podpowiedz pasow ruchu po polsku: wskazania OSRM ("through", "right", ...). */
+    public static String laneHint(String[] indications) {
+        if (indications == null || indications.length == 0) return "";
+        boolean hasThrough = false;
+        boolean hasRight = false;
+        boolean hasLeft = false;
+        boolean hasUturn = false;
+        for (int i = 0; i < indications.length; i++) {
+            String s = indications[i] == null ? "" : indications[i];
+            if ("through".equals(s)) hasThrough = true;
+            else if ("right".equals(s) || "sharp right".equals(s)) hasRight = true;
+            else if ("left".equals(s) || "sharp left".equals(s)) hasLeft = true;
+            else if ("uturn".equals(s)) hasUturn = true;
+        }
+        if (hasUturn && !hasThrough && !hasRight && !hasLeft) return "zawróć z właściwego pasa";
+        if (hasThrough && hasRight && hasLeft) return "pas prosty (lewy i prawy do skrętu)";
+        if (hasThrough && hasRight) return "pas prosty lub prawy";
+        if (hasThrough && hasLeft) return "pas prosty lub lewy";
+        if (hasRight && hasLeft) return "pas lewy lub prawy";
+        if (hasRight) return "prawy pas";
+        if (hasLeft) return "lewy pas";
+        if (hasThrough) return "pas prosty";
+        return "";
+    }
+
     /** "4 min" (zaokraglenie, min. 1 min). */
     public static String minText(double seconds) {
         long m = Math.round(seconds / 60d);
