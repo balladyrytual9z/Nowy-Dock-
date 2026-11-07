@@ -300,7 +300,7 @@ class ObdDiscoveryActivity : Activity() {
             appendLine("Zaplon (010E): " + fmt(s.sparkAdvDeg) + " deg")
             appendLine("Wtrysk (2101): " + fmt(s.injectionMs) + " ms")
         }
-        ObdWidgetProvider.push(this, s.rpm, s.speedKmh, s.voltage, s.connected)
+        ObdWidgetProvider.push(this, s)
     }
 
     /** Kolorowa kropka statusu polaczenia (cache po kolorze - bez alokacji na klatke). */

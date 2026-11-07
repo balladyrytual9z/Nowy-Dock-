@@ -3,51 +3,172 @@
     android:id="@+id/obd_widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="horizontal"
-    android:gravity="center_vertical"
-    android:paddingLeft="6dp"
-    android:paddingRight="6dp"
-    android:background="@drawable/bg_classic_night">
+    android:orientation="vertical"
+    android:padding="10dp"
+    android:background="@drawable/obd_widget_bg">
 
-    <TextView
-        android:id="@+id/obd_rpm"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="#FFFFFFFF"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:text="--" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textColor="#99FFFFFF"
-        android:textSize="10sp"
-        android:text=" rpm" />
+        <TextView
+            android:id="@+id/obd_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#99FFFFFF"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:text="DOCK OBD" />
 
-    <TextView
-        android:id="@+id/obd_speed"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginLeft="8dp"
-        android:textColor="#FFFFFFFF"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:text="--" />
+        <TextView
+            android:id="@+id/obd_stale"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#99FFFFFF"
+            android:textSize="10sp"
+            android:text="" />
+    </LinearLayout>
 
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:id="@+id/obd_p1_row"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="#99FFFFFF"
-        android:textSize="10sp"
-        android:text=" km/h" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
 
-    <TextView
-        android:id="@+id/obd_stale"
-        android:layout_width="wrap_content"
+        <TextView
+            android:id="@+id/obd_p1_name"
+            android:layout_width="52dp"
+            android:layout_height="wrap_content"
+            android:textColor="#99FFFFFF"
+            android:textSize="11sp"
+            android:text="RPM" />
+
+        <TextView
+            android:id="@+id/obd_p1_val"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#FFFFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:text="--" />
+
+        <TextView
+            android:id="@+id/obd_p1_unit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#99FFFFFF"
+            android:textSize="10sp"
+            android:text="" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/obd_p2_row"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginLeft="6dp"
-        android:textColor="#99FFFFFF"
-        android:textSize="10sp"
-        android:text="" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+
+        <TextView
+            android:id="@+id/obd_p2_name"
+            android:layout_width="52dp"
+            android:layout_height="wrap_content"
+            android:textColor="#99FFFFFF"
+            android:textSize="11sp"
+            android:text="RPM" />
+
+        <TextView
+            android:id="@+id/obd_p2_val"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#FFFFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:text="--" />
+
+        <TextView
+            android:id="@+id/obd_p2_unit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#99FFFFFF"
+            android:textSize="10sp"
+            android:text="" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/obd_p3_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+
+        <TextView
+            android:id="@+id/obd_p3_name"
+            android:layout_width="52dp"
+            android:layout_height="wrap_content"
+            android:textColor="#99FFFFFF"
+            android:textSize="11sp"
+            android:text="RPM" />
+
+        <TextView
+            android:id="@+id/obd_p3_val"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#FFFFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:text="--" />
+
+        <TextView
+            android:id="@+id/obd_p3_unit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#99FFFFFF"
+            android:textSize="10sp"
+            android:text="" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/obd_p4_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+
+        <TextView
+            android:id="@+id/obd_p4_name"
+            android:layout_width="52dp"
+            android:layout_height="wrap_content"
+            android:textColor="#99FFFFFF"
+            android:textSize="11sp"
+            android:text="RPM" />
+
+        <TextView
+            android:id="@+id/obd_p4_val"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#FFFFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:text="--" />
+
+        <TextView
+            android:id="@+id/obd_p4_unit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#99FFFFFF"
+            android:textSize="10sp"
+            android:text="" />
+    </LinearLayout>
 </LinearLayout>

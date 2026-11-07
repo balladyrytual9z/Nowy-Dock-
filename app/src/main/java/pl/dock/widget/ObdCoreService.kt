@@ -208,7 +208,7 @@ class ObdCoreService : Service() {
                 }
 
                 // --- widget feed (throttled inside) ----------------------------
-                ObdWidgetProvider.push(this@ObdCoreService, s.rpm, s.speedKmh, s.voltage, s.connected)
+                ObdWidgetProvider.push(this@ObdCoreService, s)
 
                 // --- periodic Mode 06 (misfire), bramkowane ustawieniem analytics ---
                 if (analyticsOn && s.connected && now - lastMode06Ms >= MODE06_MS) {

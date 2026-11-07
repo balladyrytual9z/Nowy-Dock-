@@ -347,6 +347,39 @@ class ObdSettingsActivity : Activity() {
         b.addView(toggleBtn("ov_card_ECT", "Karta temperatura"))
         b.addView(toggleBtn("ov_card_DTC", "Karta DTC"))
         b.addView(toggleBtn("ov_card_OBD", "Karta status OBD"))
+        b.addView(header("Widzet OBD (pkt 38)"))
+        b.addView(caption("Wybor do 4 parametrow widzetu na ekranie " +
+            "glownym; slot pusty = krotszy widzet"))
+        val slotDefs = arrayOf(
+            Triple("widget_p1", "Slot 1", arrayOf(
+                Pair("RPM", "RPM"), Pair("SPEED", "predkosc"),
+                Pair("LOAD", "obciazenie"), Pair("TPS", "przepustnica"),
+                Pair("MAP", "MAP"), Pair("ECT", "temp. plynu"),
+                Pair("IAT", "temp. dolotowa"), Pair("STFT", "korekta krotka"),
+                Pair("LTFT", "korekta dluga"), Pair("VOLT", "napiecie"),
+                Pair("NONE", "pusty"))),
+            Triple("widget_p2", "Slot 2", arrayOf(
+                Pair("SPEED", "predkosc"), Pair("RPM", "RPM"),
+                Pair("LOAD", "obciazenie"), Pair("TPS", "przepustnica"),
+                Pair("MAP", "MAP"), Pair("ECT", "temp. plynu"),
+                Pair("IAT", "temp. dolotowa"), Pair("STFT", "korekta krotka"),
+                Pair("LTFT", "korekta dluga"), Pair("VOLT", "napiecie"),
+                Pair("NONE", "pusty"))),
+            Triple("widget_p3", "Slot 3", arrayOf(
+                Pair("NONE", "pusty"), Pair("ECT", "temp. plynu"),
+                Pair("IAT", "temp. dolotowa"), Pair("LOAD", "obciazenie"),
+                Pair("TPS", "przepustnica"), Pair("MAP", "MAP"),
+                Pair("STFT", "korekta krotka"), Pair("LTFT", "korekta dluga"),
+                Pair("VOLT", "napiecie"), Pair("RPM", "RPM"),
+                Pair("SPEED", "predkosc"))),
+            Triple("widget_p4", "Slot 4", arrayOf(
+                Pair("NONE", "pusty"), Pair("LTFT", "korekta dluga"),
+                Pair("VOLT", "napiecie"), Pair("ECT", "temp. plynu"),
+                Pair("IAT", "temp. dolotowa"), Pair("LOAD", "obciazenie"),
+                Pair("TPS", "przepustnica"), Pair("MAP", "MAP"),
+                Pair("STFT", "korekta krotka"), Pair("RPM", "RPM"),
+                Pair("SPEED", "predkosc"))))
+        for (d in slotDefs) b.addView(cycleBtn(d.first, d.second, d.third))
         return p
     }
 
