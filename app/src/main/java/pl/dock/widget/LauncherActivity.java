@@ -478,6 +478,11 @@ public class LauncherActivity extends BaseActivity {
 
             @Override
             public void onBottom() {
+                if (overlay != null) {
+                    // otwarte centrum lacznosci: dolny przycisk je zamyka
+                    toggleOverlay();
+                    return;
+                }
                 if (pager.position() < homeIdx + 0.5f) {
                     pager.goTo(appsStart, true);
                 } else {
@@ -498,7 +503,11 @@ public class LauncherActivity extends BaseActivity {
                 int total = Math.max(1, pager.count() - 1);
                 bg.setParallax(Prefs.parallax(LauncherActivity.this) ? pos / total : 0f);
                 float t = Math.max(0f, Math.min(1f, pos - homeIdx));
-                dock.setBottomProgress(t);
+                if (overlay == null) {
+                    dock.setBottomProgress(t);
+                }
+                // przy otwartym centrum lacznosci dolny przycisk zostaje przy
+                // ikonie zamkniecia (setBottomProgress wyzerowalby bottomMode)
                 // Nie ciemniej strony widżetów w trybie dziennym
                 bg.setNightBlend(0f);
                 dock.setNightBlend(0f);
@@ -1329,6 +1338,8 @@ public class LauncherActivity extends BaseActivity {
 
     private void showOverlayAt(float gestureX) {
         if (overlay != null) return;
+        // dolny przycisk doka = ikona "zamknij centrum lacznosci"
+        if (dock != null) dock.setBottomMode(DockView.BOTTOM_CC);
         Bitmap snap = null;
         try {
             // migawka 1/4 rozmiaru ekranu (jak w iOS: gladziej rozmyte tlo
@@ -1444,6 +1455,14 @@ public class LauncherActivity extends BaseActivity {
         if (ov == null) return;
         overlay = null;
         panel = null;
+        // zamkniecie centrum lacznosci: wroc do normalnego glifu dolnego
+        // przycisku (crossfade siatka/kwadrat wg biezacej strony)
+        if (dock != null) {
+            dock.setBottomMode(-1);
+            if (pager != null) {
+                dock.setBottomProgress(Math.max(0f, Math.min(1f, pager.position() - homeIdx)));
+            }
+        }
         if (!animate || Prefs.reduceMotion(this)) {
             root.removeView(ov);
             return;
