@@ -56,6 +56,12 @@ class UfoClusterFullView(context: Context) : View(context) {
             "ECT", "BOOST", "VOLTS", "FUEL", "TPS", "IAT", "LTFT", "STFT", "MAF", "BARO"
         )
 
+        /** Parametry dostepne jako pozycja wykresu w MID (pkt 8.7).
+         *  Pelna lista tego, co apka udostepnia - nic na stale. */
+        val CHART_KEYS = arrayOf(
+            "BOOST", "ECT", "VOLTS", "TPS", "IAT", "LTFT",
+            "STFT", "MAF", "BARO", "FUEL")
+
         fun labelOf(key: String): String = when (key) {
             "ECT" -> "ECT"
             "BOOST" -> "BOOST"
@@ -134,8 +140,27 @@ class UfoClusterFullView(context: Context) : View(context) {
     var onArcAssign: (left: Boolean) -> Unit = { _ -> }
 
     // ---------- LCD MID (pkt 8) ----------
-    private val midLoop = arrayOf("BOOST", "ECT", "VOLTAGE", "TPS", "IAT", "LTFT")
+    // Petla MID (pkt 8.6) + pozycje wykresow (pkt 8.7): wykres da sie
+    // przypisac do KAZDEGO parametru udostepnianego przez apke - lista
+    // nie jest ograniczona do stalego zbioru. Naprawa: bylo "VOLTAGE",
+    // a paramValue() obsluguje "VOLTS" - pozycja nigdy nie miala danych.
+    private val midLoop = arrayOf(
+        "BOOST", "ECT", "VOLTS", "TPS", "IAT", "LTFT",
+        "CHART:BOOST", "CHART:ECT", "CHART:VOLTS", "CHART:TPS",
+        "CHART:IAT", "CHART:LTFT", "CHART:STFT", "CHART:MAF",
+        "CHART:BARO", "CHART:FUEL")
     private var midIndex = 0
+
+    /** Klucz parametru z pozycji petli MID (bez prefiksu CHART:). */
+    private fun midKey(entry: String): String =
+        if (entry.startsWith("CHART:")) entry.substring(6) else entry
+
+    // Ring buffer 30 s historii dla wykresow MID (pkt 8.7).
+    // Bufory alokowane leniwie, zero alokacji w onDraw.
+    private val histVals = HashMap<String, FloatArray>()
+    private val histTs = HashMap<String, LongArray>()
+    private val histLen = HashMap<String, Int>()
+    private val histHead = HashMap<String, Int>()
     private val midMax = HashMap<String, Float>()
     private val midAvgSum = HashMap<String, Float>()
     private val midAvgCount = HashMap<String, Float>()
@@ -223,6 +248,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         connecting = s.connecting
         if (s.connected) lastDataMs = System.currentTimeMillis()
         trackMidStats()
+        pushAllHistory()
         postInvalidateOnAnimation()
     }
 
@@ -280,7 +306,7 @@ class UfoClusterFullView(context: Context) : View(context) {
     }
 
     private fun trackMidStats() {
-        val key = midLoop[midIndex]
+        val key = midKey(midLoop[midIndex])
         val value = paramValue(key)
         if (value.isNaN()) return
         val mx = midMax[key]
@@ -578,7 +604,8 @@ class UfoClusterFullView(context: Context) : View(context) {
     }
 
     private fun drawLcdMid(c: Canvas) {
-        val key = midLoop[midIndex]
+        val entry = midLoop[midIndex]
+        val key = midKey(entry)
         val v = paramValue(key)
         val have = !v.isNaN() && connected
 
@@ -590,20 +617,31 @@ class UfoClusterFullView(context: Context) : View(context) {
         pText.typeface = tfBold
         pText.textAlign = Paint.Align.LEFT
         c.drawText(key, 574f, 320f, pText)
-
-        // wartosc glowna: 38sp Monospace Bold + jednostka 14sp (pkt 8.3)
-        if (v != midMainSrc || key != midKeyCache) {
-            midMainSrc = v
-            midKeyCache = key
-            midMainCache = if (!have) "---" else fmtParam(key, v)
+        if (entry.startsWith("CHART:")) {
+            pText.textAlign = Paint.Align.RIGHT
+            pText.textSize = 16f
+            pText.typeface = Typeface.DEFAULT
+            c.drawText("WYKRES 30 S", 744f, 320f, pText)
         }
-        pMono.textSize = 56f
-        pMono.typeface = tfBoldMono
-        pMono.color = ink
-        pMono.textAlign = Paint.Align.RIGHT
-        c.drawText(midMainCache, 700f, 378f, pMono)
-        pMono.textSize = 24f
-        c.drawText(paramUnit(key), 744f, 378f, pMono)
+
+        // wartosc glowna: 38sp Monospace Bold + jednostka 14sp (pkt 8.3);
+        // pozycja wykresu (pkt 8.7) rysuje w tej strefie wykres 30 s
+        if (entry.startsWith("CHART:")) {
+            drawMidChart(c, key, have, ink)
+        } else {
+            if (v != midMainSrc || key != midKeyCache) {
+                midMainSrc = v
+                midKeyCache = key
+                midMainCache = if (!have) "---" else fmtParam(key, v)
+            }
+            pMono.textSize = 56f
+            pMono.typeface = tfBoldMono
+            pMono.color = ink
+            pMono.textAlign = Paint.Align.RIGHT
+            c.drawText(midMainCache, 700f, 378f, pMono)
+            pMono.textSize = 24f
+            c.drawText(paramUnit(key), 744f, 378f, pMono)
+        }
 
         // panel statystyk: interwal z lewej (pkt 8.5), MAX/AVG z prawej
         pText.color = if (have) Color.BLACK else LCD_OFF
@@ -633,7 +671,124 @@ class UfoClusterFullView(context: Context) : View(context) {
             else String.format("%.1f", v)
     }
 
-    private fun drawWingArc(c: Canvas, left: Boolean) {
+    // ---------- Wykres w LCD MID (pkt 8.7) ----------
+
+    /** Pojemnosc bufora: 30 s przy probkowaniu do 4 Hz. */
+    private val HIST_CAP = 128
+
+    /** Minimalny odstep probek [ms] - ~120 probek na 30 s. */
+    private val HIST_MIN_DT_MS = 250L
+
+    /** Historia WSZYSTKICH parametrow apki (pkt 8.7: pelna lista). */
+    private fun pushAllHistory() {
+        val now = System.currentTimeMillis()
+        for (k in CHART_KEYS) pushHistory(k, paramValue(k), now)
+    }
+
+    private fun pushHistory(key: String, v: Float, now: Long) {
+        if (v.isNaN()) return
+        val ts = histTs[key] ?: LongArray(HIST_CAP).also { histTs[key] = it }
+        val vs = histVals[key] ?: FloatArray(HIST_CAP).also { histVals[key] = it }
+        val len = histLen[key] ?: 0
+        val head = histHead[key] ?: 0
+        if (len > 0) {
+            val lastIdx = (head + len - 1) % HIST_CAP
+            if (now - ts[lastIdx] < HIST_MIN_DT_MS) {
+                vs[lastIdx] = v   // nadpisanie probki w oknie minimalnym
+                return
+            }
+        }
+        if (len < HIST_CAP) {
+            val idx = (head + len) % HIST_CAP
+            ts[idx] = now; vs[idx] = v
+            histLen[key] = len + 1
+        } else {
+            ts[head] = now; vs[head] = v
+            histHead[key] = (head + 1) % HIST_CAP
+        }
+    }
+
+    /**
+     * Wykres 30 s w gornej strefie LCD (pkt 8.7): gladka linia wektorowa
+     * + pikselowe wypelnienie pod linia (bloki 4x4 px). Skala liczona
+     * z widocznego okna 30 s (min/max + 10% marginesu) - bez zmyslonej
+     * skali. Brak probek = "ZBIERAM DANE...", nie udany przebieg.
+     */
+    private fun drawMidChart(c: Canvas, key: String, have: Boolean, ink: Int) {
+        val len = histLen[key] ?: 0
+        if (len < 2 || !have) {
+            pText.textAlign = Paint.Align.CENTER
+            pText.textSize = 20f
+            pText.typeface = tfBold
+            pText.color = LCD_OFF
+            c.drawText(if (have) "ZBIERAM DANE..." else "BRAK DANYCH", 640f, 366f, pText)
+            return
+        }
+        val head = histHead[key] ?: 0
+        val ts = histTs[key] ?: return
+        val vs = histVals[key] ?: return
+        val now = System.currentTimeMillis()
+        val winMs = 30_000L
+        val x0 = 534f
+        val x1 = 746f
+        val yBase = 394f
+        val yTop = 328f
+        var vmin = Float.MAX_VALUE
+        var vmax = -Float.MAX_VALUE
+        for (i in 0 until len) {
+            val v = vs[(head + i) % HIST_CAP]
+            if (v < vmin) vmin = v
+            if (v > vmax) vmax = v
+        }
+        if (vmax - vmin < 1e-4f) { vmax += 0.5f; vmin -= 0.5f }
+        val pad = (vmax - vmin) * 0.1f
+        vmax += pad; vmin -= pad
+
+        // pikselowe wypelnienie: bloki 4x4 pod przebiegiem (styl LCD)
+        val block = 4f
+        pFill.color = (ink and 0x00FFFFFF) or 0x30000000
+        for (i in 0 until len) {
+            val idx = (head + i) % HIST_CAP
+            val age = now - ts[idx]
+            if (age > winMs) continue
+            val x = x0 + (x1 - x0) * (1f - age.toFloat() / winMs)
+            val hRaw = (yBase - yTop) * ((vs[idx] - vmin) / (vmax - vmin))
+            val h = (Math.round(hRaw / block) * block.toInt()).toFloat()
+            if (h > 0f) c.drawRect(x - block / 2f, yBase - h, x + block / 2f, yBase, pFill)
+        }
+
+        // gladka linia wektorowa (wygladzanie quad przez srodki odcinkow)
+        needlePath.reset()
+        var px = 0f
+        var py = 0f
+        var started = false
+        for (i in 0 until len) {
+            val idx = (head + i) % HIST_CAP
+            val age = now - ts[idx]
+            if (age > winMs) continue
+            val x = x0 + (x1 - x0) * (1f - age.toFloat() / winMs)
+            val y = yBase - (yBase - yTop) * ((vs[idx] - vmin) / (vmax - vmin))
+            if (!started) {
+                needlePath.moveTo(x, y)
+                started = true
+            } else {
+                val mx = (px + x) / 2f
+                val my = (py + y) / 2f
+                needlePath.quadTo(px, py, mx, my)
+            }
+            px = x; py = y
+        }
+        if (started) {
+            needlePath.lineTo(px, py)
+            pStroke.color = ink
+            pStroke.strokeWidth = 2.5f
+            pStroke.style = Paint.Style.STROKE
+            c.drawPath(needlePath, pStroke)
+            pStroke.style = Paint.Style.FILL
+        }
+    }
+
+        private fun drawWingArc(c: Canvas, left: Boolean) {
         val key = if (left) leftLoop[leftIndex] else rightLoop[rightIndex]
         val v = paramValue(key)
         val alarm = arcAlarm(key, v)
@@ -820,7 +975,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         // na dolnym panelu = reset MAX/AVG
         if (x in LCD_L..LCD_R && y in LCD_T..LCD_B) {
             if (y > 400f && holdMs > 1500) {
-                val key = midLoop[midIndex]
+                val key = midKey(midLoop[midIndex])
                 midMax.remove(key); midAvgSum.remove(key); midAvgCount.remove(key)
             } else {
                 midIndex = (midIndex + 1) % midLoop.size
