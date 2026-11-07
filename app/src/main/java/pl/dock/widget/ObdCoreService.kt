@@ -107,6 +107,8 @@ class ObdCoreService : Service() {
     private var lastMode06Ms = 0L
     private var accOffMs = 0L
     @Volatile private var lastAlert: String? = null
+    /** Odbiornik resume po zaplonie ON (patrz startIgnitionResume). */
+    private var ignitionResume: BroadcastReceiver? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -122,6 +124,7 @@ class ObdCoreService : Service() {
         nano.start()
         startForeground(NOTIF_ID, buildNotification("Dock OBD core aktywny"))
         autoConnect()
+        startIgnitionResume()
         observeTelemetry()
         Log.i(TAG, "ObdCoreService created (WAL db + NanoServer :" + NanoServer.DEFAULT_PORT + ")")
     }
@@ -303,8 +306,51 @@ class ObdCoreService : Service() {
             .build()
     }
 
+    /**
+     * RESUME PO ZAPLONIE ON (dokonczenie ACC Watchdog - KROK 2 z sesji 3):
+     * po rozlaczeniu BT przez watchdog (silnik stoi, akumulator slabnie)
+     * powrot kierowcy z zaplonem ON budzi radio -> ACTION_SCREEN_ON albo
+     * ACTION_POWER_CONNECTED. Po 2.5 s settle (ECU Keihin budzi CAN po chwili)
+     * wolamy autoConnect() - ten sam kod co po starcie uslugi: szanuje
+     * adapter_mac, pair_lock i nic nie robi, gdy sesja juz zyje.
+     * Reczna droga to QUICK BUTTON "wymus reconnect" w CarPlay Dashboard.
+     */
+    private fun startIgnitionResume() {
+        if (ignitionResume != null) return
+        val r = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context, intent: Intent) {
+                when (intent.action) {
+                    Intent.ACTION_SCREEN_ON, Intent.ACTION_POWER_CONNECTED -> {
+                        scope.launch {
+                            delay(2500)   // settle: zaplon ON, ECU budzi CAN
+                            val st = manager.uiState.value
+                            if (!st.connected && !st.connecting) autoConnect()
+                        }
+                    }
+                }
+            }
+        }
+        try {
+            val f = IntentFilter()
+            f.addAction(Intent.ACTION_SCREEN_ON)
+            f.addAction(Intent.ACTION_POWER_CONNECTED)
+            registerReceiver(r, f)
+            ignitionResume = r
+        } catch (e: Exception) {
+            Log.w(TAG, "ignition resume register failed: " + e.message)
+        }
+    }
+
+    private fun stopIgnitionResume() {
+        ignitionResume?.let {
+            try { unregisterReceiver(it) } catch (ignored: Exception) {}
+        }
+        ignitionResume = null
+    }
+
     override fun onDestroy() {
         running = false
+        stopIgnitionResume()
         try { recorder.flush("SERVICE_STOP") } catch (ignored: Exception) {}
         nano.stop()
         audio.release()

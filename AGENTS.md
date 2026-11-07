@@ -624,3 +624,41 @@ Kolejnosc dalszych prac wg dokumentu: (1) progi w Ustawieniach OBD,
 matryca wykresow 18.x, Multi-Overlay 19), (3) wykres w LCD MID (pkt 8.7:
 30 s historii, wybor parametrow), (4) moduly CZESCI IV (DTC freeze frame,
 Misfire Lab), (5) Room/logging, (6) IgnitionMonitor (Engine OFF/RUNNING).
+
+## 2026-11-07 (sesja 5: CarPlay Dashboard wg CZESCI III + ustawienia + resume po zaplonie)
+
+User: "rob wszystkie 5 punktow, sprawdz czy cale UI dziala, zostawiam Cie pracuj"
+(pelna autonomia). Kolejka z sesji 4 wykonana w ~80% - punkty (4) i (5) okazaly
+sie w wiekszosci zrobione wczesniej (audyt potwierdzil).
+
+- Commit c25483195c: ObdSettingsActivity - helpery numFieldDec (pole dziesietne,
+  TYPE_NUMBER_FLAG_DECIMAL - bez flagi klawiatura nie przyjmowala kropki) i
+  cycleBtn; zakladka ZEGARY: progi alarm_ect_max/alarm_volt_min/alarm_volt_max/
+  alarm_ltft_max/alarm_iat_max (pkt 10.7) + speed_tap_action (pkt 9.7).
+- Commit 326c8d77: CarPlayDashboardActivity wg CZESCI III. Dock: przewijalna
+  lista modulow (OVERVIEW/LIVE DATA/TRIP/BLACK BOX/MISFIRE/DTC/E-RAPORT/SERWIS)
+  + DOL PRZYPIETY (QUICK BUTTON/USTAWIENIA/HOME - pkt 15.2); aktywna zakladka
+  = pigulka akcentu; QUICK BUTTON konfigurowalny (quick_button_action:
+  save|reconnect|cleardtc; reconnect = manager.disconnect()+connect() - oba
+  NIE sa suspend, wywolanie z onClick jest poprawne). Karty tapowe z animacja
+  press 97% (pkt 16.2); karta DTC z PID 0101 (MIL/dtcCount -> DtcManager);
+  dzien/noc wg slonca (night_auto+lat/lon, domyslnie ciemny); akcent
+  carplay_accent (blue/red/green); Multi-Select max 4 wykresy, nadmiar
+  konfigurowalny multi_select_overflow (fifo|block+toast - dokument
+  nierozstrzygnal; decyzja: konfigurowalne, domyslnie FIFO). Nowa sekcja
+  "CarPlay Dashboard" w zakladce ZEGARY ustawien OBD.
+- Commit (ten): ObdCoreService - dokonczenie KROKU 2/IgnitionMonitor:
+  startIgnitionResume() na ACTION_SCREEN_ON + ACTION_POWER_CONNECTED -> po
+  2.5 s autoConnect(), gdy sesja nie zyje (szanuje adapter_mac/pair_lock).
+  Pelna petla: ACC watchdog rozlacza przy zaplonie OFF + V<12 V przez 3 min,
+  resume po powrocie zaplonu; recznie QUICK BUTTON reconnect.
+- STWIERDZONE GOTOWE (audyt, bez mojej zmiany): DtcManagerActivity ma juz
+  Freeze Frame (Mode 02), kasowanie (Mode 04), VIN (Mode 09); MisfireLab +
+  MisfireAnalyzer + Mode 06 co 30 s w ObdCoreService; BlackBox/AppDatabase
+  WAL + NanoServer CSV :8080 + TripActivity + VirtualDyno +
+  MechanicalHealthMonitor.
+- ZOSTAJE wg dokumentu: (a) wykres 30 s w LCD MID zegarow UFO (pkt 8.7),
+  (b) scrubber/crosshair + zakresy 30s/1m/5m + eksport PNG z legenda (18.x),
+  (c) Multi-Overlay 19 z Correlation Ribbon, (d) ikony na kartach CarPlay
+  (pkt 16), (e) klasyczny IgnitionMonitor OFF/ACC/RUN jako pelna maszyna
+  stanow (obecnie watchdog+resume).
