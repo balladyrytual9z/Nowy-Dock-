@@ -607,3 +607,12 @@ Kolejne funkcje "jak w Organic Maps" — dobrobudowane na module z sesji 4
 - Konwencje bez zmian: Java 1.8, float z sufiksem `f`, pełne kwalifikacje nowych
   klas Androida w NavigatorActivity (AlertDialog/Clipboard/ClipData), push
   bezpośrednio na `main`, build/test/release robi CI.
+
+## Sesja 2026-11-07 — dodatek 3b (ikony statusu doka)
+- Użytkownik na v1.0.380: centrum łączności "wygląda identycznie jak wcześniej" (dotychczasowy
+  lifting był zbyt subtelny — do redesignu panelu czekamy na SCREENSHOT otwartego centrum
+  łączności z tabletu; nie robić kolejnej ślepej iteracji) + "ikony są mikroskopijne pod zegarem".
+- Ustalone: chodzi o ikony statusu Wi-Fi/tethering/BT w doku, rysowane na 16 dp.
+- Naprawa: DockView.java — ikony statusu 16 -> 21 dp, pitch 19 -> 21 dp (x0 = cx-31.5 dp,
+  offsets +21/+42 dp), commit c54676ea. Trio 3x21=63 dp mieści się w szkle doka (65 dp).
+- Zasada komunikacji: nie deklarować "naprawione" aż użytkownik potwierdzi "działa" na urządzeniu.
