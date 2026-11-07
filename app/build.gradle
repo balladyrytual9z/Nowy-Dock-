@@ -1,3 +1,8 @@
+// CI cache-bust (2026-11-07): runy #313-#327 padaja w "Run Unit Tests"
+// exit 1 blyskawicznie i identycznie niezaleznie od tresci commitow
+// (kod delty kazdego z nich wyglada poprawnie) - podejrzenie zatrutego
+// cache Gradle zapisanego przez run #312. Ten komentarz zmienia hash
+// plikow build, wiec setup-gradle przywroci SWIEZY cache (~/.gradle).
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
