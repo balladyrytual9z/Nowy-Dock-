@@ -20,6 +20,8 @@ public final class GpxIo {
             "lat=\"([-0-9.]+)\"\\s+lon=\"([-0-9.]+)\"");
     private static final Pattern NAME = Pattern.compile(
             "<name>([^<]*)</name>");
+    private static final Pattern DESC = Pattern.compile(
+            "<desc>([^<]*)</desc>");
     private static final Pattern WPT = Pattern.compile(
             "<wpt\\b([^>]*)>(.*?)</wpt>", Pattern.DOTALL);
     private static final Pattern WPT_EMPTY = Pattern.compile(
@@ -47,6 +49,9 @@ public final class GpxIo {
             sb.append("<wpt lat=\"").append(fmt(b.lat)).append("\" lon=\"")
                     .append(fmt(b.lon)).append("\">\n");
             sb.append("<name>").append(xml(b.name)).append("</name>\n");
+            if (b.folder != null && b.folder.length() > 0) {
+                sb.append("<desc>").append(xml(b.folder)).append("</desc>\n");
+            }
             sb.append("</wpt>\n");
         }
         sb.append("</gpx>\n");
@@ -85,6 +90,9 @@ public final class GpxIo {
         for (int i = 0; i < list.size(); i++) {
             Bookmark b = list.get(i);
             sb.append("<Placemark>\n<name>").append(xml(b.name)).append("</name>\n");
+            if (b.folder != null && b.folder.length() > 0) {
+                sb.append("<desc>").append(xml(b.folder)).append("</desc>\n");
+            }
             sb.append("<Point><coordinates>").append(fmt(b.lon)).append(",")
                     .append(fmt(b.lat)).append(",0</coordinates></Point>\n");
             sb.append("</Placemark>\n");
@@ -104,7 +112,8 @@ public final class GpxIo {
             double[] ll = attr(m.group(1));
             if (ll == null) continue;
             String name = unxml(first(NAME, m.group(2)));
-            out.add(new Bookmark(0L, name, ll[0], ll[1], 0L));
+            String folder = unxml(first(DESC, m.group(2)));
+            out.add(new Bookmark(0L, name, ll[0], ll[1], 0L, folder, 0));
         }
         // wpt bez zawartosci (samosiezajace)
         if (out.isEmpty()) {
@@ -140,7 +149,8 @@ public final class GpxIo {
             double lon = Double.parseDouble(c.group(1));
             double lat = Double.parseDouble(c.group(2));
             String name = unxml(first(NAME, block));
-            out.add(new Bookmark(0L, name, lat, lon, 0L));
+            String folder = unxml(first(DESC, block));
+            out.add(new Bookmark(0L, name, lat, lon, 0L, folder, 0));
         }
         return out;
     }
