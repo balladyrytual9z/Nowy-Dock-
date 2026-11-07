@@ -23,14 +23,18 @@ public final class Guidance {
         public final double distToManeuverM;
         public final String instruction;
         public final int prompt;
+        public final int maxKmh;          // limit na aktualnym segmencie (0 = nieznany)
+        public final String laneHint;      // podpowiedz pasow nadchodzacego manewru
 
         Update(double remainingM, double etaS, double distToManeuverM,
-               String instruction, int prompt) {
+               String instruction, int prompt, int maxKmh, String laneHint) {
             this.remainingM = remainingM;
             this.etaS = etaS;
             this.distToManeuverM = distToManeuverM;
             this.instruction = instruction;
             this.prompt = prompt;
+            this.maxKmh = maxKmh;
+            this.laneHint = laneHint == null ? "" : laneHint;
         }
     }
 
@@ -94,11 +98,21 @@ public final class Guidance {
         }
         double distToMan = 0d;
         String instruction = "";
+        String laneHint = "";
         if (next >= 0) {
             Route.Step st = route.steps[next];
             distToMan = remaining - cum[st.pointIndex];
             if (distToMan < 0d) distToMan = 0d;
             instruction = st.instruction;
+            laneHint = st.laneHint;
+        }
+
+        // limit predkosci na segmencie, na ktorym stoimy (0/brak = nieznany)
+        int maxKmh = 0;
+        if (route.maxKmh != null && route.maxKmh.length > 0 && n > 1) {
+            int mi = nearest;
+            if (mi >= route.maxKmh.length) mi = route.maxKmh.length - 1;
+            maxKmh = route.maxKmh[mi];
         }
 
         // progi promptow zalezne od predkosci (szybciej = wczesniej)
@@ -142,7 +156,7 @@ public final class Guidance {
             }
         }
 
-        return new Update(remaining, etaS, distToMan, instruction, prompt);
+        return new Update(remaining, etaS, distToMan, instruction, prompt, maxKmh, laneHint);
     }
 
     /** Odleglosc przyrozeniem equirectangular [m] - wspolna dla modulu route. */
