@@ -69,4 +69,33 @@ public class ManeuversTest {
         assertEquals("4 min", Maneuvers.minText(210d));
         assertEquals("17 min", Maneuvers.minText(1000d));
     }
+
+    @Test
+    public void laneHint_pojedynczeWskazania() {
+        assertEquals("prawy pas", Maneuvers.laneHint(new String[]{"right"}));
+        assertEquals("lewy pas", Maneuvers.laneHint(new String[]{"left"}));
+        assertEquals("pas prosty", Maneuvers.laneHint(new String[]{"through"}));
+        assertEquals("zawróć z właściwego pasa",
+                Maneuvers.laneHint(new String[]{"uturn"}));
+    }
+
+    @Test
+    public void laneHint_kombinacjePasow() {
+        assertEquals("pas prosty lub prawy",
+                Maneuvers.laneHint(new String[]{"through", "right"}));
+        assertEquals("pas prosty lub lewy",
+                Maneuvers.laneHint(new String[]{"through", "left"}));
+        assertEquals("pas lewy lub prawy",
+                Maneuvers.laneHint(new String[]{"right", "left"}));
+        // skrzyzowanie z przejsciem dla pieszych miedzy pasami - tez dziala
+        assertEquals("pas prosty lub prawy",
+                Maneuvers.laneHint(new String[]{"through", "right", "right"}));
+    }
+
+    @Test
+    public void laneHint_pusteNieRzuca() {
+        assertEquals("", Maneuvers.laneHint(null));
+        assertEquals("", Maneuvers.laneHint(new String[0]));
+        assertEquals("", Maneuvers.laneHint(new String[]{null}));
+    }
 }
