@@ -539,6 +539,25 @@ się BLADY zamiast żółty, (2) przy włączonej nakładce nie dało się klikn
   ⚠️ Nie przenosić pauzy „po startActivity” — okno zdąży się otworzyć pod
   nakładką i przyciski znów umrą.
 
+### Pułapka CI: PR testuje MERGE z mainem (2026-11-07, sesja 3 — diagnoza)
+
+- **Czerwony main = czerwony KAŻDY PR.** GitHub Actions dla `pull_request` buduje
+  MERGE REF (main + gałąź), nie samą gałąź. Runy PR-a #62 padały trzy razy
+  (#306, #307, #309), choć kod gałęzi był poprawny — merge zawierał zepsuty main.
+- **Objaw:** failing runy ~1m10–1m40s, adnotacja „Run Unit Tests: Process
+  completed with exit code 1”, brak failing suite w raporcie = **błąd kompilacji**
+  (testy nie zdążyły wystartować). Zielone runy trwają ~3 min.
+- **Root cause:** `ef018565` (liquid glass, 13:19) wprowadził w
+  `AppLibraryPage.java` anonimowy `OnTouchListener` paska liter, którego
+  `onTouch` nie miał `return` na wszystkich ścieżkach → javac „missing return
+  statement” → main czerwony od runu #305 (ostatni zielony release: v1.0.304).
+  Naprawione dodaniem `return true;` na końcu `onTouch`.
+- **Szybki test „czy to mój PR, czy main”:** sprawdzić ostatni release i listę
+  runów na stronie /actions — jeśli main od ostatniego release'a ma tylko failed
+  runy, winny jest main, nie gałąź.
+- **Pułapka logów:** logi CI wymagają logowania, a API ma limit 60/h na IP
+  sandboxu — adnotacje joba są czytelne anonimowo na stronie runu.
+
 
 ## 2026-11-07 (sesja 3: NAPRAWA initu OBD - "laczy sie z adapterem, ale nic sie nie dzieje")
 

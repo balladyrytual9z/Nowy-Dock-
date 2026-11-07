@@ -144,6 +144,10 @@ public class AppLibraryPage extends FrameLayout {
                     hideLetterBubble();
                     selected = -1; return true;
                 }
+                // Pozostale akcje (np. multi-touch ACTION_POINTER_DOWN) zostaja
+                // przy naszym gesture. Bez tego return javac odmawia kompilacji
+                // ("missing return statement") - ten blad psul CI od ef018565.
+                return true;
             }
             private void dragSelect(float y) {
                 int idx = letterIndexAt(y);
