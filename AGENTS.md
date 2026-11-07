@@ -843,3 +843,37 @@ kotwic (count==1), ASCII, bilansu klamer/nawiasow i race-checkem HEAD.
   CI, nie tylko "push poszedl" - wlasny run moze byc anulowany.
 - Stan: "ui obd.txt" w calosci wdrozony i zweryfikowany podwojnie;
   wydane w v1.0.333. Zostaje wylacznie potwierdzenie na aucie.
+
+### Dopisek 6 (sesja 5 cd.: audyt "honda zegary.txt" + fix, v1.0.334)
+
+- AUDYT "honda zegary.txt" (drugi dokument zrodlowy, stylistyka zegarow
+  UFO): pelne porownanie punkt po punkcie z UfoClusterFullView + rozstrzyganie
+  konfliktow z ui obd.txt (nadrzedny). Stan na wejsciu: ~95% zgodne.
+- Uzasadnione odstapienia (konflikt dokumentow, wygrywa ui obd.txt):
+  (a) tlo #0A0D14 z sekcji 1 nigdy nie wystepuje - tryb dzien/noc 34.2/34.3
+  (NOAA zawsze aktywny) nadpisuje palete statyczna: dzien #121722, noc
+  #05070B; (b) #FFFDE7 (34.3) zamiast #FFFEEA (sekcja 1/7.2); (c) aura
+  20% noca zamiast 80% - ui obd 34.3 "ograniczona intensywnosc", dzien
+  wylaczona (34.2); (d) jasnosc ekranu NIETKNIETA (34.4 rozwiazuje
+  dwuznacznosc z honda zegary); (e) AVG czarny - ui obd 8.5 dopuszcza
+  #000000 lub bursztyn; (f) LCD bez radius - ui obd 8.5 "naroce ostre".
+- REALNE USTERKI znalezione i naprawione (commit e524f689, v1.0.334):
+  1) MALE PODZIALKI 1.2dp < minimum 1.5dp (honda zegary pkt 2 - na IPS
+     720p cieńsze linie znikaja) -> 1.5f;
+  2) CYFRY SKALI 30sp zamiast 28sp Bold Italic (honda zegary pkt 6) -> 28f;
+  3) ETYKIETY "V / 1h", "bar / 5m" KLAMALY - MAX/AVG liczone "od startu
+     sesji", a nie z deklarowanego okna. Fix: PRAWDZIWE statystyki
+     okienne (BOOST/MAF: 5 min; VOLTS/BARO: 1 h) - ring buffory 1200/14400
+     probek (~375 KB, OK przy 128 MB), skan 4x/s throttled, reszta parametrow
+     zostaje "od startu" zgodnie z etykieta "/ TRIP". Reset long-press
+     czysci tez bufory okienne;
+  4) ALOKACJE STRING w onDraw ("MAX: " + fmtParam co klatke = 2 Stringi/
+     klatke przy 60 FPS) - lamiemy zasade zero-alokacji (honda zegary pkt 3,
+     Mali-T720 GC) -> cache statKey/statHave/statMaxSrc/statAvgSrc, rebuild
+     tylko przy zmianie wartosci (~4 Hz).
+- PUŁAPKA: dokumenty zrodlowe bywaja sprzeczne SAMA ZE SOBA (honda zegary
+  sekcja 1 vs 4: LCD #6B7C80 vs #5E6F73; sekcja 1 vs 5: #FFFEEA vs #FFFDE7).
+  Rozstrzygnieta wersja = bardziej szczegolowa / nadrzedna (ui obd.txt).
+  Dokladniejsza sekcja wygrywa (4 > 1, 34.x > 6).
+- Stan: OBA dokumenty ("ui obd.txt" + "honda zegary.txt") wdrozone w pelni;
+  wydane w v1.0.334.
