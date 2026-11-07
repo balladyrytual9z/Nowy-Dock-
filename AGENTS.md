@@ -415,3 +415,34 @@ Ustalenia z użytkownikiem, żeby nikt tego nie „poprawił” z powrotem:
   Wi‑Fi/hotspot otwierają ekrany ustawień, BT wg `btAction`, ukrywanie wg
   `Prefs.showModeButtons/showNightShift`.
 - ⚠️ **Nie dodawać do panelu widoków z onDraw() ani podklas View** — strażnik padnie.
+## 2026-11-07 (sesja: hierarchia fizycznego przycisku Home radia jak w CarPlay)
+
+Ustalenia zatwierdzone przez użytkownika (dyktowanie głosowe — „di play delay”
+to transkrypcja słowa „DiPlay”):
+
+- **Fizyczny przycisk Home radia** (ten, który przywołuje Dock-launcher) ma nową
+  hierarchię:
+  1. **Ekran główny Docka** → Home wykonuje akcję Home (`runHomeAction()`,
+     domyślnie otwiera DiPlay/CarPlay) — TYLKO stąd Home otwiera DiPlay.
+  2. **Siatka aplikacji / Biblioteka / strona widżetów** → pierwsze Home wraca
+     na ekran główny; dopiero kolejne Home (będąc już na głównym) działa jak
+     w pkt. 1 (czyli otwiera DiPlay).
+  3. **DiPlay (aplikacja CarPlay)** → Home **zawsze** wraca na ekran główny
+     Docka, a NIE na stronę, z której DiPlay otwarto.
+  4. **Inne aplikacje** → bez zmian: Home wraca na stronę źródłową (origin
+     page, flaga `returnPage`).
+- **Implementacja:** flaga `Prefs.diplayReturn` (klucz `diplay_return`) —
+  ustawiana w `Launch.carplay()` przy udanym starcie DiPlay, konsumowana w
+  `LauncherActivity.onNewIntent()` w gałęzi `!visible` (`fromDiplay` →
+  `target = homeIdx` zamiast `returnPage`), zerowana w `onResume()` (żeby nie
+  wisiała po powrocie inną drogą; `onNewIntent` przy Home z DiPlay odpala się
+  zawsze przed `onResume`, więc obsłużona prośba nie jest tym zerowana).
+- ⚠️ Gałąź widoczna `onNewIntent`: `Math.abs(pager.position() - homeIdx) < 0.5f`
+  → akcja Home; w przeciwnym razie `pager.goTo(homeIdx, true)`. Dawniej Home
+  z KAŻDEJ strony launchera robił akcję Home i zapamiętywał `returnPage` —
+  tego nie przywracać.
+- Zapis `setDiplayReturn` idzie przez `sp(c).edit()` bez zwiększania `version`
+  (flaga wewnętrzna, nie dotyczy rysunku).
+- Zmiana wypchnięta bezpośrednio na `main` (commit 5b932d9a) zgodnie z regułą
+  z 2026-11-06; APK buduje CI (`build-release.yml` → release
+  `CarPlay-Launcher-v1.0.<N>.apk`).
