@@ -446,3 +446,33 @@ to transkrypcja słowa „DiPlay”):
 - Zmiana wypchnięta bezpośrednio na `main` (commit 5b932d9a) zgodnie z regułą
   z 2026-11-06; APK buduje CI (`build-release.yml` → release
   `CarPlay-Launcher-v1.0.<N>.apk`).
+
+## 2026-11-07 (sesja 2: liquid glass, Biblioteka, panel łączności — styl iOS)
+
+Wzorzec wizualny = Centrum sterowania iOS (screen użytkownika z iPhona);
+zdjęcie tabletu pokazuje stan obecny. Zmiany wypchnięte na `main` (commit ef018565):
+
+- **Liquid glass doka**: snapshot tła odświeżany co ~50 ms (było 150 ms; nadal
+  OnPreDraw + throttle, bufor reużywany — zero alokacji, bezpieczne dla
+  Mali-T720). LiveBlur: RADIUS 8, PASSES 4, saturacja 1.6. Korpus szkła
+  jaśniejszy/mniej matowy (gradient 0x24→0x08→0x05→0x1A zamiast 0x2E/0x0D/0x08/0x24).
+- **Biblioteka aplikacji — pasek szukania**: pływająca szklana pigułka NAD listą
+  (contentPane to FrameLayout; lista przewija się POD paskiem, pasek zawsze
+  widoczny; pole EditText przezroczyste wewnątrz szkła).
+- **Biblioteka — literki**: podczas przesuwania palca po pasku liter NAD palcem
+  wisi szklany bąbel z powiększoną aktualną literą (`letterBubble`, 30 sp,
+  TextView + GradientDrawable, śledzi palec, haptyka przy zmianie). Stara
+  animacja `magnifyLetter` (powiększanie litery w pasku) USUNIĘTA — nie wracać.
+- **Panel łączności — suwaki**: PillSlider przepisany z LinearLayout+weight na
+  czysty FrameLayout. Weight potrafił wyjść zerowy na Mali-T720 i suwaki
+  spłaszczały się do poziomych pigułek z wielką ikoną — to była zgłaszana
+  „zepsuta” wersja. Suwaki smuklejsze: 160 dp szer., ikona 30 dp przy dolnej
+  krawędzi, tor bardziej przezroczysty (0x663A3A3C noc / 0x99E9E9EE dzień).
+  Karta łączności 146 dp; glassBg jaśniejsze (0x2EFFFFFF). Zakaz onDraw w panelu
+  bez zmian (strażnik `ConnectivityPanelGuardTest`).
+- **ToolGrid**: koła 46 dp, etykiety 12 sp, ikony aplikacji rysowane w
+  rozdzielczości ekranu (48×den px, wcześniej 48 px = rozmyte na gestszych ekranach).
+- **Szary pasek pod dokiem**: diagnoza — szkło doka rozmywa okolicę, w tym
+  kapsułę kropek (wskaźnik stron) tuż obok doka, i na dole kolumny doka
+  prześwituje ona jako szary pas. Użytkownik ODROCZYŁ naprawę do czasu screena
+  z auta — NIE ruszać, dopóki nie przyśle zdjęcia.
