@@ -121,6 +121,42 @@ public class NightShift {
         }
     }
 
+    /**
+     * Pauza nakladki na czas systemowego okna instalacji APK (patrz Updater.install).
+     * Okno instalatora / Play Protect ("Zainstaluj bez skanowania") odcina dotyk,
+     * gdy jakiekolwiek okno jest nad nim - nawet przezroczysta nakladka
+     * nie-lapiaca dotyku (ochrona przed tapjackingiem). Filtr wraca po
+     * powrocie do launchera (BaseActivity.onResume -> resume).
+     */
+    public static void pause(Context c) {
+        if (!Prefs.nightShiftOn(c)) return;
+        try {
+            Intent i = new Intent(c, NightShiftService.class);
+            i.putExtra("pause", true);
+            if (android.os.Build.VERSION.SDK_INT >= 26) {
+                c.startForegroundService(i);
+            } else {
+                c.startService(i);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** Powrot nakladki po pauzie (wolane z BaseActivity.onResume). */
+    public static void resume(Context c) {
+        if (!Prefs.nightShiftOn(c) || !canDraw(c)) return;
+        try {
+            Intent i = new Intent(c, NightShiftService.class);
+            i.putExtra("resume", true);
+            if (android.os.Build.VERSION.SDK_INT >= 26) {
+                c.startForegroundService(i);
+            } else {
+                c.startService(i);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     private static void startStop(Context c, String mode) {
         try {
             Intent i = new Intent(c, NightShiftService.class);

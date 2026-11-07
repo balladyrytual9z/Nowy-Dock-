@@ -23,6 +23,10 @@ import android.view.animation.DecelerateInterpolator;
 // - reczne wlaczenie / wylaczenie: krotkie przejscie ok. 800 ms,
 // - tryb "od zachodu do wschodu": po zachodzie sila narasta od 0 do celu w ~2 min,
 // - suwak ciepla w panelu lacznosci zmienia kolor na zywo.
+//
+// Na czas systemowego okna instalacji APK nakladka schodzi z ekranu ("pause")
+// i wraca po powrocie do launchera ("resume"): okno instalatora i Play Protect
+// odcinaja dotyk, gdy cokolwiek rysuje sie nad nimi (ochrona przed tapjackingiem).
 public class NightShiftService extends Service {
 
     private static final long FADE_MS = 800L;        // plynne przejscie przy recznym on/off
@@ -35,6 +39,7 @@ public class NightShiftService extends Service {
     private android.animation.ValueAnimator anim;
     private float currentAlpha = 0f;   // aktualna widoczna sila filtru (0..1)
     private boolean sunsetMode = false;
+    private boolean paused = false;    // pauza na czas okna instalatora APK
 
     @Override
     public void onCreate() {
@@ -47,6 +52,39 @@ public class NightShiftService extends Service {
         boolean refresh = intent != null && intent.getBooleanExtra("refresh", false);
         String mode = Prefs.nightShiftMode(this);
         sunsetMode = "sunset".equals(mode);
+
+        // PAUZA: okno instalatora APK (potwierdzenie instalacji / Play Protect
+        // "Zainstaluj bez skanowania") odcina dotyk, gdy cokolwiek rysuje sie
+        // nad nim - nawet przezroczysta nakladka nie-lapiaca dotyku (ochrona
+        // przed tapjackingiem). Na czas tego okna nakladka schodzi z ekranu
+        // CALA (usuwamy okno), a wraca po powrocie do launchera (resume).
+        if (intent != null && intent.getBooleanExtra("pause", false)) {
+            paused = true;
+            if (anim != null) anim.cancel();
+            removeOverlayNow();
+            h.removeCallbacksAndMessages(null);   // petla sloncka milczy podczas pauzy
+            return START_NOT_STICKY;
+        }
+        if (intent != null && intent.getBooleanExtra("resume", false)) {
+            boolean wasPaused = paused;
+            paused = false;
+            if ("off".equals(mode)) {
+                stopSelf();
+                return START_NOT_STICKY;
+            }
+            showOverlay();
+            boolean night = !sunsetMode || NightShift.isNightBySun(this);
+            float target = night ? targetStrengthFraction() : 0f;
+            // po powrocie z instalatora plynny powrot filtra; bez pauzy nic
+            // nierestartujemy (np. rampa zachodu ma prawo trwac dalej)
+            if (wasPaused || Math.abs(target - currentAlpha) > 0.001f) {
+                animateTo(target, FADE_MS);
+            }
+            scheduleSunCheck();
+            return START_NOT_STICKY;
+        }
+
+        paused = false;
         if ("off".equals(mode)) {
             hideOverlayAnimated();
             stopSelf();
@@ -108,13 +146,30 @@ public class NightShiftService extends Service {
         anim.start();
     }
 
+    /**
+     * Nagle zdejmuje nakladke z ekranu. Wydarza sie to tylko przy pauzie na
+     * czas instalatora: USUWAMY okno z WindowManager, a nie tylko zerujemy
+     * alphe - nawet w pelni przezroczyste okno nad instalatorem ustawia mu
+     * flage "obscured" i ten odcina dotyk.
+     */
+    private void removeOverlayNow() {
+        if (overlay != null) {
+            try {
+                if (wm != null) wm.removeView(overlay);
+            } catch (Throwable ignored) {
+            }
+            overlay = null;
+        }
+        currentAlpha = 0f;
+    }
+
     private void scheduleSunCheck() {
         h.removeCallbacksAndMessages(null);
         if (!sunsetMode) return;
         h.postDelayed(new Runnable() {
             @Override
             public void run() {
-                if (!sunsetMode) return;
+                if (!sunsetMode || paused) return;
                 boolean night = NightShift.isNightBySun(NightShiftService.this);
                 float target = night ? targetStrengthFraction() : 0f;
                 if (Math.abs(target - currentAlpha) > 0.001f) {
