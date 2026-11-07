@@ -538,3 +538,39 @@ się BLADY zamiast żółty, (2) przy włączonej nakładce nie dało się klikn
   `BaseActivity.onResume()` przywraca filtr po powrocie do launchera.
   ⚠️ Nie przenosić pauzy „po startActivity” — okno zdąży się otworzyć pod
   nakładką i przyciski znów umrą.
+
+
+## 2026-11-07 (sesja 3: NAPRAWA initu OBD - "laczy sie z adapterem, ale nic sie nie dzieje")
+
+Commit 6871773522 (7 plikow). Diagnoza: stary init NIGDY nie weryfikowal
+odpowiedzi ECU - "polaczono" pojawialo sie z samego socketa SPP.
+
+- session/ElmSession.kt (rewrite): initialize(preferredProtocol, onStep)
+  -> InitResult.Success/Failure(step, error). Sekwencja: ATWS (fallback
+  ATZ + 3 s, klon wstaje ~3 s) -> ATE0 x3 -> opcjonalne ATL0/ATH1/ATAT1/
+  ATST32 (60 ms odstepy; "?" klona = nie porazka, lista unsupported) ->
+  ATSP<pref z prefs obd_protocol|0> -> SONDA 0100 (pierwszy test, ze ECU
+  odpowiada; 8 s znany / 15 s auto) -> ATDPN/ATI/ATRV. Hybrydowy ATST:
+  ATST32 (~200 ms) rura PID, ATSTFF (~1 s) automatycznie przed wolnymi
+  trybami 03/04/06/07/09/0A/21xx/22xx (ElmInitSupport.isSlowDiagnostic).
+  ATS0 celowo NIE wysylane - parsery licza na spacje.
+- session/ElmInitSupport.kt (nowy, zero android.*): stripNoise /
+  isEcuSilence / probeOk / parseDpn / protocolName / parseVoltage /
+  errorName / isSlowDiagnostic. Test: 10 testow JUnit4 JVM
+  (test/session/ElmInitSupportTest.kt).
+- orchestration/ConnectionManager.kt: auto-retry initu max 5 prob,
+  backoff 1/2/4/8/16 s (decyzja uzytkownika; akumulator - ELM327 ma staly
+  plus na pinie 16). Reczne POLACZ zeruje licznik. Protokol utrwalany
+  z ATDPN do prefs obd_protocol. Prawdziwa nazwa protokolu w UI zamiast
+  zaszytej stalej. Reinit po reconnect tez przez nowy initialize().
+- repository/VehicleUiState.kt: initStep + retryAttempt.
+- transport/SppTransport.kt: bajty 0x00 pomijane w czytniku (dok. quirk
+  klonow ELM327 - fillery gubily parsery). sendAndWaitPrompt ->
+  withTimeoutOrNull (timeout = IOException, nie CancellationException).
+- ObdDiscoveryActivity.kt: status "Ponawiam (n/5) - <krok>" przy laczeniu,
+  protokol w statusie po polaczeniu.
+
+Plan KROK 2 (nie zrobiony): IgnitionMonitor - wykrywanie zaplonu OFF
+(cisza ECU + AT RV < 13.2 V + ACTION_SCREEN_OFF/SHUTDOWN): flush BlackBox,
+rozlaczenie BT, resume po zaplonie ON. Uruchadze z userem po teście KROKU 1
+na aucie.
