@@ -60,8 +60,8 @@ public class GuidanceTest {
         assertEquals(Guidance.PROMPT_FAR, u.prompt);
         assertTrue(u.instruction, u.instruction.contains("prawo"));
         assertTrue(u.instruction, u.instruction.contains("Marszałkowska"));
-        // pozostala trasa do konca
-        assertEquals(53 * 111.32d, u.remainingM, 5d);
+        // pozostala trasa do konca (segment 0.001 stopnia = ~111.195 m przy R=6371 km)
+        assertEquals(53 * 111.195d, u.remainingM, 5d);
         assertTrue(u.etaS > 0d);
     }
 
