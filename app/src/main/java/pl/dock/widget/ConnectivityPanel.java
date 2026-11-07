@@ -678,6 +678,11 @@ public class ConnectivityPanel extends LinearLayout {
 
             @Override
             public void onStopTrackingTouch(android.widget.SeekBar sb) {
+                // Kciuk SeekBara moze zajechac ponizej 5 (SeekBar nie ma min):
+                // pref zapisal juz zclampowana wartosc (>= 5), wiec przyklej
+                // kciuk do realnie zapisanej wartosci - panel musi pokazywac
+                // to samo, co Ustawienia (ten sam klucz nsval).
+                sb.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
                 scheduleWarmthHide();
             }
         });
@@ -852,6 +857,7 @@ public class ConnectivityPanel extends LinearLayout {
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         removeCallbacks(refreshLater);
+        removeCallbacks(hideWarmth);
         exitEditMode();
         try {
             if (rc != null) act.unregisterReceiver(rc);
@@ -1154,14 +1160,18 @@ public class ConnectivityPanel extends LinearLayout {
             if (longFired && (a == MotionEvent.ACTION_MOVE || a == MotionEvent.ACTION_UP)) {
                 return true;   // po dlugim przytrzymaniu nie przestawiaj wartosci
             }
-            if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_MOVE
-                    || a == MotionEvent.ACTION_UP) {
+            // Wartosc ustawiaja dopiero MOVE/UP, nie DOWN: samo przytrzymanie
+            // pigulki (long-press 550 ms -> suwak ciepla Night Shift) nie moze
+            // przeskakiwac wypelnienia do palca - inaczej pigulka pokazuje inna
+            // wartosc niz faktycznie jest (desync do najblizszego update()).
+            // Tap-to-set obsluguje UP, drag - MOVE.
+            if (a == MotionEvent.ACTION_MOVE || a == MotionEvent.ACTION_UP) {
                 int h = getHeight();
                 if (h > 0) {
                     value = Math.max(0f, Math.min(1f, 1f - e.getY() / h));
                     applyFill();
                     icon.setAlpha(value < 0.05f ? 120 : 255);
-                    if (l != null && a != MotionEvent.ACTION_DOWN) {
+                    if (l != null) {
                         l.on(value);
                     }
                 }

@@ -1420,6 +1420,9 @@ public class ConfigActivity extends BaseActivity {
             }
             @Override
             public void onStopTrackingTouch(SeekBar sb) {
+                // Jak w panelu lacznosci: kciuk klejony do realnie zapisanej
+                // wartosci (>= 5), zeby Ustawienia pokazywaly to samo, co panel.
+                sb.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(ConfigActivity.this))));
             }
         });
         g.addView(temp);

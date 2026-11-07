@@ -151,6 +151,68 @@ public class ConnectivityPanelGuardTest {
                 usrc.contains("public static void glassCard("));
     }
 
+    /**
+     * Sync suwaka ciepla: panel lacznosci (przytrzymanie pigulki jasnosci) i
+     * Ustawienia ("Temperatura kolorow") uzywaja TEJ SAMEJ pary Prefs
+     * (nightShiftStrength / setNightShiftStrength, klucz nsval). Test pilnuje,
+     * ze nikt nie rozjedzie tych dwoch suwakow na osobne zapisy.
+     */
+    @Test
+    public void suwakCieplaZsynchronizowanyZUstawieniami() throws Exception {
+        String p = read(panelSource());
+        String cfg = read(configSource());
+
+        assertTrue("Panel: suwak ciepla nie zapisuje przez"
+                        + " Prefs.setNightShiftStrength(act, strength) - rozjazd z Ustawieniami",
+                p.contains("Prefs.setNightShiftStrength(act, strength);"));
+
+        assertTrue("Panel: brak klejenia kciuka ciepla do zapisanej wartosci (>= 5)"
+                        + " po puszczeniu suwaka - kciuk moze zostac na 0-4, a pref trzyma 5",
+                p.contains("sb.setProgress(Math.max(5, Math.min(80,"
+                        + " Prefs.nightShiftStrength(act))));"));
+
+        assertTrue("Ustawienia: suwak 'Temperatura kolorow' nie zapisuje przez"
+                        + " setNightShiftStrength(ConfigActivity.this, strength) - rozjazd z panelem",
+                cfg.contains("Prefs.setNightShiftStrength(ConfigActivity.this, strength);"));
+
+        assertTrue("Ustawienia: brak klejenia kciuka do zapisanej wartosci (>= 5)"
+                        + " po puszczeniu suwaka 'Temperatura kolorow'",
+                cfg.contains("sb.setProgress(Math.max(5, Math.min(80,"
+                        + " Prefs.nightShiftStrength(ConfigActivity.this))));"));
+    }
+
+    /**
+     * Samo przytrzymanie pigulki (long-press 550 ms -> suwak ciepla) nie moze
+     * przeskakiwac wypelnienia do palca: wartosc ustawiaja dopiero MOVE/UP.
+     * Inaczej pigulka pokazuje inna wartosc niz faktycznie jest.
+     */
+    @Test
+    public void przytrzymanieSuwakaNiePrzeskokujeWypelnienia() throws Exception {
+        String p = read(panelSource());
+
+        assertFalse("ACTION_DOWN nie moze ustawiac wartosci pigulki - samo"
+                        + " przytrzymanie (long-press -> suwak ciepla) przeskakuje wypelnienie"
+                        + " do palca na pozycje dotyku",
+                p.contains("a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_MOVE"));
+
+        assertTrue("Brak ustawiania wartosci na MOVE/UP w PillSlider.handleTouch",
+                p.contains("if (a == MotionEvent.ACTION_MOVE || a == MotionEvent.ACTION_UP) {"));
+    }
+
+    private static String read(File f) throws Exception {
+        return new String(Files.readAllBytes(f.toPath()), Charset.forName("UTF-8"));
+    }
+
+    private static File configSource() {
+        String rel = "src/main/java/pl/dock/widget/ConfigActivity.java";
+        File f = new File(rel);
+        if (f.isFile()) return f;
+        f = new File("app/" + rel);
+        if (f.isFile()) return f;
+        throw new IllegalStateException("Nie znalazlem ConfigActivity.java (cwd="
+                + new File(".").getAbsolutePath() + ")");
+    }
+
     private static File panelSource() {
         String rel = "src/main/java/pl/dock/widget/ConnectivityPanel.java";
         File f = new File(rel);
