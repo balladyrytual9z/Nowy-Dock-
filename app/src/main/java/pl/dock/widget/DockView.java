@@ -399,11 +399,11 @@ public class DockView extends View {
 
         // WiFi, tethering, Bluetooth (telefon)
         float sy = top + 50f * d;
-        float is = 16f * d;
-        float x0 = cx - 27f * d;
+        float is = 21f * d;   // wieksze ikony statusu (16 dp byly mikroskopijne)
+        float x0 = cx - 31.5f * d;
         drawIcon(cv, bWifi, x0, sy - is / 2f, is, is, 255);
-        drawIcon(cv, bTether, x0 + 19f * d, sy - is / 2f, is, is, 255);
-        drawIcon(cv, bBt, x0 + 38f * d, sy - is / 2f, is, is, 255);
+        drawIcon(cv, bTether, x0 + 21f * d, sy - is / 2f, is, is, 255);
+        drawIcon(cv, bBt, x0 + 42f * d, sy - is / 2f, is, is, 255);
 
         // kolejne wiersze: napięcie / ładowanie, bateria telefonu, status CarPlay
         float y = top + 76f * d;
