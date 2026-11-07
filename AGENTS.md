@@ -7,7 +7,7 @@ Agent powinien korzystać z następujących umiejętności. Jeśli któraś nie 
 ### Podstawowe
 *   `agent-canvas-environment` – poprawne działanie w środowisku Agent Canvas.
 *   `agent-memory` – zapamiętywanie kontekstu projektu.
-*   `add-skill` – dynamiczne dodawanie nowych umiejętności.
+*   `add-skill` – dynamiczne dodawanie umiejętności.
 
 ### GitHub
 *   `github` – podstawowa obsługa repozytorium.
@@ -41,6 +41,15 @@ Aplikacja Android (Java/Kotlin): CarPlay, OBD, Bluetooth.
 - ZAWSZE najpierw przedstaw plan i zadawaj pytania (tak/nie), zanim napiszesz kod.
 - Zmiany w kodzie pushuj bezpośrednio na `main`, bez branchy i Pull Requestów (reguła zmieniona 2026-11-06 na życzenie użytkownika).
 - Nie instaluj ciężkich narzędzi (Docker, pełne SDK), pracujemy na lekkim środowisku.
+- Nad repo MOŻE równolegle pracować inny agent — przed KAŻDĄ operacją (push, merge, edycja pliku, zamykanie PR) odśwież stan repo i upewnij się, że nie wychodzicie sobie w drogę (szczegóły: sekcja „⚠️ Agenci równolegli” niżej).
+
+## ⚠️ Agenci równolegli (MOŻE pracować drugi agent)
+- Nad tym repozytorium MOŻE równolegle pracować INNY agent (2026-11-07, życzenie użytkownika). Nie jest aktywny stale — może wystartować lub skończyć w dowolnym momencie, więc zakładaj, że od Twojego ostatniego spojrzenia stan repo mógł się zmienić.
+- ZANIM cokolwiek zrobisz (push, commit na main, merge, edycja pliku, zamknięcie PR-a): odśwież stan repozytorium — HEAD `main`, nowe commity, otwarte PR-y i świeże gałęzie — i upewnij się, że nie kolidujesz z cudzą pracą.
+- Nie nadpisuj pracy innego agenta: NIGDY force-push na gałęziach, których nie jesteś właścicielem; przed pushem na własną gałąź sprawdź, czy ktoś w międzyczasie nie dosypał commitów (jeśli tak — rebase/merge, nie nadpisanie); nie przerabiaj plików, które inny agent właśnie zmienia (sprawdź daty ostatnich commitów i otwarte PR-y).
+- Jeśli zauważysz obcą aktywność (commity/PR-y/gałęzie, których nie zrobiłeś) — dostosuj się do niej (rebase, praca w innym miejscu), zamiast ją wywalać.
+- Przy równoległej pracy nie wchodź dwa razy w ten sam plik na raz; zmiany sporne/rankingowe idą przez PR (nie bezpośrednio na main) — łatwiej się wyminąć i zmergować po kolei.
+- Po zakończeniu pracy zostaw w repo czytelnny ślad (opisany commit/PR), żeby drugi agent wiedział, co się zmieniło.
 
 ## Komunikacja z użytkownikiem (na stałe)
 - Jeśli coś jest niejasne — NAJPIERW zapytaj, nie zgaduj.
@@ -129,6 +138,15 @@ Zasady zarządzania pamięcią:
   publicznego API „zainstaluj bez okna” — decyduje platforma/OEM.
 - Suma SHA256 z `SHA256SUMS.txt` jest weryfikowana **przed** instalacją; przy
   bezobsługowej instalacji to jedyna bariera przed śmieciem.
+- **(2026-11-07) Okna instalatora odcinają dotyk pod nakładkami:** systemowe okno
+  potwierdzenia (i ekran Play Protect „Zainstaluj bez skanowania”) **odrzuca dotyk,
+  gdy JAKIEKOLWIEK okno rysuje się nad nim** — nawet przezroczysta nakładka z
+  `FLAG_NOT_TOUCHABLE` ustawia flagę „obscured”. Dlatego `Updater.install()` woła
+  `NightShift.pause(c)` PRZED otwarciem każdego systemowego okna (nakładka Night
+  Shift jest wtedy zdejmowana z `WindowManager` CAŁA — sama przezroczystość nie
+  wystarcza), a wraca po powrocie do launchera (`BaseActivity.onResume` →
+  `NightShift.resume`). **Nie przenosić pauzy „po otwarciu okna” i nie zamieniać
+  jej na samo `View.setAlpha(0)` — wtedy przyciski instalatora znów umrą.**
 
 ## Mapy: postój vs. ruch (`HeadingSmoother`)
 
@@ -268,7 +286,7 @@ dlatego:
   kwadratów (3x3)** = „lista aplikacji”, strony aplikacji i Biblioteka
   (`bottomT ≈ 1`) → **jeden kwadrat z zaokrąglonymi rogami** = „ekran główny”.
   To samo dotyczy ekranów obcych, bo wołają `setBottomProgress(1f)` i wracają
-  do domu przez `onBottom()`. ⚠️ v1.0.96 (`b62fda5`) to odwrócił „w locie” i glify
+  do domu przez `onBottom()`. ⚠️ v1.0.96 (`b62fda5`) to odwróciło „w locie” i glify
   kłamały przez wiele wersji — przy każdej zmianie tego bloku sprawdź spójność
   z `LauncherActivity.onBottom()` (`pager.position() < homeIdx + 0.5f` → `appsStart`).
 - **Pułapka przy patchowaniu kodu**: `sed -n ... | cat -n` **dodaje** wcięcia, więc
@@ -415,6 +433,7 @@ Ustalenia z użytkownikiem, żeby nikt tego nie „poprawił” z powrotem:
   Wi‑Fi/hotspot otwierają ekrany ustawień, BT wg `btAction`, ukrywanie wg
   `Prefs.showModeButtons/showNightShift`.
 - ⚠️ **Nie dodawać do panelu widoków z onDraw() ani podklas View** — strażnik padnie.
+
 ## 2026-11-07 (sesja: hierarchia fizycznego przycisku Home radia jak w CarPlay)
 
 Ustalenia zatwierdzone przez użytkownika (dyktowanie głosowe — „di play delay”
@@ -465,7 +484,7 @@ zdjęcie tabletu pokazuje stan obecny. Zmiany wypchnięte na `main` (commit ef01
   animacja `magnifyLetter` (powiększanie litery w pasku) USUNIĘTA — nie wracać.
 - **Panel łączności — suwaki**: PillSlider przepisany z LinearLayout+weight na
   czysty FrameLayout. Weight potrafił wyjść zerowy na Mali-T720 i suwaki
-  spłaszczały się do poziomych pigułek z wielką ikoną — to była zgłaszana
+  spłaszczały się do poziomych pigułek z wielą ikoną — to była zgłaszana
   „zepsuta” wersja. Suwaki smuklejsze: 160 dp szer., ikona 30 dp przy dolnej
   krawędzi, tor bardziej przezroczysty (0x663A3A3C noc / 0x99E9E9EE dzień).
   Karta łączności 146 dp; glassBg jaśniejsze (0x2EFFFFFF). Zakaz onDraw w panelu
@@ -488,3 +507,34 @@ zdjęcie tabletu pokazuje stan obecny. Zmiany wypchnięte na `main` (commit ef01
 - Temat WSTRZYMANY do czasu, aż użytkownik przyśle CZYSTY SCREENSHOT tabletu
   (zrzut ekranu, nie zdjęcie aparatem). Do tego czasu nie ruszać niczego
   związanego z tym paskiem.
+
+## 2026-11-07 (sesja 3: Night Shift — blady ekran po refactorze + blokowanie instalacji)
+
+Zgłoszenia użytkownika: (1) po „poprawkach technicznych” Night Shift ekran robił
+się BLADY zamiast żółty, (2) przy włączonej nakładce nie dało się kliknąć
+„Zainstaluj bez skanowania” w oknie instalatora (działał tylko Home).
+
+- **Root cause (1):** refactor z 3.11 (60e2204/7fcbcc6/e8f530e, wszystkie
+  `[skip ci]`) zamienił stały pomarańcz na liniowy Kelvin 6500→2200 K + drugą
+  warstwę czarnego dimu. Przy praktycznym suwaku kolor z krzywej Plancka jest
+  prawie biały (sila 40 → RGB(255,224,198) @ 20%), a dim tylko szarzy — efekt
+  „blady”. Zakres „2200 K” był nieosiągalny (suwak max 80 → f=0.8 → 3060 K).
+- **Fix (PR #62, gałąź `fix/nightshift-ios-warmth`):** jedna warstwa, zero dimu;
+  docelowy punkt bieli = interpolacja biel → ColorTemp(2700 K); kolor nakładki
+  NASYCONY i liczony tak, aby biel trafiała DOKŁADNIE w punkt bieli celu
+  (`ColorTemp.overlayTint`: C = 255 − (255−cel)·255/a, alpha = 0.70·f);
+  suwak /80 (80 = pełne 2700 K). Testy JVM: `ColorTempTest` (biały trafia w
+  punkt bieli ±1 na całym zakresie). ⚠️ Nie wracać do liniowego Kelvina z alpha
+  WARM_MAX i nie dokładać dimu do tej nakładki.
+- **Root cause (2):** systemowe okno instalatora (i Play Protect) **odrzuca
+  dotyk, gdy jakiekolwiek okno rysuje się nad nim** (flaga „obscured”, ochrona
+  przed tapjackingiem) — nakładka Night Shift z `FLAG_NOT_TOUCHABLE` i tak
+  zasłania. Android NIE ma typu okna „pod systemowymi dialogami, a nad
+  aplikacjami”.
+- **Fix (2):** `NightShift.pause/resume` — pauza **usuwa okno z WindowManager**
+  (view alpha 0 nie wystarcza: przezroczyste okno nadal ustawia „obscured”);
+  `Updater.install()` pauzuje PRZED otwarciem każdego systemowego okna
+  („nieznane zrodla”, PackageInstaller, ACTION_VIEW; root bez pauzy — cichy);
+  `BaseActivity.onResume()` przywraca filtr po powrocie do launchera.
+  ⚠️ Nie przenosić pauzy „po startActivity” — okno zdąży się otworzyć pod
+  nakładką i przyciski znów umrą.
