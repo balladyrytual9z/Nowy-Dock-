@@ -1459,3 +1459,142 @@ private void toggleFollow() {
                             0xFF30D158, 11f, Paint.Align.CENTER);
                     // podpowiedz pasow przed manewrem (< 300 m)
                     if (navManeuverDistM >= 0f && navManeuverDistM < 300f
+                            && navLaneHint != null && navLaneHint.length() > 0) {
+                        drawText(cv, navLaneHint, dr.centerX(), dr.top + 72f * d,
+                                0xFFFF9500, 11f, Paint.Align.CENTER);
+                    }
+                } else if (destDistM >= 0) {
+                    String dd = destDistM >= 1000
+                            ? String.format(java.util.Locale.US, "%.1f km", destDistM / 1000f)
+                            : String.format(java.util.Locale.US, "%.0f m", destDistM);
+                    ct = "↑  " + dd + "  " + Math.round(destBearing) + "°";
+                    drawText(cv, ct, dr.centerX(), dr.centerY(), 0xFF0A84FF, 12f, Paint.Align.CENTER);
+                } else {
+                    ct = "↑  Cel  (czekam na GPS)";
+                    drawText(cv, ct, dr.centerX(), dr.centerY(), 0xFF0A84FF, 12f, Paint.Align.CENTER);
+                }
+            }
+        }
+
+        /** Jak drawText, ale z podana czcionka (czcionki launchera dla plakietki). */
+        private void drawTextTf(Canvas cv, String s, float x, float cy, int color,
+                                float size, Paint.Align align, Typeface tf) {
+            tx.setTypeface(tf);
+            tx.setTextAlign(align);
+            tx.setTextSize(size * d);
+            tx.setColor(color);
+            Paint.FontMetrics fm = tx.getFontMetrics();
+            cv.drawText(s, x, cy - (fm.ascent + fm.descent) / 2f, tx);
+        }
+
+        private void drawText(Canvas cv, String s, float x, float cy, int color, float size, Paint.Align align) {
+            tx.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+            tx.setTextAlign(align);
+            tx.setTextSize(size * d);
+            tx.setColor(color);
+            Paint.FontMetrics fm = tx.getFontMetrics();
+            cv.drawText(s, x, cy - (fm.ascent + fm.descent) / 2f, tx);
+        }
+
+        private void drawCompass(Canvas cv, float cx, float cy, float bearingDeg) {
+            cv.save();
+            cv.rotate(bearingDeg, cx, cy);
+            android.graphics.Path p = new android.graphics.Path();
+            p.moveTo(cx, cy - 14f * d);
+            p.lineTo(cx - 7f * d, cy + 6f * d);
+            p.lineTo(cx + 7f * d, cy + 6f * d);
+            p.close();
+            pt.setStyle(Paint.Style.FILL);
+            pt.setColor(0xFFFF3B30);
+            cv.drawPath(p, pt);
+            p.reset();
+            p.moveTo(cx, cy + 14f * d);
+            p.lineTo(cx - 7f * d, cy - 6f * d);
+            p.lineTo(cx + 7f * d, cy - 6f * d);
+            p.close();
+            pt.setColor(0xFF909090);
+            cv.drawPath(p, pt);
+            cv.restore();
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent e) {
+            int a = e.getActionMasked();
+            int idx = -1;
+            String[] labs = labels();
+            for (int i = 0; i < labs.length; i++) {
+                if (rectFor(i).contains(e.getX(), e.getY())) {
+                    idx = i;
+                    break;
+                }
+            }
+            boolean onDest = hasDest && destCardRect().contains(e.getX(), e.getY());
+            if (a == MotionEvent.ACTION_DOWN) {
+                pressed = onDest ? -2 : idx;
+                if (pressed >= 0) invalidate();
+                return onDest || idx >= 0;
+            }
+            if (a == MotionEvent.ACTION_UP) {
+                int was = pressed;
+                pressed = -1;
+                invalidate();
+                if (onDest) {
+                    // tap karty celu: warianty trasy podczas nawigacji, inaczej usun cel
+                    if (navigating && routeAlternatives != null && routeAlternatives.size() > 1) {
+                        cycleVariant();
+                    } else {
+                        clearDestination();
+                    }
+                    return true;
+                }
+                if (idx >= 0 && idx == was) {
+                    // dlugie przytrzymanie = druga funkcja (jak w Organic Maps)
+                    if (e.getEventTime() - e.getDownTime() > 550L) {
+                        handleLongPress(idx);
+                    } else {
+                        handleButton(idx);
+                    }
+                    return true;
+                }
+                return false;
+            }
+            if (a == MotionEvent.ACTION_MOVE) {
+                int np = (onDest || idx >= 0) ? idx : -1;
+                if (np != pressed) { pressed = np; invalidate(); }
+                return pressed >= 0;
+            }
+            if (a == MotionEvent.ACTION_CANCEL) {
+                pressed = -1; invalidate(); return false;
+            }
+            return false;
+        }
+
+        private void handleLongPress(int i) {
+            // dlugie przytrzymanie otwiera managera; dla "Szukaj" - Wikipedie wokol
+            if (i == BTN_SAVE || i == BTN_TRACK) {
+                openBookmarks();
+            } else if (i == BTN_SEARCH) {
+                wikiNearby();
+            } else {
+                handleButton(i);
+            }
+        }
+
+        private void handleButton(int i) {
+            if (i == BTN_CLOSE) finish();
+            else if (i == BTN_ZOOM_IN && map != null) map.getController().zoomIn();
+            else if (i == BTN_ZOOM_OUT && map != null) map.getController().zoomOut();
+            else if (i == BTN_FOLLOW) toggleFollow();
+            else if (i == BTN_LAYER) toggleLayer();
+            else if (i == BTN_ONLINE) toggleOnline();
+            else if (i == BTN_SEARCH) openSearch();
+            else if (i == BTN_SAVE) saveBookmark();
+            else if (i == BTN_TRACK) toggleTrack();
+            else if (i == BTN_NIGHT) toggleNightTiles();
+            else if (i == BTN_NAV) {
+                if (navigating) stopNavigation(true);
+                else startNavigation();
+            }
+        }
+    }
+}
