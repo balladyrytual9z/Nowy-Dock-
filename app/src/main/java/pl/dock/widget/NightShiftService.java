@@ -72,14 +72,14 @@ public class NightShiftService extends Service {
     }
 
     /**
-     * Wartosc 5-80 z suwaka w Ustawieniach/Panelu -> ulamek 0..1.
-     * 5  -> 0.05  (ledwo cieply, ~6300 K)
-     * 40 -> 0.40  (domyslny, ~4780 K)
-     * 80 -> 0.80  (mocno cieply, ~3060 K)
+     * Wartosc 5-80 z suwaka w Ustawieniach/Panelu -> glebia ciepla 0..1.
+     * 5  -> 0.06  (subtelne cieplo)
+     * 40 -> 0.50  (domyslne, punkt bieli ok. 4200 K)
+     * 80 -> 1.00  (maksimum jak w iOS: punkt bieli 2700 K)
      */
     private float targetStrengthFraction() {
         int strength = Math.max(5, Math.min(80, Prefs.nightShiftStrength(this)));
-        return strength / 100f;
+        return strength / 80f;
     }
 
     private void applyFraction(float f) {
@@ -188,25 +188,23 @@ public class NightShiftService extends Service {
     }
 
     /**
-     * Dwie warstwy nakladki:
-     *  1) czarna - przyciemnienie (dim), skaluje sie z ulamkiem
-     *  2) kolor z kelwinow - cieplo (warmth), skaluje sie z ulamkiem
-     * Kolor liczony dynamicznie: 6500 K (neutralny) -> 2200 K (swieca).
-     * Zero alokacji w onDraw - malowane sa dwa pelne prostokaty.
+     * Nakladka jak iOS Night Shift: SAMA barwa, ZERO przyciemniania.
+     * (Wersja z 3.11 rysowala dwa prostokaty - kolor z kelwinow i czarny dim -
+     * przez co przy typowym suwaku ekran byl blady zamiast zolty.)
+     *
+     * Matematyka w ColorTemp.overlayTint(): nasycony kolor liczony tak, aby
+     * BIALY trafial dokladnie w punkt bieli celu (biel -> 2700 K), a alpha
+     * rosnie liniowo z glebia ciepla (przy 0 nakladka zanika do zera).
+     * Alokacja tylko przy zmianie barwy (suwak/animacja), w onDraw zero.
      */
     private static final class FilterView extends View {
 
-        private static final float DIM_MAX  = 0.30f;
-        private static final float WARM_MAX = 0.50f;
-
         private float warmth = 0f;
-        private final Paint dimPaint  = new Paint();
         private final Paint warmPaint = new Paint();
 
         FilterView(Context c) {
             super(c);
-            dimPaint.setColor(0xFF000000);
-            warmPaint.setColor(0xFFFFB300);
+            warmPaint.setColor(0x00FFFFFF);
             setWillNotDraw(false);
         }
 
@@ -215,22 +213,15 @@ public class NightShiftService extends Service {
             if (Math.abs(f - warmth) < 0.0005f) return;
             warmth = f;
 
-            double kelvin = ColorTemp.fractionToKelvin(f);
-            int[] rgb = ColorTemp.kelvinToRgb(kelvin);
-            warmPaint.setColor(Color.argb(255, rgb[0], rgb[1], rgb[2]));
-
-            dimPaint.setAlpha(Math.round(DIM_MAX  * f * 255f));
-            warmPaint.setAlpha(Math.round(WARM_MAX * f * 255f));
+            int[] t = ColorTemp.overlayTint(f);
+            warmPaint.setColor(Color.argb(t[0], t[1], t[2], t[3]));
             invalidate();
         }
 
         @Override
         protected void onDraw(Canvas c) {
             if (warmth <= 0f) return;
-            int w = getWidth();
-            int h = getHeight();
-            c.drawRect(0f, 0f, w, h, dimPaint);
-            c.drawRect(0f, 0f, w, h, warmPaint);
+            c.drawRect(0f, 0f, getWidth(), getHeight(), warmPaint);
         }
     }
 }
