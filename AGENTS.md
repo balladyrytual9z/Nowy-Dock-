@@ -593,3 +593,34 @@ Plan KROK 2 (nie zrobiony): IgnitionMonitor - wykrywanie zaplonu OFF
 (cisza ECU + AT RV < 13.2 V + ACTION_SCREEN_OFF/SHUTDOWN): flush BlackBox,
 rozlaczenie BT, resume po zaplonie ON. Uruchadze z userem po teście KROKU 1
 na aucie.
+
+
+## 2026-11-07 (sesja 4: UFO Cluster wg specyfikacji CZESC II dokumentu "ui obd.txt")
+
+Commit b9358ccfa1. Uzytkownik: "buduj jak w dokumencie" - start doprowadzania
+modulow OBD do specyfikacji (dokument ma 65 sekcji; kolejnosc wg sekcji 65
+miala byc: transport -> Room -> analytics -> services -> UI, ale user chce
+widoczne efekty, a warstwa danych dziala po KROKU 1).
+
+- UfoClusterFullView (rewrite 850 linii): pelny stan VehicleUiState (nowe
+  BARO/AFR/STFT/MAF/MIL/dtcCount); luki boczne jako PRAWDZIWE luki 180x480
+  (SweepGradient, 8 dp, bez podzialek, wypelnienie od dolu; BOOST zero
+  w polowie); petla MID BOOST->ECT->VOLTAGE->TPS->IAT->LTFT z ikonami
+  24x24 (glify Canvas) i etykietami interwalu (C / TRIP, V / 1h, bar / 5m);
+  prawy luk FUEL->TPS->IAT->LTFT (FUEL = AFR z lambda); footer 5 sektorow
+  od lewej ZGODNIE z pkt 11 (CE/DTC | ZAPISZ EVENT | SWAP UI | zebatka |
+  OBD status + napiecie; wczesniej status i DTC byly zamienione);
+  bieg przygaszony (wylczony ze RPM/km/h - pkt 9.2 zakaz udawania pomiaru);
+  long press na luku > 1 s = menu przypisania (AlertDialog, ARC_PARAMS);
+  LCD long press > 1.5 s = reset MAX/AVG (dokument mowi 1.5 s nie 1 s).
+- Progi alarmow luk czytane z prefs alarm_ect_max (102), alarm_volt_min
+  (11.8), alarm_volt_max (14.8), alarm_ltft_max (10), alarm_iat_max (65).
+  NOWE KLUCZE - do dodania w ObdSettingsActivity (NASTEPNY KROK, razem
+  z speed_tap_action: units|dtc|none - pkt 9.7 akcja tapniecia predkosci).
+- UfoClusterActivity: update(s) pelnym stanem; showArcAssignDialog().
+
+Kolejnosc dalszych prac wg dokumentu: (1) progi w Ustawieniach OBD,
+(2) CZESC III CarPlay Dashboard (Left Dock, karty, lista parametrow,
+matryca wykresow 18.x, Multi-Overlay 19), (3) wykres w LCD MID (pkt 8.7:
+30 s historii, wybor parametrow), (4) moduly CZESCI IV (DTC freeze frame,
+Misfire Lab), (5) Room/logging, (6) IgnitionMonitor (Engine OFF/RUNNING).
