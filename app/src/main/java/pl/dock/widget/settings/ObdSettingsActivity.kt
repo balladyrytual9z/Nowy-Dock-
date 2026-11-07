@@ -161,6 +161,55 @@ class ObdSettingsActivity : Activity() {
         return et
     }
 
+    /**
+     * Pole numeryczne z ulamkiem dziesietnym (np. 11.8 V) - TYPE_CLASS_NUMBER
+     * bez flagi DECIMAL nie przyjmuje kropki/przecinka na ekranowej klawiaturze.
+     */
+    private fun numFieldDec(key: String, hint: String): EditText {
+        val et = EditText(this@ObdSettingsActivity).apply {
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.parseColor("#8E8E93"))
+            this.hint = hint
+            setText(sp().getString(key, ""))
+            textSize = 15f
+        }
+        fieldSavers.add { sp().edit().putString(key, et.text.toString()).apply() }
+        return et
+    }
+
+    /**
+     * Przycisk cykliczny dla opcji tekstowych (pkt 9.7 specyfikacji: akcja
+     * tapniecia predkosciomierza ma byc czytelna, nie domyslnie domyslna).
+     */
+    private fun cycleBtn(key: String, label: String, values: Array<Pair<String, String>>): Button {
+        val btn = Button(this@ObdSettingsActivity).apply {
+            textSize = 13f
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply { cornerRadius = 16f }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = 8 }
+        }
+        fun refresh() {
+            val cur = sp().getString(key, values[0].first) ?: values[0].first
+            val shown = values.firstOrNull { it.first == cur }?.second ?: values[0].second
+            btn.text = label + ": " + shown
+            (btn.background as GradientDrawable).setColor(Color.parseColor("#0A84FF"))
+        }
+        btn.setOnClickListener {
+            val cur = sp().getString(key, values[0].first) ?: values[0].first
+            val idx = values.indexOfFirst { it.first == cur }.let { if (it < 0) 0 else it }
+            sp().edit().putString(key, values[(idx + 1) % values.size].first).apply()
+            refresh()
+        }
+        refresh()
+        return btn
+    }
+
     private fun toggleBtn(key: String, label: String): Button {
         val btn = Button(this@ObdSettingsActivity).apply {
             textSize = 13f
@@ -238,6 +287,27 @@ class ObdSettingsActivity : Activity() {
         b.addView(numField("eco_tps", "18"))
         b.addView(numField("eco_map", "48"))
         b.addView(numField("eco_rpm", "2800"))
+
+        b.addView(header("Progi alarmowe luk (CZESC II pkt 10.7)"))
+        b.addView(caption("Przekroczenie progu = luk i wartosc czerwone #FF003A. " +
+            "Puste pole = wartosc domyslna z zegarow."))
+        b.addView(caption("ECT: temperatura alarmowa w C (domyslnie 102)"))
+        b.addView(numFieldDec("alarm_ect_max", "102"))
+        b.addView(caption("VOLTS: minimum (ponizej = alarm), domyslnie 11.8"))
+        b.addView(numFieldDec("alarm_volt_min", "11.8"))
+        b.addView(caption("VOLTS: maksimum (powyzej = alarm), domyslnie 14.8"))
+        b.addView(numFieldDec("alarm_volt_max", "14.8"))
+        b.addView(caption("LTFT: prog bezwgledny w % (domyslnie 10)"))
+        b.addView(numFieldDec("alarm_ltft_max", "10"))
+        b.addView(caption("IAT: temperatura alarmowa w C (domyslnie 65)"))
+        b.addView(numFieldDec("alarm_iat_max", "65"))
+
+        b.addView(header("Akcja tapniecia predkosciomierza (pkt 9.7)"))
+        b.addView(caption("Co robi tapniecie na cyfrowej predkosci na zegarach UFO"))
+        b.addView(cycleBtn("speed_tap_action", "Tapniecie predkosci", arrayOf(
+            Pair("units", "km/h <-> mph"),
+            Pair("dtc", "szybkie kasowanie DTC"),
+            Pair("none", "brak akcji"))))
         return p
     }
 
