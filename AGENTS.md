@@ -774,3 +774,40 @@ kotwic (count==1), ASCII, bilansu klamer/nawiasow i race-checkem HEAD.
   Android 9 radia, Drag&Drop kart). Na starcie tury release v1.0.312;
   kazdy commit tej tury buduje nowy release v1.0.<run_number> (CI
   ~3 min/push, samoaktualizacja Docka sama podciagnie najnowszy).
+
+### Dopisek 4 (sesja 5 cd.: SAGA CI - 16 faili #313-#329, naprawa, v1.0.331)
+
+- AUDYT po "czy zrobione wszystko": commity z Dopiska 3 wszystkie NA main,
+  ale CI padalo w "Run Unit Tests" od runu #313 do #329 - ZADEN commit
+  sesji 5 nie byl wydany w APK (ostatni zielony: v1.0.312). Objaw: brak
+  failing suite w raporcie = blad KOMPILACJI (testy nawet nie startowaly).
+- Diagnostyka (commit 327ef6d5, ZOSTAJE NA STALE): po failu gradle krok
+  robi grep "^e: |error: |FAILURE|..." ci.log | head -n 30 -> ::error::<linia>;
+  adnotacje sa PUBLICZNE na /commit/<sha>/checks (logi runow wymagaja admina).
+  head podniesione 8 -> 30: przy 8 bledy poza top-8 byly niewidoczne
+  (przez to saga byla dlugo nierozpoznana).
+- Przyczyny i fixy (commity 622f5d1f + 35521760):
+  1) ObdCoreService: kod ignition-resume (sesja 5) uzywal BroadcastReceiver/
+     IntentFilter BEZ importow. Fix: 2 importy.
+  2) CarPlayDashboardActivity: po dodaniu trzeciego parametru
+     horizontal: Boolean do dockBtn (commit 36) trailing lambda
+     dockBtn("USTAWIENIA") { ... } przestala wiazac sie z onClick (spada na
+     horizontal). PUŁAPKA: trailing lambda wiaze sie z OSTATNIM parametrem -
+     kazde doklejenie parametru po function type lamie WSZYSTKIE call-sites
+     z trailing lambda. Fix: jawny argument dockBtn("USTAWIENIA", { ... });
+     to samo dla HOME.
+  3) CarPlayDashboardActivity: buildLivePage mialo page.addView(scroll),
+     a zmienna nazywa sie liveScroll (regresja commitu 36). Fix: liveScroll.
+  4) UfoClusterFullView (commit 8b7ffbf9): zdublowany TICK (nowy var z
+     setNight + stary val = konflikt deklaracji), literowka
+     Paint.ANI_ALIAS_FLAG (poprawnie ANTI_; kaskada "Variable expected" na
+     pStroke), speedKmh(Int).isNaN() (Int nie ma isNaN). Fix: usun stary
+     val TICK, popraw literowke, zwykle speedKmh >= 0.
+- Po fixach: run #331 ZIELONY, release v1.0.331 - APK zawiera CALA prace
+  sesji 4-5 (UFO 34/35/37, 17.3/17.4, 16.1, 36, 38). Samoaktualizacja
+  Docka podciagnie v1.0.331 sama.
+- WNIOSKI NA PRZYSZLOSC: (a) po serii pushow ZAWSZE sprawdzac kolor CI
+  (ostatni release != ostatni commit = cos padlo, nie ufac "push poszedl");
+  (b) adnotacje ::error:: czytac przed jakimkolwiek zgadywaniem; (c) zmiana
+  sygnatury helpera = przejrzenie wszystkich call-sites, takze tych
+  pozostawionych w starym stylu.
