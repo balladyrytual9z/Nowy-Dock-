@@ -186,9 +186,13 @@ public class ConnectivityPanel extends LinearLayout {
         rlp.rightMargin = dp(10);
         main.addView(rail, rlp);
 
-        // suwak jasnosci | suwak glosnosci (PillSlider - tylko widoki frameworka)
-        LinearLayout sliders = new LinearLayout(act);
-        sliders.setOrientation(HORIZONTAL);
+        // ===== 3 KOLUMNY (uklad uzytkownika, 2026-11-07) =====
+        // kol 1: Wi-Fi / tethering / BT; kol 2: suwak jasnosci + Night Shift;
+        // kol 3: suwak glosnosci + tryb Dzienny/Nocny/Auto.
+        // Stale dp bez weight (Mali-T720): 146+10+180+12+180 = 528 dp.
+        LinearLayout colBri = new LinearLayout(act);
+        colBri.setOrientation(VERTICAL);
+        colBri.setGravity(Gravity.CENTER_HORIZONTAL);
         briSlider = new PillSlider(act, true, brightnessValue());
         briSlider.setListener(new PillSlider.Listener() {
             @Override
@@ -201,13 +205,22 @@ public class ConnectivityPanel extends LinearLayout {
                 showWarmthSlider();   // jak w iOS: przytrzymanie jasnosci = cieplo ekranu
             }
         });
-        // stale dp zamiast weight: na tym GPU (Mali-T720) dzieci z weight potrafia
-        // wyjsc zerowe - caly uklad panelu uzywa wylacznie stalych dp.
-        // Suwaki maja 240 dp wysokosci - tyle samo, co karta lacznosci obok
-        // (jak w iOS: suwaki i modul lacznosci sa jednej wysokosci).
-        LayoutParams blp = new LayoutParams(dp(160), dp(240));
-        blp.rightMargin = dp(6);
-        sliders.addView(briSlider, blp);
+        // waski suwak jak w iOS (bylo 160 dp); wysokosc = dwa przelaczniki (72+8+72)
+        LayoutParams blp = new LayoutParams(dp(120), dp(152));
+        colBri.addView(briSlider, blp);
+        if (Prefs.showNightShift(act)) {
+            nightRow = new NightShiftRow(act);
+            LayoutParams nlp = new LayoutParams(dp(124), dp(80));
+            nlp.topMargin = dp(8);
+            colBri.addView(nightRow, nlp);
+        }
+        LayoutParams clp = new LayoutParams(dp(180), dp(240));
+        clp.leftMargin = dp(10);
+        main.addView(colBri, clp);
+
+        LinearLayout colVol = new LinearLayout(act);
+        colVol.setOrientation(VERTICAL);
+        colVol.setGravity(Gravity.CENTER_HORIZONTAL);
         volSlider = new PillSlider(act, false, volumeValue());
         volSlider.setListener(new PillSlider.Listener() {
             @Override
@@ -220,39 +233,23 @@ public class ConnectivityPanel extends LinearLayout {
                 openAndClose("android.settings.SOUND_SETTINGS");
             }
         });
-        LayoutParams vlp = new LayoutParams(dp(160), dp(240));
-        vlp.leftMargin = dp(6);
-        sliders.addView(volSlider, vlp);
-        main.addView(sliders, new LayoutParams(dp(332), dp(240)));
+        LayoutParams vlp = new LayoutParams(dp(120), dp(152));
+        colVol.addView(volSlider, vlp);
+        if (Prefs.showModeButtons(act)) {
+            modeSeg = new ModeSegmentView(act);
+            LayoutParams mlp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(80));
+            mlp.topMargin = dp(8);
+            colVol.addView(modeSeg, mlp);
+        }
+        LayoutParams klp = new LayoutParams(dp(180), dp(240));
+        klp.leftMargin = dp(12);
+        main.addView(colVol, klp);
 
         addView(main, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
         // ===== MODUL WYSWIETLACZA (jak w iOS) =====
-        // Pelnoszerokosciowa karta pod modulem glownym - jak modul z okraglymi
-        // przyciskami Tryb ciemny / Night Shift / True Tone w Control Center.
-        // NightShiftRow to okragly przycisk z podpisem i podpodpisem stanu,
-        // ModeSegmentView to trzy okragle przyciski trybu wygladu.
-        if (Prefs.showNightShift(act) || Prefs.showModeButtons(act)) {
-            LinearLayout dcard = new LinearLayout(act);
-            dcard.setOrientation(HORIZONTAL);
-            dcard.setGravity(Gravity.CENTER);
-            dcard.setPadding(dp(8), dp(8), dp(8), dp(8));
-            dcard.setBackground(glassBg());
-            if (Prefs.showNightShift(act)) {
-                nightRow = new NightShiftRow(act);
-                LayoutParams nlp = new LayoutParams(dp(124), dp(88));
-                nlp.rightMargin = dp(8);
-                dcard.addView(nightRow, nlp);
-            }
-            if (Prefs.showModeButtons(act)) {
-                modeSeg = new ModeSegmentView(act);
-                dcard.addView(modeSeg, new LayoutParams(dp(252), dp(88)));
-            }
-            LayoutParams dlp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(104));
-            dlp.topMargin = dp(12);
-            addView(dcard, dlp);
-        }
+        // ===== Night Shift i tryb wygladu przeniesione pod suwaki (kol 2 i 3) =====
 
         // podpis trybu automatycznego (od zachodu do wschodu slonca)
         note = new TextView(act);
@@ -311,7 +308,7 @@ public class ConnectivityPanel extends LinearLayout {
 
     // ---------------------------------------------------------------- kafelki Wi-Fi / BT / Hotspot
     private void buildRail(LinearLayout rail) {
-        String[] railIds = {"wifi", "bt", "hot"};
+        String[] railIds = {"wifi", "hot", "bt"};
         for (String rid : railIds) {
             final PanelTool.Def def = PanelTool.find(rid);
             if (def == null) continue;
@@ -961,7 +958,7 @@ public class ConnectivityPanel extends LinearLayout {
         ModeSegmentView(Context c) {
             super(c);
             setOrientation(HORIZONTAL);
-            setGravity(Gravity.CENTER_VERTICAL);
+            setGravity(Gravity.CENTER);
             for (int i = 0; i < 3; i++) {
                 final int idx = i;
                 LinearLayout btn = new LinearLayout(c);
@@ -993,7 +990,7 @@ public class ConnectivityPanel extends LinearLayout {
                         select(idx);
                     }
                 });
-                LayoutParams blp = new LayoutParams(dp(84),
+                LayoutParams blp = new LayoutParams(dp(56),
                         ViewGroup.LayoutParams.WRAP_CONTENT);
                 addView(btn, blp);
             }
