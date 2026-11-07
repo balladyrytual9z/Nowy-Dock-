@@ -476,3 +476,15 @@ zdjęcie tabletu pokazuje stan obecny. Zmiany wypchnięte na `main` (commit ef01
   kapsułę kropek (wskaźnik stron) tuż obok doka, i na dole kolumny doka
   prześwituje ona jako szary pas. Użytkownik ODROCZYŁ naprawę do czasu screena
   z auta — NIE ruszać, dopóki nie przyśle zdjęcia.
+
+### Dodatek (screen IMG_8987)
+- Użytkownik przysłał screena (PNG, strona główna): szary pasek ma szerokość
+  SAMEGO DOKA (nie całego ekranu), miękka/rozmyta górna krawędź, widoczny
+  PRZEZ szkło doka (od dołu, ~1,5 wysokości ikony doka), zasłania dolne
+  zaokrąglenia szkła.
+- Hipoteza „zamazane kropki/kapsuła PageDots (0x66808088) wypełniające pustą
+  kolumnę doka w snapshotcie" — ODRZUCONA przez użytkownika („co innego").
+  NIE proponować ponownie tej samej diagnozy bez nowego materiału.
+- Temat WSTRZYMANY do czasu, aż użytkownik przyśle CZYSTY SCREENSHOT tabletu
+  (zrzut ekranu, nie zdjęcie aparatem). Do tego czasu nie ruszać niczego
+  związanego z tym paskiem.
