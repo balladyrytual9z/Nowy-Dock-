@@ -680,3 +680,46 @@ sie w wiekszosci zrobione wczesniej (audyt potwierdzil).
 - Punkt (a) listy "ZOSTAJE" z sesji 5 wykonany; zostaja (b) scrubber/eksport
   PNG (18.x), (c) Multi-Overlay 19 z Correlation Ribbon, (d) ikony na kartach
   CarPlay (pkt 16), (e) pelna maszyna stanow IgnitionMonitor.
+
+### Dopisek 2 (sesja 5 cd., user: "rob ile mozesz w sensownych ilosciach")
+
+Punkty (b)-(e) listy ZOSTAJE wykonane - 6 commitow, kazdy z walidacja
+kotwic (count==1), ASCII, bilansu klamer/nawiasow i race-checkem HEAD.
+
+- Commit dec6eada: ChartView wg pkt 18.x/47.x - scrubber z crosshair
+  (wartosc + timestamp pomiaru przy przesuwaniu, znika po gesie),
+  zakresy 30 s / 1 min / 5 min / cala trasa (timeRangeMs), krzywe
+  Beziera, etykiety osi, min/max/avg WIDOCZNEGO okna, exportPng()
+  (obszar + legenda + zakres + data; getExternalFilesDir - bez
+  uprawnien; brak danych = brak pliku, pkt 47.5), bufor 1200 probek.
+  API label/unit/push/sampleCount zachowane - nic nie zepsute.
+- Commit 27402689: kontrolki nad matryca wykresow w CarPlay: ZAKRES
+  (przelacznik cykliczny) + EKSPORT PNG (kazdy wykres osobny plik,
+  Toast z katalogiem; overlay tez respektuje zakres).
+- Commit 9a036601: pkt 19 Multi-Overlay - OverlayChartView (wspolna
+  os X, linia + indywidualny kolor na ZAZNACZONY parametr, legenda
+  z jednostkami; skala kazdej linii znormalizowana do wlasnego zakresu
+  - jawnie podpisane na wykresie, bez udawania wspolnej skali Y);
+  przycisk OVERLAY w kontrolkach. CorrelationAnalyzer (analytics/,
+  czysty JVM): korelacje Pearsona po wspolnych timestampach, pary
+  LOAD-LTFT / LOAD-STFT / ECT-LTFT / IAT-ECT / LOAD-MAP, raport po
+  polsku (kierunek, r, N probek), statusy OK/INFO/BRAK, MIN_SAMPLES=20,
+  seria o zerowej wariancji pomijana. Correlation Ribbon pod wykresem
+  prezentuje WYLACZNIE tekst modulu + status (UI nie wymysla diagnozy,
+  pkt 19); analiza odswiezana co 5 s. + 6 testow JUnit4.
+- Commit 5814b240: pkt 16 ikony kart - CardIcon (Drawable, glify
+  wektorowe 24x24 rysowane na Canvas bez plikow zasobow: tacho /
+  speedo / bolt / thermo / warning / bars); captionRow = ikona +
+  podpis na kazdej karcie Overview.
+- Commit 3a0b59bf: pkt 35 + 44.3 EngineState wg dokumentu - OFF:
+  RPM==0 + V<12.4 utrzymane > 2 s (hold chroni przed chwilowa cisza
+  ECU; zegar wstrzykiwany w konstruktorze); RUNNING: RPM>500 +
+  V>13.2; progi jako parametry konstruktora (pkt 35: "musza byc
+  konfigurowalne"). CRANKING (1..450) i PROTECTED (V<11.0) zachowane
+  - uzywa ich PidScheduler i watchdog ACC. + 6 testow JUnit4.
+- ZOSTAJE z dokumentu (nizszy priorytet / wieksze ryzyko bez testu
+  na aucie): 16.1 personalizacja kart (Drag&Drop + trwala kolejnosc),
+  17.3 Auto-Sort by Anomaly (toggle), 17.4 rozwinięcie parametru ↗
+  (pelny ekran), 35.1 zachowania UFO po Engine OFF (luki na VOLTAGE/
+  AVG_TRIP_FUEL, dyskretny E-RAPORT), 34.2/34.3 motyw dzien/noc
+  zegarow UFO, 36 Split-Screen, 38 widzet Androida.
