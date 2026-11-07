@@ -723,3 +723,54 @@ kotwic (count==1), ASCII, bilansu klamer/nawiasow i race-checkem HEAD.
   (pelny ekran), 35.1 zachowania UFO po Engine OFF (luki na VOLTAGE/
   AVG_TRIP_FUEL, dyskretny E-RAPORT), 34.2/34.3 motyw dzien/noc
   zegarow UFO, 36 Split-Screen, 38 widzet Androida.
+
+### Dopisek 3 (sesja 5 cd., user: "Rób dalej" - CALA lista ZOSTAJE wykonana)
+
+- Commit 8b7ffbf9: UFO - motyw dzien/noc zegarow (34.2/34.3: BG_DAY
+  #121722 / BG_NIGHT #05070B, ticki #FFFFFF/#FFFDE7, neonowa poswiata
+  tarczy TYLKO w nocy, alfa 0x33; setNight() odbudowuje warstwe
+  statyczna; systemowa jasnosc nietknieta - 34.4) + Engine OFF
+  (35.1/35.2: wskazowki plynnie do zera, lewy luk -> ufo_off_left
+  [VOLTS], prawy -> ufo_off_right [AVG_TRIP_FUEL], przypisania OFF
+  konfigurowalne w Ustawieniach, powrot do wlasciwych luk po rozruchu,
+  dyskretny E-RAPORT na tarczy) + NOWY parametr AVG_TRIP_FUEL (L/100km
+  z MAF/AFR 14.7/745 g/l + dystansu, NaN przy < 0.2 km) + usuniety
+  FLAG_KEEP_SCREEN_ON z UfoClusterActivity (pkt 37).
+- Commit e9eaee0f: 17.3 Auto-Sort by Anomaly (anomal przenosi wiersz
+  na poczatek listy Live Data raz, bez migotania; toggle
+  auto_sort_anomaly, domyslnie WL) + 17.4 rozwiniecie parametru ↗
+  (pelny ekran jednego wykresu + ZAMKNIJ; wykres w mapie charts, wiec
+  telemetria plynie bez zmian).
+- Commit 7391f788: 16.1 personalizacja kart Overview - rejest kart
+  (RPM_SPEED/BATTERY/ECT/DTC/OBD), trwala kolejnosc prefs
+  overview_cards_order, pierwsza karta w kolejnosci = duza, reszta
+  w rzedach po 2; Drag & Drop (long press + startDragAndDrop, drop na
+  karcie = zamiana + zapis), widocznosc kart toggleBtn ov_card_*. PUŁAPKA:
+  pressable (animacja 16.2) konsumuje DOWN w onTouchListener, wiec
+  klasyczny OnLongClickListener nie zadziala na kartach RPM/SPEED i DTC
+  - start drag idzie z TEGO SAMEGO timera long-press w pressable(...)
+  (opcjonalny trzeci parametr), nie przez setOnLongClickListener.
+- Commit 8e0c52ca: 36 Multi-Window/Split-Screen. CarPlay: w split
+  dok idzie na dol jako poziomy pasek ~50 dp (HorizontalScrollView,
+  wszystkie moduly + QUICK/USTAWIENIA/HOME), Live Data w JEDNEJ kolumnie
+  (applyLiveStack); workArea jest re-parentowane (setContentView
+  buildRoot()), wiec karty/zaznaczenia/wykresy przetrwaja zmiane trybu;
+  UFO: onMultiWindowModeChanged -> start CarPlay z extra "from_ufo" +
+  finish(); CarPlay przy wyjsciu z Multi-Window i from_ufo wraca do
+  UFO. dockBtn ma wariant horizontal; buildDock()/buildDockBar() czyszcza
+  dockBtns (inaczej po rebuild highlightActive swieci starymi przyciskami).
+- Commit 5b5d0f75: 38 widzet OBD - tlo #1C1C1E radius 16 dp obwodka
+  #2C2C2E (noca) / #F2F2F7 + #D1D1D6 (dzien, auto wg NOAA jak cala apka),
+  wartosci duze bold + jednostki mniejsze, do 4 parametrow (sloty
+  widget_p1..p4 w Ustawieniach sposrod WSZYSTKICH parametrow apki,
+  default RPM+SPEED), dane z pelnego VehicleUiState (push(context, s)
+  - zmieniona sygnatura, obaj nadawcy: ObdCoreService +
+  ObdDiscoveryActivity), throttle 1 push / 2 s (RemoteViews drogie),
+  klik otwiera OBD Discovery. Nowe drawables obd_widget_bg(_day).xml,
+  minHeight widzetu 25 -> 60 dp (4 parametry nie mieszcza sie w 25).
+- ZOSTAJE z Dopiska 2: WYKONANE WSZYSTKIE. Dokument "ui obd.txt"
+  zaimplementowany w calosci; pozostale ryzyka to wylacznie kwestie
+  do potwierdzenia na aucie (EngineState hold 2 s, Split-Screen na
+  Android 9 radia, Drag&Drop kart). Na starcie tury release v1.0.312;
+  kazdy commit tej tury buduje nowy release v1.0.<run_number> (CI
+  ~3 min/push, samoaktualizacja Docka sama podciagnie najnowszy).
