@@ -60,14 +60,23 @@ public final class PoiCategories {
             {"stacja ladowan", "charging station"},
     };
 
+    /** Znosi polskie diakrytyki (ł->l, ż->z itd.), zeby "ładowania" trafialo w "ladowan". */
+    private static String fold(String s) {
+        if (s == null) return "";
+        return s.replace("ł", "l").replace("Ł", "l")
+                .replace("ą", "a").replace("ę", "e").replace("ś", "s")
+                .replace("ż", "z").replace("ź", "z").replace("ó", "o")
+                .replace("ć", "c").replace("ń", "n");
+    }
+
     /** Termin OSM dla frazy-kategorii albo null (zwykle wyszukiwanie). */
     public static String lookup(String query) {
         if (query == null) return null;
-        String q = query.toLowerCase(Locale.ROOT).trim();
+        String q = fold(query.toLowerCase(Locale.ROOT).trim());
         if (q.length() == 0) return null;
         for (int i = 0; i < MAP.length; i++) {
-            String frag = MAP[i][0];
-            if (frag != null && q.contains(frag)) return MAP[i][1];
+            String frag = fold(MAP[i][0]);
+            if (frag.length() > 0 && q.contains(frag)) return MAP[i][1];
         }
         return null;
     }
