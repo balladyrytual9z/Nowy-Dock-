@@ -27,4 +27,17 @@ public class BaseActivity extends Activity {
         } catch (Throwable ignored) {
         }
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Powrot do launchera (Home albo koniec okna instalatora APK) - przywroc
+        // nakladke Night Shift, jesli Updater pauzowal ja na czas instalacji.
+        // Gdy filtra nie ma, wolanie nic nie robi. Wszystkie ekrany dziedzicza
+        // po BaseActivity, wiec jedno miejsce obsluguje caly launcher.
+        try {
+            NightShift.resume(this);
+        } catch (Throwable ignored) {
+        }
+    }
 }

@@ -9,6 +9,9 @@ public final class ColorTemp {
     public static final double MIN_K = 2200;
     public static final double MAX_K = 6500;
 
+    /** Kotwica maksymalnego ciepla nakladki Night Shift jak w iOS (~2700 K). */
+    public static final double WARM_K = 2700;
+
     private ColorTemp() {}
 
     /** {r, g, b} w 0..255. */
@@ -43,6 +46,39 @@ public final class ColorTemp {
     public static double fractionToKelvin(float fraction) {
         fraction = Math.max(0f, Math.min(1f, fraction));
         return MAX_K - (MAX_K - MIN_K) * fraction;
+    }
+
+    /**
+     * Docelowy punkt bieli nakladki dla glebi ciepla f
+     * (0 = neutralna bial, 1 = WARM_K). Kanaly interpolowane liniowo,
+     * dlatego suwak "Chlodniejsze/Cieplejsze" dziala postrzeganie rowno
+     * po calym zakresie. {r, g, b} w 0..255.
+     */
+    public static int[] warmthWhitePoint(float f) {
+        f = Math.max(0f, Math.min(1f, f));
+        int[] warm = kelvinToRgb(WARM_K);
+        int g = 255 - Math.round((255 - warm[1]) * f);
+        int b = 255 - Math.round((255 - warm[2]) * f);
+        return new int[]{ 255, clamp(g), clamp(b) };
+    }
+
+    /**
+     * Kolor nakladki dla glebi ciepla f: {alpha, r, g, b}, kazdy 0..255.
+     * Kolor jest NASYCANY i liczony tak, aby bialy piksel trafial dokladnie
+     * w warmthWhitePoint(f):
+     *     255*(1-a/255) + C*(a/255) = cel   =>   C = 255 - (255-cel)*255/a
+     * Stad ekran ZOLCI sie zamiast bladnac. Alpha = 0.70*f: przy f -> 0
+     * nakladka zanika do zera (plynny fade przy wylaczaniu), przy f = 1
+     * daje glebokie cieplo WARM_K (2700 K).
+     */
+    public static int[] overlayTint(float f) {
+        f = Math.max(0f, Math.min(1f, f));
+        if (f <= 0.0005f) return new int[]{ 0, 255, 255, 255 };
+        int a = Math.max(1, Math.round(0.70f * f * 255f));
+        int[] w = warmthWhitePoint(f);
+        int g = 255 - Math.round((255 - w[1]) * 255f / a);
+        int b = 255 - Math.round((255 - w[2]) * 255f / a);
+        return new int[]{ a, 255, clamp(g), clamp(b) };
     }
 
     private static int clamp(double v) {
