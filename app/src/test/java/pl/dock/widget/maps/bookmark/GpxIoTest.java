@@ -82,4 +82,29 @@ public class GpxIoTest {
         assertEquals(52.1d, w.get(0).lat, 1e-6);
         assertEquals("Punkt", w.get(0).name);
     }
+
+    @Test
+    public void zakladki_folderGpxRoundtrip() {
+        List<Bookmark> in = new ArrayList<Bookmark>();
+        in.add(new Bookmark(1L, "Dom", 52.16d, 21.05d, 1000L, "Rodzina", 0));
+        in.add(new Bookmark(2L, "Biuro", 51.91d, 20.70d, 2000L, "", 0));
+        String gpx = GpxIo.writeBookmarks(in);
+        List<Bookmark> out = GpxIo.parseWaypoints(gpx);
+        assertEquals(2, out.size());
+        assertEquals("Rodzina", out.get(0).folder);
+        assertEquals("Dom", out.get(0).name);
+        // zakladka bez folderu: desc nie jest zapisywane, folder = ""
+        assertEquals("", out.get(1).folder);
+    }
+
+    @Test
+    public void zakladki_folderKmlRoundtrip() {
+        List<Bookmark> in = new ArrayList<Bookmark>();
+        in.add(new Bookmark(1L, "Chatka", 52.5d, 19.5d, 0L, "Wakacje", 0));
+        String kml = GpxIo.writeBookmarksKml(in);
+        List<Bookmark> out = GpxIo.parseKmlWaypoints(kml);
+        assertEquals(1, out.size());
+        assertEquals("Wakacje", out.get(0).folder);
+        assertEquals("Chatka", out.get(0).name);
+    }
 }
