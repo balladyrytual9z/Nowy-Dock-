@@ -1105,4 +1105,25 @@ public class Prefs {
     public static void setUpdateCheckMin(Context c, int min) {
         ed(c).putInt("update_check_min", min < 1 ? 1 : min).apply();
     }
+
+    // ---------- nawigacja (jak Organic Maps) ----------
+    // profil trasy do OSRM: auto | rower | pieszo
+    public static String mapRouteProfile(Context c) {
+        String v = sp(c).getString("map_route_profile", "auto");
+        return "rower".equals(v) || "pieszo".equals(v) ? v : "auto";
+    }
+
+    public static void setMapRouteProfile(Context c, String v) {
+        ed(c).putString("map_route_profile", v).apply();
+    }
+
+    // komunikaty glosowe prowadzenia (TTS); domyslnie WLACZONE
+    public static boolean mapVoice(Context c) {
+        return sp(c).getBoolean("map_voice", true);
+    }
+
+    public static void setMapVoice(Context c, boolean v) {
+        ed(c).putBoolean("map_voice", v).apply();
+    }
 }
+
