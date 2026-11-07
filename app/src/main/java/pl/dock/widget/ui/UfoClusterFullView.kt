@@ -266,6 +266,13 @@ class UfoClusterFullView(context: Context) : View(context) {
     private var arcTxtCacheR = ""
     private var arcTxtSrcR = Float.NaN
     private var arcTxtKeyR = ""
+    // cache tekstu MAX/AVG (statystyki) - zero alokacji w onDraw
+    private var statKey = ""
+    private var statHave = false
+    private var statMaxSrc: Float? = null
+    private var statAvgSrc: Float? = null
+    private var statMaxCache = "MAX: N/A"
+    private var statAvgCache = "AVG: N/A"
 
     // ---------- API publiczne ----------
 
@@ -496,7 +503,7 @@ class UfoClusterFullView(context: Context) : View(context) {
             val major = r % 1000 == 0
             val mid = r % 500 == 0
             val len = when { major -> 14f; mid -> 9f; else -> 5f }
-            val w = when { major -> 2.5f; mid -> 2f; else -> 1.2f }
+            val w = when { major -> 2.5f; mid -> 2f; else -> 1.5f }   // min 1.5 dp (honda zegary)
             pStroke.strokeWidth = w
             pStroke.color = if (r >= 6300) RED else TICK
             val r1 = R_DIAL - 34f
@@ -505,8 +512,9 @@ class UfoClusterFullView(context: Context) : View(context) {
                 (CX + r2 * Math.cos(ang)).toFloat(), (CY + r2 * Math.sin(ang)).toFloat(), pStroke)
         }
 
-        // cyfry 1-8: kroj pochylony, bez rotacji radialnej (pkt 7.2)
-        pItalic.textSize = 30f
+        // cyfry 1-8: kroj pochylony, bez rotacji radialnej (pkt 7.2);
+        // rozmiar 28sp Bold Italic wg "honda zegary.txt" (pkt 6)
+        pItalic.textSize = 28f
         pItalic.color = TICK
         pItalic.textAlign = Paint.Align.CENTER
         for (n in 1..8) {
@@ -774,17 +782,34 @@ class UfoClusterFullView(context: Context) : View(context) {
         pText.textAlign = Paint.Align.LEFT
         c.drawText(paramInterval(key), 548f, 452f, pText)
 
-        val mx = midMax[key]
-        val avgSum = midAvgSum[key]
-        val avgCnt = midAvgCount[key]
+        // statystyki: okno 5m/1h tam, gdzie etykieta je deklaruje (prawdziwe
+        // wartosci), reszta = od startu sesji; tekst MAX/AVG w cache
+        // (zero alokacji String w onDraw - honda zegary pkt 3)
+        val winMs = statWindowMs(key)
+        val mx: Float?
+        val avg: Float?
+        if (winMs > 0L) {
+            refreshWinStats(key, winMs)
+            mx = winMax[key]
+            avg = winAvg[key]
+        } else {
+            mx = midMax[key]
+            val avgSum = midAvgSum[key]
+            val avgCnt = midAvgCount[key]
+            avg = if (avgSum == null || avgCnt == null || avgCnt <= 0f) null else avgSum / avgCnt
+        }
+        if (key != statKey || have != statHave || mx != statMaxSrc || avg != statAvgSrc) {
+            statKey = key; statHave = have; statMaxSrc = mx; statAvgSrc = avg
+            statMaxCache = if (have && mx != null) "MAX: " + fmtParam(key, mx) else "MAX: N/A"
+            statAvgCache = if (have && avg != null) "AVG: " + fmtParam(key, avg) else "AVG: N/A"
+        }
         pText.textAlign = Paint.Align.RIGHT
         pText.textSize = 24f
         pText.typeface = tfBold
         pText.color = if (have) MAX_INK else LCD_OFF
-        c.drawText(if (mx == null) "MAX: N/A" else "MAX: " + fmtParam(key, mx), 734f, 442f, pText)
+        c.drawText(statMaxCache, 734f, 442f, pText)
         pText.color = if (have) AVG_INK else LCD_OFF
-        c.drawText(if (avgSum == null || avgCnt == null || avgCnt <= 0f) "AVG: N/A"
-            else "AVG: " + fmtParam(key, avgSum / avgCnt), 734f, 478f, pText)
+        c.drawText(statAvgCache, 734f, 478f, pText)
     }
 
     /** Formatowanie zalezne od parametru (bar z dwoma miejscami). */
@@ -807,7 +832,90 @@ class UfoClusterFullView(context: Context) : View(context) {
     /** Historia WSZYSTKICH parametrow apki (pkt 8.7: pelna lista). */
     private fun pushAllHistory() {
         val now = System.currentTimeMillis()
-        for (k in CHART_KEYS) pushHistory(k, paramValue(k), now)
+        for (k in CHART_KEYS) {
+            val v = paramValue(k)
+            pushHistory(k, v, now)
+            if (statWindowMs(k) > 0L) pushWinSample(k, v, now)
+        }
+    }
+
+    // ---------- Statystyki okienne MAX/AVG (etykiety "5m"/"1h" prawdziwe) ----------
+
+    /** Okno statystyk parametru [ms]; 0 = od startu sesji (TRIP). */
+    private fun statWindowMs(key: String): Long = when (key) {
+        "BOOST", "MAF" -> 300_000L        // "bar / 5m", "g/s / 5m"
+        "VOLTS", "BARO" -> 3_600_000L     // "V / 1h", "kPa / 1h"
+        else -> 0L
+    }
+
+    // Bufory okien: 1 h przy probkach >= 250 ms = 14400 probek (2 parametry
+    // ~345 KB - akceptowalne przy limicie 128 MB); 5 m = 1200 probek.
+    private val winTs = HashMap<String, LongArray>()
+    private val winVals = HashMap<String, FloatArray>()
+    private val winLen = HashMap<String, Int>()
+    private val winHead = HashMap<String, Int>()
+    private val winMax = HashMap<String, Float?>()
+    private val winAvg = HashMap<String, Float?>()
+    private var winCalcMs = 0L
+
+    private fun pushWinSample(key: String, v: Float, now: Long) {
+        if (v.isNaN()) return
+        val winMs = statWindowMs(key)
+        if (winMs <= 0L) return
+        val cap = if (winMs >= 3_600_000L) 14_400 else 1_200
+        var ts = winTs[key]
+        var vs = winVals[key]
+        if (ts == null || vs == null || ts.size != cap) {
+            ts = LongArray(cap); vs = FloatArray(cap)
+            winTs[key] = ts; winVals[key] = vs
+            winLen[key] = 0; winHead[key] = 0
+        }
+        val len = winLen[key] ?: 0
+        val head = winHead[key] ?: 0
+        if (len > 0) {
+            val lastIdx = (head + len - 1) % cap
+            if (now - ts[lastIdx] < HIST_MIN_DT_MS) {
+                vs[lastIdx] = v
+                return
+            }
+        }
+        if (len < cap) {
+            val idx = (head + len) % cap
+            ts[idx] = now; vs[idx] = v
+            winLen[key] = len + 1
+        } else {
+            ts[head] = now; vs[head] = v
+            winHead[key] = (head + 1) % cap
+        }
+    }
+
+    /** MAX/AVG w oknie czasowym; skan bufora najwyzej 4x/s (zero kosztu w onDraw). */
+    private fun refreshWinStats(key: String, winMs: Long) {
+        val now = System.currentTimeMillis()
+        if (now - winCalcMs < 250L && winMax.containsKey(key)) return
+        winCalcMs = now
+        val ts = winTs[key]
+        val vs = winVals[key]
+        val len = winLen[key] ?: 0
+        val head = winHead[key] ?: 0
+        if (ts == null || vs == null || len == 0) {
+            winMax[key] = null; winAvg[key] = null
+            return
+        }
+        val cap = ts.size
+        var mx = -Float.MAX_VALUE
+        var sum = 0.0
+        var cnt = 0
+        for (i in 0 until len) {
+            val idx = (head + i) % cap
+            if (now - ts[idx] > winMs) continue
+            val v = vs[idx]
+            if (v > mx) mx = v
+            sum += v
+            cnt++
+        }
+        winMax[key] = if (cnt == 0) null else mx
+        winAvg[key] = if (cnt == 0) null else (sum / cnt).toFloat()
     }
 
     private fun pushHistory(key: String, v: Float, now: Long) {
@@ -1112,6 +1220,7 @@ class UfoClusterFullView(context: Context) : View(context) {
             if (y > 400f && holdMs > 1500) {
                 val key = midKey(midLoop[midIndex])
                 midMax.remove(key); midAvgSum.remove(key); midAvgCount.remove(key)
+                winLen[key] = 0; winHead[key] = 0; winMax[key] = null; winAvg[key] = null
             } else {
                 midIndex = (midIndex + 1) % midLoop.size
             }
