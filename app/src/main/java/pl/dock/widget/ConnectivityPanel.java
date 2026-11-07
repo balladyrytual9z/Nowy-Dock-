@@ -136,7 +136,7 @@ public class ConnectivityPanel extends LinearLayout {
      *  GradientDrawable = czysty framework (zero onDraw, patrz naglowek klasy). */
     private GradientDrawable glassBg() {
         GradientDrawable g = new GradientDrawable();
-        g.setColor(night ? 0x24FFFFFF : 0x14000000);
+        g.setColor(night ? 0x2EFFFFFF : 0x17000000);
         g.setCornerRadius(dp(28));
         g.setStroke(Math.max(1, dp(1)), night ? 0x33FFFFFF : 0x1E787880);
         return g;
@@ -170,7 +170,7 @@ public class ConnectivityPanel extends LinearLayout {
 
         // ===== STALY MODUL BAZOWY (zawsze widoczny po otwarciu) =====
         // Jak w iOS: karta lacznosci po LEWEJ, suwaki po PRAWEJ.
-        // Stale dp zamiast weight (Mali-T720): 126 + 10 + 190 + 12 + 190 = 528 dp
+        // Stale dp zamiast weight (Mali-T720): 146 + 10 + 180 + 12 + 180 = 528 dp
         // = panel 560 dp minus padding 2 x 16 dp; wysokosc modulow jednakowa.
         LinearLayout main = new LinearLayout(act);
         main.setOrientation(HORIZONTAL);
@@ -182,7 +182,7 @@ public class ConnectivityPanel extends LinearLayout {
         rail.setPadding(dp(10), 0, dp(10), 0);
         rail.setBackground(glassBg());
         buildRail(rail);
-        LayoutParams rlp = new LayoutParams(dp(126), dp(240));
+        LayoutParams rlp = new LayoutParams(dp(146), dp(240));
         rlp.rightMargin = dp(10);
         main.addView(rail, rlp);
 
@@ -205,7 +205,7 @@ public class ConnectivityPanel extends LinearLayout {
         // wyjsc zerowe - caly uklad panelu uzywa wylacznie stalych dp.
         // Suwaki maja 240 dp wysokosci - tyle samo, co karta lacznosci obok
         // (jak w iOS: suwaki i modul lacznosci sa jednej wysokosci).
-        LayoutParams blp = new LayoutParams(dp(190), dp(240));
+        LayoutParams blp = new LayoutParams(dp(160), dp(240));
         blp.rightMargin = dp(6);
         sliders.addView(briSlider, blp);
         volSlider = new PillSlider(act, false, volumeValue());
@@ -220,10 +220,10 @@ public class ConnectivityPanel extends LinearLayout {
                 openAndClose("android.settings.SOUND_SETTINGS");
             }
         });
-        LayoutParams vlp = new LayoutParams(dp(190), dp(240));
+        LayoutParams vlp = new LayoutParams(dp(160), dp(240));
         vlp.leftMargin = dp(6);
         sliders.addView(volSlider, vlp);
-        main.addView(sliders, new LayoutParams(dp(392), dp(240)));
+        main.addView(sliders, new LayoutParams(dp(332), dp(240)));
 
         addView(main, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -1032,7 +1032,7 @@ public class ConnectivityPanel extends LinearLayout {
     }
 
     // ---------------------------------------------------------------- pionowy suwak (framework-only)
-    public static class PillSlider extends LinearLayout {
+    public static class PillSlider extends FrameLayout {
         public interface Listener {
             void on(float v);
 
@@ -1054,35 +1054,36 @@ public class ConnectivityPanel extends LinearLayout {
             return Math.round(v * d);
         }
 
+        // NAPRAWA (ESSGOO/MT8163, API 28): stary suwak uzywal potomka z weight
+        // ( wysokosc 0 + waga 1 ) - na tym GPU weight potrafil wyjsc zerowy i
+        // suwak splaszcza sie do poziomej pigulki z wielka ikona. Teraz czysty
+        // FrameLayout: fill to View z Gravity.BOTTOM o wysokosci ustawianej
+        // recznie w applyFill() - zero wag. Smuklejszy tor jak w iOS Control
+        // Center, mniejsza ikona przy dolnej krawedzi.
         public PillSlider(Context c, boolean sun, float v) {
             super(c);
-            setOrientation(VERTICAL);
-            // tor (track) rysuje GradientDrawable - framework
             // tor = ciemne szklo przepuszczajace rozmyte tlo (pigulka jak w iOS)
             GradientDrawable track = new GradientDrawable();
-            track.setColor(Look.night(c) ? 0x993A3A3C : 0xCCE1E1E7);
+            track.setColor(Look.night(c) ? 0x663A3A3C : 0x99E9E9EE);
             track.setCornerRadius(999f);
             setBackground(track);
             value = Math.max(0f, Math.min(1f, v));
 
             // wypelnienie od dolu - zwykly View z bialym GradientDrawable
             fill = new View(c);
-            fill.setBackground(Ui.round(0xF5FFFFFF, 999, c));
-            FrameLayout froot = new FrameLayout(c);
+            fill.setBackground(Ui.round(0xF2FFFFFF, 999, c));
             FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, 1, Gravity.BOTTOM);
             flp.setMargins(dp(2), dp(2), dp(2), dp(2));
-            froot.addView(fill, flp);
-            addView(froot, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+            addView(fill, flp);
 
-            // ikona na dole (Bitmapa -> ImageView, framework)
+            // ikona przy dolnej krawedzi (Bitmapa -> ImageView, framework)
             icon = new ImageView(c);
             int ink = sun ? 0xFFF2C94C : 0xFF8E8E93;
             icon.setImageBitmap(makeSliderIcon(c, sun, ink));
-            LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(dp(38), dp(38));
-            ilp.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
-            ilp.bottomMargin = dp(6);
+            FrameLayout.LayoutParams ilp = new FrameLayout.LayoutParams(dp(30), dp(30),
+                    Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+            ilp.bottomMargin = dp(10);
             addView(icon, ilp);
 
             setOnTouchListener(new OnTouchListener() {
@@ -1170,10 +1171,10 @@ public class ConnectivityPanel extends LinearLayout {
 
         private static Bitmap makeSliderIcon(Context c, boolean sun, int ink) {
             float den = c.getResources().getDisplayMetrics().density;
-            int px = (int) Math.ceil(38f * den);
+            int px = (int) Math.ceil(30f * den);
             Bitmap b = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
             Canvas cv = new Canvas(b);
-            PanelTool.glyph(cv, sun ? "sun" : "speaker", px / 2f, px / 2f, 32f * den, ink);
+            PanelTool.glyph(cv, sun ? "sun" : "speaker", px / 2f, px / 2f, 24f * den, ink);
             return b;
         }
     }

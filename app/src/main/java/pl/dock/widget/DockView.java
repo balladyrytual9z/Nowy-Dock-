@@ -47,7 +47,7 @@ public class DockView extends View {
     private int glassX;      // polozenie doka w root: wycinek pelnoekranowego snapshota
     private int rootW, rootH;
     private ViewGroup glassSource;   // root: zywe odswiezanie szkla w trakcie przewijania
-    private long lastGlassAt;        // throttle snapshotow (~150 ms) dla plynnosci gestu
+    private long lastGlassAt;        // throttle snapshotow (~50 ms) dla plynnosci gestu
     private float blend;            // 0..1: strona widżetów w trybie dziennym robi dock nocny
     private String clock = "--:--";
     private String volt = "";
@@ -216,13 +216,13 @@ public class DockView extends View {
 
     // Liquid Glass ma "zyc": gdy cokolwiek na ekranie sie rusza (przewijanie stron,
     // gest, animacja), tresc przesuwa sie POD szklem i musi byc widoczna.
-    // Snapshot odswiezamy throttlowany (min 150 ms) przez OnPreDraw - czysto
+    // Snapshot odswiezamy throttlowany (min 50 ms) przez OnPreDraw - czysto
     // stagnujacy ekran nie robi zadnych dodatkowych snapshotow. Bufor w LiveBlur
     // jest reuzywany (zero alokacji), wiec gest nie tnie na slabym GPU.
     private void maybeRefreshGlass() {
         if (!glass || glassSource == null) return;
         long now = android.os.SystemClock.uptimeMillis();
-        if (now - lastGlassAt < 150L) return;
+        if (now - lastGlassAt < 50L) return;
         lastGlassAt = now;
         post(glassCapture);
     }
@@ -339,7 +339,7 @@ public class DockView extends View {
             Paint body = new Paint(Paint.ANTI_ALIAS_FLAG);
             body.setStyle(Paint.Style.FILL);
             body.setShader(new LinearGradient(l, t, l, bt,
-                    new int[]{0x2EFFFFFF, 0x0DFFFFFF, 0x08FFFFFF, 0x24FFFFFF},
+                    new int[]{0x24FFFFFF, 0x08FFFFFF, 0x05FFFFFF, 0x1AFFFFFF},
                     new float[]{0f, 0.16f, 0.62f, 1f}, Shader.TileMode.CLAMP));
             rect.set(l, t, rr, bt);
             cv.drawRoundRect(rect, rad, rad, body);

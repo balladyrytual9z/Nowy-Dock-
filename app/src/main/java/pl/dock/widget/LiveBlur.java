@@ -12,8 +12,8 @@ import android.view.ViewGroup;
 public class LiveBlur {
 
     private static final int SCALE = 6;
-    private static final int RADIUS = 6;
-    private static final int PASSES = 3;
+    private static final int RADIUS = 8;
+    private static final int PASSES = 4;
 
     private static Bitmap buf;
 
@@ -25,7 +25,7 @@ public class LiveBlur {
 
     static {
         ColorMatrix m = new ColorMatrix();
-        m.setSaturation(1.45f);
+        m.setSaturation(1.6f);
         regionPaint.setColorFilter(new ColorMatrixColorFilter(m));
     }
 

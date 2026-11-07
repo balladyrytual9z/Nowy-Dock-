@@ -53,6 +53,7 @@ public class AppLibraryPage extends FrameLayout {
     private LinearLayout searchHeader;
     private View headerGap;
     private ScrollView scrollView;
+    private TextView letterBubble;   // iOS: duza litera nad palcem na pasku liter
     private LinearLayout listCol;
     private String query = "";
     private String rawText = "";
@@ -140,19 +141,19 @@ public class AppLibraryPage extends FrameLayout {
                 if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
                     if (a == MotionEvent.ACTION_UP && !dragged && selected >= 0)
                         scrollToLetter(String.valueOf(LETTERS.charAt(selected)), true);
-                    if (selected >= 0) magnifyLetter(selected, false);
+                    hideLetterBubble();
                     selected = -1; return true;
                 }
-                return false;
             }
             private void dragSelect(float y) {
                 int idx = letterIndexAt(y);
-                if (idx >= 0 && idx != selected) {
-                    if (selected >= 0) magnifyLetter(selected, false);
-                    selected = idx;
-                    magnifyLetter(idx, true);
-                    letterBar.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
-                    scrollToLetter(String.valueOf(LETTERS.charAt(idx)), true);
+                if (idx >= 0) {
+                    if (idx != selected) {
+                        selected = idx;
+                        letterBar.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+                        scrollToLetter(String.valueOf(LETTERS.charAt(idx)), true);
+                    }
+                    showLetterBubble(String.valueOf(LETTERS.charAt(idx)), y);
                 }
             }
         });
@@ -170,8 +171,9 @@ public class AppLibraryPage extends FrameLayout {
         leftCol.addView(letterBar, lbLp);
         page.addView(leftCol, colLp);
 
-        LinearLayout contentPane = new LinearLayout(ctx);
-        contentPane.setOrientation(LinearLayout.VERTICAL);
+        // Pasek szukania plywa NAD lista: lista przewija sie pod polprzezroczystym
+        // szklanym paskiem, pasek zawsze widoczny (jak w iOS).
+        android.widget.FrameLayout contentPane = new android.widget.FrameLayout(ctx);
         contentPane.setClipChildren(false);
         contentPane.setClipToPadding(false);
 
@@ -181,7 +183,12 @@ public class AppLibraryPage extends FrameLayout {
         searchHeader.setClipChildren(false);
         searchHeader.setClipToPadding(false);
         searchHeader.setPadding(dp(12), dp(10), dp(12) + extraR, dp(10));
-        searchHeader.setBackground(null);
+        // szklana pigulka paska szukania - polprzezroczysta, lista widoczna pod spodem
+        GradientDrawable glassPill = new GradientDrawable();
+        glassPill.setCornerRadius(dp(26));
+        glassPill.setColor(night ? 0x30FFFFFF : 0xCCEF0F1F);
+        glassPill.setStroke(Math.max(1, (int) (0.9f * d)), night ? 0x3DFFFFFF : 0x2E808090);
+        searchHeader.setBackground(glassPill);
         searchHeader.setElevation(0f);
 
         searchEt = new EditText(ctx);
@@ -191,10 +198,11 @@ public class AppLibraryPage extends FrameLayout {
         searchEt.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
         searchEt.setHintTextColor(night ? 0x99FFFFFF : 0x996C6C70);
         searchEt.setSingleLine(true);
+        // tlo pola = szklana pigulka naglowka (przezroczyste pole wewnatrz szkla)
         GradientDrawable field = new GradientDrawable();
         field.setCornerRadius(dp(22));
-        field.setColor(night ? 0x28FFFFFF : 0x55FFFFFF);
-        field.setStroke(Math.max(1, (int) (0.8f * d)), night ? 0x55FFFFFF : 0x33808090);
+        field.setColor(0x00000000);
+        field.setStroke(0, 0x00000000);
         searchEt.setBackground(field);
         clearSize = dp(20);
         searchEt.setCompoundDrawablePadding(dp(10));
@@ -222,7 +230,10 @@ public class AppLibraryPage extends FrameLayout {
         });
         updateClear();
         searchHeader.addView(searchEt, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        contentPane.addView(searchHeader, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        android.widget.FrameLayout.LayoutParams shLp = new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP);
+        shLp.topMargin = dp(8);
+        contentPane.addView(searchHeader, shLp);
 
         scrollView = new ScrollView(ctx);
         scrollView.setFillViewport(true);
@@ -230,11 +241,32 @@ public class AppLibraryPage extends FrameLayout {
         scrollView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         listCol = new LinearLayout(ctx);
         listCol.setOrientation(LinearLayout.VERTICAL);
-        listCol.setPadding(dp(14), dp(4), dp(14) + extraR, dp(28));
+        // gore listy zostawiamy na plywajacy pasek szukania - lista zaczyna sie
+        // pod nim, a przewijajac wjezdza pod szklany pasek
+        listCol.setPadding(dp(14), dp(70), dp(14) + extraR, dp(28));
         scrollView.addView(listCol, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        contentPane.addView(scrollView, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        contentPane.addView(scrollView, new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         page.addView(contentPane, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
         addView(page, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // babel z aktualna litera NAD palcem (jak w iOS w selektorze liter)
+        letterBubble = new TextView(ctx);
+        letterBubble.setTextSize(30);
+        letterBubble.setTypeface(null, android.graphics.Typeface.BOLD);
+        letterBubble.setTextColor(0xFFFFFFFF);
+        letterBubble.setGravity(Gravity.CENTER);
+        letterBubble.setMinWidth(dp(56));
+        letterBubble.setPadding(dp(6), dp(2), dp(6), dp(6));
+        GradientDrawable bubbleBg = new GradientDrawable();
+        bubbleBg.setShape(GradientDrawable.RECTANGLE);
+        bubbleBg.setCornerRadius(dp(18));
+        bubbleBg.setColor(night ? 0xCC1C1C22 : 0xE6F2F2F7);
+        bubbleBg.setStroke(Math.max(1, (int) (1f * d)), night ? 0x4DFFFFFF : 0x22808090);
+        letterBubble.setBackground(bubbleBg);
+        letterBubble.setVisibility(GONE);
+        addView(letterBubble, new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
     }
 
     private Bitmap magnifier() {
@@ -414,13 +446,26 @@ public class AppLibraryPage extends FrameLayout {
         return idx;
     }
 
-    private void magnifyLetter(int idx, boolean on) {
-        if (letterBar == null || idx < 0 || idx >= letterBar.getChildCount()) return;
-        TextView tv = (TextView) letterBar.getChildAt(idx);
-        tv.setTextSize(on ? 22 : 13);
-        tv.setScaleX(on ? 1.35f : 1f);
-        tv.setScaleY(on ? 1.35f : 1f);
-        tv.setTranslationX(on ? dp(8) : 0);
+    /** iOS: babel z aktualna litera NAD palcem, sledzi pozycje palca na pasku liter. */
+    private void showLetterBubble(String letter, float yInBar) {
+        if (letterBubble == null || letterBar == null) return;
+        letterBubble.setText(letter);
+        letterBubble.setVisibility(VISIBLE);
+        int[] lb = new int[2];
+        letterBar.getLocationOnScreen(lb);
+        int[] pg = new int[2];
+        getLocationOnScreen(pg);
+        float fingerY = lb[1] - pg[1] + yInBar;
+        float bx = lb[0] - pg[0] + letterBar.getWidth() / 2f - dp(28);
+        float by = Math.max(dp(66), fingerY - dp(46));
+        LayoutParams lp = (LayoutParams) letterBubble.getLayoutParams();
+        lp.leftMargin = (int) bx;
+        lp.topMargin = (int) by;
+        letterBubble.setLayoutParams(lp);
+    }
+
+    private void hideLetterBubble() {
+        if (letterBubble != null) letterBubble.setVisibility(GONE);
     }
 
     private void scrollToLetter(String letter, boolean smooth) {

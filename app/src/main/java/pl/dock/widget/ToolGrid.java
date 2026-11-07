@@ -153,7 +153,7 @@ public class ToolGrid extends LinearLayout {
      *  okrągłe koło z ikoną na środku i drobna etykieta POD kołem (nie w nim). */
     public static View createTile(Context c, boolean night, PanelTool.Def d) {
         FrameLayout box = new FrameLayout(c);
-        int dia = Ui.dp(c, 52);            // średnica koła jak w Control Center
+        int dia = Ui.dp(c, 46);            // średnica koła jak w Control Center
 
         // koło tła (View z GradientDrawable — pełne koło, nie owal)
         View bg = new View(c);
@@ -166,7 +166,7 @@ public class ToolGrid extends LinearLayout {
         ImageView icon = new ImageView(c);
         icon.setTag("icon");
         icon.setImageBitmap(tileIcon(c, d));
-        int is = Ui.dp(c, 26);
+        int is = Ui.dp(c, 24);
         FrameLayout.LayoutParams ilp = new FrameLayout.LayoutParams(is, is,
                 Gravity.TOP | Gravity.CENTER_HORIZONTAL);
         ilp.topMargin = (dia - is) / 2;
@@ -176,7 +176,7 @@ public class ToolGrid extends LinearLayout {
         TextView label = new TextView(c);
         label.setTag("label");
         label.setText(d.label);
-        label.setTextSize(11);
+        label.setTextSize(12);
         label.setMaxLines(1);
         label.setGravity(Gravity.CENTER);
         FrameLayout.LayoutParams llp = new FrameLayout.LayoutParams(
@@ -196,7 +196,7 @@ public class ToolGrid extends LinearLayout {
         // minus na rogu KOLA (kolo jest wysrodkowane w kafelku - przy szerszych
         // kafelkach prawy krawedz boxa bylby daleko od kola)
         mlp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-        mlp.leftMargin = Ui.dp(c, 52);
+        mlp.leftMargin = Ui.dp(c, 46);
         box.addView(minus, mlp);
         minus.setVisibility(View.GONE);
 
@@ -235,9 +235,12 @@ public class ToolGrid extends LinearLayout {
         if (d.kind == PanelTool.K_APP && d.action != null) {
             try {
                 Drawable dr = c.getPackageManager().getApplicationIcon(d.action);
-                Bitmap b = Bitmap.createBitmap(48, 48, Bitmap.Config.ARGB_8888);
+                // ikony aplikacji rysujemy w rozdzielczosci ekranu (48 dp, nie 48 px) -
+                // wczesniej na gestszych ekranach wychodzily rozmyte
+                int ipx = (int) Math.ceil(48f * c.getResources().getDisplayMetrics().density);
+                Bitmap b = Bitmap.createBitmap(ipx, ipx, Bitmap.Config.ARGB_8888);
                 Canvas cv = new Canvas(b);
-                dr.setBounds(0, 0, 48, 48);
+                dr.setBounds(0, 0, ipx, ipx);
                 dr.draw(cv);
                 return b;
             } catch (Throwable t) {
