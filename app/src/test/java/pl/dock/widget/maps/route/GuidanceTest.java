@@ -122,4 +122,44 @@ public class GuidanceTest {
         // 0.001 stopnia ~111.3 m
         assertEquals(111.3d, Guidance.distM(52.0, 21.0, 52.001, 21.0), 1d);
     }
+
+    @Test
+    public void maxKmh_iLaneHint_przekazywaneDoUpdate() {
+        // trasa z limitami: 50 na pierwszej polowie, 90 na drugiej
+        double[] lats = new double[N];
+        double[] lons = new double[N];
+        for (int i = 0; i < N; i++) {
+            lats[i] = LAT0 + STEP * i;
+            lons[i] = LON0;
+        }
+        int[] maxKmh = new int[N - 1];
+        for (int i = 0; i < N - 1; i++) maxKmh[i] = i < 50 ? 50 : 90;
+        Route.Step[] steps = new Route.Step[]{
+                new Route.Step(50, "Skręć w prawo na Marszałkowska",
+                        "Marszałkowska", 400d, "turn", "right", "prawy pas"),
+                new Route.Step(100, "Dojazd do celu", "", 0d, "arrive", null, ""),
+        };
+        Route r = new Route(lats, lons, 11132d, 900L, steps, maxKmh);
+        Guidance g = new Guidance(r);
+
+        // jedziemy PRZED manewrem: limit 50, podpowiedz pasow nadchodzacego manewru
+        Guidance.Update u = drive(g, 30);
+        assertEquals(50, u.maxKmh);
+        assertEquals("prawy pas", u.laneHint);
+
+        // druga polowa: limit 90, po manewrze brak podpowiedzi pasow
+        u = drive(g, 80);
+        assertEquals(90, u.maxKmh);
+        assertEquals("", u.laneHint);
+    }
+
+    @Test
+    public void maxKmh_brakDanychZwracaZero() {
+        // trasa bez limitow (stary 5-arg konstruktor): maxKmh = 0
+        Guidance g = new Guidance(route());
+        Guidance.Update u = drive(g, 30);
+        assertEquals(0, u.maxKmh);
+        // laneHint pusty, gdy step bez podpowiedzi (6-arg konstruktor)
+        assertEquals("", u.laneHint);
+    }
 }
