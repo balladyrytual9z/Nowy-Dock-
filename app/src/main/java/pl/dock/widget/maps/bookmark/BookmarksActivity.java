@@ -185,10 +185,20 @@ public class BookmarksActivity extends BaseActivity {
         if (bs.isEmpty()) {
             rows.addView(hint("Brak zakładek — zapisz pozycję z Nawigacji („Zap”)"));
         } else {
+            // grupowanie po folderach (listBookmarks sortuje po folderze);
+            // dlugie przytrzymanie = menu: zmiana folderu / usuniecie
+            String lastFolder = null;
             for (int i = 0; i < bs.size(); i++) {
                 final Bookmark bm = bs.get(i);
+                String folder = bm.folder == null ? "" : bm.folder;
+                if (!folder.equals(lastFolder)) {
+                    lastFolder = folder;
+                    rows.addView(sectionLabel(folder.length() > 0
+                            ? folder.toUpperCase(Locale.US) : "BEZ FOLDERU"));
+                }
                 View row = itemRow(bm.name,
                         String.format(Locale.US, "%.5f, %.5f", bm.lat, bm.lon),
+                        bm.color,
                         new View.OnClickListener() {
                             @Override
                             public void onClick(View v) {
@@ -203,7 +213,7 @@ public class BookmarksActivity extends BaseActivity {
                         new View.OnLongClickListener() {
                             @Override
                             public boolean onLongClick(View v) {
-                                confirmDeleteBookmark(bm);
+                                bookmarkMenu(bm);
                                 return true;
                             }
                         });
@@ -224,10 +234,7 @@ public class BookmarksActivity extends BaseActivity {
                         new View.OnClickListener() {
                             @Override
                             public void onClick(View v) {
-                                Intent it = new Intent(BookmarksActivity.this, NavigatorActivity.class);
-                                it.putExtra("track_path", f.getAbsolutePath());
-                                startActivity(it);
-                                finish();
+                                trackMenu(f);
                             }
                         },
                         new View.OnLongClickListener() {
@@ -240,6 +247,69 @@ public class BookmarksActivity extends BaseActivity {
                 rows.addView(row);
             }
         }
+    }
+
+    /** Menu zakladki: zmiana folderu albo usuniecie. */
+    private void bookmarkMenu(final Bookmark bm) {
+        new AlertDialog.Builder(this)
+                .setTitle(bm.name)
+                .setItems(new String[]{"Zmień folder", "Usuń"},
+                        new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface d, int which) {
+                                if (which == 0) {
+                                    changeFolder(bm);
+                                } else {
+                                    confirmDeleteBookmark(bm);
+                                }
+                            }
+                        })
+                .setNegativeButton("Anuluj", null)
+                .show();
+    }
+
+    /** Przenosi zakladke do folderu (pusty = bez folderu). */
+    private void changeFolder(final Bookmark bm) {
+        final android.widget.EditText et = new android.widget.EditText(this);
+        et.setSingleLine(true);
+        et.setHint("np. Dom, Praca");
+        et.setText(bm.folder == null ? "" : bm.folder);
+        new AlertDialog.Builder(this)
+                .setTitle("Folder zakładki")
+                .setView(et)
+                .setPositiveButton("Zapisz", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface d, int w) {
+                        MapsDb.get(BookmarksActivity.this)
+                                .setBookmarkFolder(bm.id, et.getText().toString().trim());
+                        rebuild();
+                    }
+                })
+                .setNegativeButton("Anuluj", null)
+                .show();
+    }
+
+    /** Menu sladu: pokaz / jedz za sladem (nawigacja GPX) / profil wysokosci. */
+    private void trackMenu(final java.io.File f) {
+        new AlertDialog.Builder(this)
+                .setTitle(f.getName())
+                .setItems(new String[]{"Pokaż na mapie", "Jedź za śladem", "Profil wysokości"},
+                        new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface d, int which) {
+                                if (which == 2) {
+                                    showTrackProfile(f);
+                                    return;
+                                }
+                                Intent it = new Intent(BookmarksActivity.this, NavigatorActivity.class);
+                                it.putExtra(which == 1 ? "nav_track" : "track_path",
+                                        f.getAbsolutePath());
+                                startActivity(it);
+                                finish();
+                            }
+                        })
+                .setNegativeButton("Anuluj", null)
+                .show();
     }
 
     private String trackInfo(java.io.File f) {
@@ -414,7 +484,12 @@ public class BookmarksActivity extends BaseActivity {
             toast("Brak śladów");
             return;
         }
-        final List<double[]> pts = GpxIo.parseTrack(TrackFiles.read(this, ts.get(0)));
+        showTrackProfile(ts.get(0));
+    }
+
+    /** Profil wysokosci wskazanego sladu (opentopodata, online). */
+    private void showTrackProfile(java.io.File f) {
+        final List<double[]> pts = GpxIo.parseTrack(TrackFiles.read(this, f));
         if (pts.size() < 2) {
             toast("Ślad za krótki");
             return;
@@ -526,24 +601,47 @@ public class BookmarksActivity extends BaseActivity {
     private View itemRow(String title, String sub,
                          View.OnClickListener click,
                          View.OnLongClickListener longClick) {
+        return itemRow(title, sub, 0, click, longClick);
+    }
+
+    /** Wiersz z kolorowa kropka zakladki (0 = neutralna, dla sladow). */
+    private View itemRow(String title, String sub, int color,
+                         View.OnClickListener click,
+                         View.OnLongClickListener longClick) {
         LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.VERTICAL);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(Ui.dp(this, 12), Ui.dp(this, 9), Ui.dp(this, 12), Ui.dp(this, 9));
         GradientDrawable bg = new GradientDrawable();
         bg.setCornerRadius(Ui.dp(this, 14));
         bg.setColor(night ? 0xFF1C1C1E : 0xFFFFFFFF);
         row.setBackgroundDrawable(bg);
+        // kropka koloru zakladki (jak kolorowe piny w Organic Maps)
+        View dot = new View(this);
+        GradientDrawable dbg = new GradientDrawable();
+        dbg.setShape(GradientDrawable.OVAL);
+        dbg.setColor(color != 0 ? color : (night ? 0xFF8E8E93 : 0xFF6B7686));
+        dot.setBackgroundDrawable(dbg);
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(
+                Ui.dp(this, 10), Ui.dp(this, 10));
+        dlp.leftMargin = Ui.dp(this, 2);
+        dlp.rightMargin = Ui.dp(this, 8);
+        row.addView(dot, dlp);
+        LinearLayout texts = new LinearLayout(this);
+        texts.setOrientation(LinearLayout.VERTICAL);
         TextView t1 = new TextView(this);
         t1.setText(title);
         t1.setTextSize(15f);
         t1.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
         t1.setTextColor(textColor());
-        row.addView(t1);
+        texts.addView(t1);
         TextView t2 = new TextView(this);
         t2.setText(sub);
         t2.setTextSize(12f);
         t2.setTextColor(secondaryColor());
-        row.addView(t2);
+        texts.addView(t2);
+        row.addView(texts, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         row.setOnClickListener(click);
         row.setOnLongClickListener(longClick);
         return row;
