@@ -306,14 +306,23 @@ public class Updater {
         } catch (Throwable ignored) {
         }
         if (installWithRoot(apk)) return;              // 1) root - calkiem cicho
-        // 2) i 3) otwieraja okno instalatora systemu (potwierdzenie instalacji
-        // i/lub ekran Play Protect "Zainstaluj bez skanowania"). Te okna ODCINAJA
-        // dotyk, gdy cokolwiek rysuje sie nad nimi - nawet przezroczysta nakladka
-        // nie-lapiaca dotyku (ochrona przed tapjackingiem). Dlatego przed pokazaniem
-        // okna nakladka Night Shift schodzi z ekranu i wraca dopiero, gdy uzytkownik
-        // wroci do launchera (BaseActivity.onResume -> NightShift.resume).
-        NightShift.pause(c);
+        // Okna instalatora systemu (potwierdzenie instalacji i/lub ekran Play
+        // Protect "Zainstaluj bez skanowania") ODCINAJA dotyk, gdy cokolwiek
+        // rysuje sie nad nimi - nawet przezroczysta nakladka nie-lapiaca dotyku
+        // (ochrona przed tapjackingiem). Dlatego przed pokazaniem okna nakladka
+        // Night Shift schodzi z ekranu (NightShift.pause) i wraca dopiero po
+        // powrocie do launchera (BaseActivity.onResume -> NightShift.resume).
+        //
+        // Pauze zlecamy DOPIERO, gdy okno na pewno sie otworzy - nigdy na zapas:
+        //  - sesja PackageInstaller pauzuje w swoim receiverze (dopiero przy
+        //    STATUS_PENDING_USER_ACTION), bo cicha sesja (czesc radiow OEM: sukces
+        //    bez okna) w ogole nie powinna ruszac nakladki - inaczej zostaje
+        //    zdjeta bez zadnego okna i zaden onResume jej nie przywroci,
+        //  - klasyczny instalator (ACTION_VIEW) otwiera okno synchronicznie,
+        //    wiec pauza jest bezposrednio przed nim.
+        // Zawsze PRZED startActivity, nigdy po (patrz AGENTS.md).
         if (installWithSession(c, apk)) return;        // 2) PackageInstaller
+        NightShift.pause(c);                           // 3) pauza przed oknem
         installViaView(c, apk);                        // 3) instalator systemowy
     }
 
@@ -381,6 +390,9 @@ public class Updater {
      * STATUS_PENDING_USER_ACTION i sami otwieramy to okno - uzytkownik ma tylko jedno
      * dotkniecie. Gdy sesja przejdzie bez okna (czesc radiow OEM), instaluje sie
      * calkiem cicho. Przy bledzie ratujemy sie klasycznym instalatorem.
+     * Pauza nakladki Night Shift jest zlecana DOPIERO przed samym oknem (w tym
+     * receiverze), nigdy przy commicie sesji: cicha instalacja bez okna nie
+     * moze zostawiac nakladki zdjetej (nie bylo by onResume, ktory ja przywraca).
      */
     private static boolean installWithSession(final Context c, final File apk) {
         try {
@@ -418,6 +430,14 @@ public class Updater {
                         Intent pend = (Intent) it.getParcelableExtra(Intent.EXTRA_INTENT);
                         if (pend == null) return;
                         pend.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        // Okno potwierdzenia odcina dotyk, gdy cos rysuje sie nad
+                        // nim (tapjacking) - pauza PRZED oknem, nigdy po. Pauza
+                        // jest dopiero tutaj (nie przy commicie sesji!), bo tylko
+                        // teraz wiemy, ze okno w ogole sie otworzy: cicha sesja
+                        // bez okna nie rusza nakladki, wiec filtr nie zostaje
+                        // zdjuty bez resume (user siedzi w launcherze, zaden
+                        // onResume wtedy sie nie odpali).
+                        NightShift.pause(ctx);
                         try {
                             ctx.startActivity(pend);
                         } catch (Throwable t) {
@@ -428,6 +448,9 @@ public class Updater {
                     }
                     if (status != PackageInstaller.STATUS_SUCCESS) {
                         android.util.Log.w("Dock", "install status " + status);
+                        // ratunek przez klasyczny instalator - ten tez otworzy
+                        // okno, wiec pauza musi byc przed nim (jak wyzej)
+                        NightShift.pause(ctx);
                         installViaView(ctx, apk);
                     }
                     // STATUS_SUCCESS: system sam podmieni aplikacje - nic nie robimy

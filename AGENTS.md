@@ -147,6 +147,12 @@ Zasady zarządzania pamięcią:
   wystarcza), a wraca po powrocie do launchera (`BaseActivity.onResume` →
   `NightShift.resume`). **Nie przenosić pauzy „po otwarciu okna” i nie zamieniać
   jej na samo `View.setAlpha(0)` — wtedy przyciski instalatora znów umrą.**
+  **Pauza tylko wtedy, gdy okno NA PEWNO się otworzy — nigdy na zapas przed
+  `commit()` sesji `PackageInstaller`** (2026-11-07, sesja 3 — zamknięta szczelina
+  brzegowa cichej instalacji): sesja pauzuje dopiero w swoim receiverze (przy
+  `STATUS_PENDING_USER_ACTION` oraz przed awaryjnym `ACTION_VIEW` po porażce),
+  bo cicha sesja OEM (sukces bez okna) zostawiłaby nakładkę zdjętą bez żadnego
+  `onResume`, który by ją przywrócił. Strażnik kolejności: `UpdaterPauseGuardTest`.
 
 ## Mapy: postój vs. ruch (`HeadingSmoother`)
 
