@@ -81,7 +81,7 @@ public class Updater {
 
     /**
      * Petla sprawdzania w tle. Launcher jest ekranem glownym, wiec zyje caly czas -
-     * jeden lekki Runnable na minute wystarcza (bez AlarmManagera i budzenia tabletu).
+     * jeden lekki Runnable na minute wystarczy (bez AlarmManagera i budzenia tabletu).
      * Wolane raz z LauncherActivity.
      */
     public static void startPolling(Context c) {
@@ -266,7 +266,7 @@ public class Updater {
         return m.find() ? m.group(1).trim() : null;
     }
 
-    /** Nazwa pliku APK w releasech - konwencja z CI: CarPlay-Launcher-<tag>.apk. */
+    /** Nazwa pliku APK w release ch - konwencja z CI: CarPlay-Launcher-<tag>.apk. */
     static String apkName(String tag) {
         return "CarPlay-Launcher-" + tag + ".apk";
     }
@@ -299,12 +299,20 @@ public class Updater {
                 Intent i = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
                 i.setData(Uri.parse("package:" + c.getPackageName()));
                 i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                NightShift.pause(c);
                 c.startActivity(i);
                 return;
             }
         } catch (Throwable ignored) {
         }
         if (installWithRoot(apk)) return;              // 1) root - calkiem cicho
+        // 2) i 3) otwieraja okno instalatora systemu (potwierdzenie instalacji
+        // i/lub ekran Play Protect "Zainstaluj bez skanowania"). Te okna ODCINAJA
+        // dotyk, gdy cokolwiek rysuje sie nad nimi - nawet przezroczysta nakladka
+        // nie-lapiaca dotyku (ochrona przed tapjackingiem). Dlatego przed pokazaniem
+        // okna nakladka Night Shift schodzi z ekranu i wraca dopiero, gdy uzytkownik
+        // wroci do launchera (BaseActivity.onResume -> NightShift.resume).
+        NightShift.pause(c);
         if (installWithSession(c, apk)) return;        // 2) PackageInstaller
         installViaView(c, apk);                        // 3) instalator systemowy
     }
