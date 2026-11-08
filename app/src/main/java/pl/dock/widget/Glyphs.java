@@ -131,13 +131,15 @@ public final class Glyphs {
         switch (g) {
             case "hot": {
                 // Referencja (IMG_8770): dwa POZIOME owalne ogniwa lancucha
-                // obok siebie (uklad poziomy, calosc szer:wys ~2:1);
-                // prawe ogniwo przewleczone przez lewe.
-                float lh = s * 0.30f;      // pol-wysokosc ogniwa
-                float lw = s * 0.45f;      // pol-szerokosc ogniwa (owal poziomy)
-                float off = s * 0.15f;     // odleglosc srodkow od osi pionowej
+                // obok siebie (uklad poziomy, calosc szer:wys ~2:1, kazdy
+                // owal ~3:2); prawe ogniwo przewleczone przez lewe.
+                // Skala dobrana tak, by wysokosc ikony byla zblizona do
+                // WiFi/BT w rzedzie pod zegarem (poprzednio ~3x mniejsza).
+                float lh = s * 0.64f;      // pol-wysokosc ogniwa
+                float lw = s * 0.95f;      // pol-szerokosc ogniwa (owal poziomy ~3:2)
+                float off = s * 0.30f;     // odleglosc srodkow od osi pionowej
                 float oldSw = p.getStrokeWidth();
-                p.setStrokeWidth(Math.max(2f, s * 0.19f));
+                p.setStrokeWidth(Math.max(2f, s * 0.38f));   // ~20% szerokosci ogniwa jak na ref
                 rc.set(cx - off - lw, cy - lh, cx - off + lw, cy + lh);
                 cv.drawRoundRect(rc, lh, lh, p);
                 rc.set(cx + off - lw, cy - lh, cx + off + lw, cy + lh);
