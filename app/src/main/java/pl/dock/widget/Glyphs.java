@@ -181,8 +181,7 @@ public final class Glyphs {
                 double e = Math.toRadians(220);
                 head(cv, cx + R * (float) Math.cos(e), cy + R * (float) Math.sin(e), 310, s * 0.5f, p);
                 rc.set(cx - s * 0.32f, cy - s * 0.02f, cx + s * 0.32f, cy + s * 0.5f);
-            
-    cv.drawRoundRect(rc, s * 0.1f, s * 0.1f, p);
+                cv.drawRoundRect(rc, s * 0.1f, s * 0.1f, p);
                 rc.set(cx - s * 0.2f, cy - s * 0.4f, cx + s * 0.2f, cy + s * 0.1f);
                 cv.drawArc(rc, 180, 180, false, p);
                 break;
@@ -222,8 +221,7 @@ public final class Glyphs {
                 break;
             case "sun":
                 cv.drawCircle(cx, cy, s * 0.42f, p);
-                for (int i = 0; i < 8
-; i++) {
+                for (int i = 0; i < 8; i++) {
                     double a = Math.PI * i / 4.0;
                     cv.drawLine(cx + (float) Math.cos(a) * s * 0.72f, cy + (float) Math.sin(a) * s * 0.72f,
                             cx + (float) Math.cos(a) * s * 1.02f, cy + (float) Math.sin(a) * s * 1.02f, p);
@@ -265,8 +263,7 @@ public final class Glyphs {
                 cv.drawCircle(cx, cy, s, p);
                 cv.drawLine(cx, cy, cx, cy - s * 0.6f, p);
                 cv.drawLine(cx, cy, cx + s * 0.45f, cy + s * 0.2f, p);
-    
-            break;
+                break;
             case "globe":
                 cv.drawCircle(cx, cy, s, p);
                 rc.set(cx - s * 0.45f, cy - s, cx + s * 0.45f, cy + s);
@@ -306,8 +303,7 @@ public final class Glyphs {
             case "lock":
                 rc.set(cx - s * 0.7f, cy - s * 0.1f, cx + s * 0.7f, cy + s * 0.9f);
                 cv.drawRoundRect(rc, s * 0.2f, s * 0.2f, p);
-                rc.set(cx - s * 0.45f, cy - s * 0.
-95f, cx + s * 0.45f, cy + s * 0.15f);
+                rc.set(cx - s * 0.45f, cy - s * 0.95f, cx + s * 0.45f, cy + s * 0.15f);
                 cv.drawArc(rc, 180, 180, false, p);
                 break;
             case "code":
@@ -353,8 +349,7 @@ public final class Glyphs {
             case "bell":
                 rc.set(cx - s * 0.75f, cy - s * 0.95f, cx + s * 0.75f, cy + s * 0.55f);
                 cv.drawArc(rc, 180, 180, false, p);
-     
-           cv.drawLine(cx - s * 0.95f, cy + s * 0.5f, cx + s * 0.95f, cy + s * 0.5f, p);
+                cv.drawLine(cx - s * 0.95f, cy + s * 0.5f, cx + s * 0.95f, cy + s * 0.5f, p);
                 break;
             case "star":
                 for (int i = 0; i < 10; i++) {
@@ -401,8 +396,7 @@ public final class Glyphs {
     }
 
     /** Jak bitmap(), ale glif wypelnia kratke tak jak w panelu lacznosci
-    
- *  (r = 0.85 * size, patrz ConnectivityPanel.glyphBitmap). Ikony pod zegarem
+     *  (r = 0.85 * size, patrz ConnectivityPanel.glyphBitmap). Ikony pod zegarem
      *  w doku i w widzecie sa male (19 dp): przy r = 0.42 * size glif WiFi
      *  zajmowal ~35% kratki, pasma "pie" schodzily do ~1,5 dp i wygladaly jak
      *  cienkie linie zamiast grubego wypelnionego wachlarza jak na referencji.
