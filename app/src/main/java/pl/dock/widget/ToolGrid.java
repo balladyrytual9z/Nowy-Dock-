@@ -121,9 +121,9 @@ public class ToolGrid extends LinearLayout {
                         return true;
                     }
                 });
-                // siatka: kafelek 126 x 84 (koło 52 + dwuliniowa etykieta pod spodem);
+                // siatka: kafelek 126 x 58 (koło 46, bez etykiety jak w iOS CC);
                 // 4 x 126 + 3 x 6 = 522 dp ~ pelna szerokosc panelu (jak w iOS)
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(126), dp(84));
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(126), dp(58));
                 lp.leftMargin = j == 0 ? 0 : dp(6);
                 // w siatce etykieta może się łamać na dwie linie (jak w Control Center)
                 TextView glbl = (TextView) tile.findViewWithTag("label");
@@ -172,7 +172,8 @@ public class ToolGrid extends LinearLayout {
         ilp.topMargin = (dia - is) / 2;
         box.addView(icon, ilp);
 
-        // etykieta pod kołem (jak pod kafelkami w Control Center)
+        // etykieta pod kołem: kafelki w Control Center (referencja IMG_8981)
+        // NIE mają etykiet - ukryta, zostaje w drzewie dla refreshTile/edycji
         TextView label = new TextView(c);
         label.setTag("label");
         label.setText(d.label);
@@ -183,6 +184,7 @@ public class ToolGrid extends LinearLayout {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         llp.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
         box.addView(label, llp);
+        label.setVisibility(View.GONE);
 
         // znak „−" (tylko tryb edycji) na prawym górnym skraju koła
         TextView minus = new TextView(c);

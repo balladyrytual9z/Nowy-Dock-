@@ -293,7 +293,8 @@ public final class PanelTool {
     }
 
     public static int onColor(Def d) {
-        if ("hot".equals(d.id)) return 0xFF30D158;
+        // hotspot: jeden wspolny niebieski jak wszystkie przelaczniki lacznosci
+        // w iOS Control Center (referencja IMG_8981) - bez zielonej nadpisanej wersji
         if ("nightshift".equals(d.id)) return 0xFFFF9F0A;
         if ("mute".equals(d.id)) return 0xFFFF453A;
         return 0xFF0A84FF;

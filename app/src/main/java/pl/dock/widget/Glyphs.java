@@ -52,7 +52,7 @@ public final class Glyphs {
         float ay = cy + pol * 0.62f;                  // wierzcholek wachlarza (srodek lukow)
         float t = pol * 0.24f;                        // grubosc pasa
         float[] rr = {2f * t, 4f * t, 6f * t};        // srodkowe promienie: szczelina = t
-        float[] hh = {22f, 38f, 50f};                 // polowy rozwarcia pasm
+        float[] hh = {35f, 45f, 70f};                 // polowy rozwarcia pasm (70/90/140 st. jak na ref)
         p.reset();
         p.setAntiAlias(true);
         p.setColor(color);
@@ -91,11 +91,11 @@ public final class Glyphs {
         pa.moveTo(cx - s * 0.28f, cy - s * 0.34f);     // krotkie ramiona X przy pionie
         pa.lineTo(cx, cy);
         pa.lineTo(cx - s * 0.28f, cy + s * 0.34f);
-        pa.moveTo(cx, cy - s);                         // trojkat gorny - ~2x mniejszy
-        pa.lineTo(cx + s * 0.40f, cy - s * 0.68f);
-        pa.lineTo(cx, cy - s * 0.38f);
-        pa.moveTo(cx, cy - s * 0.32f);                 // trojkat dolny - wiekszy
-        pa.lineTo(cx + s * 0.62f, cy + s * 0.18f);
+        pa.moveTo(cx, cy - s);                         // trojkat gorny (siatka ref:
+        pa.lineTo(cx + s * 0.50f, cy - s * 0.65f);     // grot w polowie podstawy,
+        pa.lineTo(cx, cy - s * 0.25f);                 // szerokosci rowne dla obu)
+        pa.moveTo(cx, cy - s * 0.05f);                 // trojkat dolny
+        pa.lineTo(cx + s * 0.50f, cy + s * 0.45f);
         pa.lineTo(cx, cy + s);
         cv.drawPath(pa, p);
         pa.reset();
@@ -144,9 +144,9 @@ public final class Glyphs {
                 // jeden owal z podwojnym obrysem zamiast dwoch przeplatanych ogniw)
                 p.setStrokeWidth(Math.max(2f, s * 0.29f));   // ~20% szerokosci ogniwa jak na ref
                 rc.set(cx - off - lw, cy - lh, cx - off + lw, cy + lh);
-                cv.drawRoundRect(rc, lh, lh, p);
+                cv.drawOval(rc, p);                     // elipsa jak na ref, nie stadion
                 rc.set(cx + off - lw, cy - lh, cx + off + lw, cy + lh);
-                cv.drawRoundRect(rc, lh, lh, p);
+                cv.drawOval(rc, p);
                 p.setStrokeWidth(oldSw);
                 break;
             }

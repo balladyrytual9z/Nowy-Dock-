@@ -461,21 +461,26 @@ public class DockView extends View {
             // (origin page), a nie cel przelaczenia jak w launcherze.
             homePaint.setAlpha(pa);
             if (bottomMode == BOTTOM_CC) {
-                // otwarte centrum lacznosci: ikona "zamknij" - zaokraglony
-                // kwadrat (squircle jak w iOS) z dwoma suwakami z kolkiem
+                // otwarte centrum lacznosci: ikona "zamknij" - obwodka
+                // IDENTYCZNA jak przycisk "ekran glowny" (BOTTOM_HOME): bok g,
+                // promien 6 dp, stroke 3.2 dp. Zawartosc (dwa suwaki z kolkiem)
+                // obrocona o 90 stopni, wiec suwaki sa PIONOWE.
                 homePaint.setStyle(Paint.Style.STROKE);
+                homePaint.setStrokeWidth(3.2f * d);
+                rect.set(cx - g / 2f, by - g / 2f, cx + g / 2f, by + g / 2f);
+                cv.drawRoundRect(rect, 6f * d, 6f * d, homePaint);
+                cv.save();
+                cv.rotate(90f, cx, by);
                 homePaint.setStrokeWidth(1.8f * d);
                 float k = g / 24f;
-                rect.set(cx - g / 2f + 3f * k, by - g / 2f + 3f * k,
-                        cx - g / 2f + 21f * k, by - g / 2f + 21f * k);
-                cv.drawRoundRect(rect, 4.5f * k, 4.5f * k, homePaint);
-                cv.drawLine(cx - g / 2f + 7f * k, by - g / 2f + 9.5f * k,
-                        cx - g / 2f + 17f * k, by - g / 2f + 9.5f * k, homePaint);
-                cv.drawLine(cx - g / 2f + 7f * k, by - g / 2f + 14.5f * k,
-                        cx - g / 2f + 17f * k, by - g / 2f + 14.5f * k, homePaint);
+                cv.drawLine(cx - g / 2f + 5f * k, by - g / 2f + 9.5f * k,
+                        cx - g / 2f + 19f * k, by - g / 2f + 9.5f * k, homePaint);
+                cv.drawLine(cx - g / 2f + 5f * k, by - g / 2f + 14.5f * k,
+                        cx - g / 2f + 19f * k, by - g / 2f + 14.5f * k, homePaint);
                 homePaint.setStyle(Paint.Style.FILL);
-                cv.drawCircle(cx - g / 2f + 14f * k, by - g / 2f + 9.5f * k, 2f * k, homePaint);
-                cv.drawCircle(cx - g / 2f + 10f * k, by - g / 2f + 14.5f * k, 2f * k, homePaint);
+                cv.drawCircle(cx - g / 2f + 16f * k, by - g / 2f + 9.5f * k, 2f * k, homePaint);
+                cv.drawCircle(cx - g / 2f + 8f * k, by - g / 2f + 14.5f * k, 2f * k, homePaint);
+                cv.restore();
                 homePaint.setStyle(Paint.Style.STROKE);
                 homePaint.setStrokeWidth(3.2f * d);
             } else if (bottomMode == BOTTOM_WIDGETS) {

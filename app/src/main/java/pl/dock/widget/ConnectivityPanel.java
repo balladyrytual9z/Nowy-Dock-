@@ -182,7 +182,7 @@ public class ConnectivityPanel extends LinearLayout {
         rail.setPadding(dp(10), 0, dp(10), 0);
         rail.setBackground(glassBg());
         buildRail(rail);
-        LayoutParams rlp = new LayoutParams(dp(146), dp(240));
+        LayoutParams rlp = new LayoutParams(dp(146), dp(198));
         rlp.rightMargin = dp(10);
         main.addView(rail, rlp);
 
@@ -327,8 +327,8 @@ public class ConnectivityPanel extends LinearLayout {
                     return true;
                 }
             });
-            // 3 x (72 + 8) = 240 dp = wysokosc karty (marginesy pionowe 4 dp)
-            LayoutParams tlp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(72));
+            // 3 x (58 + 8) = 198 dp = wysokosc karty (kafelki bez etykiet jak w iOS CC)
+            LayoutParams tlp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(58));
             tlp.topMargin = dp(4);
             tlp.bottomMargin = dp(4);
             rail.addView(tile, tlp);
