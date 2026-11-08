@@ -44,7 +44,7 @@ class UfoClusterFullView(context: Context) : View(context) {
     private val TICK_RED = Color.parseColor("#FF0F1F") 
     private val BLUE_GLOW = Color.parseColor("#3A2CE8")
     private val CYAN_HUD = Color.parseColor("#00C3FF")
-    private val LCD_BG = Color.parseColor("#0B0D12")
+    private val LCD_BG = Color.parseColor("#B5B8B6")
     private val LCD_TEXT = Color.parseColor("#E1E6F0")
     private val OFF_SEGMENT = Color.parseColor("#13161C")
     private val GREEN = Color.parseColor("#11E840")
@@ -131,13 +131,15 @@ class UfoClusterFullView(context: Context) : View(context) {
 
     // ---------- Geometria Główna ----------
     private val CX = 640f
-    private val CY = 380f // Wyśrodkowane z zapasem na stopkę
+    private val CY = 352f // wyżej, żeby dół obrotomierza nie dotykał belki ze stopką (od y=640)
     
     // Scentrowany wyświetlacz LCD (Bezpieczny margines od cyfr obrotomierza)
     private val LCD_L = 530f
-    private val LCD_T = 270f
+    private val LCD_T = CY - 110f
     private val LCD_R = 750f
-    private val LCD_B = 490f
+    private val LCD_B = CY + 110f
+    private val lcdShader = LinearGradient(0f, LCD_T, 0f, LCD_B,
+        0xFFC6C9C7.toInt(), 0xFFA8ABA9.toInt(), Shader.TileMode.CLAMP)
     // Wyświetlacz MID: górne rogi ścięte pod 45 stopni jak w oryginale
     private val lcdPath = Path().apply {
         val ch = 22f
@@ -162,16 +164,17 @@ class UfoClusterFullView(context: Context) : View(context) {
     
     // Zwężona (condensed) czcionka pochylona - idealna imitacja paneli VFD z UFO
     private val pSpeed = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD_ITALIC)
-        textSkewX = -0.15f // Ekstra pochylenie dla dynamiki
+        typeface = Typeface.create("sans-serif", Typeface.BOLD) // ta sama czcionka co cyfry tarczy
+        textSkewX = -0.2f // to samo pochylenie co cyfry tarczy
     }
     
     private val pNum = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD_ITALIC)
+        typeface = Typeface.create("sans-serif", Typeface.BOLD)
+        textSkewX = -0.2f // lekkie pochylenie jak na oryginalnych zegarach
     }
     
     private val pMono = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        typeface = Typeface.create("monospace", Typeface.BOLD)
+        typeface = Typeface.create("sans-serif", Typeface.BOLD)
     }
     
     private val rectF = RectF()
@@ -199,8 +202,8 @@ class UfoClusterFullView(context: Context) : View(context) {
     private val combCount = 30
 
     private fun combTick(c: Canvas, left: Boolean, i: Int, p: Paint) {
-        val per = 36f / combCount
-        val deg = if (left) 162f + (i + 0.5f) * per else 18f - (i + 0.5f) * per
+        val per = 34f / combCount
+        val deg = if (left) 163f + (i + 0.5f) * per else 17f - (i + 0.5f) * per
         val a = Math.toRadians(deg.toDouble())
         val long = i % 5 == 0
         val r1 = sideGaugeRadius - (if (long) 22f else 16f)
@@ -481,7 +484,9 @@ class UfoClusterFullView(context: Context) : View(context) {
         // 1. Matryca LCD
         pStroke.style = Paint.Style.FILL
         pFill.color = LCD_BG
+        pFill.shader = lcdShader
         c.drawPath(lcdPath, pFill)
+        pFill.shader = null
 
         pStroke.style = Paint.Style.STROKE
         pStroke.strokeWidth = 9f
@@ -543,7 +548,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         }
 
         // 5. Cyfry 0-8 w środku, pod kreskami
-        pNum.textSize = 44f
+        pNum.textSize = 46f
         pNum.color = TICK_OEM
         pNum.textAlign = Paint.Align.CENTER
         for (r in 0..8000 step 1000) {
@@ -558,7 +563,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         // Napis jednostki pod tarczą
         pNum.textSize = 20f
         pNum.setShadowLayer(8f, 0f, 0f, TICK_OEM)
-        c.drawText("x1000r/min", CX, CY + 228f, pNum)
+        c.drawText("x1000r/min", CX, CY + 242f, pNum)
         pNum.clearShadowLayer()
 
         // 6. Boczne wskaźniki: niebieski łuk obrysu + zgaszony grzebień kresek
@@ -568,8 +573,8 @@ class UfoClusterFullView(context: Context) : View(context) {
         pStroke.strokeWidth = 4f
         pStroke.color = BLUE_GLOW
         pStroke.setShadowLayer(10f, 0f, 0f, BLUE_GLOW)
-        c.drawArc(outlineRect, 158f, 44f, false, pStroke)
-        c.drawArc(outlineRect, 22f, -44f, false, pStroke)
+        c.drawArc(outlineRect, 161f, 38f, false, pStroke)
+        c.drawArc(outlineRect, 19f, -38f, false, pStroke)
         pStroke.clearShadowLayer()
 
         pStroke.strokeWidth = 3.2f
@@ -605,13 +610,6 @@ class UfoClusterFullView(context: Context) : View(context) {
     }
 
     private fun drawHud(c: Canvas) {
-        c.save()
-        c.scale(1f, 0.4f, 640f, 90f) 
-        pFill.shader = hudGlowShader
-        c.drawCircle(640f, 90f, 280f, pFill)
-        pFill.shader = null
-        c.restore()
-
         if (speedKmh != spdCacheSrc || useMph != mphCache) {
             spdCacheSrc = speedKmh
             mphCache = useMph
@@ -623,15 +621,17 @@ class UfoClusterFullView(context: Context) : View(context) {
             }
         }
         
-        pSpeed.textSize = 100f
+        // Prędkość: na górze, nad obrotomierzem (między paskiem diod a pierścieniem)
+        pSpeed.textSize = 40f
         pSpeed.color = Color.WHITE
         pSpeed.textAlign = Paint.Align.CENTER
-        pSpeed.setShadowLayer(25f, 0f, 0f, CYAN_HUD)
-        c.drawText(spdCache, 640f, 130f, pSpeed)
+        pSpeed.setShadowLayer(14f, 0f, 0f, CYAN_HUD)
+        c.drawText(spdCache, 640f, 78f, pSpeed)
         pSpeed.clearShadowLayer()
 
-        pSpeed.textSize = 28f
-        c.drawText(if (useMph) "mph" else "km/h", 750f, 130f, pSpeed)
+        pSpeed.textSize = 16f
+        pSpeed.textAlign = Paint.Align.LEFT
+        c.drawText(if (useMph) "mph" else "km/h", 690f, 78f, pSpeed)
 
         val gear = if (speedKmh > 3 && rpmTarget > 500f) {
             val r = rpmTarget / speedKmh
@@ -648,7 +648,10 @@ class UfoClusterFullView(context: Context) : View(context) {
             "-"
         }
         pSpeed.color = Color.GRAY
-        c.drawText(gear, 810f, 130f, pSpeed)
+        pSpeed.textSize = 30f
+        pSpeed.textAlign = Paint.Align.RIGHT
+        c.drawText(gear, 590f, 78f, pSpeed)
+        pSpeed.textAlign = Paint.Align.CENTER
 
         val segW = 18f
         val now = System.currentTimeMillis()
@@ -673,7 +676,7 @@ class UfoClusterFullView(context: Context) : View(context) {
                 pFill.clearShadowLayer()
             }
             
-            c.drawRoundRect(x, 24f, x + segW, 40f, 4f, 4f, pFill)
+            c.drawRoundRect(x, 10f, x + segW, 24f, 4f, 4f, pFill)
         }
         pFill.clearShadowLayer()
 
@@ -821,7 +824,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         val v = paramValue(key)
         
         val have = !v.isNaN() && connected
-        val ink = if (have) LCD_TEXT else Color.parseColor("#333A48")
+        val ink = if (have) Color.parseColor("#10141A") else Color.parseColor("#767A78")
         
         drawMidIcon(c, key, LCD_L + 16f, LCD_T + 12f, ink)
         
@@ -854,7 +857,7 @@ class UfoClusterFullView(context: Context) : View(context) {
             pMono.textAlign = Paint.Align.RIGHT
             
             if (have) {
-                pMono.setShadowLayer(8f, 0f, 0f, Color.parseColor("#44FFFFFF"))
+                pMono.setShadowLayer(2f, 0f, 0f, Color.parseColor("#33000000"))
             }
             
             c.drawText(midMainCache, LCD_R - 44f, LCD_T + 110f, pMono)
@@ -906,16 +909,16 @@ class UfoClusterFullView(context: Context) : View(context) {
         pText.textAlign = Paint.Align.LEFT
         pText.textSize = 20f
         pText.typeface = Typeface.DEFAULT
-        pText.color = if (have) Color.parseColor("#AAB2BD") else Color.parseColor("#333A48")
+        pText.color = if (have) Color.parseColor("#2B3036") else Color.parseColor("#767A78")
         c.drawText(paramInterval(key), LCD_L + 20f, LCD_B - 60f, pText)
 
         pText.textAlign = Paint.Align.RIGHT
         pText.textSize = 24f
         pText.typeface = tfBold
-        pText.color = if (have) CYAN_HUD else Color.parseColor("#333A48")
+        pText.color = if (have) Color.parseColor("#0B3C8A") else Color.parseColor("#767A78")
         c.drawText(statMaxCache, LCD_R - 16f, LCD_B - 40f, pText)
         
-        pText.color = if (have) Color.parseColor("#AAB2BD") else Color.parseColor("#333A48")
+        pText.color = if (have) Color.parseColor("#2B3036") else Color.parseColor("#767A78")
         c.drawText(statAvgCache, LCD_R - 16f, LCD_B - 14f, pText)
     }
 
@@ -932,7 +935,7 @@ class UfoClusterFullView(context: Context) : View(context) {
 
         if (!v.isNaN() && frac > 0f) {
             // Jasny klin wskaźnika na końcu zapalonych kresek
-            val deg = if (left) 162f + frac * 36f else 18f - frac * 36f
+            val deg = if (left) 163f + frac * 34f else 17f - frac * 34f
             val ang = Math.toRadians(deg.toDouble())
             val px = cos(ang).toFloat(); val py = sin(ang).toFloat()
             val nx = -py; val ny = px
@@ -959,10 +962,11 @@ class UfoClusterFullView(context: Context) : View(context) {
         }
         
         pText.textAlign = if (left) Paint.Align.LEFT else Paint.Align.RIGHT
+        pText.textSkewX = -0.2f // jak cyfry tarczy
         pText.textSize = 22f
         pText.typeface = tfBold
         pText.color = if (alarm) TICK_RED else Color.parseColor("#8894A8")
-        c.drawText(key, innerX, 420f, pText)
+        c.drawText(key, innerX, CY + 40f, pText)
         
         if (v != (if (left) arcTxtSrcL else arcTxtSrcR) || key != (if (left) arcTxtKeyL else arcTxtKeyR)) {
             if (left) { 
@@ -978,7 +982,8 @@ class UfoClusterFullView(context: Context) : View(context) {
         
         pText.textSize = 30f
         pText.color = LCD_TEXT
-        c.drawText(if (left) arcTxtCacheL else arcTxtCacheR, innerX, 456f, pText)
+        c.drawText(if (left) arcTxtCacheL else arcTxtCacheR, innerX, CY + 76f, pText)
+        pText.textSkewX = 0f
     }
 
     private fun drawFooter(c: Canvas) {
@@ -1237,7 +1242,7 @@ class UfoClusterFullView(context: Context) : View(context) {
             pText.textAlign = Paint.Align.CENTER
             pText.textSize = 20f
             pText.typeface = tfBold
-            pText.color = Color.parseColor("#333A48")
+            pText.color = Color.parseColor("#5E6260")
             
             c.drawText(
                 if (have) "ZBIERAM DANE..." else "BRAK DANYCH", 
