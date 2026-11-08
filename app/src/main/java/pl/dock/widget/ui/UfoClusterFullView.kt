@@ -185,6 +185,10 @@ class UfoClusterFullView(context: Context) : View(context) {
     private val outerRect = RectF(CX - sideGaugeRadius, CY - sideGaugeRadius, CX + sideGaugeRadius, CY + sideGaugeRadius)
     
     private val needlePath = Path()
+    private val iconPath = Path()
+    private var lastFrameMs = 0L
+
+    private val tfBold = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
 
     // Własny krój cyfr: szerokie, zaokrąglone-kwadratowe, pochylone jak na zegarach Civica
     private val glyphs = Array(10) { Path() }
