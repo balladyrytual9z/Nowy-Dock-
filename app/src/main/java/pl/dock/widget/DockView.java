@@ -397,13 +397,15 @@ public class DockView extends View {
         float cy = top + 24f * d;
         cv.drawText(clock, cx, cy - (clockPaint.descent() + clockPaint.ascent()) / 2f, clockPaint);
 
-        // WiFi, tethering, Bluetooth (telefon)
+        // WiFi, tethering, Bluetooth (telefon) - jak na referencji uzytkownika:
+        // kolejnosc Wi-Fi / hotspot / BT, rowne odstepy, rozmiar dopasowany do panelu
         float sy = top + 50f * d;
-        float is = 21f * d;   // wieksze ikony statusu (16 dp byly mikroskopijne)
-        float x0 = cx - 31.5f * d;
+        float is = 19f * d;   // ikona
+        float igp = 3f * d;   // rowny odstep miedzy ikonami (razem 63 dp w panelu 65 dp)
+        float x0 = cx - (3f * is + 2f * igp) / 2f;
         drawIcon(cv, bWifi, x0, sy - is / 2f, is, is, 255);
-        drawIcon(cv, bTether, x0 + 21f * d, sy - is / 2f, is, is, 255);
-        drawIcon(cv, bBt, x0 + 42f * d, sy - is / 2f, is, is, 255);
+        drawIcon(cv, bTether, x0 + is + igp, sy - is / 2f, is, is, 255);
+        drawIcon(cv, bBt, x0 + 2f * (is + igp), sy - is / 2f, is, is, 255);
 
         // kolejne wiersze: napięcie / ładowanie, bateria telefonu, status CarPlay
         float y = top + 76f * d;

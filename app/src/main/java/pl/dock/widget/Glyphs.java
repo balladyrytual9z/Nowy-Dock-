@@ -42,51 +42,66 @@ public final class Glyphs {
     }
 
     private static void wifiIos(Canvas cv, float cx, float cy, float pol, int color, boolean off) {
+        // Referencja uzytkownika (zdjecia): klasyczny wypelniony "pie" iOS -
+        // trzy pasma narastajace od dolu + pelne kolko u dolu. Nie konturowe.
         Paint p = GP;
+        Path pa = PA;
         RectF rc = RC;
-        float w = Math.max(2.2f, pol * 0.22f);
-        float cyA = cy + pol * 0.02f;
-        float r0 = pol * 0.28f, r1 = pol * 0.55f, r2 = pol * 0.86f;
+        float ax = cx;
+        float ay = cy + pol * 0.62f;                                  // wierzcholek wachlarza
+        float[] rr = {pol * 0.38f, pol * 0.72f, pol * 1.06f};         // srodkowe promienie pasm
+        float[] hh = {24f, 44f, 64f};                                 // polowy rozwarcia pasm
+        float t = pol * 0.24f;                                         // grubosc pasma
         p.reset();
         p.setAntiAlias(true);
         p.setColor(color);
-        p.setStyle(Paint.Style.STROKE);
-        p.setStrokeCap(Paint.Cap.ROUND);
-        p.setStrokeJoin(Paint.Join.ROUND);
-        p.setStrokeWidth(w);
-        for (float R : new float[]{r2, r1, r0}) {
-            rc.set(cx - R, cyA - R, cx + R, cyA + R);
-            cv.drawArc(rc, 210f, 120f, false, p);
-        }
         p.setStyle(Paint.Style.FILL);
-        cv.drawCircle(cx, cyA + r0 * 0.95f, w * 0.95f, p);
+        for (int i = 0; i < 3; i++) {
+            float rin = rr[i] - t / 2f, rout = rr[i] + t / 2f;
+            float h = hh[i];
+            double a0 = Math.toRadians(270f - h), a1 = Math.toRadians(270f + h);
+            pa.reset();
+            pa.moveTo(ax + (float) (rin * Math.cos(a0)), ay + (float) (rin * Math.sin(a0)));
+            pa.lineTo(ax + (float) (rout * Math.cos(a0)), ay + (float) (rout * Math.sin(a0)));
+            rc.set(ax - rout, ay - rout, ax + rout, ay + rout);
+            pa.arcTo(rc, 270f - h, 2f * h, false);
+            pa.lineTo(ax + (float) (rin * Math.cos(a1)), ay + (float) (rin * Math.sin(a1)));
+            rc.set(ax - rin, ay - rin, ax + rin, ay + rin);
+            pa.arcTo(rc, 270f + h, -2f * h, false);
+            pa.close();
+            cv.drawPath(pa, p);
+        }
+        cv.drawCircle(ax, ay, pol * 0.15f, p);
         if (off) {
             p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(w);
-            float d = pol * 0.95f;
-            cv.drawLine(cx - d * 0.72f, cyA - d * 0.72f, cx + d * 0.72f, cyA + d * 0.72f, p);
+            p.setStrokeCap(Paint.Cap.ROUND);
+            p.setStrokeWidth(Math.max(2.2f, pol * 0.16f));
+            float dd = pol * 0.95f;
+            cv.drawLine(cx - dd * 0.72f, cy - dd * 0.72f, cx + dd * 0.72f, cy + dd * 0.72f, p);
         }
     }
 
     private static void btIos(Canvas cv, float cx, float cy, float s, Paint p, float sw) {
+        // Referencja: gorny trojkat wezszy (mniejszy), dolny szerszy (wiekszy),
+        // ramiona X po lewej wystaja poza oba trojkaty.
         Paint.Style oldStyle = p.getStyle();
         float oldW = p.getStrokeWidth();
         p.setStyle(Paint.Style.STROKE);
-        p.setStrokeWidth(sw * 1.25f);
+        p.setStrokeWidth(Math.max(2f, sw * 1.3f));
         p.setStrokeCap(Paint.Cap.ROUND);
         p.setStrokeJoin(Paint.Join.ROUND);
         Path pa = PA;
         pa.reset();
-        pa.moveTo(cx, cy - s);
+        pa.moveTo(cx, cy - s);                        // pion
         pa.lineTo(cx, cy + s);
-        pa.moveTo(cx - s * 0.52f, cy - s * 0.55f);
+        pa.moveTo(cx - s * 0.66f, cy - s * 0.34f);     // ramiona X (wystaja w lewo)
         pa.lineTo(cx, cy);
-        pa.lineTo(cx - s * 0.52f, cy + s * 0.55f);
-        pa.moveTo(cx, cy - s);
-        pa.lineTo(cx + s * 0.58f, cy - s * 0.38f);
-        pa.lineTo(cx, cy);
-        pa.moveTo(cx, cy);
-        pa.lineTo(cx + s * 0.58f, cy + s * 0.38f);
+        pa.lineTo(cx - s * 0.66f, cy + s * 0.34f);
+        pa.moveTo(cx, cy - s);                         // trojkat gorny - mniejszy
+        pa.lineTo(cx + s * 0.40f, cy - s * 0.62f);
+        pa.lineTo(cx, cy - s * 0.04f);
+        pa.moveTo(cx, cy + s * 0.04f);                 // trojkat dolny - wiekszy
+        pa.lineTo(cx + s * 0.62f, cy + s * 0.40f);
         pa.lineTo(cx, cy + s);
         cv.drawPath(pa, p);
         pa.reset();
@@ -121,15 +136,17 @@ public final class Glyphs {
 
         switch (g) {
             case "hot": {
-                float hh = s * 0.34f;
-                float aa = s * 0.58f;
-                float off = aa * 0.72f;
+                // Referencja: ogniwo lancucha - dwa zaczepione PIONOWE owale;
+                // lewy przebiega przez srodek prawego (widoczne "S" jak na zdjeciu)
+                float lh = s * 0.62f;      // pol-wysokosc ogniwa
+                float lw = s * 0.42f;      // pol-szerokosc ogniwa
+                float off = s * 0.30f;     // wzajemne przesuniecie
                 float oldSw = p.getStrokeWidth();
-                p.setStrokeWidth(Math.max(2f, sw * 0.85f));
-                rc.set(cx - off - aa, cy - hh, cx - off + aa, cy + hh);
-                cv.drawRoundRect(rc, hh, hh, p);
-                rc.set(cx + off - aa, cy - hh, cx + off + aa, cy + hh);
-                cv.drawRoundRect(rc, hh, hh, p);
+                p.setStrokeWidth(Math.max(2f, sw * 1.1f));
+                rc.set(cx + off - lw, cy - lh, cx + off + lw, cy + lh);
+                cv.drawRoundRect(rc, lw, lw, p);
+                rc.set(cx - off - lw, cy - lh, cx - off + lw, cy + lh);
+                cv.drawRoundRect(rc, lw, lw, p);
                 p.setStrokeWidth(oldSw);
                 break;
             }
