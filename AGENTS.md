@@ -659,3 +659,23 @@ Mechanizm DZIALA (zielony run #4, 6m25s, 24 PNG w screens/ + bot commit [skip ci
   screens.yml (przywrocone w 2a5315ac). Prawidlowo: pelna tresc jest w
   `r["1"].resource.text`; przed kazdym pushem guard na dlugosc + obecność
   oczekiwanych kotwic.
+
+## Umowa robocza (2026-11-08, użytkownik): wizja = OCENA ZGODNOŚCI z poleceniem
+
+- **Standard przy KAŻDEJ funkcji (zwłaszcza UI):** po pushu poczekać na run
+  screens.yml → pobrać zrzut → OBEJRZEĆ go przez `analyze_image` ZANIM padnie
+  "gotowe". Jak mam możliwość zobaczenia — oglądam, nie zgaduję. Emulator to
+  oczy agenta; użytkownik potwierdził, że screeny z CI są prawdziwe.
+- **KLUCZ (lekcja z ikon pod zegarem):** pytanie do `analyze_image` musi
+  zawierać KRYTERIUM użytkownika (np. "miały być jak w iOS: małe,
+  monochromatyczne, równe odstępy") i prosić o WERDYKT ZGODNOŚCI: czy ekran
+  zgadza się z poleceniem + WYPIISAĆ co się NIE zgadza. Sam opis "co widać"
+  nie wystarczy — wizja porównuje zrzut z tym, co użytkownik kazał.
+- **Wizja bywa niedokładna przy małych elementach** (dwie próby na ikonach dały
+  sprzeczne opisy: raz "za duże i kolorowe", raz "białe i równe"). Dlatego:
+  werdykt = KOD (ground truth z layoutu: wymiary, paddingi, pitch, tint)
+  + zrzut. Jak się rozjeżdżają — ufać kodowi i dopytać wizję konkretnie.
+- **Rozkład ról:** agent ocenia zgodność na emulatorze i melduje
+  "zgodne/niezgodne + różnice"; GLOS KONCOWY = użytkownik na tablecie
+  (emulator ≠ Mali-T720, zasada "nie mów 'naprawione' bez potwierdzenia na
+  urządzeniu" — bez zmian).
