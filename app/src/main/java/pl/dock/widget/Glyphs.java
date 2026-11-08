@@ -42,17 +42,16 @@ public final class Glyphs {
     }
 
     private static void wifiIos(Canvas cv, float cx, float cy, float pol, int color, boolean off) {
-        // Referencja (IMG_8769): trzy WYRAZNE luki o stalej grubosci z
-        // zakraglonymi koncowkami; szczelina miedzy pasmami = grubosc pasa,
-        // kropka u dolu o srednicy = grubosc pasa. Pasma MUSZA byc rozdzielone -
-        // nie zlewac sie w jeden wypelniony "pie".
+        // Referencja (IMG_8769, potwierdzone): trzy luki o ROWNYM rozwieraniu
+        // po ~60 stopni (polowa = 30 st.) - zadnego wachlarza "pie" o rozwieraniach
+        // 70/90/140. Grube pasma, szczelina miedzy pasmami = grubosc pasa,
+        // kropka u dolu o srednicy = grubosc pasa, zakraglone koncowki.
         Paint p = GP;
         RectF rc = RC;
-        float ax = cx;
+        float t = pol * 0.33f;                        // grubosc pasa (wys. ikony ~7t)
         float ay = cy + pol * 0.62f;                  // wierzcholek wachlarza (srodek lukow)
-        float t = pol * 0.24f;                        // grubosc pasa
         float[] rr = {2f * t, 4f * t, 6f * t};        // srodkowe promienie: szczelina = t
-        float[] hh = {35f, 45f, 70f};                 // polowy rozwarcia pasm (70/90/140 st. jak na ref)
+        float h = 30f;                                // polowa rozwarcia KAZDEGO pasma (60 st.)
         p.reset();
         p.setAntiAlias(true);
         p.setColor(color);
@@ -60,11 +59,11 @@ public final class Glyphs {
         p.setStrokeWidth(t);
         p.setStrokeCap(Paint.Cap.ROUND);
         for (int i = 0; i < 3; i++) {
-            rc.set(ax - rr[i], ay - rr[i], ax + rr[i], ay + rr[i]);
-            cv.drawArc(rc, 270f - hh[i], 2f * hh[i], false, p);
+            rc.set(cx - rr[i], ay - rr[i], cx + rr[i], ay + rr[i]);
+            cv.drawArc(rc, 270f - h, 2f * h, false, p);
         }
         p.setStyle(Paint.Style.FILL);
-        cv.drawCircle(ax, ay, t / 2f, p);
+        cv.drawCircle(cx, ay, t / 2f, p);
         if (off) {
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeCap(Paint.Cap.ROUND);
@@ -75,30 +74,35 @@ public final class Glyphs {
     }
 
     private static void btIos(Canvas cv, float cx, float cy, float s, Paint p, float sw) {
-        // Referencja (IMG_8769): pion dokladnie po srodku, KROTKIE ramiona X
-        // przy pionie, dwa trojkaty z obrysu po prawej dotykajace pionu,
-        // gorny ~2x mniejszy od dolnego.
+        // Referencja (IMG_8769, potwierdzone): STANDARDOWE logo Bluetooth.
+        // Pion na cala wysokosc ikony + dwie pary ukosnych ramion krzyzujacych
+        // sie na srodku pionu: od gornego konca pionu do punktow po obu stronach
+        // srodka, symetrycznie od dolnego konca. Dosieg ramion 0.4*s (siatka 10x10
+        // z ref: srodkowe punkty 2 jedn. na bok przy wysokosci 10), grubosc ~1/10
+        // wysokosci ikony, ostre zakonczenia.
         Paint.Style oldStyle = p.getStyle();
         float oldW = p.getStrokeWidth();
+        Paint.Cap oldCap = p.getStrokeCap();
         p.setStyle(Paint.Style.STROKE);
-        p.setStrokeWidth(Math.max(2f, sw * 1.3f));
-        p.setStrokeCap(Paint.Cap.ROUND);
+        p.setStrokeWidth(Math.max(2f, s * 0.20f));
+        p.setStrokeCap(Paint.Cap.BUTT);
         p.setStrokeJoin(Paint.Join.ROUND);
         Path pa = PA;
         pa.reset();
-        pa.moveTo(cx, cy - s);                        // pion
+        pa.moveTo(cx, cy - s);                        // pion na cala wysokosc
         pa.lineTo(cx, cy + s);
-        pa.moveTo(cx - s * 0.28f, cy - s * 0.34f);     // krotkie ramiona X przy pionie
-        pa.lineTo(cx, cy);
-        pa.lineTo(cx - s * 0.28f, cy + s * 0.34f);
-        pa.moveTo(cx, cy - s);                         // trojkat gorny (siatka ref:
-        pa.lineTo(cx + s * 0.50f, cy - s * 0.65f);     // grot w polowie podstawy,
-        pa.lineTo(cx, cy - s * 0.25f);                 // szerokosci rowne dla obu)
-        pa.moveTo(cx, cy - s * 0.05f);                 // trojkat dolny
-        pa.lineTo(cx + s * 0.50f, cy + s * 0.45f);
+        float w = s * 0.40f;                          // dosieg ramion wg ref
+        pa.moveTo(cx - w, cy);                         // lewe ramiona (gora-srodek-dol)
+        pa.lineTo(cx, cy - s);
+        pa.moveTo(cx - w, cy);
+        pa.lineTo(cx, cy + s);
+        pa.moveTo(cx + w, cy);                         // prawe ramiona (gora-srodek-dol)
+        pa.lineTo(cx, cy - s);
+        pa.moveTo(cx + w, cy);
         pa.lineTo(cx, cy + s);
         cv.drawPath(pa, p);
         pa.reset();
+        p.setStrokeCap(oldCap);
         p.setStrokeWidth(oldW);
         p.setStyle(oldStyle);
     }
@@ -130,23 +134,24 @@ public final class Glyphs {
 
         switch (g) {
             case "hot": {
-                // Referencja (IMG_8770): dwa POZIOME owalne ogniwa lancucha
-                // obok siebie (uklad poziomy, calosc szer:wys ~2:1, kazdy
-                // owal ~3:2); prawe ogniwo przewleczone przez lewe.
-                // Skala dobrana tak, by wysokosc ikony byla zblizona do
-                // WiFi/BT w rzedzie pod zegarem (poprzednio ~3x mniejsza).
-                float lh = s * 0.48f;      // pol-wysokosc ogniwa (owal ~3:2)
-                float lw = s * 0.72f;      // pol-szerokosc ogniwa
-                float off = s * 0.52f;     // odleglosc srodkow od osi pionowej
+                // Referencja (IMG_8770, potwierdzone): dwa poziome ogniwa lancusza
+                // - KAPSULY (stadium, polkoliste konce), NIE elipsy; oba kontury
+                // PELNE (bez przerw), nachodzenie ~3/8 dlugosci ogniwa.
+                // Geometria z ref (H = wysokosc ogniwa = 0.85s): dlugosc ogniwa
+                // 2H, srodki w odleglosci 0.25H od osi, calosc szer:wys ~2.5:1,
+                // kontur ~H/8.
+                float lh = s * 0.42f;      // pol-wysokosc ogniwa (H = 0.85s)
+                float lw = s * 0.85f;      // pol-dlugosc ogniwa (dlugosc = 2H)
+                float off = s * 0.21f;     // pol odstepu srodkow (0.25H)
                 float oldSw = p.getStrokeWidth();
-                // nachodzenie ogniw = 2*lw - 2*off = 0.4s = ~28% szerokosci ogniwa
-                // (wczesniej off=0.30s: ovale pokrywaly sie w 68% i wychodzil
-                // jeden owal z podwojnym obrysem zamiast dwoch przeplatanych ogniw)
-                p.setStrokeWidth(Math.max(2f, s * 0.29f));   // ~20% szerokosci ogniwa jak na ref
+                Paint.Cap oldCap = p.getStrokeCap();
+                p.setStrokeCap(Paint.Cap.ROUND);
+                p.setStrokeWidth(Math.max(2f, s * 0.11f));   // ~1/8 wys. ikony
                 rc.set(cx - off - lw, cy - lh, cx - off + lw, cy + lh);
-                cv.drawOval(rc, p);                     // elipsa jak na ref, nie stadion
+                cv.drawRoundRect(rc, lh, lh, p);              // kapsula jak na ref
                 rc.set(cx + off - lw, cy - lh, cx + off + lw, cy + lh);
-                cv.drawOval(rc, p);
+                cv.drawRoundRect(rc, lh, lh, p);
+                p.setStrokeCap(oldCap);
                 p.setStrokeWidth(oldSw);
                 break;
             }
@@ -176,7 +181,8 @@ public final class Glyphs {
                 double e = Math.toRadians(220);
                 head(cv, cx + R * (float) Math.cos(e), cy + R * (float) Math.sin(e), 310, s * 0.5f, p);
                 rc.set(cx - s * 0.32f, cy - s * 0.02f, cx + s * 0.32f, cy + s * 0.5f);
-                cv.drawRoundRect(rc, s * 0.1f, s * 0.1f, p);
+            
+    cv.drawRoundRect(rc, s * 0.1f, s * 0.1f, p);
                 rc.set(cx - s * 0.2f, cy - s * 0.4f, cx + s * 0.2f, cy + s * 0.1f);
                 cv.drawArc(rc, 180, 180, false, p);
                 break;
@@ -216,7 +222,8 @@ public final class Glyphs {
                 break;
             case "sun":
                 cv.drawCircle(cx, cy, s * 0.42f, p);
-                for (int i = 0; i < 8; i++) {
+                for (int i = 0; i < 8
+; i++) {
                     double a = Math.PI * i / 4.0;
                     cv.drawLine(cx + (float) Math.cos(a) * s * 0.72f, cy + (float) Math.sin(a) * s * 0.72f,
                             cx + (float) Math.cos(a) * s * 1.02f, cy + (float) Math.sin(a) * s * 1.02f, p);
@@ -258,7 +265,8 @@ public final class Glyphs {
                 cv.drawCircle(cx, cy, s, p);
                 cv.drawLine(cx, cy, cx, cy - s * 0.6f, p);
                 cv.drawLine(cx, cy, cx + s * 0.45f, cy + s * 0.2f, p);
-                break;
+    
+            break;
             case "globe":
                 cv.drawCircle(cx, cy, s, p);
                 rc.set(cx - s * 0.45f, cy - s, cx + s * 0.45f, cy + s);
@@ -298,7 +306,8 @@ public final class Glyphs {
             case "lock":
                 rc.set(cx - s * 0.7f, cy - s * 0.1f, cx + s * 0.7f, cy + s * 0.9f);
                 cv.drawRoundRect(rc, s * 0.2f, s * 0.2f, p);
-                rc.set(cx - s * 0.45f, cy - s * 0.95f, cx + s * 0.45f, cy + s * 0.15f);
+                rc.set(cx - s * 0.45f, cy - s * 0.
+95f, cx + s * 0.45f, cy + s * 0.15f);
                 cv.drawArc(rc, 180, 180, false, p);
                 break;
             case "code":
@@ -344,7 +353,8 @@ public final class Glyphs {
             case "bell":
                 rc.set(cx - s * 0.75f, cy - s * 0.95f, cx + s * 0.75f, cy + s * 0.55f);
                 cv.drawArc(rc, 180, 180, false, p);
-                cv.drawLine(cx - s * 0.95f, cy + s * 0.5f, cx + s * 0.95f, cy + s * 0.5f, p);
+     
+           cv.drawLine(cx - s * 0.95f, cy + s * 0.5f, cx + s * 0.95f, cy + s * 0.5f, p);
                 break;
             case "star":
                 for (int i = 0; i < 10; i++) {
@@ -391,7 +401,8 @@ public final class Glyphs {
     }
 
     /** Jak bitmap(), ale glif wypelnia kratke tak jak w panelu lacznosci
-     *  (r = 0.85 * size, patrz ConnectivityPanel.glyphBitmap). Ikony pod zegarem
+    
+ *  (r = 0.85 * size, patrz ConnectivityPanel.glyphBitmap). Ikony pod zegarem
      *  w doku i w widzecie sa male (19 dp): przy r = 0.42 * size glif WiFi
      *  zajmowal ~35% kratki, pasma "pie" schodzily do ~1,5 dp i wygladaly jak
      *  cienkie linie zamiast grubego wypelnionego wachlarza jak na referencji.
