@@ -135,11 +135,14 @@ public final class Glyphs {
                 // owal ~3:2); prawe ogniwo przewleczone przez lewe.
                 // Skala dobrana tak, by wysokosc ikony byla zblizona do
                 // WiFi/BT w rzedzie pod zegarem (poprzednio ~3x mniejsza).
-                float lh = s * 0.64f;      // pol-wysokosc ogniwa
-                float lw = s * 0.95f;      // pol-szerokosc ogniwa (owal poziomy ~3:2)
-                float off = s * 0.30f;     // odleglosc srodkow od osi pionowej
+                float lh = s * 0.48f;      // pol-wysokosc ogniwa (owal ~3:2)
+                float lw = s * 0.72f;      // pol-szerokosc ogniwa
+                float off = s * 0.52f;     // odleglosc srodkow od osi pionowej
                 float oldSw = p.getStrokeWidth();
-                p.setStrokeWidth(Math.max(2f, s * 0.38f));   // ~20% szerokosci ogniwa jak na ref
+                // nachodzenie ogniw = 2*lw - 2*off = 0.4s = ~28% szerokosci ogniwa
+                // (wczesniej off=0.30s: ovale pokrywaly sie w 68% i wychodzil
+                // jeden owal z podwojnym obrysem zamiast dwoch przeplatanych ogniw)
+                p.setStrokeWidth(Math.max(2f, s * 0.29f));   // ~20% szerokosci ogniwa jak na ref
                 rc.set(cx - off - lw, cy - lh, cx - off + lw, cy + lh);
                 cv.drawRoundRect(rc, lh, lh, p);
                 rc.set(cx + off - lw, cy - lh, cx + off + lw, cy + lh);
