@@ -192,8 +192,9 @@ class UfoClusterFullView(context: Context) : View(context) {
     private val glyphMat = Matrix()
     private val pDigit = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeJoin = Paint.Join.ROUND
-        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.MITER
+        strokeMiter = 3f
+        strokeCap = Paint.Cap.BUTT
     }
     private val glyphsBuilt = buildGlyphs()
 
@@ -226,42 +227,47 @@ class UfoClusterFullView(context: Context) : View(context) {
         return true
     }
 
-    // Rysuje jedną cyfrę o wysokości h wyśrodkowaną w (cx, cy); kolor i poświatę ustawia wołający
-    private fun drawGlyph(c: Canvas, d: Int, cx: Float, cy: Float, h: Float) {
+    // Rysuje jedną cyfrę o wysokości h wyśrodkowaną w (cx, cy): ciemny obrys + ostra jasna kreska
+    private fun drawGlyph(c: Canvas, d: Int, cx: Float, cy: Float, h: Float,
+                          col: Int, glow: Int, blur: Float) {
         glyphMat.reset()
         glyphMat.postScale(h, h)
-        glyphMat.postSkew(-0.2f, 0f)
+        glyphMat.postSkew(-0.3f, 0f)
         glyphMat.postTranslate(cx, cy)
         glyphTmp.reset()
         glyphs[d].transform(glyphMat, glyphTmp)
-        pDigit.strokeWidth = 0.19f * h
+
+        pDigit.clearShadowLayer()
+        pDigit.color = Color.parseColor("#03040A")
+        pDigit.strokeWidth = 0.19f * h + 3.4f
         c.drawPath(glyphTmp, pDigit)
+
+        pDigit.color = col
+        pDigit.strokeWidth = 0.19f * h
+        pDigit.setShadowLayer(blur, 0f, 0f, glow)
+        c.drawPath(glyphTmp, pDigit)
+        pDigit.clearShadowLayer()
     }
 
     // Napis złożony z cyfr i kresek tym samym krojem (np. prędkość)
-    private fun drawDigits(c: Canvas, text: String, cx: Float, cy: Float, h: Float) {
+    private fun drawDigits(c: Canvas, text: String, cx: Float, cy: Float, h: Float,
+                           col: Int, glow: Int, blur: Float) {
         val adv = h * 0.98f
         val total = text.length * adv
         var x = cx - total / 2f + adv / 2f
         for (ch in text) {
             if (ch in '0'..'9') {
-                drawGlyph(c, ch - '0', x, cy, h)
+                drawGlyph(c, ch - '0', x, cy, h, col, glow, blur)
             } else if (ch == '-') {
+                pDigit.color = col
                 pDigit.strokeWidth = 0.19f * h
+                pDigit.setShadowLayer(blur, 0f, 0f, glow)
                 c.drawLine(x - h * 0.25f, cy, x + h * 0.25f, cy, pDigit)
+                pDigit.clearShadowLayer()
             }
             x += adv
         }
     }
-    private val iconPath = Path()
-    private var lastFrameMs = 0L
-
-    private val tfBold = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-
-    // Poświata HUD - skompresowana na osi Y
-    private val hudGlowShader = RadialGradient(640f, 90f, 250f,
-        intArrayOf(0xBB142BFF.toInt(), 0x330011AA, 0x00000000),
-        floatArrayOf(0f, 0.4f, 1f), Shader.TileMode.CLAMP)
 
     // Połysk szyby zegarów (zero alokacji w onDraw)
     private val glassShader = LinearGradient(0f, 0f, 1280f, 640f,
@@ -625,20 +631,19 @@ class UfoClusterFullView(context: Context) : View(context) {
             pStroke.clearShadowLayer()
         }
         // 5. Cyfry 0-8 własnym krojem, pod kreskami
-        pDigit.color = TICK_OEM
         for (r in 0..8000 step 1000) {
             val ang = a0 + sweep * (r / 8000f)
-            pDigit.setShadowLayer(10f, 0f, 0f, TICK_OEM)
             drawGlyph(c, r / 1000,
                 (CX + numR * cos(ang)).toFloat(),
-                (CY + numR * sin(ang)).toFloat(), 34f)
-            pDigit.clearShadowLayer()
+                (CY + numR * sin(ang)).toFloat(), 34f, TICK_OEM, TICK_OEM, 4f)
         }
 
-        // Napis jednostki pod tarczą
+        // Napis jednostki pod tarczą, wyśrodkowany w dolnym pasie
         pNum.textSize = 22f
-        pNum.setShadowLayer(8f, 0f, 0f, TICK_OEM)
-        c.drawText("x1000r/min", CX + 10f, CY + 230f, pNum)
+        pNum.color = TICK_OEM
+        pNum.textAlign = Paint.Align.CENTER
+        pNum.setShadowLayer(5f, 0f, 0f, TICK_OEM)
+        c.drawText("x1000r/min", CX + 8f, CY + 222f, pNum)
         pNum.clearShadowLayer()
 
         // 6. Boczne wskaźniki: niebieski obrys z zagięciami na końcach + równy grzebień kresek
@@ -704,10 +709,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         pSpeed.textSize = 40f
         pSpeed.color = Color.WHITE
         pSpeed.textAlign = Paint.Align.CENTER
-        pDigit.color = Color.WHITE
-        pDigit.setShadowLayer(14f, 0f, 0f, CYAN_HUD)
-        drawDigits(c, spdCache, 640f, 63f, 28f)
-        pDigit.clearShadowLayer()
+        drawDigits(c, spdCache, 640f, 63f, 28f, Color.WHITE, CYAN_HUD, 8f)
 
         pSpeed.textSize = 16f
         pSpeed.textAlign = Paint.Align.LEFT
@@ -832,8 +834,17 @@ class UfoClusterFullView(context: Context) : View(context) {
         needlePath.lineTo(CX + px * hB - nx * hw, CY + py * hB - ny * hw)
         needlePath.close()
 
-        pFill.color = Color.parseColor("#F6F4D6")
-        pFill.setShadowLayer(14f, 0f, 0f, glowColor)
+        // ciemna obwódka wokół całej wskazówki (i wokół otworu), żeby odcinała się od tła
+        pStroke.style = Paint.Style.STROKE
+        pStroke.strokeJoin = Paint.Join.MITER
+        pStroke.strokeWidth = 4f
+        pStroke.color = Color.parseColor("#05060E")
+        pStroke.clearShadowLayer()
+        c.drawPath(needlePath, pStroke)
+        pStroke.style = Paint.Style.FILL
+
+        pFill.color = Color.parseColor("#E9E9B8")
+        pFill.setShadowLayer(5f, 0f, 0f, glowColor)
         c.drawPath(needlePath, pFill)
         pFill.clearShadowLayer()
         needlePath.fillType = Path.FillType.WINDING
@@ -1016,17 +1027,16 @@ class UfoClusterFullView(context: Context) : View(context) {
         val alarm = arcAlarm(key, v)
         val frac = arcFrac(key, v)
 
-        if (!v.isNaN() && frac > 0f) {
-            // Wskazówka identyczna jak w obrotomierzu (obrys z niepodświetlonym wnętrzem), tylko mniejsza
-            val deg = if (left) 163f + frac * 34f else 17f - frac * 34f
-            drawWedge(c, Math.toRadians(deg.toDouble()),
-                sideGaugeRadius - 68f, sideGaugeRadius - 12f, 9f,
-                if (alarm) TICK_RED else Color.parseColor("#FFE9A0"))
-        }
+        // Strzałka jest widoczna zawsze (jak w oryginale); bez danych stoi na początku skali
+        val shown = if (v.isNaN() || frac.isNaN()) 0f else frac.coerceIn(0f, 1f)
+        val deg = if (left) 163f + shown * 34f else 17f - shown * 34f
+        drawWedge(c, Math.toRadians(deg.toDouble()),
+            sideGaugeRadius - 68f, sideGaugeRadius - 12f, 9f,
+            if (alarm && !v.isNaN()) TICK_RED else Color.parseColor("#FFE9A0"))
         pStroke.style = Paint.Style.FILL
 
         // Podpisy po zewnętrznej stronie łuku, wyśrodkowane na środku łuku
-        val labelX = if (left) 118f else 1162f
+        val labelX = if (left) 230f else 1050f   // tuż przy najbardziej wysuniętym punkcie łuku
 
         if (v != (if (left) arcTxtSrcL else arcTxtSrcR) || key != (if (left) arcTxtKeyL else arcTxtKeyR)) {
             if (left) { 
@@ -1040,7 +1050,7 @@ class UfoClusterFullView(context: Context) : View(context) {
             }
         }
 
-        pText.textAlign = Paint.Align.CENTER
+        pText.textAlign = if (left) Paint.Align.RIGHT else Paint.Align.LEFT
         pText.textSkewX = -0.2f // ta sama czcionka co cyfry tarczy
         pText.typeface = tfBold
 
@@ -1052,7 +1062,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         val valColor = if (alarm) TICK_RED else Color.parseColor("#FFF6D0")
         pText.color = valColor
         pText.setShadowLayer(8f, 0f, 0f, if (alarm) TICK_RED else TICK_OEM)
-        c.drawText(if (left) arcTxtCacheL else arcTxtCacheR, labelX, CY + 30f, pText)
+        c.drawText(if (left) arcTxtCacheL else arcTxtCacheR, labelX, CY + 28f, pText)
         pText.clearShadowLayer()
         pText.textSkewX = 0f
     }
