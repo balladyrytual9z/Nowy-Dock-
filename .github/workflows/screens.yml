@@ -9,9 +9,10 @@
 # wykonuje script LINIJKA PO LINIJCE jako osobne /usr/bin/sh -c, wiec
 # zmienne shellowe i funkcje NIE przetrwal miedzy liniami (tee padal na
 # pustym $LOG). v4: skrypt plaski - kazda linia samodzielna, zero
-# zmiennych/funkcji, delikatne komendy z "|| true". v5: skin 1024x600 -
-# domyslny HVGA (320dp szerokosci) UCINAL panel 560dp (kolumna suwaka
-# glosnosci i trybow znikala za prawa krawedzia - zlapane na zrzucie #4).
+# zmiennych/funkcji, delikatne komendy z "|| true". v5: skin 1280x720 =
+# NATYWNA rozdzielczosc tabletu ESSGOO - domyslny HVGA (320dp szerokosci)
+# UCINAL panel 560dp (kolumna suwaka glosnosci i trybow znikala za prawa
+# krawedzia - zlapane na zrzucie runa #4).
 # =====================================================================
 name: Zrzuty ekranu emulatora (testy wizualne)
 
@@ -91,7 +92,7 @@ jobs:
           api-level: 28
           arch: x86_64
           target: google_apis
-          emulator-options: -no-window -skin 1024x600 -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -camera-back none -camera-front none
+          emulator-options: -no-window -skin 1280x720 -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -camera-back none -camera-front none
           disable-animations: true
           script: |
             adb root >/dev/null 2>&1 || true
