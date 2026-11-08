@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RadialGradient
@@ -18,57 +19,15 @@ import pl.dock.widget.repository.EngineStateLabel
 import pl.dock.widget.repository.VehicleUiState
 
 /**
- * Honda OEM UFO Cluster - pelna implementacja wg specyfikacji 1280x720
- * (dokument "ui obd.txt", CZESC II).
- *
- * Warstwa statyczna (tlo, ramki, podzialki, cyfry) jest cache'owana w
- * Bitmap i przerysowywana tylko przy zmianie rozmiaru. Warstwa dynamiczna
- * (wskazowka, HUD, LCD, luki, footer) nie alokuje obiektow w onDraw.
- *
- * Zgodnosc ze specyfikacja (CZESC II):
- *  - tarcza 440 px, srodek (640, 400), podzialki 100/500/1000 RPM,
- *    cyfry 1-8 pochylone (bez rotacji radialnej);
- *  - LCD MID 220x220 w (530, 290): ikona 24x24 + nazwa 12sp bold,
- *    wartosc glowna 38sp Monospace Bold + jednostka 14sp, separator
- *    2 px na Y=400, jasny panel statystyk 204x96 z etykieta interwalu
- *    (np. "C / TRIP"), MAX #0055FF, AVG czarny;
- *  - petla MID: BOOST -> ECT -> VOLTAGE -> TPS -> IAT -> LTFT;
- *  - HUD: predkosc 96sp Bold Italic bez zer wiodacych, pasek REV
- *    10 segmentow (1-4 blekitne, 5-8 zielone, 9-10 bursztynowe),
- *    >= 6300 caly pasek pulsuje czerwono, ECO/VTEC wg progow z Ustawien,
- *    soczewka #0022AA 25% pod predkoscia;
- *  - biezny wskaznik jest WYLICZANY (RPM/km/h) - rysowany przygaszonym
- *    (spec: zgadana wartosc nie moze wygladac jak pewny pomiar);
- *  - luki boczne 180x480, grubosc 8 dp, SweepGradient, bez podzialek,
- *    wartosc + etykieta po stronie srodka ekranu, alarm #FF0033;
- *    lewy: ECT -> BOOST -> VOLTS, prawy: FUEL -> TPS -> IAT -> LTFT;
- *  - footer 80 px, 5 sektorow od lewej: Check Engine/DTC, ZAPISZ EVENT,
- *    SWAP UI, zebatka (ustawienia), status OBD + napiecie;
- *  - brak danych: "---", MAX/AVG "N/A", piksele LCD przygaszone.
- *
- * Progi alarmow (ECT/VOLTS/LTFT/IAT) sa konfigurowalne z Ustawien OBD
- * (prefs alarm_*), tak jak exige pkt 10.7 specyfikacji.
- *
- * Motyw dzien/noc (pkt 34.2/34.3): setNight() - dzien tlo #121722 bez
- * neonowej poswiaty, noc #05070B z ciepla skala #FFFDE7; bez ingerencji
- * w systemowa jasnosc ekranu (pkt 34.4).
- *
- * Engine OFF (pkt 35.1/35.2): po zgaszeniu wskazowki opadaja do zera,
- * luki przechodza na konfigurowalne przypisania OFF (domyslnie VOLTS /
- * AVG_TRIP_FUEL), pojawia sie dyskretny E-RAPORT; po rozruchu luki
- * wracaja do konfiguracji jazdy.
+ * Honda OEM UFO Cluster - wersja FOTOREALISTYCZNA (Black Panel, LED Neon)
  */
 class UfoClusterFullView(context: Context) : View(context) {
 
     companion object {
-        /** Parametry dostepne do przypisania na luki (menu long-press, pkt 10.5). */
         val ARC_PARAMS = arrayOf(
             "ECT", "BOOST", "VOLTS", "FUEL", "TPS", "IAT", "LTFT", "STFT", "MAF", "BARO",
             "AVG_TRIP_FUEL"
         )
-
-        /** Parametry dostepne jako pozycja wykresu w MID (pkt 8.7).
-         *  Pelna lista tego, co apka udostepnia - nic na stale. */
         val CHART_KEYS = arrayOf(
             "BOOST", "ECT", "VOLTS", "TPS", "IAT", "LTFT",
             "STFT", "MAF", "BARO", "FUEL")
@@ -88,43 +47,39 @@ class UfoClusterFullView(context: Context) : View(context) {
             else -> key
         }
 
-        /** Gestosc benzyny [g/l] - szacunek zuzycia trasy z MAF (pkt 35.1). */
         private const val FUEL_DENSITY_G_PER_L = 745.0
-
-        /** Stechiometria benzyny [g powietrza / g paliwa]. */
         private const val AFR_GAS = 14.7
     }
 
-    // ---------- Paleta (pkt 6 + 34.2/34.3) ----------
-    // Dzien (34.2): tlo #121722, jasne elementy tarczy, neonowa poswiata
-    // WYLACZONA, ostre krawedzie wektorowe. Noc (34.3): tlo #05070B,
-    // ciepla skala #FFFDE7, aktywne pierscienie #0055FF, ograniczona
-    // intensywnosc efektow. Przejscie zmienia jasnosc TRESCI, nigdy
-    // systemowa jasnosc ekranu (pkt 34.4).
-    private val BG_DAY = Color.parseColor("#0A0C10")
-    private val BG_NIGHT = Color.parseColor("#000000")
-    private val TICK_DAY = Color.parseColor("#FFE566")
-    private val TICK_NIGHT = Color.parseColor("#FFE566")  // photo: yellow illuminated ticks
+    // ---------- Paleta (Fotorealistyczna) ----------
+    private val BG_DAY = Color.parseColor("#050608")
+    private val BG_NIGHT = Color.parseColor("#000000") // Czysta czerń (jak w nocy)
+    private val TICK_DAY = Color.parseColor("#FFF8D6")
+    private val TICK_NIGHT = Color.parseColor("#FFF1B8") // Ciepły żółto-biały LED
     private var BG = BG_NIGHT
     private var TICK = TICK_NIGHT
-    private val DIAL_BG = Color.parseColor("#0A0C12")
-    private val METAL_HI = Color.parseColor("#3A4558")
-    private val METAL_LO = Color.parseColor("#0E1420")
-    private val BLUE_GLOW = Color.parseColor("#1A6AFF")
-    private val CYAN = Color.parseColor("#00D4FF")
-    private val RED = Color.parseColor("#FF1A2E")
-    private val LCD_BG = Color.parseColor("#4A5A5E")
-    private val LCD_ON = Color.parseColor("#0A1012")
-    private val LCD_OFF = Color.parseColor("#3A484C")
-    private val STAT_BG = Color.parseColor("#D8E0DC")
-    private val GREEN = Color.parseColor("#30D158")
-    private val AMBER = Color.parseColor("#FF9F0A")
-    private val GRAY = Color.parseColor("#8E8E93")
-    private val AVG_INK = Color.BLACK
-    private val MAX_INK = Color.parseColor("#0055FF")
+    
+    // Głęboki fioletowo-niebieski specyficzny dla Hondy VIII
+    private val BLUE_GLOW = Color.parseColor("#142BFF") 
+    private val BLUE_GLOW_INTENSE = Color.parseColor("#3366FF")
+    
+    private val CYAN = Color.parseColor("#00C3FF")
+    private val RED = Color.parseColor("#FF0F1F")
+    
+    // Matryca LCD (ciemnoszara z poświatą)
+    private val LCD_BG = Color.parseColor("#111317")
+    private val LCD_ON = Color.parseColor("#E8EEF2")
+    private val LCD_OFF = Color.parseColor("#282C34")
+    private val STAT_BG = Color.parseColor("#1C1E24")
+    
+    private val GREEN = Color.parseColor("#11E840")
+    private val AMBER = Color.parseColor("#FFA600")
+    private val GRAY = Color.parseColor("#666D7A")
+    private val AVG_INK = Color.parseColor("#AAB2BD")
+    private val MAX_INK = CYAN
 
     // ---------- Stan danych ----------
-    private var rpm = 0f          // wyrenderowane (interpolowane)
+    private var rpm = 0f
     private var rpmTarget = 0f
     private var speedKmh = -1
     private var connected = false
@@ -144,13 +99,12 @@ class UfoClusterFullView(context: Context) : View(context) {
     private var lastDataMs = 0L
     private var useMph = false
 
-    // ---------- Konfiguracja (z Ustawien OBD; host aplikuje w onResume) ----------
+    // ---------- Konfiguracja ----------
     var redlineRpm = 6500
     var vtecRpm = 5200
     var ecoTps = 18f
     var ecoMap = 48f
     var ecoRpm = 2800f
-    /** Progi alarmowe luk (pkt 10.7) - edytowalne w Ustawieniach. */
     var ectMaxC = 102f
     var voltMin = 11.8f
     var voltMax = 14.8f
@@ -163,28 +117,17 @@ class UfoClusterFullView(context: Context) : View(context) {
     var onSwapUi: () -> Unit = {}
     var onOpenSettings: () -> Unit = {}
     var onSpeedTap: () -> Unit = {}
-    /** Long press na luku (powyzej 1 s, pkt 10.5): menu szybkiego przypisania. */
     var onArcAssign: (left: Boolean) -> Unit = { _ -> }
 
-    // ---------- Motyw dzien/noc (pkt 34.2/34.3) ----------
     private var night = true
-
-    // ---------- Stan silnika OFF (pkt 35.1 / 35.2) ----------
     private var engineOff = false
-    /** Konfiguracja jazdy luk - zapamietana i przywracana po rozruchu (35.2). */
     private var savedLeftIndex = 0
     private var savedRightIndex = 0
-    /** Konfigurowalne przypisania luk w stanie Engine OFF (35.1). */
     var offLeftParam = "VOLTS"
     var offRightParam = "AVG_TRIP_FUEL"
-    /** Dyskretny E-RAPORT po zgaszeniu (35.1): otwiera raport trasy. */
     var onOpenEReport: () -> Unit = {}
 
-    // ---------- LCD MID (pkt 8) ----------
-    // Petla MID (pkt 8.6) + pozycje wykresow (pkt 8.7): wykres da sie
-    // przypisac do KAZDEGO parametru udostepnianego przez apke - lista
-    // nie jest ograniczona do stalego zbioru. Naprawa: bylo "VOLTAGE",
-    // a paramValue() obsluguje "VOLTS" - pozycja nigdy nie miala danych.
+    // ---------- LCD MID ----------
     private val midLoop = arrayOf(
         "BOOST", "ECT", "VOLTS", "TPS", "IAT", "LTFT",
         "CHART:BOOST", "CHART:ECT", "CHART:VOLTS", "CHART:TPS",
@@ -192,12 +135,9 @@ class UfoClusterFullView(context: Context) : View(context) {
         "CHART:BARO", "CHART:FUEL")
     private var midIndex = 0
 
-    /** Klucz parametru z pozycji petli MID (bez prefiksu CHART:). */
     private fun midKey(entry: String): String =
         if (entry.startsWith("CHART:")) entry.substring(6) else entry
 
-    // Ring buffer 30 s historii dla wykresow MID (pkt 8.7).
-    // Bufory alokowane leniwie, zero alokacji w onDraw.
     private val histVals = HashMap<String, FloatArray>()
     private val histTs = HashMap<String, LongArray>()
     private val histLen = HashMap<String, Int>()
@@ -206,25 +146,24 @@ class UfoClusterFullView(context: Context) : View(context) {
     private val midAvgSum = HashMap<String, Float>()
     private val midAvgCount = HashMap<String, Float>()
 
-    // ---------- Luki boczne (pkt 10) ----------
+    // ---------- Luki boczne ----------
     private val leftLoop = arrayOf("ECT", "BOOST", "VOLTS")
     private val rightLoop = arrayOf("FUEL", "TPS", "IAT", "LTFT")
     private var leftIndex = 0
     private var rightIndex = 0
 
-    // ---------- Geometria wirtualna 1280x720 ----------
+    // ---------- Geometria 1280x720 ----------
     private val CX = 640f
     private val CY = 400f
-    private val R_DIAL = 220f          // srednica 440 (pkt 7.1)
-    private val LCD_L = 530f; private val LCD_T = 290f
-    private val LCD_R = 750f; private val LCD_B = 510f
+    private val LCD_L = 520f; private val LCD_T = 280f
+    private val LCD_R = 760f; private val LCD_B = 520f
 
     private var scale = 1f
     private var offX = 0f
     private var offY = 0f
     private var staticLayer: Bitmap? = null
 
-    // ---------- Painty (prealokacja: zero alokacji w onDraw) ----------
+    // ---------- Painty ----------
     private val pFill = Paint()
     private val pStroke = Paint(Paint.ANTI_ALIAS_FLAG)
     private val pText = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -235,23 +174,23 @@ class UfoClusterFullView(context: Context) : View(context) {
         typeface = Typeface.MONOSPACE
     }
     private val rectF = RectF()
-    private val ovalL = RectF()
-    private val ovalR = RectF()
+    private val ovalL = RectF(40f, 160f, 220f, 640f)
+    private val ovalR = RectF(1060f, 160f, 1240f, 640f)
     private val needlePath = Path()
     private val iconPath = Path()
     private var lastFrameMs = 0L
 
-    // Shadery prealokowane (konstrukcja przy kazdej klatce = jank na Mali-T720)
-    private val hudGlowShader = RadialGradient(520f, 150f, 120f,
-        0x400022AA, 0x000022AA, Shader.TileMode.CLAMP)
-    private val sweepBlueL = SweepGradient(130f, 400f, BLUE_GLOW, CYAN)
-    private val sweepBlueR = SweepGradient(1150f, 400f, CYAN, BLUE_GLOW)
-    private val sweepRedL = SweepGradient(130f, 400f, RED, 0xFFFF6688.toInt())
-    private val sweepRedR = SweepGradient(1150f, 400f, 0xFFFF6688.toInt(), RED)
+    // Shader do HUD zniekształcony przez Matrix, by dał eliptyczną łunę z podszybia
+    private val hudGlowShader = RadialGradient(640f, 120f, 240f,
+        intArrayOf(0xBB142BFF.toInt(), 0x550011AA, 0x00000000),
+        floatArrayOf(0f, 0.4f, 1f), Shader.TileMode.CLAMP).apply {
+        val mat = Matrix()
+        mat.setScale(1.5f, 0.6f, 640f, 120f)
+        setLocalMatrix(mat)
+    }
     private val tfBold = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     private val tfBoldMono = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
 
-    // Cache tekstow rysowanych co klatke (60x/s - zero String.format)
     private var spdCache = "---"
     private var spdCacheSrc = Int.MIN_VALUE
     private var mphCache = false
@@ -266,7 +205,6 @@ class UfoClusterFullView(context: Context) : View(context) {
     private var arcTxtCacheR = ""
     private var arcTxtSrcR = Float.NaN
     private var arcTxtKeyR = ""
-    // cache tekstu MAX/AVG (statystyki) - zero alokacji w onDraw
     private var statKey = ""
     private var statHave = false
     private var statMaxSrc: Float? = null
@@ -274,24 +212,16 @@ class UfoClusterFullView(context: Context) : View(context) {
     private var statMaxCache = "MAX: N/A"
     private var statAvgCache = "AVG: N/A"
 
-    // ---------- API publiczne ----------
-
-    /** Pelny stan telemetrii (UI nigdy nie dotyka transportu). */
     fun update(s: VehicleUiState) {
         val off = s.engineState == EngineStateLabel.OFF
         if (off != engineOff) {
             engineOff = off
             if (off) {
-                // 35.1: zgaszenie - zapamietaj konfiguracje jazdy
-                savedLeftIndex = leftIndex
-                savedRightIndex = rightIndex
+                savedLeftIndex = leftIndex; savedRightIndex = rightIndex
             } else {
-                // 35.2: rozruch - luki wracaja do jazdy, E-RAPORT znika
-                leftIndex = savedLeftIndex
-                rightIndex = savedRightIndex
+                leftIndex = savedLeftIndex; rightIndex = savedRightIndex
             }
         }
-        // 35.1: po zgaszeniu wskazowki plynnie opadaja do zera
         rpmTarget = if (off || s.rpm < 0) 0f else s.rpm.toFloat()
         speedKmh = s.speedKmh
         voltage = s.voltage
@@ -317,11 +247,6 @@ class UfoClusterFullView(context: Context) : View(context) {
 
     fun toggleUnits() { useMph = !useMph }
 
-    /**
-     * Motyw dzien/noc (pkt 34.2/34.3) - automatyczny wg NOAA Sunset Engine;
-     * host przekazuje pore dnia. Zmienia palete i odbudowuje warstwe
-     * statyczna; NIE rusza systemowej jasnsci ekranu (pkt 34.4).
-     */
     fun setNight(n: Boolean) {
         if (night == n) return
         night = n
@@ -331,10 +256,6 @@ class UfoClusterFullView(context: Context) : View(context) {
         postInvalidateOnAnimation()
     }
 
-    /**
-     * Przypisanie parametru do luku z menu (pkt 10.5: long press).
-     * W stanie Engine OFF konfiguruje przypisania OFF (pkt 35.1).
-     */
     fun setArcParam(left: Boolean, key: String) {
         if (engineOff) {
             if (left) offLeftParam = key else offRightParam = key
@@ -350,8 +271,6 @@ class UfoClusterFullView(context: Context) : View(context) {
         }
         postInvalidateOnAnimation()
     }
-
-    // ---------- Wartosci parametrow ----------
 
     private fun paramValue(key: String): Float = when (key) {
         "ECT" -> ectC
@@ -380,7 +299,6 @@ class UfoClusterFullView(context: Context) : View(context) {
         else -> ""
     }
 
-    /** Etykieta interwalu w panelu statystyk (pkt 8.5: "C / TRIP", "V / 1h"). */
     private fun paramInterval(key: String): String = when (key) {
         "ECT", "IAT" -> "C / TRIP"
         "BOOST" -> "bar / 5m"
@@ -403,9 +321,6 @@ class UfoClusterFullView(context: Context) : View(context) {
         midAvgCount[key] = (midAvgCount[key] ?: 0f) + 1f
     }
 
-    // ---------- Srednie zuzycie trasy (AVG_TRIP_FUEL, pkt 35.1) ----------
-    // Szacunek z MAF po stechiometrii 14.7 i gestosci benzyny 745 g/l,
-    // dystans ze speedKmh. NaN dopoki dystans < 0.2 km (bez fabrykacji).
     private var tripFuelL = 0.0
     private var tripDistKm = 0.0
     private var lastTripMs = 0L
@@ -422,10 +337,7 @@ class UfoClusterFullView(context: Context) : View(context) {
     }
 
     private fun avgTripFuelL100(): Float =
-        if (tripDistKm < 0.2) Float.NaN
-        else (tripFuelL / tripDistKm * 100.0).toFloat()
-
-    // ---------- Cykl zycia ----------
+        if (tripDistKm < 0.2) Float.NaN else (tripFuelL / tripDistKm * 100.0).toFloat()
 
     override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
         super.onSizeChanged(w, h, ow, oh)
@@ -446,7 +358,6 @@ class UfoClusterFullView(context: Context) : View(context) {
     }
 
     override fun onDraw(c: Canvas) {
-        // interpolacja zalezna od czasu klatki: V += alpha*(Vt - V)
         val now = System.currentTimeMillis()
         val dt = if (lastFrameMs == 0L) 16f else (now - lastFrameMs).coerceAtMost(100).toFloat()
         lastFrameMs = now
@@ -460,8 +371,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         c.scale(scale, scale)
         drawDynamic(c)
         c.restore()
-        // Petla animacji TYLKO gdy trzeba: wskazowka doleci albo polaczenie
-        // zyje (puls pasa REV / blinker statusu). Offline = zero klatek.
+        
         if (connected || connecting || Math.abs(rpm - rpmTarget) > 1f) {
             postInvalidateOnAnimation()
         } else {
@@ -469,120 +379,120 @@ class UfoClusterFullView(context: Context) : View(context) {
         }
     }
 
-    // ---------- Warstwa statyczna ----------
+    // ---------- Warstwa Statyczna (Tło, Pierścienie, Segmenty LCD) ----------
 
     private fun drawStatic(c: Canvas) {
         pFill.color = BG
         c.drawRect(0f, 0f, 1280f, 720f, pFill)
 
-        // --- outer dark metal bezel (photo-realistic depth) ---
-        rectF.set(CX - R_DIAL - 18f, CY - R_DIAL - 18f, CX + R_DIAL + 18f, CY + R_DIAL + 18f)
-        pFill.shader = RadialGradient(CX, CY - 30f, R_DIAL + 30f,
-            intArrayOf(Color.parseColor("#2C3548"), Color.parseColor("#0A0E18"), Color.parseColor("#000000")),
-            floatArrayOf(0f, 0.7f, 1f), Shader.TileMode.CLAMP)
-        c.drawCircle(CX, CY, R_DIAL + 18f, pFill)
-        pFill.shader = null
-
-        // blue illuminated ring (matches real cluster photos)
+        // Głęboki wewnętrzny pierścień Blue Glow charakterystyczny dla Civic VIII
         pStroke.style = Paint.Style.STROKE
-        pStroke.strokeWidth = 7f
-        pStroke.color = BLUE_GLOW
-        pStroke.setShadowLayer(12f, 0f, 0f, 0xAA1A6AFF.toInt())
-        c.drawCircle(CX, CY, R_DIAL + 4f, pStroke)
+        pStroke.strokeWidth = 18f
+        pStroke.color = BLUE_GLOW_INTENSE
+        pStroke.setShadowLayer(25f, 0f, 0f, BLUE_GLOW)
+        c.drawCircle(CX, CY, 160f, pStroke) // R=160 
+        
+        pStroke.strokeWidth = 6f
+        pStroke.color = Color.parseColor("#88AAFF")
+        pStroke.setShadowLayer(10f, 0f, 0f, Color.parseColor("#4466FF"))
+        c.drawCircle(CX, CY, 158f, pStroke) // Jasny rdzeń pierścienia
         pStroke.clearShadowLayer()
-        pStroke.strokeWidth = 3.5f
-        pStroke.color = Color.parseColor("#4DA6FF")
-        c.drawCircle(CX, CY, R_DIAL + 1f, pStroke)
-        pStroke.style = Paint.Style.FILL
 
-        // inner dial face
-        pFill.shader = RadialGradient(CX, CY, R_DIAL - 8f,
-            intArrayOf(Color.parseColor("#12161E"), Color.parseColor("#05070B"), Color.parseColor("#000000")),
-            floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP)
-        c.drawCircle(CX, CY, R_DIAL - 6f, pFill)
-        pFill.shader = null
-
-        // subtle inner blue glow under glass
-        if (night) {
-            pFill.shader = RadialGradient(CX, CY, R_DIAL - 20f, 0x220055FF, 0x00000000, Shader.TileMode.CLAMP)
-            c.drawCircle(CX, CY, R_DIAL - 10f, pFill)
-            pFill.shader = null
-        }
-
-        // ticks 0-8000, 240° arc – yellow like photo, red zone from ~6300
+        // Cyfry i precyzyjne podziałki świetlne
         val a0 = Math.toRadians(150.0)
         val sweep = Math.toRadians(240.0)
         val maxRpmS = 8000f
+
+        pItalic.textSize = 42f
+        pItalic.color = TICK
+        pItalic.textAlign = Paint.Align.CENTER
+        
         for (r in 0..8000 step 100) {
             val frac = r / maxRpmS
             val ang = a0 + sweep * frac
             val major = r % 1000 == 0
             val mid = r % 500 == 0
-            val len = when { major -> 16f; mid -> 11f; else -> 6f }
-            val w = when { major -> 3.2f; mid -> 2.2f; else -> 1.6f }
+            
+            val isRed = r >= 6500
+            val tickColor = if (isRed) RED else TICK
+            
+            // Długości i grubości kresek (zewnętrzna ścieżka)
+            val len = when { major -> 22f; mid -> 14f; else -> 8f }
+            val w = when { major -> 4.5f; mid -> 3f; else -> 2f }
+            
             pStroke.strokeWidth = w
-            pStroke.color = if (r >= 6300) RED else TICK
-            if (r >= 6300) pStroke.setShadowLayer(6f, 0f, 0f, 0x88FF1A2E.toInt())
-            else pStroke.setShadowLayer(4f, 0f, 0f, 0x66FFE566.toInt())
-            val r1 = R_DIAL - 28f
-            val r2 = r1 - len
-            c.drawLine((CX + r1 * Math.cos(ang)).toFloat(), (CY + r1 * Math.sin(ang)).toFloat(),
-                (CX + r2 * Math.cos(ang)).toFloat(), (CY + r2 * Math.sin(ang)).toFloat(), pStroke)
+            pStroke.color = tickColor
+            pStroke.setShadowLayer(if (isRed) 12f else 8f, 0f, 0f, tickColor)
+            
+            val rOuter = 236f
+            val rInner = rOuter - len
+            c.drawLine(
+                (CX + rInner * Math.cos(ang)).toFloat(), (CY + rInner * Math.sin(ang)).toFloat(),
+                (CX + rOuter * Math.cos(ang)).toFloat(), (CY + rOuter * Math.sin(ang)).toFloat(), pStroke
+            )
             pStroke.clearShadowLayer()
+
+            // Cyfry umieszczone MIĘDZY pierścieniem a kreskami (jak na zdjęciu)
+            if (major && r > 0) {
+                pItalic.color = tickColor
+                pItalic.setShadowLayer(10f, 0f, 0f, tickColor)
+                val numR = 194f
+                c.drawText((r / 1000).toString(),
+                    (CX + numR * Math.cos(ang)).toFloat(),
+                    (CY + numR * Math.sin(ang)).toFloat() + 16f, pItalic)
+                pItalic.clearShadowLayer()
+            }
         }
 
-        // red zone arc fill (photo style)
+        // Czerwona wewnętrzna wstęga odcinki 6500-8000
+        pStroke.strokeWidth = 6f
+        pStroke.color = RED
+        pStroke.setShadowLayer(15f, 0f, 0f, RED)
+        val redStart = 150f + 240f * (6500f / 8000f)
+        c.drawArc(RectF(CX - 212f, CY - 212f, CX + 212f, CY + 212f),
+            redStart, 150f + 240f - redStart, false, pStroke)
+        pStroke.clearShadowLayer()
+
+        // Wyłączony ekran MID - matryca i ramka
+        pFill.color = LCD_BG
+        c.drawRoundRect(RectF(LCD_L, LCD_T, LCD_R, LCD_B), 8f, 8f, pFill)
+        pStroke.style = Paint.Style.STROKE
+        pStroke.strokeWidth = 2.5f
+        pStroke.color = Color.parseColor("#08090B") // Wewnętrzny cień szybki LCD
+        c.drawRoundRect(RectF(LCD_L + 1f, LCD_T + 1f, LCD_R - 1f, LCD_B - 1f), 7f, 7f, pStroke)
+        pStroke.style = Paint.Style.FILL
+
+        pFill.color = STAT_BG
+        c.drawRoundRect(RectF(LCD_L + 6f, 406f, LCD_R - 6f, LCD_B - 6f), 4f, 4f, pFill)
+        
+        // Półprzezroczysty grid/separator LCD
+        pFill.color = Color.parseColor("#0C0E12")
+        c.drawRect(LCD_L, 400f, LCD_R, 402f, pFill)
+
+        // Segmenty zgaszone (statyczne bloki) dla luków bocznych (Temp i Paliwo)
+        val numSeg = 24
+        val segSweep = 180f / numSeg
+        val solid = segSweep * 0.75f
+        
         pStroke.style = Paint.Style.STROKE
         pStroke.strokeWidth = 14f
-        pStroke.color = 0x44FF1A2E
-        val redStart = 150f + 240f * (6300f / 8000f)
-        c.drawArc(RectF(CX - (R_DIAL - 22f), CY - (R_DIAL - 22f), CX + (R_DIAL - 22f), CY + (R_DIAL - 22f)),
-            redStart, 150f + 240f - redStart, false, pStroke)
-        pStroke.style = Paint.Style.FILL
-
-        // numbers 1-8 yellow illuminated, slight italic
-        pItalic.textSize = 30f
-        pItalic.color = TICK
-        pItalic.textAlign = Paint.Align.CENTER
-        pItalic.setShadowLayer(8f, 0f, 0f, 0xAAFFE566.toInt())
-        for (n in 1..8) {
-            val ang = a0 + sweep * (n * 1000f / maxRpmS)
-            val r = R_DIAL - 62f
-            c.drawText(n.toString(), (CX + r * Math.cos(ang)).toFloat(),
-                (CY + r * Math.sin(ang)).toFloat() + 11f, pItalic)
+        pStroke.color = Color.parseColor("#181A22") // ciemnoszare "martwe" LED-y
+        
+        for (i in 0 until numSeg) {
+            // Lewy łuk (rośnie w górę, start od 90 w kierunku 270)
+            c.drawArc(ovalL, 90f + i * segSweep, solid, false, pStroke)
+            // Prawy łuk (rośnie w górę, start od 90 w kierunku -90)
+            c.drawArc(ovalR, 90f - i * segSweep - solid, solid, false, pStroke)
         }
-        pItalic.clearShadowLayer()
-
-        // LCD MID frame + body (photo: dark grey pixel matrix look)
-        pStroke.strokeWidth = 5f
-        pStroke.color = Color.parseColor("#1A222E")
-        pStroke.style = Paint.Style.STROKE
-        c.drawRoundRect(RectF(LCD_L - 2f, LCD_T - 2f, LCD_R + 2f, LCD_B + 2f), 6f, 6f, pStroke)
-        pStroke.style = Paint.Style.FILL
-        pFill.color = LCD_BG
-        c.drawRoundRect(RectF(LCD_L, LCD_T, LCD_R, LCD_B), 4f, 4f, pFill)
-        pFill.color = Color.parseColor("#2A3438")
-        c.drawRect(LCD_L, 399f, LCD_R, 401f, pFill)
-        pFill.color = STAT_BG
-        c.drawRoundRect(RectF(538f, 408f, 742f, 504f), 3f, 3f, pFill)
-
-        // side arcs static tracks
-        ovalL.set(40f, 160f, 220f, 640f)
-        ovalR.set(1060f, 160f, 1240f, 640f)
-        pStroke.strokeWidth = 10f
-        pStroke.color = Color.parseColor("#1A2230")
-        pStroke.style = Paint.Style.STROKE
-        c.drawArc(ovalL, 90f, 180f, false, pStroke)
-        c.drawArc(ovalR, 90f, -180f, false, pStroke)
         pStroke.style = Paint.Style.FILL
     }
 
-    // ---------- Warstwa dynamiczna ----------
+    // ---------- Warstwa Dynamiczna ----------
 
     private fun drawDynamic(c: Canvas) {
         drawHud(c)
         drawEReport(c)
-        drawNeedle(c)
+        drawNeedle(c) // Pływająca wskazówka nad krawędzią
         drawLcdMid(c)
         drawWingArc(c, left = true)
         drawWingArc(c, left = false)
@@ -590,23 +500,29 @@ class UfoClusterFullView(context: Context) : View(context) {
     }
 
     private fun drawHud(c: Canvas) {
+        // Tło HUD z poświatą - wywoływane płasko jak na zdjęciu podszybia
+        pFill.shader = hudGlowShader
+        c.drawOval(380f, 20f, 900f, 220f, pFill)
+        pFill.shader = null
+
         if (speedKmh != spdCacheSrc || useMph != mphCache) {
             spdCacheSrc = speedKmh
             mphCache = useMph
             spdCache = if (speedKmh < 0) "---" else
                 (if (useMph) (speedKmh * 0.621371f).toInt() else speedKmh).toString()
         }
-        val spd = spdCache
-        pItalic.textSize = 96f
-        pItalic.color = TICK
+        
+        // Wielka i "jarząca się" wartość prędkości jak cyfrowy readout VFD
+        pItalic.textSize = 100f
+        pItalic.color = Color.WHITE
         pItalic.textAlign = Paint.Align.CENTER
-        c.drawText(spd, 520f, 128f, pItalic)
+        pItalic.setShadowLayer(20f, 0f, 0f, CYAN)
+        c.drawText(spdCache, 640f, 136f, pItalic)
+        pItalic.clearShadowLayer()
 
         pItalic.textSize = 28f
-        c.drawText(if (useMph) "mph" else "km/h", 640f, 128f, pItalic)
+        c.drawText(if (useMph) "mph" else "km/h", 750f, 136f, pItalic)
 
-        // Bieg: WYLICZANY ze stosunku RPM/km/h - rysowany przygaszonym,
-        // zgodnie z pkt 9.2 (zgadywanie nie moze udawac pomiaru).
         val gear = if (speedKmh > 3 && rpmTarget > 500f) {
             val r = rpmTarget / speedKmh
             when {
@@ -618,48 +534,48 @@ class UfoClusterFullView(context: Context) : View(context) {
             }
         } else if (speedKmh in 0..3) "N" else "-"
         pItalic.color = GRAY
-        c.drawText(gear, 730f, 128f, pItalic)
+        c.drawText(gear, 820f, 136f, pItalic)
 
-        // pasek REV: 10 segmentow (pkt 9.3) - 1-4 blekitne, 5-8 zielone,
-        // 9-10 bursztynowe; >= 6300 pulsuje czerwono do odciecia 6700
-        val segW = 18f
+        // Pasek REV w stylu cyfrowych diod kropkowych
+        val segW = 16f
         val now = System.currentTimeMillis()
         for (i in 0 until 10) {
-            val x = 300f + i * (segW + 6f)
+            val x = 360f + i * (segW + 8f)
             val lit = rpm >= 4200 + i * 300
             val inRed = rpm >= 6300
-            pFill.color = when {
-                inRed -> if ((now / 150) % 2 == 0L) RED else 0x66FF0033
-                !lit -> METAL_LO
-                i < 4 -> 0x3399FF
+            
+            val baseColor = when {
+                inRed -> if ((now / 150) % 2 == 0L) RED else Color.parseColor("#440000")
+                !lit -> Color.parseColor("#181A22")
+                i < 4 -> CYAN
                 i < 8 -> GREEN
                 else -> AMBER
             }
-            c.drawRect(x, 20f, x + segW, 44f, pFill)
+            pFill.color = baseColor
+            if (lit) pFill.setShadowLayer(8f, 0f, 0f, baseColor) else pFill.clearShadowLayer()
+            c.drawRoundRect(x, 24f, x + segW, 44f, 4f, 4f, pFill)
         }
+        pFill.clearShadowLayer()
 
-        // ECO (pkt 9.4: TPS < prog && MAP < prog && RPM < prog) i VTEC (9.5)
-        val eco = !tpsPct.isNaN() && tpsPct < ecoTps &&
-            !mapKpa.isNaN() && mapKpa < ecoMap && rpm < ecoRpm
+        val eco = !tpsPct.isNaN() && tpsPct < ecoTps && !mapKpa.isNaN() && mapKpa < ecoMap && rpm < ecoRpm
         pItalic.textSize = 24f
-        pItalic.color = if (eco) GREEN else 0x2230D158
-        c.drawText("ECO", 300f, 90f, pItalic)
+        pItalic.color = if (eco) GREEN else Color.parseColor("#182A1C")
+        if (eco) pItalic.setShadowLayer(10f, 0f, 0f, GREEN)
+        c.drawText("ECO", 280f, 96f, pItalic)
+        pItalic.clearShadowLayer()
+        
         val vtec = rpm >= vtecRpm
-        pItalic.color = if (vtec) CYAN else 0x2200E5FF
-        c.drawText("VTEC", 700f, 90f, pItalic)
-
-        // soczewka pod predkoscia (pkt 9.6: #0022AA, 25%)
-        pFill.shader = hudGlowShader
-        c.drawOval(380f, 130f, 660f, 170f, pFill)
-        pFill.shader = null
+        pItalic.color = if (vtec) CYAN else Color.parseColor("#121A22")
+        if (vtec) pItalic.setShadowLayer(10f, 0f, 0f, CYAN)
+        c.drawText("VTEC", 1000f, 96f, pItalic)
+        pItalic.clearShadowLayer()
     }
 
-    /** Dyskretny przycisk E-RAPORT po zgaszeniu silnika (pkt 35.1). */
     private fun drawEReport(c: Canvas) {
         if (!engineOff) return
         rectF.set(48f, 56f, 268f, 104f)
         pStroke.strokeWidth = 2f
-        pStroke.color = METAL_HI
+        pStroke.color = Color.parseColor("#4A5A72")
         pStroke.style = Paint.Style.STROKE
         c.drawRoundRect(rectF, 10f, 10f, pStroke)
         pStroke.style = Paint.Style.FILL
@@ -671,56 +587,59 @@ class UfoClusterFullView(context: Context) : View(context) {
     }
 
     private fun drawNeedle(c: Canvas) {
+        // W Hondzie UFO wskazówka jest "pływającym" podświetleniem (widoczna tylko końcówka nad cyframi)
         val a0 = Math.toRadians(150.0)
         val sweep = Math.toRadians(240.0)
         val frac = (rpm / 8000f).coerceIn(0f, 1f)
         val ang = a0 + sweep * frac
-        val rN = R_DIAL - 40f
-        val nx = (rN * Math.cos(ang)).toFloat()
-        val ny = (rN * Math.sin(ang)).toFloat()
-        val px = -Math.sin(ang).toFloat()
-        val py = Math.cos(ang).toFloat()
-        val hubR = 9f
-        // soft shadow under needle
-        needlePath.reset()
-        needlePath.moveTo(CX + px * (hubR + 1f) + 2f, CY + py * (hubR + 1f) + 2f)
-        needlePath.lineTo(CX - px * (hubR + 1f) + 2f, CY - py * (hubR + 1f) + 2f)
-        needlePath.lineTo(CX + nx + 2f, CY + ny + 2f)
-        needlePath.close()
-        pFill.color = 0x66000000
-        c.drawPath(needlePath, pFill)
-        // main needle body (photo: bright tapered pointer)
-        needlePath.reset()
-        needlePath.moveTo(CX + px * hubR, CY + py * hubR)
-        needlePath.lineTo(CX - px * hubR, CY - py * hubR)
-        needlePath.lineTo(CX + nx, CY + ny)
-        needlePath.close()
-        val red = rpm >= redlineRpm
-        pFill.color = if (red) RED else Color.parseColor("#F5F0D0")
-        pFill.setShadowLayer(10f, 0f, 0f, if (red) 0xAAFF1A2E.toInt() else 0x88FFE566.toInt())
-        c.drawPath(needlePath, pFill)
-        pFill.clearShadowLayer()
-        // hub
-        pFill.color = if (red) RED else Color.parseColor("#1A6AFF")
-        c.drawCircle(CX, CY, 12f, pFill)
-        pFill.color = Color.parseColor("#E8ECF0")
-        c.drawCircle(CX, CY, 5f, pFill)
+        
+        val isRed = rpm >= redlineRpm
+        val coreColor = Color.WHITE
+        val glowColor = if (isRed) RED else TICK
+
+        // Rysujemy tylko zewnętrzny rdzeń "wiszący" nad błękitnym pierścieniem
+        val rInner = 166f
+        val rOuter = 240f // Wskazuje precyzyjnie na zewnętrzne podziałki
+        
+        pStroke.style = Paint.Style.STROKE
+        pStroke.strokeCap = Paint.Cap.ROUND
+        
+        // Zewnętrzna, szeroka poświata światłowodu
+        pStroke.strokeWidth = 10f
+        pStroke.color = glowColor
+        pStroke.setShadowLayer(25f, 0f, 0f, glowColor)
+        c.drawLine(
+            (CX + rInner * Math.cos(ang)).toFloat(), (CY + rInner * Math.sin(ang)).toFloat(),
+            (CX + rOuter * Math.cos(ang)).toFloat(), (CY + rOuter * Math.sin(ang)).toFloat(), pStroke
+        )
+        
+        // Wewnętrzny, bardzo jasny rdzeń 
+        pStroke.strokeWidth = 3f
+        pStroke.color = coreColor
+        pStroke.setShadowLayer(10f, 0f, 0f, coreColor)
+        c.drawLine(
+            (CX + rInner * Math.cos(ang)).toFloat(), (CY + rInner * Math.sin(ang)).toFloat(),
+            (CX + rOuter * Math.cos(ang)).toFloat(), (CY + rOuter * Math.sin(ang)).toFloat(), pStroke
+        )
+        
+        pStroke.clearShadowLayer()
+        pStroke.style = Paint.Style.FILL
+        pStroke.strokeCap = Paint.Cap.BUTT
     }
 
-    /** Ikona parametru 24x24 (pkt 8.3) - proste glify wektorowe. */
     private fun drawMidIcon(c: Canvas, key: String, x: Float, y: Float, ink: Int) {
         pStroke.color = ink
         pStroke.strokeWidth = 3f
         iconPath.reset()
         when (key) {
-            "ECT" -> { // termometr
+            "ECT" -> { 
                 c.drawLine(x + 10f, y + 2f, x + 10f, y + 14f, pStroke)
                 pStroke.style = Paint.Style.STROKE
                 rectF.set(x + 4f, y + 12f, x + 16f, y + 24f)
                 c.drawOval(rectF, pStroke)
                 pStroke.style = Paint.Style.FILL
             }
-            "BOOST" -> { // strzalka w gore
+            "BOOST" -> { 
                 iconPath.moveTo(x + 4f, y + 16f)
                 iconPath.lineTo(x + 12f, y + 4f)
                 iconPath.lineTo(x + 20f, y + 16f)
@@ -729,7 +648,7 @@ class UfoClusterFullView(context: Context) : View(context) {
                 pStroke.style = Paint.Style.FILL
                 c.drawLine(x + 12f, y + 8f, x + 12f, y + 24f, pStroke)
             }
-            "VOLTS" -> { // blyskawica
+            "VOLTS" -> { 
                 iconPath.moveTo(x + 14f, y)
                 iconPath.lineTo(x + 5f, y + 13f)
                 iconPath.lineTo(x + 11f, y + 13f)
@@ -739,16 +658,16 @@ class UfoClusterFullView(context: Context) : View(context) {
                 iconPath.close()
                 c.drawPath(iconPath, pFill.also { it.color = ink })
             }
-            "TPS" -> { // obrotowy potencjometr
+            "TPS" -> { 
                 pStroke.style = Paint.Style.STROKE
                 c.drawCircle(x + 12f, y + 13f, 9f, pStroke)
                 pStroke.style = Paint.Style.FILL
                 c.drawLine(x + 12f, y + 13f, x + 18f, y + 5f, pStroke)
             }
-            "IAT" -> { // fale powietrza
+            "IAT" -> { 
                 for (k in 0 until 3) c.drawLine(x + 3f, y + 6f + k * 6f, x + 21f, y + 6f + k * 6f, pStroke)
             }
-            "LTFT", "STFT", "FUEL" -> { // kropla paliwa / korekta
+            "LTFT", "STFT", "FUEL" -> { 
                 iconPath.moveTo(x + 12f, y + 2f)
                 iconPath.lineTo(x + 20f, y + 14f)
                 iconPath.lineTo(x + 4f, y + 14f)
@@ -758,13 +677,13 @@ class UfoClusterFullView(context: Context) : View(context) {
                 c.drawCircle(x + 12f, y + 18f, 5f, pStroke)
                 pStroke.style = Paint.Style.FILL
             }
-            "MAF" -> { // wachlarz przeplywu
+            "MAF" -> { 
                 for (k in 0 until 3) {
                     val dx = (k - 1) * 7f
                     c.drawLine(x + 12f + dx * 0.4f, y + 4f, x + 12f + dx, y + 22f, pStroke)
                 }
             }
-            else -> { // BARO: kula
+            else -> { 
                 pStroke.style = Paint.Style.STROKE
                 c.drawCircle(x + 12f, y + 12f, 9f, pStroke)
                 pStroke.style = Paint.Style.FILL
@@ -779,24 +698,20 @@ class UfoClusterFullView(context: Context) : View(context) {
         val v = paramValue(key)
         val have = !v.isNaN() && connected
 
-        // naglowek: ikona 24x24 + nazwa 12sp Bold, marginesy 8/10 px (pkt 8.3)
         val ink = if (have) LCD_ON else LCD_OFF
-        drawMidIcon(c, key, 540f, 300f, ink)
+        drawMidIcon(c, key, LCD_L + 16f, LCD_T + 12f, ink)
+        
         pText.color = ink
         pText.textSize = 24f
         pText.typeface = tfBold
         pText.textAlign = Paint.Align.LEFT
-        c.drawText(key, 574f, 320f, pText)
+        c.drawText(key, LCD_L + 50f, LCD_T + 32f, pText)
+        
         if (entry.startsWith("CHART:")) {
             pText.textAlign = Paint.Align.RIGHT
             pText.textSize = 16f
             pText.typeface = Typeface.DEFAULT
-            c.drawText("WYKRES 30 S", 744f, 320f, pText)
-        }
-
-        // wartosc glowna: 38sp Monospace Bold + jednostka 14sp (pkt 8.3);
-        // pozycja wykresu (pkt 8.7) rysuje w tej strefie wykres 30 s
-        if (entry.startsWith("CHART:")) {
+            c.drawText("WYKRES 30 S", LCD_R - 16f, LCD_T + 30f, pText)
             drawMidChart(c, key, have, ink)
         } else {
             if (v != midMainSrc || key != midKeyCache) {
@@ -804,25 +719,25 @@ class UfoClusterFullView(context: Context) : View(context) {
                 midKeyCache = key
                 midMainCache = if (!have) "---" else fmtParam(key, v)
             }
-            pMono.textSize = 56f
+            pMono.textSize = 60f
             pMono.typeface = tfBoldMono
             pMono.color = ink
             pMono.textAlign = Paint.Align.RIGHT
-            c.drawText(midMainCache, 700f, 378f, pMono)
+            // Podświetlenie głównej cyfry na ekraniku LCD
+            if (have) pMono.setShadowLayer(8f, 0f, 0f, Color.parseColor("#44FFFFFF"))
+            c.drawText(midMainCache, LCD_R - 54f, LCD_T + 90f, pMono)
+            pMono.clearShadowLayer()
+            
             pMono.textSize = 24f
-            c.drawText(paramUnit(key), 744f, 378f, pMono)
+            c.drawText(paramUnit(key), LCD_R - 16f, LCD_T + 90f, pMono)
         }
 
-        // panel statystyk: interwal z lewej (pkt 8.5), MAX/AVG z prawej
-        pText.color = if (have) Color.BLACK else LCD_OFF
+        pText.color = if (have) AVG_INK else LCD_OFF
         pText.textSize = 20f
         pText.typeface = Typeface.DEFAULT
         pText.textAlign = Paint.Align.LEFT
-        c.drawText(paramInterval(key), 548f, 452f, pText)
+        c.drawText(paramInterval(key), LCD_L + 20f, 440f, pText)
 
-        // statystyki: okno 5m/1h tam, gdzie etykieta je deklaruje (prawdziwe
-        // wartosci), reszta = od startu sesji; tekst MAX/AVG w cache
-        // (zero alokacji String w onDraw - honda zegary pkt 3)
         val winMs = statWindowMs(key)
         val mx: Float?
         val avg: Float?
@@ -841,16 +756,16 @@ class UfoClusterFullView(context: Context) : View(context) {
             statMaxCache = if (have && mx != null) "MAX: " + fmtParam(key, mx) else "MAX: N/A"
             statAvgCache = if (have && avg != null) "AVG: " + fmtParam(key, avg) else "AVG: N/A"
         }
+        
         pText.textAlign = Paint.Align.RIGHT
         pText.textSize = 24f
         pText.typeface = tfBold
         pText.color = if (have) MAX_INK else LCD_OFF
-        c.drawText(statMaxCache, 734f, 442f, pText)
+        c.drawText(statMaxCache, LCD_R - 16f, 440f, pText)
         pText.color = if (have) AVG_INK else LCD_OFF
-        c.drawText(statAvgCache, 734f, 478f, pText)
+        c.drawText(statAvgCache, LCD_R - 16f, 476f, pText)
     }
 
-    /** Formatowanie zalezne od parametru (bar z dwoma miejscami). */
     private fun fmtParam(key: String, v: Float): String = when (key) {
         "BOOST" -> String.format("%.2f", v)
         "FUEL" -> String.format("%.1f", v)
@@ -859,15 +774,11 @@ class UfoClusterFullView(context: Context) : View(context) {
             else String.format("%.1f", v)
     }
 
-    // ---------- Wykres w LCD MID (pkt 8.7) ----------
+    // ---------- Wykresy (bez zmian logicznych, zmiana kolorystyki LCD) ----------
 
-    /** Pojemnosc bufora: 30 s przy probkowaniu do 4 Hz. */
     private val HIST_CAP = 128
-
-    /** Minimalny odstep probek [ms] - ~120 probek na 30 s. */
     private val HIST_MIN_DT_MS = 250L
 
-    /** Historia WSZYSTKICH parametrow apki (pkt 8.7: pelna lista). */
     private fun pushAllHistory() {
         val now = System.currentTimeMillis()
         for (k in CHART_KEYS) {
@@ -877,17 +788,12 @@ class UfoClusterFullView(context: Context) : View(context) {
         }
     }
 
-    // ---------- Statystyki okienne MAX/AVG (etykiety "5m"/"1h" prawdziwe) ----------
-
-    /** Okno statystyk parametru [ms]; 0 = od startu sesji (TRIP). */
     private fun statWindowMs(key: String): Long = when (key) {
-        "BOOST", "MAF" -> 300_000L        // "bar / 5m", "g/s / 5m"
-        "VOLTS", "BARO" -> 3_600_000L     // "V / 1h", "kPa / 1h"
+        "BOOST", "MAF" -> 300_000L
+        "VOLTS", "BARO" -> 3_600_000L
         else -> 0L
     }
 
-    // Bufory okien: 1 h przy probkach >= 250 ms = 14400 probek (2 parametry
-    // ~345 KB - akceptowalne przy limicie 128 MB); 5 m = 1200 probek.
     private val winTs = HashMap<String, LongArray>()
     private val winVals = HashMap<String, FloatArray>()
     private val winLen = HashMap<String, Int>()
@@ -927,7 +833,6 @@ class UfoClusterFullView(context: Context) : View(context) {
         }
     }
 
-    /** MAX/AVG w oknie czasowym; skan bufora najwyzej 4x/s (zero kosztu w onDraw). */
     private fun refreshWinStats(key: String, winMs: Long) {
         val now = System.currentTimeMillis()
         if (now - winCalcMs < 250L && winMax.containsKey(key)) return
@@ -965,7 +870,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         if (len > 0) {
             val lastIdx = (head + len - 1) % HIST_CAP
             if (now - ts[lastIdx] < HIST_MIN_DT_MS) {
-                vs[lastIdx] = v   // nadpisanie probki w oknie minimalnym
+                vs[lastIdx] = v
                 return
             }
         }
@@ -979,12 +884,6 @@ class UfoClusterFullView(context: Context) : View(context) {
         }
     }
 
-    /**
-     * Wykres 30 s w gornej strefie LCD (pkt 8.7): gladka linia wektorowa
-     * + pikselowe wypelnienie pod linia (bloki 4x4 px). Skala liczona
-     * z widocznego okna 30 s (min/max + 10% marginesu) - bez zmyslonej
-     * skali. Brak probek = "ZBIERAM DANE...", nie udany przebieg.
-     */
     private fun drawMidChart(c: Canvas, key: String, have: Boolean, ink: Int) {
         val len = histLen[key] ?: 0
         if (len < 2 || !have) {
@@ -1015,7 +914,6 @@ class UfoClusterFullView(context: Context) : View(context) {
         val pad = (vmax - vmin) * 0.1f
         vmax += pad; vmin -= pad
 
-        // pikselowe wypelnienie: bloki 4x4 pod przebiegiem (styl LCD)
         val block = 4f
         pFill.color = (ink and 0x00FFFFFF) or 0x30000000
         for (i in 0 until len) {
@@ -1028,7 +926,6 @@ class UfoClusterFullView(context: Context) : View(context) {
             if (h > 0f) c.drawRect(x - block / 2f, yBase - h, x + block / 2f, yBase, pFill)
         }
 
-        // gladka linia wektorowa (wygladzanie quad przez srodki odcinkow)
         needlePath.reset()
         var px = 0f
         var py = 0f
@@ -1059,42 +956,49 @@ class UfoClusterFullView(context: Context) : View(context) {
         }
     }
 
-        private fun drawWingArc(c: Canvas, left: Boolean) {
-        // pkt 35.1: po zgaszeniu luki pokazuja przypisania stanu OFF
+    private fun drawWingArc(c: Canvas, left: Boolean) {
         val key = if (engineOff) {
             if (left) offLeftParam else offRightParam
         } else if (left) leftLoop[leftIndex] else rightLoop[rightIndex]
         val v = paramValue(key)
         val alarm = arcAlarm(key, v)
-
-        // frakcja wypelnienia (pkt 10.6: min na dole, max na gorze;
-        // wartosci dwukierunkowe jak BOOST: zero w polowie)
         val frac = arcFrac(key, v)
 
-        pStroke.strokeWidth = 8f
-        pStroke.style = Paint.Style.STROKE
-        pStroke.shader = when {
-            alarm && left -> sweepRedL
-            alarm && !left -> sweepRedR
-            left -> sweepBlueL
-            else -> sweepBlueR
+        // Segmentowe rysowanie jak prawdziwe wyświetlacze LCD/LED po bokach
+        if (!v.isNaN() && frac > 0f) {
+            val numSeg = 24
+            val segSweep = 180f / numSeg
+            val solid = segSweep * 0.75f
+            val litCount = (frac * numSeg).toInt()
+            
+            pStroke.style = Paint.Style.STROKE
+            pStroke.strokeWidth = 14f
+            
+            for (i in 0 until litCount) {
+                // Wykrywanie górnych/dolnych krawędzi łuku, by zabarwić na czerwono (np. wysoka temp, niskie paliwo)
+                val isRedZone = if (left) i >= 19 else i <= 4
+                val segColor = if (alarm || isRedZone) RED else TICK
+                
+                pStroke.color = segColor
+                pStroke.setShadowLayer(10f, 0f, 0f, segColor)
+                
+                if (left) {
+                    c.drawArc(ovalL, 90f + i * segSweep, solid, false, pStroke)
+                } else {
+                    c.drawArc(ovalR, 90f - i * segSweep - solid, solid, false, pStroke)
+                }
+            }
+            pStroke.clearShadowLayer()
         }
-        if (!v.isNaN()) {
-            // wypelnienie rosnie od dolu luku (lewy: CCW, prawy: CW)
-            val sweepAng = 180f * frac
-            c.drawArc(if (left) ovalL else ovalR,
-                90f, if (left) sweepAng else -sweepAng, false, pStroke)
-        }
-        pStroke.shader = null
         pStroke.style = Paint.Style.FILL
 
-        // wartosc + etykieta po wewnetrznej stronie (pkt 10.2)
-        val innerX = if (left) 246f else 1034f
+        val innerX = if (left) 256f else 1024f
         pText.textAlign = if (left) Paint.Align.LEFT else Paint.Align.RIGHT
         pText.textSize = 22f
         pText.typeface = tfBold
         pText.color = if (alarm) RED else TICK
         c.drawText(key, innerX, 380f, pText)
+        
         if (v != (if (left) arcTxtSrcL else arcTxtSrcR) || key != (if (left) arcTxtKeyL else arcTxtKeyR)) {
             if (left) { arcTxtSrcL = v; arcTxtKeyL = key; arcTxtCacheL = arcText(key, v) }
             else { arcTxtSrcR = v; arcTxtKeyR = key; arcTxtCacheR = arcText(key, v) }
@@ -1106,10 +1010,8 @@ class UfoClusterFullView(context: Context) : View(context) {
     private fun arcText(key: String, v: Float): String =
         if (v.isNaN()) "---" else fmtParam(key, v) + " " + paramUnit(key)
 
-    /** Skala luk (pkt 10.6) - wartosc nominalna w srodku, min na dole. */
     private fun arcFrac(key: String, v: Float): Float = when (key) {
         "ECT" -> if (v.isNaN()) 0f else ((v - 40f) / 80f).coerceIn(0f, 1f)
-        // BOOST dwukierunkowy: zero w polowie, podcisnienie w dol, doladowanie w gore
         "BOOST" -> if (v.isNaN()) 0.5f else (0.5f + (v / 1.2f) * 0.5f).coerceIn(0f, 1f)
         "VOLTS" -> if (v.isNaN()) 0f else ((v - 11f) / 4f).coerceIn(0f, 1f)
         "FUEL" -> if (v.isNaN()) 0f else ((v - 10f) / 9f).coerceIn(0f, 1f)
@@ -1123,7 +1025,6 @@ class UfoClusterFullView(context: Context) : View(context) {
         else -> 0.5f
     }
 
-    /** Progi alarmowe #FF0033 (pkt 10.7) - edytowalne z Ustawien OBD. */
     private fun arcAlarm(key: String, v: Float): Boolean = when (key) {
         "ECT" -> !v.isNaN() && v > ectMaxC
         "VOLTS" -> !v.isNaN() && (v < voltMin || v > voltMax)
@@ -1134,17 +1035,15 @@ class UfoClusterFullView(context: Context) : View(context) {
         else -> false
     }
 
-    // ---------- Footer (pkt 11): 5 sektorow od lewej ----------
-    // 1: Check Engine/DTC | 2: ZAPISZ EVENT | 3: SWAP UI | 4: zebatka | 5: status
+    // ---------- Footer ----------
 
     private fun drawFooter(c: Canvas) {
-        pFill.color = Color.parseColor("#0D1220")
+        pFill.color = Color.parseColor("#080B12")
         c.drawRect(0f, 640f, 1280f, 720f, pFill)
         pStroke.strokeWidth = 2f
-        pStroke.color = METAL_HI
+        pStroke.color = Color.parseColor("#222833")
         c.drawLine(0f, 640f, 1280f, 640f, pStroke)
 
-        // Sektor 1: Check Engine (pkt 11.1) - ikona + kod/liczba DTC
         val mil = milOn || dtcCount > 0
         pText.textAlign = Paint.Align.CENTER
         pText.textSize = 24f
@@ -1154,9 +1053,8 @@ class UfoClusterFullView(context: Context) : View(context) {
             else "CHECK ENGINE OK", 128f, 686f, pText)
         pText.textSize = 16f
         pText.color = GRAY
-        c.drawText("KODY BLEDOW", 128f, 712f, pText)
+        c.drawText("KODY BŁĘDÓW", 128f, 712f, pText)
 
-        // Sektor 2: ZAPISZ EVENT (pkt 11.2 - dyskretny, bez czerwonej ramki)
         pText.textSize = 24f
         pText.color = TICK
         c.drawText("ZAPISZ EVENT", 384f, 690f, pText)
@@ -1164,7 +1062,6 @@ class UfoClusterFullView(context: Context) : View(context) {
         pText.color = GRAY
         c.drawText("30 S TELEMETRII", 384f, 712f, pText)
 
-        // Sektor 3: SWAP UI (pkt 11.3)
         pText.textSize = 24f
         pText.color = TICK
         c.drawText("SWAP UI", 640f, 690f, pText)
@@ -1172,13 +1069,11 @@ class UfoClusterFullView(context: Context) : View(context) {
         pText.color = GRAY
         c.drawText("UFO / CARPLAY", 640f, 712f, pText)
 
-        // Sektor 4: zebatka (pk 11.4 ustawienia)
         drawGearIcon(c, 896f, 664f, TICK)
         pText.textSize = 16f
         pText.color = GRAY
         c.drawText("USTAWIENIA", 896f, 712f, pText)
 
-        // Sektor 5: status OBD + napiecie (pkt 11.4)
         val stale = connected && System.currentTimeMillis() - lastDataMs > 5000
         pText.textSize = 26f
         pText.typeface = tfBold
@@ -1202,7 +1097,6 @@ class UfoClusterFullView(context: Context) : View(context) {
         c.drawText(voltText, 1152f, 712f, pText)
     }
 
-    /** Glify zebatki dla sektora ustawien. */
     private fun drawGearIcon(c: Canvas, cx: Float, cy: Float, ink: Int) {
         pStroke.color = ink
         pStroke.strokeWidth = 4f
@@ -1217,7 +1111,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         pStroke.style = Paint.Style.FILL
     }
 
-    // ---------- Gesty (pkt 8.6, 9.7, 10.5, 11) ----------
+    // ---------- Gesty ----------
 
     private var downX = 0f
     private var downY = 0f
@@ -1234,26 +1128,21 @@ class UfoClusterFullView(context: Context) : View(context) {
         }
         val holdMs = e.eventTime - downMs
 
-        // dyskretny E-RAPORT po zgaszeniu (pkt 35.1)
         if (engineOff && x in 48f..268f && y in 56f..104f) {
             onOpenEReport()
             return true
         }
 
-        // FOOTER ma najwyzszy priorytet (sektory wg pkt 11, od lewej):
-        // 1: CE/DTC, 2: ZAPISZ EVENT, 3: SWAP UI, 4: ustawienia, 5: status
         if (y > 640f) {
             when {
                 x < 256f -> onOpenDtc()
                 x < 512f -> onSaveEvent()
                 x < 768f -> onSwapUi()
                 x < 1024f -> onOpenSettings()
-                else -> Unit // status - nieinteraktywny
+                else -> Unit 
             }
             return true
         }
-        // LCD MID (pkt 8.6): tap = nastepny parametr; long press > 1.5 s
-        // na dolnym panelu = reset MAX/AVG
         if (x in LCD_L..LCD_R && y in LCD_T..LCD_B) {
             if (y > 400f && holdMs > 1500) {
                 val key = midKey(midLoop[midIndex])
@@ -1265,8 +1154,6 @@ class UfoClusterFullView(context: Context) : View(context) {
             postInvalidateOnAnimation()
             return true
         }
-        // luki boczne (pkt 10.5): tap = nastepny parametr; long press > 1 s
-        // = menu szybkiego przypisania
         if (y in 160f..640f) {
             if (x < 260f) {
                 if (holdMs > 1000) onArcAssign(true)
@@ -1279,7 +1166,6 @@ class UfoClusterFullView(context: Context) : View(context) {
                 return true
             }
         }
-        // HUD: tapniecie predkosciomierza (pkt 9.7 - akcja konfigurowalna)
         if (y < 160f && x in 400f..680f) { onSpeedTap(); return true }
         return true
     }
