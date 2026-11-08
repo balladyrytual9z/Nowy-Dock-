@@ -1,1 +1,277 @@
-successfully downloaded text file (SHA: dc92c41ac887ea0912b31434edf08c21b2922ca6)
+# =====================================================================
+# GLOBALNY MECHANIZM TESTOW WIZUALNYCH (2026-11-08, zadanie uzytkownika):
+# po kazdym pushu kodu CI odpala emulator Androida 9 (API 28 = wersja
+# tabletu ESSGOO), instaluje APK, otwiera kolejne aktywnosci i robi
+# zrzuty ekranu do screens/ w repo ([skip ci]) - agent widzi UI wlasnymi
+# oczami zanim odda build. Uczciwie: emulator ma inna GPU niz Mali-T720
+# tabletu (weryfikacja ukladu/logiki, nie dziwactw sprzetowych).
+# HISTORIA NAPRAW: #1 brak kroku Android SDK; #2/#3: akcja emulatorowa
+# wykonuje script LINIJKA PO LINIJCE jako osobne /usr/bin/sh -c, wiec
+# zmienne shellowe i funkcje NIE przetrwal miedzy liniami (tee padal na
+# pustym $LOG). v4: skrypt plaski - kazda linia samodzielna, zero
+# zmiennych/funkcji, delikatne komendy z "|| true". v5: skin 1024x600 -
+# domyslny HVGA (320dp szerokosci) UCINAL panel 560dp (kolumna suwaka
+# glosnosci i trybow znikala za prawa krawedzia - zlapane na zrzucie #4).
+# =====================================================================
+name: Zrzuty ekranu emulatora (testy wizualne)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/src/main/java/**'
+      - 'app/src/main/res/**'
+      - '.github/workflows/screens.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: emulator-screens
+  cancel-in-progress: true
+
+jobs:
+  screens:
+    name: Android 9 (API 28) - zrzuty ekranow aplikacji
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Locate Android SDK and install required packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager -print 2>/dev/null | sort -V | tail -n 1 || true)"
+          set +o pipefail
+          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses 2>&1 | tee -a "$RUNNER_TEMP/ci.log"
+          set -o pipefail
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0" 2>&1 | tee -a "$RUNNER_TEMP/ci.log"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+          cache-read-only: false
+
+      - name: Build debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+          gradle --no-daemon --stacktrace assembleDebug -Pvc="${GITHUB_RUN_NUMBER}" 2>&1 | tee "$RUNNER_TEMP/ci.log"
+          test -f app/build/outputs/apk/debug/app-debug.apk
+
+      # UWAGA: akcja android-emulator-runner wykonuje script LINIJKA PO
+      # LINIJCE (/usr/bin/sh -c). Zakaz zmiennych i funkcji shellowych!
+      # Kazda linia musi byc samodzielna i zakonczona sukcesem (|| true).
+      - name: Boot Android 9 emulator and screenshot all screens
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 28
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -skin 1024x600 -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -camera-back none -camera-front none
+          disable-animations: true
+          script: |
+            adb root >/dev/null 2>&1 || true
+            adb wait-for-device || true
+            adb install -r app/build/outputs/apk/debug/app-debug.apk 2>&1 | tail -n 2 > "$RUNNER_TEMP/emulator.log" || true
+            adb shell pm grant pl.dock.widget android.permission.ACCESS_FINE_LOCATION || true
+            adb shell pm grant pl.dock.widget android.permission.ACCESS_COARSE_LOCATION || true
+            adb shell appops set pl.dock.widget WRITE_SETTINGS allow || true
+            adb shell appops set pl.dock.widget SYSTEM_ALERT_WINDOW allow || true
+            adb shell appops set pl.dock.widget PACKAGE_USAGE_STATS allow || true
+            mkdir -p "$GITHUB_WORKSPACE/out" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.LauncherActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/launcher.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.ConnectivityActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/connectivity.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.AppsActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/apps.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.AllAppsActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/allapps.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.ConfigActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/config.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.NowPlayingActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/nowplaying.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.MediaCenterActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/mediacenter.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.dashboard.CarPlayDashboardActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/dashboard.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.ui.UfoClusterActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/ufo.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.terminal.ObdTerminalActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/obdterminal.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.settings.ObdSettingsActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/obdsettings.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.report.EReportActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/ereport.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.blackbox.BlackBoxActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/blackbox.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.trip.TripActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/trip.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.maintenance.MaintenanceActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/serwis.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.maps.NavigatorActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/mapy.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.maps.bookmark.BookmarksActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/zakladki.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.maps.MapDownloadActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/mapdownload.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.DockDiagnosticsActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/diag.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.diagnostics.DtcManagerActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/dtc.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.diagnostics.MisfireLabActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/misfire.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.VoltDiagActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/voltdiag.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.ObdAdapterScanActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/obdskan.png" || true
+            adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
+            sleep 1
+            adb shell am start -n "pl.dock.widget/.ConnectivityActivity" >/dev/null 2>&1 || true
+            sleep 6
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/connectivity2.png" || true
+            ls -la "$GITHUB_WORKSPACE/out" >> "$RUNNER_TEMP/emulator.log" 2>&1 || true
+            if [ "$(find "$GITHUB_WORKSPACE/out" -name '*.png' -size +8000c | wc -l)" -lt 3 ]; then adb shell dumpsys window > "$RUNNER_TEMP/window.log" 2>&1; adb logcat -d -t 500 > "$RUNNER_TEMP/logcat.log" 2>&1; exit 1; fi
+
+      - name: Upload screenshots as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-screens-${{ github.run_number }}
+          path: out/*.png
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Commit screenshots to screens/ [skip ci]
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p screens
+          cp out/*.png screens/
+          git add screens/*.png
+          if git diff --cached --quiet; then
+            echo "Brak zmian - zrzuty identyczne"
+          else
+            git commit -m "chore: zrzuty ekranu emulatora, run ${{ github.run_number }} [skip ci]"
+            git pull --rebase origin main
+            git push
+          fi
+
+      # Ogony logow do PUBLICZNEGO podsumowania runa (bez logowania).
+      - name: Dump error summary on failure
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo "### Blad testow wizualnych - log emulatora"
+            echo '```'
+            cat "$RUNNER_TEMP/emulator.log" 2>/dev/null || echo "(brak emulator.log)"
+            echo '```'
+            echo "### Aktywne okno"
+            echo '```'
+            cat "$RUNNER_TEMP/window.log" 2>/dev/null || echo "(brak window.log)"
+            echo '```'
+            echo "### Logcat (dock/crash)"
+            echo '```'
+            grep -iE 'dock|fatal|crash' "$RUNNER_TEMP/logcat.log" 2>/dev/null | tail -n 40 || echo "(brak logcat.log)"
+            echo '```'
+            echo "### Ogon logu builda"
+            echo '```'
+            tail -n 40 "$RUNNER_TEMP/ci.log" 2>/dev/null || echo "(brak ci.log)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
