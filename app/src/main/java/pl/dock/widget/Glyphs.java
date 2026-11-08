@@ -391,4 +391,22 @@ public final class Glyphs {
         CACHE.put(key, b);
         return b;
     }
+
+    /** Jak bitmap(), ale glif wypelnia kratke tak jak w panelu lacznosci
+     *  (r = 0.85 * size, patrz ConnectivityPanel.glyphBitmap). Ikony pod zegarem
+     *  w doku i w widzecie sa male (19 dp): przy r = 0.42 * size glif WiFi
+     *  zajmowal ~35% kratki, pasma "pie" schodzily do ~1,5 dp i wygladaly jak
+     *  cienkie linie zamiast grubego wypelnionego wachlarza jak na referencji.
+     *  bitmapFull daje DOKLADNIE te same proporcje glifu co panel lacznosci -
+     *  jedno zrodlo prawdy rowniez dla skali wypelnienia. */
+    public static Bitmap bitmapFull(String g, int size, int color) {
+        String key = "F|" + g + "|" + size + "|" + color;
+        Bitmap cached = CACHE.get(key);
+        if (cached != null) return cached;
+        Bitmap b = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Canvas cv = new Canvas(b);
+        draw(cv, g, size / 2f, size / 2f, size * 0.85f, color);
+        CACHE.put(key, b);
+        return b;
+    }
 }

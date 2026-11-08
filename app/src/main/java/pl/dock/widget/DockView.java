@@ -177,8 +177,8 @@ public class DockView extends View {
         // Android 9) gubił obrysowe wektory z przezroczystym wypełnieniem i ikony
         // w doku nie pojawiały się.
         bWifi = Icons.wifi(c, s.wifi, fg);
-        bTether = Glyphs.bitmap("hot", 96, s.tether ? fg : dimmer);
-        bBt = Glyphs.bitmap("bt", 96, s.bt ? fg : dimmer);
+        bTether = Glyphs.bitmapFull("hot", 96, s.tether ? fg : dimmer);
+        bBt = Glyphs.bitmapFull("bt", 96, s.bt ? fg : dimmer);
         bBattery = Icons.vector(c, R.drawable.ic_battery, 96, fg);
         bCharge = Icons.batteryCharging(c, 96, fg);
         bCp = Icons.carplayMark(96, CarplayState.color(s.cp, fg));
