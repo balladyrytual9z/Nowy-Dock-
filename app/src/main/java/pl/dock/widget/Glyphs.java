@@ -49,9 +49,11 @@ public final class Glyphs {
         RectF rc = RC;
         float ax = cx;
         float ay = cy + pol * 0.62f;                                  // wierzcholek wachlarza
-        float[] rr = {pol * 0.38f, pol * 0.72f, pol * 1.06f};         // srodkowe promienie pasm
-        float[] hh = {24f, 44f, 64f};                                 // polowy rozwarcia pasm
-        float t = pol * 0.24f;                                         // grubosc pasma
+        float dot = pol * 0.16f;                                       // promien kolka u dolu
+        float g = pol * 0.08f;                                         // szczelina miedzy pasmami
+        float t = pol * 0.42f;                                         // grubosc pasma (wypelniony pie jak na referencji)
+        float[] rr = {dot + g + t / 2f, dot + 2f * g + 3f * t / 2f, dot + 3f * g + 5f * t / 2f};
+        float[] hh = {22f, 40f, 58f};                                 // polowy rozwarcia pasm
         p.reset();
         p.setAntiAlias(true);
         p.setColor(color);
@@ -71,7 +73,7 @@ public final class Glyphs {
             pa.close();
             cv.drawPath(pa, p);
         }
-        cv.drawCircle(ax, ay, pol * 0.15f, p);
+        cv.drawCircle(ax, ay, dot, p);
         if (off) {
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeCap(Paint.Cap.ROUND);
