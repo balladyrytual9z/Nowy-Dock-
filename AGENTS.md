@@ -679,3 +679,48 @@ Mechanizm DZIALA (zielony run #4, 6m25s, 24 PNG w screens/ + bot commit [skip ci
   "zgodne/niezgodne + różnice"; GLOS KONCOWY = użytkownik na tablecie
   (emulator ≠ Mali-T720, zasada "nie mów 'naprawione' bez potwierdzenia na
   urządzeniu" — bez zmian).
+
+## Sesja 2026-11-08 — audyt 6 dokumentow OBD + kalkulator paliwa (Trip)
+
+User wgral 6 "ogolnych" dokumentow OBD (prompt obd lepszy, Instrukcja techniczna obd,
+Honda OBD.md, poprawione technikalia dla obd hondy, obd part 2, honda obd wymagania
+specyficzne) obok obowiazujacych "ui obd.txt" i "honda zegary.txt". Audyt punkt po
+punkcie: silnik OBD w Docku 2.0 pokrywa je niemal w calosci.
+
+- **Pokrycie (przykladowe klasy):** SppTransport (3 strategie: insecure -> secure ->
+  refleksja kanal 1), BleTransport (mutex GATT, MTU 185, chunki 20 B, CCCD opcjonalne,
+  6 profili UUID + fallback, disconnect -> 1 s -> close), ElmSession (init
+  ATWS/ATE0x3/ATL0/ATH1/ATAT1/ATST, ATSP6 z sonda 0100, prompt '>', requestMutex,
+  Read-Only Safety Lock: 2E/27/10/30/31 tylko w trybie serwisowym), PidScheduler
+  (tiery 100/500/2000 ms, rate-limit 80 ms, stale 3 s, keep-alive ATRV co 5 s),
+  ConnectionManager (backoff 1/2/4/8/16 s max 5, watch BT, service mode), EngineState
+  (CRANKING 1-450 RPM, PROTECTED <11 V, OFF hold 2 s), MisfireAnalyzer (Mode $06
+  MID $A2-$A5 per cylinder Keihin + fallback, ISO-TP 7E8), MechanicalHealthMonitor
+  (sprzeglo dRPM 450, zawory LTFT >=7.5% przy >80C/<850 RPM, ELD 0.4 V, eco
+  dThrottle/dt), VirtualDyno (1250 kg, P=m*a*v/745.7), BlackBoxRecorder (ring 300),
+  NanoServer (eksport HTTP), Terminal, E-Report, SolarTimes (NOAA), CorrelationAnalyzer,
+  Maintenance, DtcManager (opisy P0303/C1555/kody U, kasowanie z weryfikacja $44),
+  ObdCoreService (ACC watchdog <12 V 3 min, cranking protection, alerty ECT gated).
+- **Jedyna realna luka = "Trip Financial & Fuel Calculator" (FAZA 4, obd part 2 #13
+  i #31) -> commit 08b428a2:** FuelCostCalculator.kt (AFR 14.7, gestosc 745 g/l,
+  L/h z MAF PID 0110, L/100 km w jezdzie przy >=3 km/h, integrowanie z oknem dt
+  <=3 s, NaN = brak fabrykacji, koszt PLN), sekcja paliwowa w TripActivity (kazda
+  wartosc "(szac.)" — zasada: nie przedstawiaj estymacji jako pomiaru ECU), przycisk
+  CENA PALIWA (gr/L) -> pref "fuel_price_gr" (walidacja 100..3000, domyslnie 650),
+  FuelCostCalculatorTest (10 testow JVM). Weryfikacja: release v1.0.417 (tag wskazuje
+  08b428a2) + screens run 35 zielony, zrzut screens/trip.png obejrzany przez
+  analyze_image — werdykt ZGODNE (bez OBD wartosci "-" z dopiskiem "(szac.)",
+  kod = ground truth dla napisow).
+- **Swiadome odstapienia (dokumenty same okreslaja jako opcjonalne):** FAZA 6 asystent
+  AI OpenRouter (konflikt z offline-first radia bez GMS), Valet PIN (Honda OBD 13.6),
+  parked-car geofence (part 2 #14), ActivityRingsView (part 2 #26). Nie wdrazane.
+- **ZAKAZ (user, 2026-11-08):** app/src/main/java/pl/dock/widget/ui/UfoClusterFullView.kt
+  NIETYKALNY — user sam na nim pracuje ("zegary sa idealne"); ewentualne zmiany
+  w ukladzie predkosci/biegow tylko po jego decyzji.
+- **PUŁAPKI narzędziowe (sesja):** r.jina.ai CACHE'UJE odpowiedzi API GitHuba — przy
+  pollingu statusow CI zawsze doklejac cache-buster "?_=" + Date.now() (bez niego
+  check-runs wiously pokazywal "in_progress" po zakonczeniu runow). Dowod posredni
+  zielonych runow: release z tagiem na SHA commita + bot-commit screens jako dziecko
+  tego SHA (check-runs potrafi byc wtedy juz pusty). Czekanie w sandboxie: sleep
+  nie istnieje, tail -f niewspierane, read z /dev/zero wraca od razu — jest
+  tools.self.sleep({seconds}) (max 30 s na wywolanie, w budzecie 60 s programu).
