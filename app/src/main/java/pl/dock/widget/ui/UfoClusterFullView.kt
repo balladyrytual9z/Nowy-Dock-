@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RadialGradient
@@ -39,9 +40,9 @@ class UfoClusterFullView(context: Context) : View(context) {
 
     // ---------- Paleta Kolorów OEM ----------
     private val BG_NIGHT = Color.parseColor("#020305")
-    private val TICK_OEM = Color.parseColor("#FFF8D6") 
+    private val TICK_OEM = Color.parseColor("#F6EDB4") 
     private val TICK_RED = Color.parseColor("#FF0F1F") 
-    private val BLUE_GLOW = Color.parseColor("#142BFF")
+    private val BLUE_GLOW = Color.parseColor("#3A2CE8")
     private val CYAN_HUD = Color.parseColor("#00C3FF")
     private val LCD_BG = Color.parseColor("#0B0D12")
     private val LCD_TEXT = Color.parseColor("#E1E6F0")
@@ -137,6 +138,17 @@ class UfoClusterFullView(context: Context) : View(context) {
     private val LCD_T = 270f
     private val LCD_R = 750f
     private val LCD_B = 490f
+    // Wyświetlacz MID: górne rogi ścięte pod 45 stopni jak w oryginale
+    private val lcdPath = Path().apply {
+        val ch = 22f
+        moveTo(LCD_L + ch, LCD_T)
+        lineTo(LCD_R - ch, LCD_T)
+        lineTo(LCD_R, LCD_T + ch)
+        lineTo(LCD_R, LCD_B)
+        lineTo(LCD_L, LCD_B)
+        lineTo(LCD_L, LCD_T + ch)
+        close()
+    }
 
     private var scale = 1f
     private var offX = 0f
@@ -165,7 +177,7 @@ class UfoClusterFullView(context: Context) : View(context) {
     private val rectF = RectF()
     
     // Promień łuków bocznych (współśrodkowy z głównym zegarem - likwiduje pokrzywienia)
-    private val sideGaugeRadius = 450f 
+    private val sideGaugeRadius = 372f // współśrodkowo z tarczą, jak w oryginale 
     private val outerRect = RectF(CX - sideGaugeRadius, CY - sideGaugeRadius, CX + sideGaugeRadius, CY + sideGaugeRadius)
     
     private val needlePath = Path()
@@ -178,6 +190,24 @@ class UfoClusterFullView(context: Context) : View(context) {
     private val hudGlowShader = RadialGradient(640f, 90f, 250f,
         intArrayOf(0xBB142BFF.toInt(), 0x330011AA, 0x00000000),
         floatArrayOf(0f, 0.4f, 1f), Shader.TileMode.CLAMP)
+
+    // Połysk szyby zegarów (zero alokacji w onDraw)
+    private val glassShader = LinearGradient(0f, 0f, 1280f, 640f,
+        intArrayOf(0x00FFFFFF, 0x16FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x0CFFFFFF, 0x00FFFFFF),
+        floatArrayOf(0f, 0.18f, 0.34f, 0.62f, 0.78f, 1f), Shader.TileMode.CLAMP)
+    private var bootStartMs = 0L
+    private val combCount = 30
+
+    private fun combTick(c: Canvas, left: Boolean, i: Int, p: Paint) {
+        val per = 36f / combCount
+        val deg = if (left) 162f + (i + 0.5f) * per else 18f - (i + 0.5f) * per
+        val a = Math.toRadians(deg.toDouble())
+        val long = i % 5 == 0
+        val r1 = sideGaugeRadius - (if (long) 22f else 16f)
+        val r2 = sideGaugeRadius + (if (long) 22f else 16f)
+        c.drawLine((CX + r1 * cos(a)).toFloat(), (CY + r1 * sin(a)).toFloat(),
+            (CX + r2 * cos(a)).toFloat(), (CY + r2 * sin(a)).toFloat(), p)
+    }
 
     private var spdCache = "---"
     private var spdCacheSrc = Int.MIN_VALUE
@@ -389,7 +419,15 @@ class UfoClusterFullView(context: Context) : View(context) {
         
         // Płynna interpolacja wskazówki
         val alpha = 1f - Math.pow(0.001, (dt / 1000f * 6f).toDouble()).toFloat()
-        rpm += alpha * (rpmTarget - rpm)
+        if (bootStartMs == 0L) bootStartMs = now
+        val bootT = now - bootStartMs
+        val booting = bootT < 1600L
+        if (booting) {
+            // Rozruch jak w oryginale: wskazówka wybiega do 8000 i wraca
+            rpm = 8000f * Math.sin(bootT / 1600.0 * Math.PI).toFloat()
+        } else {
+            rpm += alpha * (rpmTarget - rpm)
+        }
 
         c.drawColor(BG)
         c.save()
@@ -403,7 +441,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         drawDynamic(c)
         c.restore()
         
-        if (connected || connecting || Math.abs(rpm - rpmTarget) > 1f) {
+        if (booting || connected || connecting || Math.abs(rpm - rpmTarget) > 1f) {
             postInvalidateOnAnimation()
         } else {
             lastFrameMs = 0L
@@ -413,102 +451,90 @@ class UfoClusterFullView(context: Context) : View(context) {
     // ---------- WARSTWA STATYCZNA (Rysowana raz) ----------
 
     private fun drawStatic(c: Canvas) {
+        // Geometria tarczy (od zewnątrz): pierścień LED -> podziałki -> cyfry -> wskazówka
+        val a0 = Math.toRadians(135.0)      // 0 RPM: lewy dół
+        val sweep = Math.toRadians(270.0)   // 8000 RPM: prawy dół
+        val ringR = 258f                    // błękitny pierścień
+        val tickOut = 244f                  // zewnętrzny koniec wszystkich kresek
+        val numR = 196f                     // promień środka cyfr
+
         // Tło obudowy
         pFill.color = Color.parseColor("#050608")
-        c.drawCircle(CX, CY, 280f, pFill)
+        c.drawCircle(CX, CY, ringR + 12f, pFill)
 
-        // 1. Matryca LCD (Wyśrodkowana w głębi, nie dotyka cyfr)
+        // Poświata tarczy: wychodzi spod czarnego okręgu i podświetla cyfry
+        val discR = 170f
+        pFill.shader = RadialGradient(CX, CY, ringR,
+            intArrayOf(0x00000000, 0x00000000, 0xEE3A2CC8.toInt(), 0xAA2A1CA0.toInt(), 0x441A1068, 0x66262AD0),
+            floatArrayOf(0f, 0.62f, 0.67f, 0.78f, 0.90f, 1f), Shader.TileMode.CLAMP)
+        c.drawCircle(CX, CY, ringR, pFill)
+        pFill.shader = null
+
+        // Czarny matowy okrąg, na którym leży wyświetlacz MID
+        pFill.color = Color.parseColor("#040508")
+        c.drawCircle(CX, CY, discR, pFill)
+        pStroke.style = Paint.Style.STROKE
+        pStroke.strokeWidth = 3f
+        pStroke.color = Color.parseColor("#14152A")
+        c.drawCircle(CX, CY, discR, pStroke)
+
+        // 1. Matryca LCD
         pStroke.style = Paint.Style.FILL
         pFill.color = LCD_BG
-        c.drawRoundRect(RectF(LCD_L, LCD_T, LCD_R, LCD_B), 10f, 10f, pFill)
-        
+        c.drawPath(lcdPath, pFill)
+
         pStroke.style = Paint.Style.STROKE
-        pStroke.strokeWidth = 3f
+        pStroke.strokeWidth = 9f
+        pStroke.color = Color.parseColor("#1A1E26")
+        c.drawPath(lcdPath, pStroke)
+        pStroke.strokeWidth = 4f
         pStroke.color = Color.parseColor("#030406")
-        c.drawRoundRect(RectF(LCD_L + 1f, LCD_T + 1f, LCD_R - 1f, LCD_B - 1f), 8f, 8f, pStroke)
+        c.drawPath(lcdPath, pStroke)
 
-        // 2. Błękitny Pierścień (Multi-pass bloom LED)
-        val ringRadius = 210f 
+        // 2. Błękitny pierścień LED na samym zewnątrzu
         pStroke.color = BLUE_GLOW
-        
-        pStroke.strokeWidth = 24f
-        pStroke.setShadowLayer(40f, 0f, 0f, BLUE_GLOW)
-        c.drawCircle(CX, CY, ringRadius, pStroke)
-        
-        pStroke.strokeWidth = 10f
-        pStroke.setShadowLayer(15f, 0f, 0f, BLUE_GLOW)
-        c.drawCircle(CX, CY, ringRadius, pStroke)
-        
-        pStroke.strokeWidth = 3f
+        pStroke.strokeWidth = 18f
+        pStroke.setShadowLayer(26f, 0f, 0f, BLUE_GLOW)
+        c.drawCircle(CX, CY, ringR, pStroke)
+
+        pStroke.strokeWidth = 8f
+        pStroke.setShadowLayer(12f, 0f, 0f, BLUE_GLOW)
+        c.drawCircle(CX, CY, ringR, pStroke)
+
+        pStroke.strokeWidth = 2.5f
         pStroke.color = Color.parseColor("#88AAFF")
-        pStroke.setShadowLayer(5f, 0f, 0f, Color.WHITE)
-        c.drawCircle(CX, CY, ringRadius, pStroke)
+        pStroke.setShadowLayer(4f, 0f, 0f, Color.WHITE)
+        c.drawCircle(CX, CY, ringR, pStroke)
         pStroke.clearShadowLayer()
 
-        // 3. Cyfry 1-8 (Umieszczone w pełni wewnątrz błękitnego pierścienia)
-        val a0 = Math.toRadians(140.0) 
-        val sweep = Math.toRadians(260.0) 
-        
-        pNum.textSize = 50f
-        pNum.color = TICK_OEM
-        pNum.textAlign = Paint.Align.CENTER
-        
-        for (r in 0..8000 step 1000) {
-            val frac = r / 8000f
-            val ang = a0 + sweep * frac
-            
-            if (r > 0) {
-                val numR = 175f // Znajduje się z dala od LCD, pod pierścieniem
-                pNum.setShadowLayer(12f, 0f, 0f, TICK_OEM)
-                c.drawText((r / 1000).toString(),
-                    (CX + numR * cos(ang)).toFloat(),
-                    (CY + numR * sin(ang)).toFloat() + 16f, pNum)
-                pNum.clearShadowLayer()
-            }
-        }
-
-        // 4. Idealne, współśrodkowe Czerwone Pole (Redline)
-        val redStartAng = 140f + 260f * (6500f / 8000f)
-        val redSweepAng = 260f * (1500f / 8000f)
-        
-        pStroke.style = Paint.Style.STROKE
-        pStroke.strokeWidth = 10f
+        // 3. Czerwone pole (6500-8000) - pasek na promieniu podziałek
+        val redStartAng = 135f + 270f * (6500f / 8000f)
+        val redSweepAng = 270f * (1500f / 8000f)
+        val redBandW = 22f
+        pStroke.strokeWidth = redBandW
         pStroke.color = TICK_RED
-        pStroke.setShadowLayer(15f, 0f, 0f, TICK_RED)
-        
-        // Gruby czerwony łuk tuż pod podziałkami
-        val redlineRect = RectF(CX - 240f, CY - 240f, CX + 240f, CY + 240f)
-        c.drawArc(redlineRect, redStartAng, redSweepAng, false, pStroke)
+        pStroke.setShadowLayer(14f, 0f, 0f, TICK_RED)
+        val redR = tickOut - redBandW / 2f
+        c.drawArc(RectF(CX - redR, CY - redR, CX + redR, CY + redR), redStartAng, redSweepAng, false, pStroke)
         pStroke.clearShadowLayer()
 
-        // Podziałki białe/czerwone
+        // 4. Podziałki: wszystkie kończą się na tickOut, rosną do środka
         for (r in 0..8000 step 100) {
-            val frac = r / 8000f
-            val ang = a0 + sweep * frac
-            
+            val ang = a0 + sweep * (r / 8000f)
             val major = r % 1000 == 0
             val mid = r % 500 == 0
             val isRed = r >= 6500
-            
-            val len = when { 
-                major -> 20f 
-                mid -> 12f 
-                else -> 6f 
-            }
-            val w = when { 
-                major -> 4.5f 
-                mid -> 3f 
-                else -> 1.5f 
-            }
-            
+
+            val len = when { major -> 22f; mid -> 15f; else -> 9f }
+            val w = when { major -> 4.5f; mid -> 3f; else -> 1.6f }
+
             pStroke.strokeWidth = w
-            val tickColor = if (isRed) TICK_RED else TICK_OEM
+            val tickColor = if (isRed) Color.parseColor("#400006") else TICK_OEM
             pStroke.color = tickColor
-            pStroke.setShadowLayer(if (isRed) 15f else 8f, 0f, 0f, tickColor)
-            
-            val rInner = 230f // Zaczynają się z dala od pierścienia świetlnego
-            val rOuter = rInner + len
-            
+            if (!isRed) pStroke.setShadowLayer(8f, 0f, 0f, TICK_OEM)
+
+            val rOuter = tickOut
+            val rInner = tickOut - len
             c.drawLine(
                 (CX + rInner * cos(ang)).toFloat(), (CY + rInner * sin(ang)).toFloat(),
                 (CX + rOuter * cos(ang)).toFloat(), (CY + rOuter * sin(ang)).toFloat(), pStroke
@@ -516,28 +542,50 @@ class UfoClusterFullView(context: Context) : View(context) {
             pStroke.clearShadowLayer()
         }
 
-        // 5. Zgaszone fizyczne segmenty wskaźników bocznych (Idealne łuki współśrodkowe)
-        val numSeg = 16 
-        val segSweep = 60f / numSeg
-        val gap = 1.0f
-        val solid = segSweep - gap
-        
+        // 5. Cyfry 0-8 w środku, pod kreskami
+        pNum.textSize = 44f
+        pNum.color = TICK_OEM
+        pNum.textAlign = Paint.Align.CENTER
+        for (r in 0..8000 step 1000) {
+            val ang = a0 + sweep * (r / 8000f)
+            pNum.setShadowLayer(10f, 0f, 0f, TICK_OEM)
+            c.drawText((r / 1000).toString(),
+                (CX + numR * cos(ang)).toFloat(),
+                (CY + numR * sin(ang)).toFloat() + 15f, pNum)
+            pNum.clearShadowLayer()
+        }
+
+        // Napis jednostki pod tarczą
+        pNum.textSize = 20f
+        pNum.setShadowLayer(8f, 0f, 0f, TICK_OEM)
+        c.drawText("x1000r/min", CX, CY + 228f, pNum)
+        pNum.clearShadowLayer()
+
+        // 6. Boczne wskaźniki: niebieski łuk obrysu + zgaszony grzebień kresek
         pStroke.style = Paint.Style.STROKE
-        pStroke.strokeWidth = 22f 
-        pStroke.color = OFF_SEGMENT
-        
-        // Lewy łuk startuje z lewego-dołu i rośnie w górę
-        val startLeft = 150f
-        for (i in 0 until numSeg) {
-            c.drawArc(outerRect, startLeft + i * segSweep, solid, false, pStroke)
+        val outlineRect = RectF(CX - sideGaugeRadius - 30f, CY - sideGaugeRadius - 30f,
+            CX + sideGaugeRadius + 30f, CY + sideGaugeRadius + 30f)
+        pStroke.strokeWidth = 4f
+        pStroke.color = BLUE_GLOW
+        pStroke.setShadowLayer(10f, 0f, 0f, BLUE_GLOW)
+        c.drawArc(outlineRect, 158f, 44f, false, pStroke)
+        c.drawArc(outlineRect, 22f, -44f, false, pStroke)
+        pStroke.clearShadowLayer()
+
+        pStroke.strokeWidth = 3.2f
+        pStroke.strokeCap = Paint.Cap.BUTT
+        for (i in 0 until combCount) {
+            // lewy (temperatura): czerwień na górze, prawy (paliwo): czerwień na dole
+            val redL = i >= combCount - 4
+            val redR = i < 4
+            pStroke.color = if (redL) TICK_RED else TICK_OEM
+            pStroke.setShadowLayer(7f, 0f, 0f, pStroke.color)
+            combTick(c, true, i, pStroke)
+            pStroke.color = if (redR) TICK_RED else TICK_OEM
+            pStroke.setShadowLayer(7f, 0f, 0f, pStroke.color)
+            combTick(c, false, i, pStroke)
         }
-        
-        // Prawy łuk to lustrzane odbicie, startuje od dołu-prawej i rośnie w górę
-        val startRight = 30f
-        for (i in 0 until numSeg) {
-            // Rysujemy "w górę" co oznacza ujemny kierunek obrotu (CCW) w Androidzie
-            c.drawArc(outerRect, startRight - i * segSweep, -solid, false, pStroke)
-        }
+        pStroke.clearShadowLayer()
         pStroke.style = Paint.Style.FILL
     }
 
@@ -551,6 +599,9 @@ class UfoClusterFullView(context: Context) : View(context) {
         drawWingArc(c, left = true)
         drawWingArc(c, left = false)
         drawFooter(c)
+        pFill.shader = glassShader
+        c.drawRect(0f, 0f, 1280f, 640f, pFill)
+        pFill.shader = null
     }
 
     private fun drawHud(c: Canvas) {
@@ -661,18 +712,18 @@ class UfoClusterFullView(context: Context) : View(context) {
     }
 
     private fun drawNeedle(c: Canvas) {
-        val a0 = Math.toRadians(140.0)
-        val sweep = Math.toRadians(260.0)
+        val a0 = Math.toRadians(135.0)
+        val sweep = Math.toRadians(270.0)
         val frac = (rpm / 8000f).coerceIn(0f, 1f)
         val ang = a0 + sweep * frac
         
         val isRed = rpm >= redlineRpm
         val glowColor = if (isRed) TICK_RED else Color.parseColor("#FF7A00") // Intensywny pomarańcz z UFO
 
-        val rInner = 225f // Bezpiecznie na zewnętrznej krawędzi okręgu, unosi się
-        val rOuter = 255f 
-        val wBase = 12f
-        val wTip = 4f
+        val rInner = 172f // początek na poziomie cyfr
+        val rOuter = 246f // koniec przy zewnętrznej krawędzi kresek
+        val wBase = 9f
+        val wTip = 2.5f
 
         val px = cos(ang).toFloat()
         val py = sin(ang).toFloat()
@@ -880,43 +931,31 @@ class UfoClusterFullView(context: Context) : View(context) {
         val frac = arcFrac(key, v)
 
         if (!v.isNaN() && frac > 0f) {
-            val numSeg = 16
-            val segSweep = 60f / numSeg
-            val gap = 1.0f
-            val solid = segSweep - gap
-            val litCount = (frac * numSeg).toInt()
-            
-            pStroke.style = Paint.Style.STROKE
-            pStroke.strokeWidth = 22f
-            
-            val startLeft = 150f
-            val startRight = 30f
-            
-            for (i in 0 until litCount) {
-                // Skrajne klocki stają się czerwone:
-                // Lewa strona (Temp) - alarm na górze. Prawa strona (Paliwo) - rezerwa na dole.
-                val isRedZone = if (left) i >= 12 else i <= 3
-                val segColor = if (alarm || isRedZone) TICK_RED else TICK_OEM
-                
-                pStroke.color = segColor
-                pStroke.setShadowLayer(15f, 0f, 0f, segColor) 
-                
-                if (left) {
-                    c.drawArc(outerRect, startLeft + i * segSweep, solid, false, pStroke)
-                } else {
-                    // Prawe łuki rysowane do góry (przeciwnie do ruchu wskazówek zegara)
-                    c.drawArc(outerRect, startRight - i * segSweep, -solid, false, pStroke)
-                }
-            }
-            pStroke.clearShadowLayer()
+            // Jasny klin wskaźnika na końcu zapalonych kresek
+            val deg = if (left) 162f + frac * 36f else 18f - frac * 36f
+            val ang = Math.toRadians(deg.toDouble())
+            val px = cos(ang).toFloat(); val py = sin(ang).toFloat()
+            val nx = -py; val ny = px
+            val r1 = sideGaugeRadius - 30f; val r2 = sideGaugeRadius + 28f
+            needlePath.reset()
+            needlePath.moveTo(CX + px * r1 - nx * 6f, CY + py * r1 - ny * 6f)
+            needlePath.lineTo(CX + px * r1 + nx * 6f, CY + py * r1 + ny * 6f)
+            needlePath.lineTo(CX + px * r2 + nx * 1.5f, CY + py * r2 + ny * 1.5f)
+            needlePath.lineTo(CX + px * r2 - nx * 1.5f, CY + py * r2 - ny * 1.5f)
+            needlePath.close()
+            val wc = if (alarm) TICK_RED else Color.WHITE
+            pFill.color = wc
+            pFill.setShadowLayer(14f, 0f, 0f, if (alarm) TICK_RED else TICK_OEM)
+            c.drawPath(needlePath, pFill)
+            pFill.clearShadowLayer()
         }
         pStroke.style = Paint.Style.FILL
 
         // Podpisy umieszczone precyzyjnie obok łuków
         val innerX = if (left) {
-            CX - sideGaugeRadius + 40f 
+            24f
         } else {
-            CX + sideGaugeRadius - 40f
+            1256f
         }
         
         pText.textAlign = if (left) Paint.Align.LEFT else Paint.Align.RIGHT
