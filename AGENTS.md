@@ -619,3 +619,43 @@ Kolejne funkcje "jak w Organic Maps" — dobrobudowane na module z sesji 4
 - ModeSegmentView zwiezlej: przyciski 56 dp (byly 84), gravity CENTER - miesci sie w kolumnie.
 - Prefs.showNightShift / Prefs.showModeButtons nadal szanowane (brak kontrolki = puste miejsce w kolumnie).
 - NIE deklarowac "naprawione" bez potwierdzenia uzytkownika na urzadzeniu; CI buduje APK.
+
+## Sesja 2026-11-08 — globalny mechanizm testow wizualnych CI (emulator)
+
+Mechanizm DZIALA (zielony run #4, 6m25s, 24 PNG w screens/ + bot commit [skip ci])
+— wpisany do pamieci zgodnie z zasada "do AGENTS.md tylko to, co zadzialalo".
+
+- **Workflow `.github/workflows/screens.yml`**: po pushu kodu/res uruchamia emulator
+  API 28 x86_64 google_apis (jak tablet ESSGOO), buduje debug APK, otwiera kolejne
+  aktywnosci (`am start -n pl.dock.widget/...`), robi zrzuty (`adb exec-out
+  screencap -p`), commituje je do `screens/` jako bot z [skip ci] + wrzuca artifact.
+- **Lekcje (HISTORIA NAPRAW, nie powtarzac):**
+  - krok "Locate Android SDK" wymagany PRZED gradle (1:1 z build-release.yml);
+  - akcja reactivecircus/android-emulator-runner@v2 wykonuje `script` LINIJKA PO
+    LINIJCE jako osobne /usr/bin/sh -c → ZAKAZ zmiennych/funkcji shellowych
+    (nie przetrwaja miedzy liniami); kazda linia samodzielna, delikatne komendy
+    z "|| true";
+  - ubuntu-24.04 (ubuntu-latest = Ubuntu 26 psuje emulator); -no-snapshot;
+  - **skin 1280x720 = NATYWNA rozdzielczosc tabletu ESSGOO** (potwierdzona przez
+    uzytkownika, commit 7e75c0ed). Domyslny HVGA (320dp szerokosci) UCINAL panel
+    560dp — kolumna suwaka glosnosci i trybow znikala za prawa krawedzia (wykryte
+    na zrzucie connectivity.png runa #4). Ucinalo POZIOMO, wiec krytyczna jest
+    szerokosc skina, nie wysokosc — ale 1:1 z tabletem daje zrzuty wiernie
+    odwzorowujace urzadzenie;
+  - krok "Dump error summary on failure" wypisuje logi do publicznego
+    $GITHUB_STEP_SUMMARY (podsumowanie runu widoczne bez logowania).
+- **Przepływ agenta po pushu kodu:** poczekac na zielony run → `get_file_contents`
+  na `screens/<nazwa>.png` (binarny → MCP sam zapisuje plik lokalnie; w wyniku
+  `"file_path":"/home/user/tool-results/github_app-<hash>-<nazwa>.png"`) →
+  `tools.uploads.analyze_image({path, question})` — ogladanie zrzutu wlasnymi
+  "oczami" i ocena ukladu ZANIM oddamy build.
+- **Ograniczenia (uczciwie):** emulator x86_64 + swiftshader_indirect ≠ Mali-T720
+  (sprzetowe dziwactwa GPU poza zasiegiem). OSTATECZNA PRAWDA = screenshot z
+  tabletu uzytkownika; zasada "nie mow 'naprawione' bez potwierdzenia na
+  urzadzeniu" — bez zmian.
+- **PUŁAPKA narzędziowa (wypadek c5b16310):** NIE wyciągac tresci plikow z wyniku
+  get_file_contents przez regex na JSON.stringify — zlapal zly fragment (81 znakow
+  opisu "successfully downloaded...") i push zszedl ze smieciem, kasujac 275 linii
+  screens.yml (przywrocone w 2a5315ac). Prawidlowo: pelna tresc jest w
+  `r["1"].resource.text`; przed kazdym pushem guard na dlugosc + obecność
+  oczekiwanych kotwic.
