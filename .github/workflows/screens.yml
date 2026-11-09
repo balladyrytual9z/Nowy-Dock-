@@ -1,4 +1,4 @@
-successfully downloaded text file (SHA: ed257178d0e3ce74081e4f0276e1f7e4196e66d6)# screens.yml v10: retry po zawieszeniu runa 50 (v9 dodal library.png - 7 swipe do ostatniej strony launchera); rerun (runner #48 nie zakonczyl sie po ~55 min - prawdopodobnie hang adb przy boocie emulatora)
+successfully downloaded text file (SHA: 785c2bd4bd96272a8cd900a2894641d660ecee16)successfully downloaded text file (SHA: ed257178d0e3ce74081e4f0276e1f7e4196e66d6)# screens.yml v11: retry po zawieszeniu runa 50 (v9 dodal library.png - 7 swipe do ostatniej strony launchera); rerun (runner #48 nie zakonczyl sie po ~55 min - prawdopodobnie hang adb przy boocie emulatora)
 # =====================================================================
 # GLOBALNY MECHANIZM TESTOW WIZUALNYCH (2026-11-08, zadanie uzytkownika):
 # po kazdym pushu kodu CI odpala emulator Androida 9 (API 28 = wersja
