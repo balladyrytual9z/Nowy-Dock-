@@ -28,6 +28,19 @@ class EngineState(
     private val runningMinRpm: Int = 500,
     /** Doc pkt 35: RUNNING przy napieciu > runningMinVoltage. */
     private val runningMinVoltage: Float = 13.2f,
+    /**
+     * NAPRAWA zawieszania zegarow (2026-11-09): Hondy spokojnie stoja na
+     * 12.4-12.6 V, wiec dokumentowy prog OFF (< 12.4 V) nie opadal po
+     * zgaszeniu silnika. Fallback: samo RPM == 0 utrzymane przez
+     * zeroRpmHoldMs (ECU raportuje zero obrotow = silnik nie pracuje).
+     */
+    private val zeroRpmHoldMs: Long = 10_000L,
+    /**
+     * NAPRAWA zawieszania zegarow: ELM zywy, ECU nie odpowiada ("NO DATA") -
+     * po noDataHoldMs bez WAZNEGO odczytu RPM label RUNNING spada do UNKNOWN
+     * zamiast trzymac zamrozony stan (brak fabrykacji danych).
+     */
+    private val noDataHoldMs: Long = 15_000L,
     /** Zegar wstrzykiwany - deterministyczne testy JVM. */
     private val clock: () -> Long = { System.currentTimeMillis() }
 ) {
@@ -51,6 +64,10 @@ class EngineState(
 
     /** Start ciaglego spelniania warunkow OFF (0 = niespelnione). */
     private var offSince: Long = 0L
+    /** Start ciaglego RPM == 0 (0 = nie dotyczy). */
+    private var zeroRpmSince: Long = 0L
+    /** Czas ostatniego WAZNEGO odczytu RPM (0 = brak odczytu). */
+    private var lastValidRpmMs: Long = 0L
 
     fun updateVoltage(v: Float) {
         voltage = v
@@ -59,7 +76,29 @@ class EngineState(
 
     fun updateRpm(r: Int) {
         rpm = r
+        lastValidRpmMs = clock()
         recompute()
+    }
+
+    /**
+     * NAPRAWA zawieszania zegarow (2026-11-09): ELM odpowiada, ale ECU milczy
+     * ("NO DATA" na 010C). Po noDataHoldMs bez waznego RPM label RUNNING
+     * spada do UNKNOWN - zegary dostaja "brak danych", nie zamrozona wartosc.
+     * Wywolane z ConnectionManager przy 3x nieparsowalnym 010C i przy stale.
+     */
+    fun onRpmNoData() {
+        val now = clock()
+        if (lastValidRpmMs != 0L &&
+            now - lastValidRpmMs >= noDataHoldMs &&
+            (label == EngineStateLabel.RUNNING || label == EngineStateLabel.CRANKING)
+        ) {
+            label = EngineStateLabel.UNKNOWN
+            rpm = -1
+            protected = false
+            offSince = 0L
+            zeroRpmSince = 0L
+            lastValidRpmMs = 0L
+        }
     }
 
     private fun recompute() {
@@ -75,7 +114,17 @@ class EngineState(
         } else {
             offSince = 0L
         }
-        val off = offConditions && offSince != 0L && now - offSince >= offHoldMs
+        val docOff = offConditions && offSince != 0L && now - offSince >= offHoldMs
+
+        // NAPRAWA zawieszania zegarow: fallback RPM == 0 bez wzgledu na
+        // napiecie (dokumentowy prog 12.4 V nie lapal Hondy stojacej na 12.5 V)
+        if (rpm == 0) {
+            if (zeroRpmSince == 0L) zeroRpmSince = now
+        } else {
+            zeroRpmSince = 0L
+        }
+        val zeroRpmOff = zeroRpmSince != 0L && now - zeroRpmSince >= zeroRpmHoldMs
+        val off = docOff || zeroRpmOff
 
         when {
             cranking -> {
@@ -107,5 +156,7 @@ class EngineState(
         label = EngineStateLabel.UNKNOWN
         protected = false
         offSince = 0L
+        zeroRpmSince = 0L
+        lastValidRpmMs = 0L
     }
 }

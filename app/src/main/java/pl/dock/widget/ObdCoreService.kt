@@ -156,7 +156,12 @@ class ObdCoreService : Service() {
                 accumulateOdometer(s.speedKmh, now)
 
                 // --- ACC State Watchdog: rozlacz BT po dlugim staniu na zaplonie ---
-                if (s.engineState == EngineStateLabel.OFF &&
+                // NAPRAWA (2026-11-09): stanami "stoi" jest takze UNKNOWN przy
+                // braku danych RPM (ECU nie odpowiada, adapter zyje) - wczesniej
+                // taki scenariusz trzymal Bluetooth cala noc na akumulatorze.
+                val standing = s.engineState == EngineStateLabel.OFF ||
+                    (s.engineState == EngineStateLabel.UNKNOWN && s.rpm < 0)
+                if (standing &&
                     !s.voltage.isNaN() && s.voltage < ACC_LOW_V) {
                     if (accOffMs == 0L) {
                         accOffMs = now

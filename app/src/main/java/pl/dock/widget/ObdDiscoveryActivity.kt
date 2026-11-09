@@ -53,6 +53,8 @@ class ObdDiscoveryActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // pasek statusu Androida domyslnie schowany (immersive sticky)
+        pl.dock.widget.ui.Immersive.apply(this)
         manager = ConnectionManager.get(applicationContext)
 
         // Tryb nocny wg slonca (ustawienie night_auto + lat/lon):
@@ -324,6 +326,11 @@ class ObdDiscoveryActivity : Activity() {
 
     override fun onStart() { super.onStart(); manager.onAppForeground() }
     override fun onStop() { super.onStop(); manager.onAppBackground() }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) pl.dock.widget.ui.Immersive.apply(this)
+    }
 
     override fun onDestroy() {
         scope.cancel()

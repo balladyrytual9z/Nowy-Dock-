@@ -68,6 +68,8 @@ class TripActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // pasek statusu Androida domyslnie schowany (immersive sticky)
+        pl.dock.widget.ui.Immersive.apply(this)
         manager = ConnectionManager.get(applicationContext)
         bestRunMs = getSharedPreferences("obd_settings", MODE_PRIVATE).getLong("best_0_100", 0L)
         priceGr = getSharedPreferences("obd_settings", MODE_PRIVATE).getInt("fuel_price_gr", 650)
@@ -248,6 +250,11 @@ class TripActivity : Activity() {
     private fun fmtTime(ms: Long): String {
         val s = ms / 1000
         return String.format("%02d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) pl.dock.widget.ui.Immersive.apply(this)
     }
 
     override fun onDestroy() {

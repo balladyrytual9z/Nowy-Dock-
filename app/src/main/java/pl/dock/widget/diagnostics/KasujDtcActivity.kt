@@ -23,6 +23,8 @@ class KasujDtcActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // pasek statusu Androida domyslnie schowany (immersive sticky)
+        pl.dock.widget.ui.Immersive.apply(this)
         val manager = ConnectionManager.get(applicationContext)
         val tv = TextView(this).apply {
             textSize = 20f
@@ -41,6 +43,11 @@ class KasujDtcActivity : Activity() {
             tv.text = if (ok) "KODY SKASOWANE" else "BRAK POLACZENIA / NIEPOTWIERDZONE"
             Handler(Looper.getMainLooper()).postDelayed({ finish() }, 1500)
         }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) pl.dock.widget.ui.Immersive.apply(this)
     }
 
     override fun onDestroy() {

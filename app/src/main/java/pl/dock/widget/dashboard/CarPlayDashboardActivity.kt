@@ -130,6 +130,8 @@ class CarPlayDashboardActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // pasek statusu Androida domyslnie schowany (immersive sticky)
+        pl.dock.widget.ui.Immersive.apply(this)
         manager = ConnectionManager.get(applicationContext)
 
         // motyw dzien/noc wg slonca (pkt 20; bez recznego przelacznika)
@@ -1145,5 +1147,10 @@ class CarPlayDashboardActivity : Activity() {
 
     override fun onStart() { super.onStart(); manager.onAppForeground() }
     override fun onStop() { super.onStop(); manager.onAppBackground() }
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) pl.dock.widget.ui.Immersive.apply(this)
+    }
+
     override fun onDestroy() { scope.cancel(); super.onDestroy() }
 }

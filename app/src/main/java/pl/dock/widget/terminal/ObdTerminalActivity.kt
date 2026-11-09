@@ -49,6 +49,8 @@ class ObdTerminalActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // pasek statusu Androida domyslnie schowany (immersive sticky)
+        pl.dock.widget.ui.Immersive.apply(this)
         manager = ConnectionManager.get(applicationContext)
 
         val root = LinearLayout(this).apply {
@@ -307,6 +309,11 @@ class ObdTerminalActivity : Activity() {
         }
         logView.text = log
         scroll.post { scroll.fullScroll(android.view.View.FOCUS_DOWN) }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) pl.dock.widget.ui.Immersive.apply(this)
     }
 
     override fun onDestroy() {

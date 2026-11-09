@@ -19,6 +19,7 @@ import pl.dock.widget.session.ElmSession
 import pl.dock.widget.session.EngineState
 import pl.dock.widget.transport.*
 import pl.dock.widget.util.ElmHex
+import kotlin.coroutines.coroutineContext
 
 /**
  * Orchestrates transport selection, session init, PID scheduler and
@@ -43,6 +44,8 @@ class ConnectionManager(
         private const val TAG = "ConnectionManager"
         private const val MAX_INIT_RETRIES = 5
         private val INIT_RETRY_BACKOFF_MS = longArrayOf(1_000, 2_000, 4_000, 8_000, 16_000)
+        /** Timeout na otworzenie socketa (SPP nie ma wlasnego deadline'u). */
+        private const val CONNECT_TIMEOUT_MS = 20_000L
 
         @Volatile private var instance: ConnectionManager? = null
 
@@ -81,6 +84,11 @@ class ConnectionManager(
     // a nie cichym "polaczono" z samego socketa SPP.
     private var initAttempt = 0
     private var retryJob: Job? = null
+
+    // NAPRAWA zawieszonych zegarow (2026-11-09): licznik kolejnych ramek 010C
+    // bez mozliwej do sparsowania odpowiedzi - po 3 z rzedu publikujemy "brak
+    // danych" zamiast trzymac ostatnia wartosc RPM (ECU nie odpowiada).
+    private var rpmMiss = 0
 
     // NAPRAWA: obserwator stanu transportu (zerwanie/reconnect) + flaga,
     // ze po auto-reconnectcie daemonem sesja ELM wymaga pelnej re-inicjalizacji
@@ -123,7 +131,13 @@ class ConnectionManager(
         stopBtWatch()
         stateJob?.cancel()
         stateJob = null
-        retryJob?.cancel()   // wchodzimy z retry albo z POLACZ - jedno laczenie
+        // NAPRAWA "polaczylo sie raz i juz nigdy" (2026-11-09): gdy doConnect
+        // wykonuje sie WEWNATRZ retryJob, retryJob?.cancel() anulowalo WLASNA
+        // korutyne - ponowienie umieralo na pierwszym punkcie zawieszenia
+        // (t.connect) i aplikacja po pierwszej porazce nie laczyla sie juz
+        // nigdy. Anulujemy tylko cudze zadanie ponowienia.
+        val selfJob = coroutineContext[Job]
+        if (retryJob != null && retryJob !== selfJob) retryJob?.cancel()
         retryJob = null
         try { scheduler?.shutdown() } catch (_: Exception) {}
         scheduler = null
@@ -141,7 +155,17 @@ class ConnectionManager(
         try {
             val t: ElmTransport = if (preferBle) BleTransport(appContext) else SppTransport()
             transport = t
-            t.connect(address)
+            // NAPRAWA: t.connect bez deadline'u potrafil trzymac mutex (i
+            // status "lacze...") na dlugie minuty, gdy adapter jeszcze nie
+            // wstal po starcie auta - cala maszyka reconnectu stanela w kolejce.
+            try {
+                withTimeout(CONNECT_TIMEOUT_MS) { t.connect(address) }
+            } catch (e: TimeoutCancellationException) {
+                Log.w(TAG, "connect timeout po " + CONNECT_TIMEOUT_MS + " ms (adapter wylaczony/zajety)")
+                scheduleConnectRetry(address, preferBle, "connect-timeout",
+                    "socket nie odpowiada (adapter wylaczony?)")
+                return
+            }
 
             val serviceMode = appContext
                 .getSharedPreferences("obd_settings", Context.MODE_PRIVATE)
@@ -229,6 +253,13 @@ class ConnectionManager(
                                                 connecting = false,
                                                 lastError = "re-init failed przy " + r.step + ": " + r.error
                                             )
+                                            // NAPRAWA: wczesniej porazka re-initu po
+                                            // auto-reconnectcie daemonu konczyla cala
+                                            // maszyne - socket zyje, sesja martwa, zero
+                                            // ponowien. Teraz pelny reconnect przez
+                                            // wspolna drabine retry.
+                                            scheduleConnectRetry(address, preferBle,
+                                                "re-init " + r.step, r.error)
                                         }
                                         null -> {}
                                     }
@@ -239,8 +270,19 @@ class ConnectionManager(
                             if (wasConnected) {
                                 wasConnected = false
                                 needsReinit = true
-                                _uiState.value = _uiState.value.copy(
+                                // NAPRAWA zawieszonych zegarow (2026-11-09):
+                                // wczesniej uiState trzymal ostatnie RPM/predkosc
+                                // w nieskonczonosc po zerwaniu socketa - zegary
+                                // staly w miejscu po zgaszeniu silnika. Zerujemy
+                                // telemetrie: UI dostaje "brak danych" (---/0),
+                                // a ECU-rdzen (engineState) wraca do UNKNOWN.
+                                engineState.reset()
+                                stale.clear()
+                                rpmMiss = 0
+                                _uiState.value = VehicleUiState(
                                     connected = false,
+                                    connecting = false,
+                                    adapterName = _uiState.value.adapterName,
                                     lastError = "Polaczenie z adapterem zerwane (auto-reconnect)"
                                 )
                             }
@@ -260,13 +302,16 @@ class ConnectionManager(
                 lastError = null,
                 engineState = engineState.label
             )
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // anulowane z zewnatrz (reczne POLACZ/ROZLACZ) - bez kolejnych
+            // ponowien, nie walczymy z decyzja kierowcy
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Connect failed", e)
-            _uiState.value = _uiState.value.copy(
-                connected = false,
-                connecting = false,
-                lastError = e.message ?: "unknown"
-            )
+            // NAPRAWA "polaczylo sie raz i juz nigdy": porazka socketu (adapter
+            // nie wstal po starcie auta, BT stack zajety) tez wchodzi do drabiny
+            // auto-retry - wczesniej tylko init ELM mial ponowienia.
+            scheduleConnectRetry(address, preferBle, "connect", e.message ?: "unknown")
         }
     }
 
@@ -278,14 +323,29 @@ class ConnectionManager(
      * status FAILED z czytelnym bledem - kolejna probe decyduje kierowca.
      */
     private suspend fun onInitFailure(address: String, preferBle: Boolean, f: ElmSession.InitResult.Failure) {
+        scheduleConnectRetry(address, preferBle, "init:" + f.step, f.error)
+    }
+
+    /**
+     * NAPRAWA "polaczylo sie raz i juz nigdy" (2026-11-09): WSPOLNA drabina
+     * auto-retry (1/2/4/8/16 s, max 5 prob) dla trzech przypadkow:
+     *  1) porazka t.connect() - adapter nie wstal jeszcze po starcie auta,
+     *  2) porazka initialize() ELM (poprzednio jedyny retrywowany przypadek),
+     *  3) porazka re-initu po auto-reconnectcie daemonu (socket zywy, ECU spi).
+     * Wczesniej punkt (1) i (3) konczyly sie wiecznym "nie polaczono" -
+     * polaczenie udalo sie tylko przy pierwszym, recznym podejsciu.
+     */
+    private suspend fun scheduleConnectRetry(address: String, preferBle: Boolean, stage: String, error: String) {
         try { scheduler?.shutdown() } catch (_: Exception) {}
         scheduler = null
+        try { daemon?.stop() } catch (_: Exception) {}
+        daemon = null
         try { session?.close() } catch (_: Exception) {}
         session = null
         try { transport?.disconnect() } catch (_: Exception) {}
         transport = null
         initAttempt++
-        Log.w(TAG, "init failed: " + f.step + " - " + f.error +
+        Log.w(TAG, "[" + stage + "] failed: " + error +
             " (proba " + initAttempt + "/" + MAX_INIT_RETRIES + ")")
         if (initAttempt >= MAX_INIT_RETRIES) {
             _uiState.value = _uiState.value.copy(
@@ -293,7 +353,8 @@ class ConnectionManager(
                 connecting = false,
                 initStep = "",
                 retryAttempt = 0,
-                lastError = "INIT FAILED po " + MAX_INIT_RETRIES + " probach: " + f.step + " - " + f.error
+                lastError = "POLACZENIE NIE UDANE po " + MAX_INIT_RETRIES +
+                    " probach [" + stage + "]: " + error
             )
             initAttempt = 0
             return
@@ -304,7 +365,8 @@ class ConnectionManager(
             connected = false,
             initStep = "",
             retryAttempt = initAttempt,
-            lastError = "Ponawiam (" + initAttempt + "/" + MAX_INIT_RETRIES + "): " + f.step + " - " + f.error
+            lastError = "Ponawiam (" + initAttempt + "/" + MAX_INIT_RETRIES +
+                ") [" + stage + "]: " + error
         )
         retryJob = scope.launch {
             delay(delayMs)
@@ -319,6 +381,7 @@ class ConnectionManager(
         retryJob?.cancel()
         retryJob = null
         initAttempt = 0
+        rpmMiss = 0
         needsReinit = false
         scope.launch {
             lifecycleMutex.withLock {
@@ -396,8 +459,23 @@ class ConnectionManager(
         val next = when (pid) {
             "010C" -> { // RPM
                 val rpm = parseRpm(raw)
-                if (rpm != null) engineState.updateRpm(rpm)
-                cur.copy(rpm = rpm ?: cur.rpm)
+                if (rpm != null) {
+                    rpmMiss = 0
+                    engineState.updateRpm(rpm)
+                    cur.copy(rpm = rpm)
+                } else {
+                    // NAPRAWA zawieszonych zegarow: ELM zyje, ECU nie odpowiada
+                    // ("NO DATA") - po 3 kolejnych porazkach parsowania
+                    // publikujemy brak danych (-1) zamiast trzymac ostatnia
+                    // wartosc RPM na zegarach w nieskonczonosc.
+                    rpmMiss++
+                    if (rpmMiss >= 3) {
+                        engineState.onRpmNoData()
+                        cur.copy(rpm = -1)
+                    } else {
+                        cur
+                    }
+                }
             }
             "010D" -> cur.copy(speedKmh = parseByte(raw, "410D") ?: cur.speedKmh)
             "0104" -> cur.copy(engineLoadPct = parsePct(raw, "4104") ?: cur.engineLoadPct)
@@ -434,6 +512,9 @@ class ConnectionManager(
 
     private fun markStale(pid: String) {
         stale[pid] = true
+        // NAPRAWA zawieszonych zegarow: totalny brak odpowiedzi na 010C
+        // (socket zawieszony / ECU padlo) tez karmi detektor braku danych
+        if (pid == "010C") engineState.onRpmNoData()
         _uiState.value = _uiState.value.copy(staleFlags = buildStaleFlags())
     }
 

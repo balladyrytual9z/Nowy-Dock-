@@ -86,4 +86,72 @@ class EngineStateTest {
         es.updateRpm(900)
         assertEquals(EngineStateLabel.RUNNING, es.label)
     }
+
+    // --- NAPRAWA zawieszania zegarow (2026-11-09) ---
+
+    @Test
+    fun zeroRpmFallbackOFFBezWzgleduNaNapiecie() {
+        var now = 10_000L
+        val es = EngineState(clock = { now })
+        es.updateVoltage(12.8f)   // powyzej progu 12.4 V - dokumentowy OFF nie zadziala
+        es.updateRpm(0)
+        now += 5_000L
+        es.updateRpm(0)
+        assertEquals(EngineStateLabel.UNKNOWN, es.label)   // hold 10 s nie minal
+        now += 6_000L
+        es.updateRpm(0)
+        assertEquals(EngineStateLabel.OFF, es.label)       // 11 s RPM == 0 -> OFF
+    }
+
+    @Test
+    fun brakDanychRPMZdejmujeRUNNINGPoHoldzie() {
+        var now = 1_000L
+        val es = EngineState(clock = { now })
+        es.updateVoltage(13.6f)
+        es.updateRpm(900)
+        assertEquals(EngineStateLabel.RUNNING, es.label)
+        now += 14_000L
+        es.onRpmNoData()
+        assertEquals(EngineStateLabel.RUNNING, es.label)  // 14 s < 15 s holdu
+        now += 2_000L
+        es.onRpmNoData()
+        assertEquals(EngineStateLabel.UNKNOWN, es.label)   // 16 s bez waznego RPM
+        assertEquals(-1, es.rpm)
+        assertEquals(false, es.protected)
+    }
+
+    @Test
+    fun brakDanychZdejmujePROTECTEDCrankingu() {
+        var now = 1_000L
+        val es = EngineState(clock = { now })
+        es.crankingProtect = true
+        es.updateVoltage(12.0f)
+        es.updateRpm(300)
+        assertEquals(EngineStateLabel.CRANKING, es.label)
+        assertEquals(true, es.protected)
+        now += 16_000L
+        es.onRpmNoData()
+        assertEquals(EngineStateLabel.UNKNOWN, es.label)
+        assertEquals(false, es.protected)
+    }
+
+    @Test
+    fun rozruchPrzerywaLicznikZeroRpm() {
+        var now = 10_000L
+        val es = EngineState(clock = { now })
+        es.updateVoltage(12.8f)
+        es.updateRpm(0)
+        now += 8_000L
+        es.updateRpm(0)
+        assertEquals(EngineStateLabel.UNKNOWN, es.label)
+        es.updateRpm(900)   // start silnika - licznik 10 s przerwany
+        now += 2_000L
+        es.updateRpm(0)     // znowu stoi - licznik od zera
+        now += 9_000L
+        es.updateRpm(0)
+        assertEquals(EngineStateLabel.UNKNOWN, es.label)   // 9 s < 10 s
+        now += 2_000L
+        es.updateRpm(0)
+        assertEquals(EngineStateLabel.OFF, es.label)
+    }
 }

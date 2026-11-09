@@ -61,6 +61,8 @@ class ObdSettingsActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // pasek statusu Androida domyslnie schowany (immersive sticky)
+        pl.dock.widget.ui.Immersive.apply(this)
 
         val root = LinearLayout(this@ObdSettingsActivity).apply {
             orientation = LinearLayout.VERTICAL
@@ -463,5 +465,10 @@ class ObdSettingsActivity : Activity() {
                 "Czarna skrzynka: SQLite WAL, 300 ramek w RAM, eksport CSV przez NanoServer :8080.\n\n" +
                 "Zakaz fabryzacji: UI pokazuje wylacznie dane zwrocone przez adapter."))
         return p
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) pl.dock.widget.ui.Immersive.apply(this)
     }
 }

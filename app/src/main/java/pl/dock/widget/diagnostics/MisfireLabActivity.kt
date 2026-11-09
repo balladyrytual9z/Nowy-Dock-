@@ -44,6 +44,8 @@ class MisfireLabActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // pasek statusu Androida domyslnie schowany (immersive sticky)
+        pl.dock.widget.ui.Immersive.apply(this)
         manager = ConnectionManager.get(applicationContext)
         analyzer = MisfireAnalyzer()
 
@@ -201,6 +203,11 @@ class MisfireLabActivity : Activity() {
             dtcTv.text = if (dtcs.isEmpty()) "" else
                 "Kody zaplonu: " + dtcs.joinToString(", ") { it.code }
         }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) pl.dock.widget.ui.Immersive.apply(this)
     }
 
     override fun onDestroy() {

@@ -29,6 +29,8 @@ class EReportActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // pasek statusu Androida domyslnie schowany (immersive sticky)
+        pl.dock.widget.ui.Immersive.apply(this)
         val manager = ConnectionManager.get(applicationContext)
         val db = AppDatabase(this)
 
@@ -129,6 +131,11 @@ class EReportActivity : Activity() {
         }
 
     private fun f(v: Float): String = if (v.isNaN()) "-" else String.format("%.1f", v)
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) pl.dock.widget.ui.Immersive.apply(this)
+    }
 
     override fun onDestroy() {
         scope.cancel()
