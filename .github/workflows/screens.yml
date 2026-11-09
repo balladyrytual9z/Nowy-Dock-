@@ -154,6 +154,8 @@ jobs:
             adb shell am start -n "pl.dock.widget/.terminal.ObdTerminalActivity" >/dev/null 2>&1 || true
             sleep 6
             adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/obdterminal.png" || true
+            adb shell dumpsys window windows > "$RUNNER_TEMP/win_terminal.log" 2>&1 || true
+            adb logcat -d > "$RUNNER_TEMP/logcat_terminal.log" 2>&1 || true
             adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
             sleep 1
             adb shell am start -n "pl.dock.widget/.settings.ObdSettingsActivity" >/dev/null 2>&1 || true
@@ -252,6 +254,28 @@ jobs:
             git pull --rebase origin main
             git push
           fi
+
+      # Diagnostyka terminala OBD (zrzut run 40 pokazal launchera zamiast
+      # ekranu terminala - mCurrentFocus powie, czy aktywnosc wstala, a
+      # logcat czy bylo FATAL EXCEPTION). Zawsze, rowniez przy sukcesie.
+      - name: Diagnostyka terminala (zawsze)
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### mCurrentFocus po starcie terminala"
+            echo '```'
+            grep -E 'mCurrentFocus|mFocusedApp' "$RUNNER_TEMP/win_terminal.log" 2>/dev/null | head -n 5 || echo "(brak win_terminal.log)"
+            echo '```'
+            echo "### FATAL EXCEPTION z logcat"
+            echo '```'
+            grep -B2 -A25 'FATAL EXCEPTION' "$RUNNER_TEMP/logcat_terminal.log" 2>/dev/null | head -n 60 || echo "(brak FATAL)"
+            echo '```'
+            echo "### Stan paskow systemowych przy terminalu"
+            echo '```'
+            grep -iE 'fullscreen|immersive|mSystemUi' "$RUNNER_TEMP/win_terminal.log" 2>/dev/null | head -n 20 || echo "(brak)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # Ogony logow do PUBLICZNEGO podsumowania runa (bez logowania).
       - name: Dump error summary on failure
