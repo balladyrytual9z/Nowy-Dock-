@@ -1399,10 +1399,10 @@ public class LauncherActivity extends BaseActivity {
                 Math.min(Ui.dp(this, 560), Ui.windowWidth(this) - Ui.dp(this, 24)));
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 panelW, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.START);
-        // pozycja X: środek panelu nad palcem (gdy follow) z clampingiem;
-        // logika w czystej klasie OverlayTrigger pokryta testami jednostkowymi
-        int panelX = OverlayTrigger.panelX(gestureX, panelW, root.getWidth(),
-                dockPx, left, Prefs.overlayFollowGesture(this), Ui.dp(this, 8));
+        // Babel w stylu macOS: ZAWSZE wyskakuje przy doku (z lewej czesci,
+        // gdy dok po lewej) - nie sledzi palca i nie centruje sie na ekranie.
+        int panelX = left ? dockPx + Ui.dp(this, 10)
+                : Math.max(0, root.getWidth() - panelW - dockPx - Ui.dp(this, 10));
         lp.leftMargin = panelX;
         lp.topMargin = Ui.dp(this, 12);
         overlay.addView(panel, lp);

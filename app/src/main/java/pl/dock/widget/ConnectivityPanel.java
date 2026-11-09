@@ -104,10 +104,14 @@ public class ConnectivityPanel extends LinearLayout {
         this.host = host;
         PanelTool.init(a);
         setOrientation(VERTICAL);
-        // iOS Control Center: brak karty - tresc lezy bezposrednio na rozmytym
-        // tle ekranu (migawka + Blur w LauncherActivity). Klikalne, by tap w tlo
+        // Babel w stylu macOS: kwadratowy z zaokraglonymi rogami, szklany
+        // (tresc modulow lezy na nim jak na popoverze). Klikalne, by tap w tlo
         // panelu nie zamykal nakladki.
-        setBackground(null);
+        GradientDrawable bubble = new GradientDrawable();
+        bubble.setColor(night ? 0x80101418 : 0x99F2F2F7);
+        bubble.setCornerRadius(dp(24));
+        bubble.setStroke(Math.max(1, dp(1)), night ? 0x33FFFFFF : 0x1E787880);
+        setBackground(bubble);
         setPadding(dp(16), dp(14), dp(16), dp(12));
         setClickable(true);
         // Warstwa SOFTWARE na API < 30 zostaje (potwierdzona w PR #14): dla widokow
@@ -276,6 +280,9 @@ public class ConnectivityPanel extends LinearLayout {
         // narzedzia ze stalego modulu bazowego nigdy nie duplikuja sie w siatce
         toolIds = withoutBaseTools(toolIds);
         grid.setTools(toolIds);
+        // BAZOWY widok babelka = tylko 3 kolumny (przelaczniki + suwaki).
+        // Siatka dodatkowych narzedzi wyskakuje dopiero w trybie edycji.
+        grid.setVisibility(GONE);
         LayoutParams gp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         gp.topMargin = dp(10);
@@ -386,6 +393,7 @@ public class ConnectivityPanel extends LinearLayout {
         btnEdit.setText("Gotowe");
         try {
             if (grid != null) grid.setEditing(true);
+            if (grid != null) grid.setVisibility(VISIBLE);
         } catch (Throwable ignored) {
         }
         btnAdd.setAlpha(0f);
@@ -408,6 +416,7 @@ public class ConnectivityPanel extends LinearLayout {
         btnEdit.setText("Edytuj");
         try {
             if (grid != null) grid.setEditing(false);
+            if (grid != null) grid.setVisibility(GONE);
         } catch (Throwable ignored) {
         }
         btnAdd.animate().alpha(0f).scaleX(0.9f).scaleY(0.9f).setDuration(180)
