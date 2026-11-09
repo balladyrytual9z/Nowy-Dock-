@@ -1,4 +1,4 @@
-# screens.yml v16: naprawa zapisu - wczesniejsze edycje wplataly smieci przed linia 1 (Invalid workflow file L1); pasek szukania w bibliotece nad lista (z-order)
+# screens.yml v17: retry - run 57 zlapal systemowy dialog 'Install unknown apps' zamiast strony biblioteki (flak emulatora)
 # =====================================================================
 # GLOBALNY MECHANIZM TESTOW WIZUALNYCH (2026-11-08, zadanie uzytkownika):
 # po kazdym pushu kodu CI odpala emulator Androida 9 (API 28 = wersja
