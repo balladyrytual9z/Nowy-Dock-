@@ -120,7 +120,7 @@ public class AppLibraryPage extends FrameLayout {
         for (int i = 0; i < LETTERS.length(); i++) {
             TextView tv = new TextView(ctx);
             tv.setText(String.valueOf(LETTERS.charAt(i)));
-            tv.setTextSize(13);
+            tv.setTextSize(15);
             tv.setTypeface(pl.dock.widget.ui.DockTheme.interMedium());
             tv.setTextColor(night ? 0xFF0A84FF : 0xFF007AFF);
             tv.setGravity(Gravity.CENTER);
@@ -190,7 +190,7 @@ public class AppLibraryPage extends FrameLayout {
         // szklana pigulka paska szukania - polprzezroczysta, lista widoczna pod spodem
         GradientDrawable glassPill = new GradientDrawable();
         glassPill.setCornerRadius(dp(26));
-        glassPill.setColor(night ? 0x30FFFFFF : 0xCCEF0F1F);
+        glassPill.setColor(night ? 0x30FFFFFF : 0x4DF2F2F7);
         glassPill.setStroke(Math.max(1, (int) (0.9f * d)), night ? 0x3DFFFFFF : 0x2E808090);
         searchHeader.setBackground(glassPill);
         searchHeader.setElevation(0f);
@@ -256,16 +256,16 @@ public class AppLibraryPage extends FrameLayout {
 
         // babel z aktualna litera NAD palcem (jak w iOS w selektorze liter)
         letterBubble = new TextView(ctx);
-        letterBubble.setTextSize(30);
+        letterBubble.setTextSize(40);
         letterBubble.setTypeface(null, android.graphics.Typeface.BOLD);
         letterBubble.setTextColor(0xFFFFFFFF);
         letterBubble.setGravity(Gravity.CENTER);
-        letterBubble.setMinWidth(dp(56));
-        letterBubble.setPadding(dp(6), dp(2), dp(6), dp(6));
+        letterBubble.setMinWidth(dp(72));
+        letterBubble.setPadding(dp(10), dp(4), dp(10), dp(8));
         GradientDrawable bubbleBg = new GradientDrawable();
         bubbleBg.setShape(GradientDrawable.RECTANGLE);
-        bubbleBg.setCornerRadius(dp(18));
-        bubbleBg.setColor(night ? 0xCC1C1C22 : 0xE6F2F2F7);
+        bubbleBg.setCornerRadius(dp(22));
+        bubbleBg.setColor(night ? 0xCC1C1C22 : 0xE61C1C22);
         bubbleBg.setStroke(Math.max(1, (int) (1f * d)), night ? 0x4DFFFFFF : 0x22808090);
         letterBubble.setBackground(bubbleBg);
         letterBubble.setVisibility(GONE);
@@ -460,8 +460,8 @@ public class AppLibraryPage extends FrameLayout {
         int[] pg = new int[2];
         getLocationOnScreen(pg);
         float fingerY = lb[1] - pg[1] + yInBar;
-        float bx = lb[0] - pg[0] + letterBar.getWidth() / 2f - dp(28);
-        float by = Math.max(dp(66), fingerY - dp(46));
+        float bx = lb[0] - pg[0] + letterBar.getWidth() / 2f - dp(36);
+        float by = Math.max(dp(60), fingerY - dp(74));
         LayoutParams lp = (LayoutParams) letterBubble.getLayoutParams();
         lp.leftMargin = (int) bx;
         lp.topMargin = (int) by;
