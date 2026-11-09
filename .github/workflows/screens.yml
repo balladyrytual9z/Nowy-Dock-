@@ -13,6 +13,9 @@
 # NATYWNA rozdzielczosc tabletu ESSGOO - domyslny HVGA (320dp szerokosci)
 # UCINAL panel 560dp (kolumna suwaka glosnosci i trybow znikala za prawa
 # krawedzia - zlapane na zrzucie runa #4).
+# v6: po kazdym runie do screens/ trafia tez diag-terminal.txt
+# (dumpsys window + logcat przy terminalu) - to on wykryl, ze ekran
+# terminala crashowal przy starcie, a "zrzut terminala" byl launcherem.
 # =====================================================================
 name: Zrzuty ekranu emulatora (testy wizualne)
 
