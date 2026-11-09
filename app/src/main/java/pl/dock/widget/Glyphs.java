@@ -138,30 +138,30 @@ public final class Glyphs {
                 // (~22% wysokosci ogniwa). Srodki ogniw co dx=398.5, dy=57
                 // (prawe ogniwo NIZEJ, jak w prawdziwym lancuchu). Lewe ogniwo
                 // na wierzchu w calosci; prawe przeciete wzdluz konturu lewego
-                // (clipOutPath, szczelina g ~ 0.03H) - tip prawego wchodzi w
+                // (clipOutPath, szczelina gap ~ 0.03H) - tip prawego wchodzi w
                 // otwor lewego ogniwa. Jednostka H = wysokosc ogniwa = 0.48*s.
                 float H = s * 0.48f;                  // wysokosc ogniwa
                 float st = H * 0.2174f;               // grubosc pasa ogniwa
                 float L = H * 1.7923f;                // dlugosc ogniwa
                 float dx = H * 1.0192f;               // rozstaw srodkow X
                 float dy = H * 0.1458f;               // rozstaw srodkow Y (prawe nizej)
-                float g = H * 0.03f;                  // szczelina przy przecieciu
+                float gap = H * 0.03f;                  // szczelina przy przecieciu
                 float cw = L - st, chh = H - st;      // wymiary srodnicy (linii konturu)
                 float cr = chh * 0.5f;                // promien kapsuly srodnicy
                 float ax = cx - dx * 0.5f, ayc = cy - dy * 0.5f;   // ogniwo A (lewe, wyzej)
                 float bx = cx + dx * 0.5f, byc = cy + dy * 0.5f;   // ogniwo B (prawe, nizej)
                 RectF rA = new RectF(ax - cw * 0.5f, ayc - chh * 0.5f, ax + cw * 0.5f, ayc + chh * 0.5f);
                 RectF rB = new RectF(bx - cw * 0.5f, byc - chh * 0.5f, bx + cw * 0.5f, byc + chh * 0.5f);
-                // obszar pasa A powiekszony o g (do wyciecia w B): brzeg
-                // zewnetrzny = srodnica + (st/2 + g), brzeg otworu = srodnica - (st/2 - g)
+                // obszar pasa A powiekszony o gap (do wyciecia w B): brzeg
+                // zewnetrzny = srodnica + (st/2 + gap), brzeg otworu = srodnica - (st/2 - gap)
                 RectF oA = new RectF(rA);
-                oA.inset(-(st * 0.5f + g), -(st * 0.5f + g));
+                oA.inset(-(st * 0.5f + gap), -(st * 0.5f + gap));
                 RectF iA = new RectF(rA);
-                iA.inset(st * 0.5f - g, st * 0.5f - g);
+                iA.inset(st * 0.5f - gap, st * 0.5f - gap);
                 Path bandA = new Path();
-                bandA.addRoundRect(oA, chh * 0.5f + st * 0.5f + g, chh * 0.5f + st * 0.5f + g, Path.Direction.CW);
+                bandA.addRoundRect(oA, chh * 0.5f + st * 0.5f + gap, chh * 0.5f + st * 0.5f + gap, Path.Direction.CW);
                 Path holeA = new Path();
-                holeA.addRoundRect(iA, chh * 0.5f - st * 0.5f + g, chh * 0.5f - st * 0.5f + g, Path.Direction.CW);
+                holeA.addRoundRect(iA, chh * 0.5f - st * 0.5f + gap, chh * 0.5f - st * 0.5f + gap, Path.Direction.CW);
                 bandA.op(holeA, Path.Op.DIFFERENCE);
                 float oldSw = p.getStrokeWidth();
                 Paint.Cap oldCap = p.getStrokeCap();
