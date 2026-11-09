@@ -1,4 +1,4 @@
-# screens.yml v7: rerun po flaku GitHuba (Internal server error, run #47, 51s)
+# screens.yml v8: rerun (runner #48 nie zakonczyl sie po ~55 min - prawdopodobnie hang adb przy boocie emulatora)
 # =====================================================================
 # GLOBALNY MECHANIZM TESTOW WIZUALNYCH (2026-11-08, zadanie uzytkownika):
 # po kazdym pushu kodu CI odpala emulator Androida 9 (API 28 = wersja
