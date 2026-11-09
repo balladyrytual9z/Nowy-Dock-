@@ -139,8 +139,8 @@ public final class Glyphs {
                 // (prawe ogniwo NIZEJ, jak w prawdziwym lancuchu). Lewe ogniwo
                 // na wierzchu w calosci; prawe przeciete wzdluz konturu lewego
                 // (clipOutPath, szczelina gap ~ 0.03H) - tip prawego wchodzi w
-                // otwor lewego ogniwa. Jednostka H = wysokosc ogniwa = 0.48*s.
-                float H = s * 0.48f;                  // wysokosc ogniwa
+                // otwor lewego ogniwa. H = 0.87*s -> cala ikona ~2.81H szer. (~92px przy 96px kratce, jak wifi ~89px) i ~1.15H wys.
+                float H = s * 0.87f;                  // wysokosc ogniwa (IKONA pelna szerokosc kratki jak wifi)
                 float st = H * 0.2174f;               // grubosc pasa ogniwa
                 float L = H * 1.7923f;                // dlugosc ogniwa
                 float dx = H * 1.0192f;               // rozstaw srodkow X
