@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -51,6 +52,11 @@ class ObdTerminalActivity : Activity() {
         super.onCreate(savedInstanceState)
         // pasek statusu Androida domyslnie schowany (immersive sticky)
         pl.dock.widget.ui.Immersive.apply(this)
+        // NAPRAWA (2026-11-09): skupiony EditText przy starcie wywolywal
+        // klawiature ekranowa, a Android 9 przy okazji przywracal pasek
+        // statusu (wyjasnienie zrzutu run 38: pasek byl tylko na terminalu).
+        // Klawiatura ma sie pojawiac dopiero po tapnieciu w pole.
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
         manager = ConnectionManager.get(applicationContext)
 
         val root = LinearLayout(this).apply {
