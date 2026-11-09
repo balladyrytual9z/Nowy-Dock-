@@ -190,104 +190,67 @@ class UfoClusterFullView(context: Context) : View(context) {
 
     private val tfBold = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
 
-    // Krój cyfr z oryginalnych zegarów Civica (kontury wektorowe, wypełniane)
+    // Własny krój cyfr: szerokie, zaokrąglone-kwadratowe, pochylone jak na zegarach Civica
     private val glyphs = Array(10) { Path() }
-    private val glyphW = FloatArray(10)
     private val glyphTmp = Path()
+    private val glyphB = RectF()
     private val glyphMat = Matrix()
-    private val pDigit = Paint(Paint.ANTI_ALIAS_FLAG)
-
-    // Kontury cyfr 0-8 zwektoryzowane z oryginalnego zdjęcia (wysokość ~1, środek w 0,0, już pochylone)
-    private val glyphData: Array<Array<FloatArray>> = arrayOf(
-        // cyfra 0
-        arrayOf(
-            floatArrayOf(-0.424f, -0.378f, -0.496f, -0.261f, -0.624f, 0.183f, -0.627f, 0.352f, -0.582f, 0.434f, -0.517f, 0.472f, -0.416f, 0.504f, 0.197f, 0.504f, 0.320f, 0.461f, 0.384f, 0.424f, 0.461f, 0.352f, 0.501f, 0.290f, 0.614f, -0.090f, 0.627f, -0.191f, 0.616f, -0.328f, 0.528f, -0.440f, 0.418f, -0.488f, 0.344f, -0.501f, -0.124f, -0.504f, -0.317f, -0.459f),
-            floatArrayOf(-0.250f, -0.250f, -0.207f, -0.285f, -0.156f, -0.298f, 0.178f, -0.301f, 0.314f, -0.293f, 0.386f, -0.242f, 0.402f, -0.180f, 0.328f, 0.124f, 0.293f, 0.210f, 0.253f, 0.261f, 0.154f, 0.301f, -0.301f, 0.298f, -0.378f, 0.253f, -0.386f, 0.180f, -0.293f, -0.180f)
-        ),
-        // cyfra 1
-        arrayOf(
-            floatArrayOf(0.225f, -0.480f, -0.003f, -0.480f, -0.235f, -0.357f, -0.225f, -0.290f, -0.193f, -0.245f, -0.158f, -0.242f, -0.099f, -0.269f, -0.061f, -0.239f, -0.080f, -0.124f, -0.102f, -0.084f, -0.233f, 0.453f, -0.214f, 0.480f, -0.040f, 0.480f, 0.005f, 0.453f, 0.102f, 0.041f, 0.235f, -0.437f)
-        ),
-        // cyfra 2
-        arrayOf(
-            floatArrayOf(0.626f, -0.368f, 0.537f, -0.451f, 0.372f, -0.488f, -0.163f, -0.493f, -0.233f, -0.485f, -0.332f, -0.443f, -0.420f, -0.365f, -0.457f, -0.301f, -0.500f, -0.191f, -0.505f, -0.140f, -0.495f, -0.127f, -0.305f, -0.119f, -0.278f, -0.143f, -0.246f, -0.263f, -0.160f, -0.317f, 0.267f, -0.314f, 0.366f, -0.293f, 0.409f, -0.261f, 0.409f, -0.172f, 0.340f, -0.073f, 0.243f, -0.044f, -0.262f, -0.023f, -0.406f, 0.017f, -0.484f, 0.055f, -0.535f, 0.098f, -0.578f, 0.164f, -0.642f, 0.373f, -0.647f, 0.464f, -0.610f, 0.477f, 0.471f, 0.493f, 0.500f, 0.461f, 0.516f, 0.410f, 0.516f, 0.336f, 0.495f, 0.311f, -0.310f, 0.303f, -0.369f, 0.279f, -0.374f, 0.237f, -0.324f, 0.183f, -0.286f, 0.172f, 0.337f, 0.135f, 0.489f, 0.084f, 0.575f, -0.004f, 0.620f, -0.103f, 0.647f, -0.229f, 0.647f, -0.301f)
-        ),
-        // cyfra 3
-        arrayOf(
-            floatArrayOf(-0.404f, -0.413f, -0.457f, -0.349f, -0.489f, -0.274f, -0.503f, -0.170f, -0.489f, -0.156f, -0.307f, -0.162f, -0.286f, -0.234f, -0.243f, -0.293f, -0.190f, -0.320f, 0.345f, -0.309f, 0.385f, -0.271f, 0.388f, -0.180f, 0.361f, -0.140f, 0.289f, -0.098f, -0.123f, -0.095f, -0.150f, -0.079f, -0.176f, -0.004f, -0.179f, 0.058f, -0.150f, 0.079f, 0.134f, 0.087f, 0.291f, 0.119f, 0.310f, 0.151f, 0.307f, 0.215f, 0.254f, 0.295f, 0.182f, 0.322f, -0.297f, 0.320f, -0.372f, 0.279f, -0.396f, 0.237f, -0.401f, 0.146f, -0.570f, 0.138f, -0.604f, 0.164f, -0.618f, 0.287f, -0.599f, 0.378f, -0.567f, 0.426f, -0.513f, 0.464f, -0.390f, 0.501f, 0.203f, 0.512f, 0.316f, 0.493f, 0.436f, 0.421f, 0.471f, 0.378f, 0.519f, 0.266f, 0.535f, 0.108f, 0.513f, -0.009f, 0.586f, -0.100f, 0.618f, -0.221f, 0.618f, -0.317f, 0.580f, -0.405f, 0.487f, -0.461f, 0.377f, -0.485f, -0.134f, -0.512f, -0.302f, -0.483f)
-        ),
-        // cyfra 4
-        arrayOf(
-            floatArrayOf(0.580f, -0.493f, 0.561f, -0.507f, 0.342f, -0.501f, 0.131f, -0.378f, -0.540f, 0.090f, -0.570f, 0.170f, -0.580f, 0.279f, -0.551f, 0.290f, 0.147f, 0.298f, 0.171f, 0.317f, 0.184f, 0.352f, 0.171f, 0.480f, 0.222f, 0.507f, 0.334f, 0.507f, 0.372f, 0.432f, 0.390f, 0.333f, 0.436f, 0.309f, 0.524f, 0.311f, 0.551f, 0.274f, 0.575f, 0.199f, 0.580f, 0.130f, 0.559f, 0.116f, 0.481f, 0.111f, 0.465f, 0.095f, 0.463f, 0.055f, 0.545f, -0.338f, 0.580f, -0.445f),
-            floatArrayOf(0.310f, -0.223f, 0.318f, -0.175f, 0.291f, -0.114f, 0.246f, 0.071f, 0.209f, 0.106f, -0.142f, 0.116f, -0.184f, 0.098f, -0.184f, 0.082f, -0.126f, 0.025f, 0.241f, -0.218f, 0.286f, -0.231f)
-        ),
-        // cyfra 5
-        arrayOf(
-            floatArrayOf(-0.410f, -0.493f, -0.507f, -0.140f, -0.528f, -0.100f, -0.557f, 0.058f, -0.384f, 0.066f, -0.306f, -0.004f, -0.258f, -0.017f, 0.199f, -0.017f, 0.250f, -0.004f, 0.298f, 0.041f, 0.301f, 0.100f, 0.266f, 0.207f, 0.231f, 0.266f, 0.183f, 0.309f, 0.130f, 0.325f, -0.311f, 0.314f, -0.394f, 0.255f, -0.408f, 0.162f, -0.571f, 0.146f, -0.603f, 0.162f, -0.630f, 0.263f, -0.630f, 0.325f, -0.606f, 0.405f, -0.523f, 0.477f, -0.349f, 0.504f, 0.170f, 0.504f, 0.301f, 0.469f, 0.354f, 0.440f, 0.432f, 0.349f, 0.480f, 0.229f, 0.512f, 0.098f, 0.523f, -0.036f, 0.477f, -0.132f, 0.378f, -0.172f, 0.255f, -0.183f, -0.170f, -0.189f, -0.237f, -0.175f, -0.279f, -0.194f, -0.287f, -0.231f, -0.245f, -0.298f, -0.199f, -0.311f, 0.549f, -0.303f, 0.592f, -0.333f, 0.630f, -0.485f, -0.354f, -0.504f)
-        ),
-        // cyfra 6
-        arrayOf(
-            floatArrayOf(0.564f, -0.425f, 0.476f, -0.473f, -0.005f, -0.500f, -0.136f, -0.495f, -0.275f, -0.471f, -0.348f, -0.430f, -0.406f, -0.382f, -0.481f, -0.275f, -0.602f, 0.136f, -0.607f, 0.332f, -0.567f, 0.409f, -0.519f, 0.449f, -0.414f, 0.489f, -0.037f, 0.500f, 0.222f, 0.489f, 0.324f, 0.455f, 0.390f, 0.414f, 0.476f, 0.310f, 0.521f, 0.176f, 0.532f, 0.077f, 0.524f, 0.008f, 0.471f, -0.080f, 0.297f, -0.120f, -0.179f, -0.123f, -0.265f, -0.099f, -0.294f, -0.126f, -0.294f, -0.163f, -0.243f, -0.254f, -0.187f, -0.302f, -0.056f, -0.316f, 0.345f, -0.307f, 0.385f, -0.281f, 0.417f, -0.168f, 0.460f, -0.155f, 0.545f, -0.155f, 0.591f, -0.195f, 0.607f, -0.241f, 0.602f, -0.358f),
-            floatArrayOf(-0.372f, 0.225f, -0.345f, 0.104f, -0.310f, 0.070f, -0.267f, 0.059f, 0.217f, 0.059f, 0.262f, 0.075f, 0.291f, 0.134f, 0.267f, 0.238f, 0.217f, 0.291f, 0.136f, 0.316f, -0.291f, 0.302f, -0.342f, 0.283f)
-        ),
-        // cyfra 7
-        arrayOf(
-            floatArrayOf(-0.582f, 0.467f, -0.341f, 0.480f, -0.261f, 0.434f, -0.245f, 0.408f, -0.039f, 0.247f, -0.015f, 0.210f, 0.539f, -0.269f, 0.568f, -0.344f, 0.582f, -0.448f, 0.549f, -0.461f, -0.531f, -0.480f, -0.563f, -0.443f, -0.574f, -0.346f, -0.533f, -0.293f, 0.178f, -0.293f, 0.213f, -0.261f, 0.164f, -0.202f, -0.459f, 0.320f, -0.579f, 0.434f)
-        ),
-        // cyfra 8
-        arrayOf(
-            floatArrayOf(-0.366f, -0.457f, -0.444f, -0.377f, -0.479f, -0.299f, -0.497f, -0.171f, -0.479f, -0.059f, -0.495f, -0.019f, -0.556f, 0.056f, -0.602f, 0.179f, -0.604f, 0.332f, -0.561f, 0.417f, -0.513f, 0.455f, -0.332f, 0.497f, 0.072f, 0.500f, 0.249f, 0.487f, 0.350f, 0.457f, 0.436f, 0.401f, 0.481f, 0.321f, 0.519f, 0.168f, 0.519f, 0.088f, 0.492f, 0.043f, 0.484f, -0.005f, 0.556f, -0.075f, 0.604f, -0.203f, 0.602f, -0.342f, 0.561f, -0.409f, 0.481f, -0.465f, 0.246f, -0.495f, -0.257f, -0.500f),
-            floatArrayOf(-0.393f, 0.214f, -0.361f, 0.134f, -0.310f, 0.091f, -0.281f, 0.083f, 0.251f, 0.094f, 0.297f, 0.147f, 0.297f, 0.187f, 0.267f, 0.267f, 0.230f, 0.302f, 0.176f, 0.318f, -0.302f, 0.307f, -0.361f, 0.278f),
-            floatArrayOf(-0.278f, -0.179f, -0.267f, -0.238f, -0.222f, -0.283f, -0.174f, -0.299f, 0.313f, -0.297f, 0.348f, -0.289f, 0.374f, -0.243f, 0.372f, -0.190f, 0.345f, -0.142f, 0.243f, -0.091f, -0.193f, -0.104f, -0.241f, -0.120f)
-        )
-    )
-
-    // musi być po glyphData (kolejność inicjalizacji pól)
+    private val pDigit = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeJoin = Paint.Join.MITER
+        strokeMiter = 3f
+        strokeCap = Paint.Cap.BUTT
+    }
     private val glyphsBuilt = buildGlyphs()
 
     private fun buildGlyphs(): Boolean {
-        val bounds = RectF()
-        for (d in 0..9) {
+        val hx = 0.315f
+        val hy = 0.405f
+        fun poly(d: Int, close: Boolean, vararg v: Float) {
             val g = glyphs[d]
-            g.fillType = Path.FillType.EVEN_ODD
-            // 9 powstaje z obróconej o 180 stopni szóstki (pochylenie zostaje to samo)
-            val src = if (d == 9) glyphData[6] else glyphData[d]
-            val sign = if (d == 9) -1f else 1f
-            for (contour in src) {
-                var i = 0
-                while (i < contour.size) {
-                    val x = contour[i] * sign
-                    val y = contour[i + 1] * sign
-                    if (i == 0) g.moveTo(x, y) else g.lineTo(x, y)
-                    i += 2
-                }
-                g.close()
+            var i = 0
+            while (i < v.size) {
+                val x = (v[i] - 0.5f) * 2f * hx
+                val y = (v[i + 1] - 0.5f) * 2f * hy
+                if (i == 0) g.moveTo(x, y) else g.lineTo(x, y)
+                i += 2
             }
-            g.computeBounds(bounds, true)
-            glyphW[d] = bounds.width()
+            if (close) g.close()
         }
+        poly(0, true, 0f, 0f, 1f, 0f, 1f, 1f, 0f, 1f)
+        poly(1, false, 0.05f, 0.3f, 0.6f, 0f, 0.6f, 1f)
+        poly(2, false, 0f, 0f, 1f, 0f, 1f, 0.5f, 0f, 0.5f, 0f, 1f, 1f, 1f)
+        poly(3, false, 0f, 0f, 1f, 0f, 1f, 1f, 0f, 1f)
+        poly(3, false, 0.3f, 0.5f, 1f, 0.5f)
+        poly(4, false, 0.72f, 1f, 0.72f, 0f, 0f, 0.66f, 1f, 0.66f)
+        poly(5, false, 1f, 0f, 0f, 0f, 0f, 0.5f, 1f, 0.5f, 1f, 1f, 0f, 1f)
+        poly(6, false, 1f, 0f, 0f, 0f, 0f, 1f, 1f, 1f, 1f, 0.5f, 0f, 0.5f)
+        poly(7, false, 0f, 0f, 1f, 0f, 0.4f, 1f)
+        poly(8, true, 0f, 0f, 1f, 0f, 1f, 1f, 0f, 1f)
+        poly(8, false, 0f, 0.5f, 1f, 0.5f)
+        poly(9, false, 0f, 1f, 1f, 1f, 1f, 0f, 0f, 0f, 0f, 0.5f, 1f, 0.5f)
         return true
     }
 
-    // Rysuje jedną cyfrę o wysokości h wyśrodkowaną w (cx, cy): ciemny obrys + jasne wypełnienie
+    // Rysuje jedną cyfrę o wysokości h wyśrodkowaną w (cx, cy): ciemny obrys + ostra jasna kreska
     private fun drawGlyph(c: Canvas, d: Int, cx: Float, cy: Float, h: Float,
                           col: Int, glow: Int, blur: Float) {
         glyphMat.reset()
         glyphMat.postScale(h, h)
-        glyphMat.postTranslate(cx, cy)
+        glyphMat.postSkew(-0.3f, 0f)
         glyphTmp.reset()
         glyphs[d].transform(glyphMat, glyphTmp)
-        glyphTmp.fillType = Path.FillType.EVEN_ODD
+        // po pochyleniu środek ramki cyfry ustawiamy dokładnie w punkcie (cx, cy)
+        glyphTmp.computeBounds(glyphB, true)
+        glyphTmp.offset(cx - glyphB.centerX(), cy - glyphB.centerY())
 
         pDigit.clearShadowLayer()
-        pDigit.style = Paint.Style.STROKE
-        pDigit.strokeJoin = Paint.Join.ROUND
-        pDigit.strokeWidth = 3.2f
         pDigit.color = Color.parseColor("#03040A")
+        pDigit.strokeWidth = 0.19f * h + 3.4f
         c.drawPath(glyphTmp, pDigit)
 
-        pDigit.style = Paint.Style.FILL
         pDigit.color = col
+        pDigit.strokeWidth = 0.19f * h
         pDigit.setShadowLayer(blur, 0f, 0f, glow)
         c.drawPath(glyphTmp, pDigit)
         pDigit.clearShadowLayer()
@@ -296,32 +259,27 @@ class UfoClusterFullView(context: Context) : View(context) {
     // Napis złożony z cyfr i kresek tym samym krojem (np. prędkość)
     private fun drawDigits(c: Canvas, text: String, cx: Float, cy: Float, h: Float,
                            col: Int, glow: Int, blur: Float) {
-        val gap = h * 0.14f
-        var total = 0f
-        for (ch in text) {
-            total += (if (ch in '0'..'9') glyphW[ch - '0'] * h else h * 0.5f) + gap
-        }
-        total -= gap
-        var x = cx - total / 2f
+        val adv = h * 0.98f
+        val total = text.length * adv
+        var x = cx - total / 2f + adv / 2f
         for (ch in text) {
             if (ch in '0'..'9') {
-                val w = glyphW[ch - '0'] * h
-                drawGlyph(c, ch - '0', x + w / 2f, cy, h, col, glow, blur)
-                x += w + gap
-            } else {
-                if (ch == '-') {
-                    pDigit.style = Paint.Style.STROKE
-                    pDigit.strokeCap = Paint.Cap.BUTT
-                    pDigit.color = col
-                    pDigit.strokeWidth = h * 0.16f
-                    pDigit.setShadowLayer(blur, 0f, 0f, glow)
-                    c.drawLine(x + h * 0.04f, cy, x + h * 0.46f, cy, pDigit)
-                    pDigit.clearShadowLayer()
-                }
-                x += h * 0.5f + gap
+                drawGlyph(c, ch - '0', x, cy, h, col, glow, blur)
+            } else if (ch == '-') {
+                pDigit.color = col
+                pDigit.strokeWidth = 0.19f * h
+                pDigit.setShadowLayer(blur, 0f, 0f, glow)
+                c.drawLine(x - h * 0.25f, cy, x + h * 0.25f, cy, pDigit)
+                pDigit.clearShadowLayer()
             }
+            x += adv
         }
     }
+
+    // Niebieska poświata za prędkością (spłaszczona na osi Y), rysowana w początku układu i przesuwana
+    private val hudGlowShader = RadialGradient(0f, 0f, 150f,
+        intArrayOf(0xBB142BFF.toInt(), 0x330011AA, 0x00000000),
+        floatArrayOf(0f, 0.4f, 1f), Shader.TileMode.CLAMP)
 
     // Połysk szyby zegarów (zero alokacji w onDraw)
     private val glassShader = LinearGradient(0f, 0f, 1280f, 640f,
@@ -653,24 +611,24 @@ class UfoClusterFullView(context: Context) : View(context) {
         pStroke.clearShadowLayer()
 
         // szczeliny między kreskami; przy kreskach co 500 zostaje szersza, pełna kreska
-        pStroke.strokeWidth = 3.2f
+        pStroke.strokeWidth = 6f
         pStroke.color = Color.parseColor("#12030A")
-        for (r in 6500 until 8000 step 50) {
-            if (r % 500 == 0 || (r + 50) % 500 == 0) continue
-            val ang = a0 + sweep * ((r + 25) / 8000f)
+        for (r in 6500 until 8000 step 100) {
+            if (r % 500 == 0 || (r + 100) % 500 == 0) continue
+            val ang = a0 + sweep * ((r + 50) / 8000f)
             c.drawLine(
                 (CX + (rIn - 1f) * cos(ang)).toFloat(), (CY + (rIn - 1f) * sin(ang)).toFloat(),
                 (CX + (tickOut - 4.5f) * cos(ang)).toFloat(), (CY + (tickOut - 4.5f) * sin(ang)).toFloat(), pStroke
             )
         }
 
-        // 4. Podziałka co 50 obr/min: wszystkie kreski równej długości, różna grubość i jasność
-        for (r in 0 until 6500 step 50) {
+        // 4. Podziałka co 100 obr/min: wszystkie kreski równej długości, różna grubość i jasność
+        for (r in 0 until 6500 step 100) {
             val ang = a0 + sweep * (r / 8000f)
             val major = r % 1000 == 0
             val mid = r % 500 == 0
 
-            pStroke.strokeWidth = when { major -> 6f; mid -> 4.8f; else -> 3.3f }
+            pStroke.strokeWidth = when { major -> 7f; mid -> 5.6f; else -> 4.2f }
             val tickColor = when {
                 major -> Color.parseColor("#F3F0B0")
                 mid -> Color.parseColor("#E4D993")
@@ -689,7 +647,7 @@ class UfoClusterFullView(context: Context) : View(context) {
             val ang = a0 + sweep * (r / 8000f)
             drawGlyph(c, r / 1000,
                 (CX + numR * cos(ang)).toFloat(),
-                (CY + numR * sin(ang)).toFloat(), 32f, TICK_OEM, TICK_OEM, 4f)
+                (CY + numR * sin(ang)).toFloat(), 34f, TICK_OEM, TICK_OEM, 4f)
         }
 
         // Napis jednostki pod tarczą, wyśrodkowany w dolnym pasie
@@ -759,16 +717,19 @@ class UfoClusterFullView(context: Context) : View(context) {
             }
         }
         
-        // Prędkość: na górze, nad obrotomierzem (między paskiem diod a pierścieniem)
-        pSpeed.textSize = 40f
-        pSpeed.color = Color.WHITE
-        pSpeed.textAlign = Paint.Align.CENTER
-        drawDigits(c, spdCache, 640f, 63f, 26f, Color.WHITE, CYAN_HUD, 8f)
+        // ===== Jeden blok po lewej: pasek shift light, niżej bieg | prędkość + jednostka | ECO / VTEC =====
+        val rowY = 84f   // środek rzędu: bieg, prędkość, ECO/VTEC
 
-        pSpeed.textSize = 16f
-        pSpeed.textAlign = Paint.Align.LEFT
-        c.drawText(if (useMph) "mph" else "km/h", 690f, 78f, pSpeed)
+        // niebieska poświata za prędkością
+        c.save()
+        c.translate(172f, rowY)
+        c.scale(1f, 0.5f)
+        pFill.shader = hudGlowShader
+        c.drawCircle(0f, 0f, 150f, pFill)
+        pFill.shader = null
+        c.restore()
 
+        // bieg (powiększony, jaśniejszy)
         val gear = if (speedKmh > 3 && rpmTarget > 500f) {
             val r = rpmTarget / speedKmh
             when { 
@@ -783,17 +744,32 @@ class UfoClusterFullView(context: Context) : View(context) {
         } else {
             "-"
         }
-        pSpeed.color = Color.GRAY
-        pSpeed.textSize = 30f
-        pSpeed.textAlign = Paint.Align.RIGHT
-        c.drawText(gear, 590f, 78f, pSpeed)
+        val gearColor = Color.parseColor("#D9DDE6")
+        if (gear == "N") {
+            pSpeed.color = gearColor
+            pSpeed.textSize = 62f
+            pSpeed.textAlign = Paint.Align.CENTER
+            c.drawText(gear, 52f, rowY + 22f, pSpeed)
+        } else {
+            drawDigits(c, gear, 52f, rowY, 46f, gearColor, gearColor, 0f)
+        }
+
+        // prędkość (wyrównana do prawej krawędzi x=226) z mocną poświatą jak wcześniej
+        val spdH = 40f
+        val spdCx = 226f - (spdCache.length * 0.98f * spdH) / 2f
+        drawDigits(c, spdCache, spdCx, rowY, spdH, Color.WHITE, CYAN_HUD, 22f)
+
+        pSpeed.textSize = 18f
+        pSpeed.color = Color.WHITE
+        pSpeed.textAlign = Paint.Align.LEFT
+        c.drawText(if (useMph) "mph" else "km/h", 234f, rowY + 20f, pSpeed)
         pSpeed.textAlign = Paint.Align.CENTER
 
         val segW = 18f
         val now = System.currentTimeMillis()
         
         for (i in 0 until 10) {
-            val x = 330f + i * (segW + 8f)
+            val x = 24f + i * (segW + 8f)
             val lit = rpm >= 4200 + i * 300
             val inRed = rpm >= 6300
             
@@ -821,13 +797,14 @@ class UfoClusterFullView(context: Context) : View(context) {
         pNum.textSize = 24f
         pNum.color = if (eco) GREEN else OFF_SEGMENT
         if (eco) pNum.setShadowLayer(10f, 0f, 0f, GREEN)
-        c.drawText("ECO", 270f, 90f, pNum)
+        pNum.textAlign = Paint.Align.LEFT
+        c.drawText("ECO", 296f, rowY - 8f, pNum)
         pNum.clearShadowLayer()
         
         val vtec = rpm >= vtecRpm
         pNum.color = if (vtec) CYAN_HUD else OFF_SEGMENT
         if (vtec) pNum.setShadowLayer(10f, 0f, 0f, CYAN_HUD)
-        c.drawText("VTEC", 1010f, 90f, pNum)
+        c.drawText("VTEC", 296f, rowY + 22f, pNum)
         pNum.clearShadowLayer()
     }
 
@@ -836,7 +813,7 @@ class UfoClusterFullView(context: Context) : View(context) {
             return
         }
         
-        rectF.set(48f, 56f, 268f, 104f)
+        rectF.set(24f, 134f, 244f, 182f)
         pStroke.strokeWidth = 2f
         pStroke.color = Color.parseColor("#4A5A72")
         pStroke.style = Paint.Style.STROKE
@@ -847,7 +824,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         pText.textSize = 24f
         pText.typeface = tfBold
         pText.color = TICK_OEM
-        c.drawText("E-RAPORT", 158f, 88f, pText)
+        c.drawText("E-RAPORT", 134f, 166f, pText)
     }
 
     private fun drawNeedle(c: Canvas) {
