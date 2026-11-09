@@ -251,6 +251,9 @@ public class AppLibraryPage extends FrameLayout {
         scrollView.addView(listCol, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         contentPane.addView(scrollView, new android.widget.FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        // pasek szukania ZAWSZE nad lista (z-order): bringChildToFront po
+        // dodaniu scrollView - w przeciwnym razie lista rysowala sie na pasku
+        contentPane.bringChildToFront(searchHeader);
         page.addView(contentPane, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
         addView(page, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
