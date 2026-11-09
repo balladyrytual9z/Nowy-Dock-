@@ -113,6 +113,22 @@ jobs:
             adb shell am start -n "pl.dock.widget/.LauncherActivity" >/dev/null 2>&1 || true
             sleep 6
             adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/launcher.png" || true
+            adb shell input swipe 1000 360 200 360 >/dev/null 2>&1 || true
+            sleep 1
+            adb shell input swipe 1000 360 200 360 >/dev/null 2>&1 || true
+            sleep 1
+            adb shell input swipe 1000 360 200 360 >/dev/null 2>&1 || true
+            sleep 1
+            adb shell input swipe 1000 360 200 360 >/dev/null 2>&1 || true
+            sleep 1
+            adb shell input swipe 1000 360 200 360 >/dev/null 2>&1 || true
+            sleep 1
+            adb shell input swipe 1000 360 200 360 >/dev/null 2>&1 || true
+            sleep 1
+            adb shell input swipe 1000 360 200 360 >/dev/null 2>&1 || true
+            sleep 1
+            sleep 3
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/library.png" || true
             adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
             sleep 1
             adb shell am start -n "pl.dock.widget/.ConnectivityActivity" >/dev/null 2>&1 || true
