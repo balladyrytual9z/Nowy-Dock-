@@ -724,3 +724,56 @@ punkcie: silnik OBD w Docku 2.0 pokrywa je niemal w calosci.
   tego SHA (check-runs potrafi byc wtedy juz pusty). Czekanie w sandboxie: sleep
   nie istnieje, tail -f niewspierane, read z /dev/zero wraca od razu — jest
   tools.self.sleep({seconds}) (max 30 s na wywolanie, w budzecie 60 s programu).
+
+## Sesja 2026-11-09 — reconnect OBD, zawieszanie zegarow, pasek statusu, crash terminala
+
+User (noc, "napraw, o nic nie pytaj"): OBD polaczylo sie raz po swiezej instalacji
+i nigdy wiecej; zegary po zgaszeniu silnika zawieszaly sie; pasek statusu Androida
+na ekranach OBD mial byc domyslnie schowany (dostepny tylko do wyciagniecia gestem).
+
+- **Reconnect + zegary (commit 53392aa4):** ConnectionManager — samozanulowanie
+  retryJob przed ponownym planowaniem (stare joby pamiataly anulowany scope
+  i reconnect umieral po pierwszej porazce — dlatego dzialalo tylko przy swiezej
+  instalacji), drabina retry 1/2/4/8/16 s, timeout socketa 20 s; EngineState —
+  OFF gdy RPM==0 przez 10 s, UNKNOWN po 15 s NO DATA (zegary po zgaszeniu silnika
+  wieszaly sie w stanie RUNNING — brak sciezki OFF); zerowanie telemetrii przy
+  zerwaniu polaczenia; ACC watchdog lapie tez UNKNOWN.
+- **Pasek statusu (commit 53392aa4 + 92de4986):** nowy Immersive.kt (sticky
+  immersive + FLAG_FULLSCREEN przez window.setFlags — trwalsze niz same bity
+  systemUiVisibility) nakladany na 10 ekranow OBD. Zweryfikowane na zrzutach
+  (dashboard/ufo/obdsettings/trip/dtc/misfire/ereport/obdskan) oraz w dumpsys:
+  StatusBar mPolicyVisibility=false / WINDOW_STATE_HIDDEN.
+- **BONUS — terminal OBD crashowal przy otwarciu (commit ae239d7e):**
+  ObdTerminalActivity padal FATAL UninitializedPropertyAccessException — etykieta
+  trybu serwisowego ustawiana metoda pomocnicza wewnatrz Button.apply czytala
+  lateinit serviceBtn przed przypisaniem. Na emulatorze zrzut "terminala" pokazywal
+  systemowy launcher, wiez crash byl niewidoczny dla wizji. Fix: tekst startowy
+  ustawiany bezposrednio w apply. Wcześniejsze proby: db8e4c16
+  (SOFT_INPUT_STATE_ALWAYS_HIDDEN), 92de4986 (ADJUST_PAN + fokus na root zamiast
+  na EditText).
+- **Diagnostyka CI (commity b98b970b, 14ef8915, 1b9a0f92):** screens.yml v6
+  commituje screens/diag-terminal.txt (dumpsys window windows + policy + logcat
+  grep FATAL/AndroidRuntime, tail 150) razem ze zrzutami. Jak czytac:
+  get_file_contents zwraca bloki [text, resource], pelna tresc w res[1].resource.text;
+  szukac: mCurrentFocus (oczekiwanie: okno terminal.ObdTerminalActivity), flagi okna
+  (fl=... FULLSCREEN, vsysui=... IMMERSIVE_STICKY), StatusBar isVisible=false,
+  brak "FATAL EXCEPTION". Podsumowanie runa (GITHUB_STEP_SUMMARY) bywa NIECZYTELNE
+  przez proxy bez logowania (zwraca tylko nawigacje strony).
+- **Flake emulatora:** screens run 43 padl guardem "<3 PNG >8KB" (adnotacja sh
+  exit code 1) — NIE wina kodu terminala; run 44 po komentarzu v6 (1b9a0f92)
+  SUCCESS, bot-commit zrzutow 1c7bfb94.
+- **Stan koncowy (weryfikacja bez wizji — limit obrazow wyczerpany):** build
+  zielony; diag-terminal.txt run 44: mCurrentFocus=ObdTerminalActivity, okno
+  FULLSCREEN/IMMERSIVE_STICKY, StatusBar WINDOW_STATE_HIDDEN/isVisible=false,
+  brak FATAL, terminal displayed +808ms. Release v1.0.426 z APK
+  (CarPlay-Launcher-v1.0.426.apk + SHA256SUMS.txt).
+- **PUŁAPKI narzędziowe (sesja):** read -t N _ </dev/zero w bash NIE czeka
+  (rc=1 natychmiast — /dev/zero jest tu pustym plikiem); sleep nie istnieje;
+  awk ma limit ~100000 iteracji; bash ma hard-stop 30 s. Jedyne niezawodne
+  czekanie: tools.self.sleep({seconds}) w run_typescript (max 30 s na wywolanie,
+  ~2x28 s na program w budzecie 60 s). Analiza obrazow (analyze_image): LIMIT
+  20 wywolan NA TURE — planowac ogladanie zrzutow z gory; gdy limit padnie,
+  werdykt = kod + pliki diag (dumpsys/logcat), nigdy "wyglada ok" bez sprawdzenia.
+- **ZAKAZ bez zmian:** UfoClusterFullView.kt NIETYKALNY (user sam pracuje).
+- **Komunikacja:** user kazal "o nic nie pytaj" — raport bez pytania tak/nie
+  na koncu, dopisac sesje do AGENTS.md po zakonczeniu pracy.
