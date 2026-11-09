@@ -81,7 +81,16 @@ class ObdTerminalActivity : Activity() {
             isAllCaps = false
             setTextColor(Color.WHITE)
             textSize = 13f
-            updateServiceLabel()
+            // NAPRAWA (FATAL z diag-terminal.txt, run 42): wewnatrz tego
+            // apply serviceBtn jest jeszcze lateinit-niezainicjalizowane,
+            // wiec ustawianie etykiety przez metode pomocnicza (ktora robi
+            // serviceBtn.text = ...) wywalalo aktywnosc przy starcie -
+            // zrzut "terminala" na emulatorze byl tak naprawde launcherem.
+            // Tekst startowy ustawiamy tu bezposrednio.
+            text = if (manager.isServiceMode())
+                "TRYB SERWISOWY: WLACZONY (kliknij, aby wylaczyc)"
+            else
+                "TRYB SERWISOWY: WYLACZONY (kliknij, aby wlaczyc)"
             setOnClickListener {
                 val newVal = !manager.isServiceMode()
                 manager.setServiceMode(newVal)
