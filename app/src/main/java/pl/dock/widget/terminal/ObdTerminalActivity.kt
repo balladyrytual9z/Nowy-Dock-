@@ -56,7 +56,8 @@ class ObdTerminalActivity : Activity() {
         // klawiature ekranowa, a Android 9 przy okazji przywracal pasek
         // statusu (wyjasnienie zrzutu run 38: pasek byl tylko na terminalu).
         // Klawiatura ma sie pojawiac dopiero po tapnieciu w pole.
-        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
+                or WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN)
         manager = ConnectionManager.get(applicationContext)
 
         val root = LinearLayout(this).apply {
@@ -156,6 +157,14 @@ class ObdTerminalActivity : Activity() {
         root.addView(scroll, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(root)
+
+        // NAPRAWA (run 39): EditText nie moze zrabac fokusu przy starcie.
+        // Fokus na polu tekstowym od razu po starcie podpina IME do okna,
+        // a Android 9 przy okazji przywracal pasek statusu. Fokus trzyma
+        // root; klawiatura pojawia sie dopiero po tapnieciu w pole.
+        root.isFocusable = true
+        root.isFocusableInTouchMode = true
+        root.requestFocus()
     }
 
     private fun backBtn(): Button =
