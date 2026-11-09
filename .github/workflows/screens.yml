@@ -1,4 +1,4 @@
-# screens.yml v17: retry - run 57 zlapal systemowy dialog 'Install unknown apps' zamiast strony biblioteki (flak emulatora)
+# screens.yml v18: diagnostyka pagera - zrzut po kazdym swipe (sw1..sw7), biblioteka nie jest ostatnia strona
 # =====================================================================
 # GLOBALNY MECHANIZM TESTOW WIZUALNYCH (2026-11-08, zadanie uzytkownika):
 # po kazdym pushu kodu CI odpala emulator Androida 9 (API 28 = wersja
@@ -114,20 +114,26 @@ jobs:
             sleep 6
             adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/launcher.png" || true
             adb shell input swipe 1000 360 200 360 >/dev/null 2>&1 || true
-            sleep 1
+            sleep 2
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/sw1.png" || true
             adb shell input swipe 1000 360 200 360 >/dev/null 2>&1 || true
-            sleep 1
+            sleep 2
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/sw2.png" || true
             adb shell input swipe 1000 360 200 360 >/dev/null 2>&1 || true
-            sleep 1
+            sleep 2
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/sw3.png" || true
             adb shell input swipe 1000 360 200 360 >/dev/null 2>&1 || true
-            sleep 1
+            sleep 2
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/sw4.png" || true
             adb shell input swipe 1000 360 200 360 >/dev/null 2>&1 || true
-            sleep 1
+            sleep 2
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/sw5.png" || true
             adb shell input swipe 1000 360 200 360 >/dev/null 2>&1 || true
-            sleep 1
+            sleep 2
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/sw6.png" || true
             adb shell input swipe 1000 360 200 360 >/dev/null 2>&1 || true
-            sleep 1
-            sleep 3
+            sleep 2
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/sw7.png" || true
             adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/library.png" || true
             adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
             sleep 1
