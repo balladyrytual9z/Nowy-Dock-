@@ -42,16 +42,17 @@ public final class Glyphs {
     }
 
     private static void wifiIos(Canvas cv, float cx, float cy, float pol, int color, boolean off) {
-        // Referencja (IMG_8769, potwierdzone): trzy luki o ROWNYM rozwieraniu
-        // po ~60 stopni (polowa = 30 st.) - zadnego wachlarza "pie" o rozwieraniach
-        // 70/90/140. Grube pasma, szczelina miedzy pasmami = grubosc pasa,
-        // kropka u dolu o srednicy = grubosc pasa, zakraglone koncowki.
+        // WZORZEC 1:1 z SVG (viewBox 0 0 100 100): kropka w (50,85), trzy luki
+        // r=20/40/60 o srodku w kropce, KAZDY rozwarty 90 stopni (+/-45 od
+        // pionu), stroke 8, round caps. Przeliczenie: przy bitmapFull(96)
+        // pol = s = 37.5px, 1 jedn. viewBox = 0.96px, wiec t = 8*0.96 =
+        // 0.2048*pol, ay = 85*0.96 -> cy + 0.896*pol, promienie 2.5/5/7.5*t.
         Paint p = GP;
         RectF rc = RC;
-        float t = pol * 0.33f;                        // grubosc pasa (wys. ikony ~7t)
-        float ay = cy + pol * 0.62f;                  // wierzcholek wachlarza (srodek lukow)
-        float[] rr = {2f * t, 4f * t, 6f * t};        // srodkowe promienie: szczelina = t
-        float h = 30f;                                // polowa rozwarcia KAZDEGO pasma (60 st.)
+        float t = pol * 0.2048f;                       // grubosc pasa (stroke 8 wzorca)
+        float ay = cy + pol * 0.896f;                  // wierzcholek wachlarza (50,85 wzorca)
+        float[] rr = {2.5f * t, 5f * t, 7.5f * t};     // promienie 20/40/60 wzorca
+        float h = 45f;                                 // polowa rozwarcia KAZDEGO pasma (90 st.)
         p.reset();
         p.setAntiAlias(true);
         p.setColor(color);
@@ -74,34 +75,31 @@ public final class Glyphs {
     }
 
     private static void btIos(Canvas cv, float cx, float cy, float s, Paint p, float sw) {
-        // Referencja (IMG_8769, potwierdzone): STANDARDOWE logo Bluetooth.
-        // Pion na cala wysokosc ikony + dwie pary ukosnych ramion krzyzujacych
-        // sie na srodku pionu: od gornego konca pionu do punktow po obu stronach
-        // srodka, symetrycznie od dolnego konca. Dosieg ramion 0.4*s (siatka 10x10
-        // z ref: srodkowe punkty 2 jedn. na bok przy wysokosci 10), grubosc ~1/10
-        // wysokosci ikony, ostre zakonczenia.
+        // WZORZEC 1:1 z SVG (viewBox 0 0 100 100): JEDNA otwarta polilinia
+        // M 30,70 L 70,30 L 50,10 L 50,90 L 70,70 L 30,30, stroke 6,
+        // round cap + round join. To oficjalna (asymetryczna) runa Bluetooth:
+        // X krzyzujacy sie na srodku (dosieg +/-20 jedn. = 0.5s), pion na
+        // cala wysokosc, a PRAWE koncy X lacza sie z koncami pionu; lewe
+        // koncy X sa wolne. Grubosc: 6/80 wysokosci = 0.15*s.
         Paint.Style oldStyle = p.getStyle();
         float oldW = p.getStrokeWidth();
         Paint.Cap oldCap = p.getStrokeCap();
+        Paint.Join oldJoin = p.getStrokeJoin();
         p.setStyle(Paint.Style.STROKE);
-        p.setStrokeWidth(Math.max(2f, s * 0.20f));
-        p.setStrokeCap(Paint.Cap.BUTT);
+        p.setStrokeWidth(Math.max(2f, s * 0.15f));
+        p.setStrokeCap(Paint.Cap.ROUND);
         p.setStrokeJoin(Paint.Join.ROUND);
         Path pa = PA;
         pa.reset();
-        pa.moveTo(cx, cy - s);                        // pion na cala wysokosc
-        pa.lineTo(cx, cy + s);
-        float w = s * 0.40f;                          // dosieg ramion wg ref
-        pa.moveTo(cx - w, cy);                         // lewe ramiona (gora-srodek-dol)
-        pa.lineTo(cx, cy - s);
-        pa.moveTo(cx - w, cy);
-        pa.lineTo(cx, cy + s);
-        pa.moveTo(cx + w, cy);                         // prawe ramiona (gora-srodek-dol)
-        pa.lineTo(cx, cy - s);
-        pa.moveTo(cx + w, cy);
-        pa.lineTo(cx, cy + s);
+        pa.moveTo(cx - 0.5f * s, cy + 0.5f * s);       // (30,70) dolny-lewy koniec X
+        pa.lineTo(cx + 0.5f * s, cy - 0.5f * s);       // (70,30) gorny-prawy koniec X
+        pa.lineTo(cx, cy - s);                         // (50,10) gora pionu
+        pa.lineTo(cx, cy + s);                         // (50,90) dol pionu
+        pa.lineTo(cx + 0.5f * s, cy + 0.5f * s);       // (70,70) dolny-prawy koniec X
+        pa.lineTo(cx - 0.5f * s, cy - 0.5f * s);       // (30,30) gorny-lewy koniec X
         cv.drawPath(pa, p);
         pa.reset();
+        p.setStrokeJoin(oldJoin);
         p.setStrokeCap(oldCap);
         p.setStrokeWidth(oldW);
         p.setStyle(oldStyle);
@@ -134,23 +132,50 @@ public final class Glyphs {
 
         switch (g) {
             case "hot": {
-                // Referencja (IMG_8770, potwierdzone): dwa poziome ogniwa lancusza
-                // - KAPSULY (stadium, polkoliste konce), NIE elipsy; oba kontury
-                // PELNE (bez przerw), nachodzenie ~3/8 dlugosci ogniwa.
-                // Geometria z ref (H = wysokosc ogniwa = 0.85s): dlugosc ogniwa
-                // 2H, srodki w odleglosci 0.25H od osi, calosc szer:wys ~2.5:1,
-                // kontur ~H/8.
-                float lh = s * 0.42f;      // pol-wysokosc ogniwa (H = 0.85s)
-                float lw = s * 0.85f;      // pol-dlugosc ogniwa (dlugosc = 2H)
-                float off = s * 0.21f;     // pol odstepu srodkow (0.25H)
+                // Tethering - WZORZEC zmierzony maszynowo z bitmapowego trace
+                // wzorca (1106x521): dwa ogniwa-stadium (kapsuly) rownej
+                // wielkosci, kontur zewnetrzny 701x391 jedn., grubosc pasa 85
+                // (~22% wysokosci ogniwa). Srodki ogniw co dx=398.5, dy=57
+                // (prawe ogniwo NIZEJ, jak w prawdziwym lancuchu). Lewe ogniwo
+                // na wierzchu w calosci; prawe przeciete wzdluz konturu lewego
+                // (clipOutPath, szczelina g ~ 0.03H) - tip prawego wchodzi w
+                // otwor lewego ogniwa. Jednostka H = wysokosc ogniwa = 0.48*s.
+                float H = s * 0.48f;                  // wysokosc ogniwa
+                float st = H * 0.2174f;               // grubosc pasa ogniwa
+                float L = H * 1.7923f;                // dlugosc ogniwa
+                float dx = H * 1.0192f;               // rozstaw srodkow X
+                float dy = H * 0.1458f;               // rozstaw srodkow Y (prawe nizej)
+                float g = H * 0.03f;                  // szczelina przy przecieciu
+                float cw = L - st, chh = H - st;      // wymiary srodnicy (linii konturu)
+                float cr = chh * 0.5f;                // promien kapsuly srodnicy
+                float ax = cx - dx * 0.5f, ayc = cy - dy * 0.5f;   // ogniwo A (lewe, wyzej)
+                float bx = cx + dx * 0.5f, byc = cy + dy * 0.5f;   // ogniwo B (prawe, nizej)
+                RectF rA = new RectF(ax - cw * 0.5f, ayc - chh * 0.5f, ax + cw * 0.5f, ayc + chh * 0.5f);
+                RectF rB = new RectF(bx - cw * 0.5f, byc - chh * 0.5f, bx + cw * 0.5f, byc + chh * 0.5f);
+                // obszar pasa A powiekszony o g (do wyciecia w B): brzeg
+                // zewnetrzny = srodnica + (st/2 + g), brzeg otworu = srodnica - (st/2 - g)
+                RectF oA = new RectF(rA);
+                oA.inset(-(st * 0.5f + g), -(st * 0.5f + g));
+                RectF iA = new RectF(rA);
+                iA.inset(st * 0.5f - g, st * 0.5f - g);
+                Path bandA = new Path();
+                bandA.addRoundRect(oA, chh * 0.5f + st * 0.5f + g, chh * 0.5f + st * 0.5f + g, Path.Direction.CW);
+                Path holeA = new Path();
+                holeA.addRoundRect(iA, chh * 0.5f - st * 0.5f + g, chh * 0.5f - st * 0.5f + g, Path.Direction.CW);
+                bandA.op(holeA, Path.Op.DIFFERENCE);
                 float oldSw = p.getStrokeWidth();
                 Paint.Cap oldCap = p.getStrokeCap();
                 p.setStrokeCap(Paint.Cap.ROUND);
-                p.setStrokeWidth(Math.max(2f, s * 0.11f));   // ~1/8 wys. ikony
-                rc.set(cx - off - lw, cy - lh, cx - off + lw, cy + lh);
-                cv.drawRoundRect(rc, lh, lh, p);              // kapsula jak na ref
-                rc.set(cx + off - lw, cy - lh, cx + off + lw, cy + lh);
-                cv.drawRoundRect(rc, lh, lh, p);
+                p.setStrokeWidth(Math.max(2f, st));
+                Path pB = new Path();
+                pB.addRoundRect(rB, cr, cr, Path.Direction.CW);
+                cv.save();
+                cv.clipOutPath(bandA);                // minSdk 26
+                cv.drawPath(pB, p);
+                cv.restore();
+                Path pA = new Path();
+                pA.addRoundRect(rA, cr, cr, Path.Direction.CW);
+                cv.drawPath(pA, p);
                 p.setStrokeCap(oldCap);
                 p.setStrokeWidth(oldSw);
                 break;
