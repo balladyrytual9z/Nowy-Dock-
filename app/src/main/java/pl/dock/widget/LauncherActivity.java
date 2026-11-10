@@ -1396,12 +1396,13 @@ public class LauncherActivity extends BaseActivity {
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
         // szerokość panelu = zawartość (312+160+24 = 496dp), nigdy szersza niż ekran - 24dp
         int panelW = Math.max(Ui.dp(this, 240),
-                Math.min(Ui.dp(this, 496), Ui.windowWidth(this) - Ui.dp(this, 24)));
-        // Panel przy PRAWEJ krawędzi ekranu (po przeciwnej stronie niz dok),
-        // wiec nigdy nie zasłania doka.
+                Math.min(Ui.dp(this, 536), Ui.windowWidth(this) - Ui.dp(this, 24)));
+        // Panel przy doku (po jego wewnętrznej stronie) - nie zasłania doka.
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                panelW, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
-        lp.rightMargin = left ? Ui.dp(this, 10) : dockPx + Ui.dp(this, 10);
+                panelW, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP | (left ? Gravity.START : Gravity.END));
+        lp.leftMargin = left ? dockPx + Ui.dp(this, 10) : 0;
+        lp.rightMargin = left ? 0 : dockPx + Ui.dp(this, 10);
         lp.topMargin = Ui.dp(this, 12);
         overlay.addView(panel, lp);
         // defensive: dodajemy pod dok (nad resztą). indexOfChild może dać -1

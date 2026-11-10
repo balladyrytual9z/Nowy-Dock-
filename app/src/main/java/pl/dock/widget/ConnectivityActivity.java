@@ -52,12 +52,12 @@ public class ConnectivityActivity extends BaseActivity {
         boolean dockLeft = Ui.dockLeft(this);
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
         // szerokosc dopasowana do zawartosci panelu (naprawa uciętego suwaka jasności)
-        // panel zawsze przy PRAWEJ krawędzi - nigdy nie zasłania doka
+        // panel przy doku (po jego wewnętrznej stronie) - nie zasłania doka
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.TOP | Gravity.END);
-        lp.setMargins(Ui.dp(this, 8), Ui.dp(this, 12),
+                Gravity.TOP | (dockLeft ? Gravity.START : Gravity.END));
+        lp.setMargins(dockLeft ? dockPx + Ui.dp(this, 8) : Ui.dp(this, 8), Ui.dp(this, 12),
                 dockLeft ? Ui.dp(this, 8) : dockPx + Ui.dp(this, 8), Ui.dp(this, 8));
         root.addView(panel, lp);
 
@@ -82,7 +82,7 @@ public class ConnectivityActivity extends BaseActivity {
                 if (w > 0 && w > availW) sc = Math.min(sc, (float) availW / w);
                 if (sc < 1f) {
                     panel.setPivotY(0f);
-                    panel.setPivotX(panel.getWidth());
+                    panel.setPivotX(dockLeft2 ? 0f : panel.getWidth());
                     panel.setScaleX(sc);
                     panel.setScaleY(sc);
                 }

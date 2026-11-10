@@ -156,9 +156,10 @@ public class ConnectivityPanel extends LinearLayout {
         LinearLayout row1 = new LinearLayout(act);
         tWifi = new Tile(act, false);
         tBt = new Tile(act, false);
-        LayoutParams l1 = new LayoutParams(dp(150), dp(150));
+        // kafelki prostokatne jak w iOS (szersze niz wyzsze)
+        LayoutParams l1 = new LayoutParams(dp(170), dp(128));
         l1.rightMargin = dp(6);
-        LayoutParams l2 = new LayoutParams(dp(150), dp(150));
+        LayoutParams l2 = new LayoutParams(dp(170), dp(128));
         l2.leftMargin = dp(6);
         row1.addView(tWifi, l1);
         row1.addView(tBt, l2);
@@ -889,7 +890,7 @@ public class ConnectivityPanel extends LinearLayout {
             super(c);
             this.wide = wide;
             GradientDrawable bg = new GradientDrawable();
-            bg.setColor(night ? 0xF0606767 : 0xFFE4E4EA);
+            bg.setColor(night ? 0xF0545459 : 0xFFD8D8DD);
             bg.setCornerRadius(wide ? dp(38) : dp(34));
             bg.setStroke(Math.max(1, dp(1)), 0x55FFFFFF);
             setBackground(bg);
@@ -906,8 +907,10 @@ public class ConnectivityPanel extends LinearLayout {
                 clp.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
                 clp.leftMargin = dp(20);
             } else {
-                clp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-                clp.topMargin = dp(18);
+                // ikona w LEWYM GÓRNYM rogu kafelka (jak w iOS Control Center)
+                clp.gravity = Gravity.TOP | Gravity.START;
+                clp.leftMargin = dp(16);
+                clp.topMargin = dp(14);
             }
             addView(circ, clp);
 

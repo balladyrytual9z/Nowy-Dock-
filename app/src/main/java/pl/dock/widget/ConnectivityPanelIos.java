@@ -91,9 +91,10 @@ public class ConnectivityPanelIos extends LinearLayout {
         LinearLayout row1 = new LinearLayout(act);
         tWifi = new Tile(act, false);
         tBt = new Tile(act, false);
-        LayoutParams l1 = new LayoutParams(dp(150), dp(150));
+        // kafelki prostokatne jak w iOS (szersze niz wyzsze)
+        LayoutParams l1 = new LayoutParams(dp(170), dp(128));
         l1.rightMargin = dp(6);
-        LayoutParams l2 = new LayoutParams(dp(150), dp(150));
+        LayoutParams l2 = new LayoutParams(dp(170), dp(128));
         l2.leftMargin = dp(6);
         row1.addView(tWifi, l1);
         row1.addView(tBt, l2);
@@ -437,7 +438,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             float hh = getHeight();
             float rad = wide ? hh / 2f : 34f * d;
             p.setStyle(Paint.Style.FILL);
-            p.setColor(night ? 0xF0606767 : 0xFFE4E4EA);
+            p.setColor(night ? 0xF0545459 : 0xFFD8D8DD);
             r.set(0, 0, w, hh);
             cv.drawRoundRect(r, rad, rad, p);
             if (pressed) {
@@ -454,8 +455,8 @@ public class ConnectivityPanelIos extends LinearLayout {
             p.setShader(null);
 
             float cd = 50f * d;
-            float cx = wide ? 20f * d + cd / 2f : 18f * d + cd / 2f;
-            float cy = wide ? hh / 2f : 18f * d + cd / 2f;
+            float cx = wide ? 20f * d + cd / 2f : 16f * d + cd / 2f;
+            float cy = wide ? hh / 2f : 14f * d + cd / 2f;
             p.setStyle(Paint.Style.FILL);
             p.setColor(active ? color : 0xFF7E8686);
             cv.drawCircle(cx, cy, cd / 2f, p);
