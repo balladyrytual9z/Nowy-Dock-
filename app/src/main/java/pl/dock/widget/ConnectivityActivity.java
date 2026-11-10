@@ -50,6 +50,7 @@ public class ConnectivityActivity extends BaseActivity {
             }
         });
         boolean dockLeft = Ui.dockLeft(this);
+        int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
         // szerokosc dopasowana do zawartosci panelu (naprawa uciętego suwaka jasności)
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
