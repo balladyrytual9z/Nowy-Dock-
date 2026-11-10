@@ -37,6 +37,9 @@ import android.widget.TextView;
 // 4. NAPRAWA UCIĘCIA: zawartość panelu ma 574dp (400+10+70+70+24), a okno
 //    było 560dp - prawy suwak (jasność) wystawał poza tło. Panel ma teraz
 //    szerokość WRAP_CONTENT, więc tło obejmuje całą zawartość.
+// 5. SZKŁO (jak w iOS): kafelki, przyciski i suwaki półprzezroczyste,
+//    światło TYLKO Z GÓRY (pionowe gradienty) - bez ukośnego światła z lewej,
+//    które jest w dokku/ramce okna.
 public class ConnectivityPanelIos extends LinearLayout {
 
     public interface Host {
@@ -448,19 +451,33 @@ public class ConnectivityPanelIos extends LinearLayout {
             float w = getWidth();
             float hh = getHeight();
             float rad = wide ? hh / 2f : 34f * d;
+            // SZKŁO: półprzezroczysty korpus (tło prześwituje) + światło Z GÓRY
             p.setStyle(Paint.Style.FILL);
-            p.setColor(night ? 0xF0606767 : 0xFFE4E4EA);
+            p.setShader(null);
+            p.setColor(night ? 0x9E4E4E53 : 0xCCFFFFFF);
             r.set(0, 0, w, hh);
             cv.drawRoundRect(r, rad, rad, p);
+            int saveG = cv.save();
+            Path clipG = new Path();
+            clipG.addRoundRect(r, rad, rad, Path.Direction.CW);
+            cv.clipPath(clipG);
+            p.setShader(new LinearGradient(0, 0, 0, hh * 0.45f,
+                    new int[]{0x3DFFFFFF, 0x00FFFFFF},
+                    new float[]{0f, 1f}, Shader.TileMode.CLAMP));
+            cv.drawRect(r, p);
+            cv.restoreToCount(saveG);
+            p.setShader(null);
             if (pressed) {
                 p.setColor(0x22FFFFFF);
                 cv.drawRoundRect(r, rad, rad, p);
             }
+            // rant: pionowy gradient (jasny u gory, wygaszony u dolu)
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeWidth(1.6f * d);
-            p.setShader(new LinearGradient(0, 0, w, hh,
-                    new int[]{0xCCFFFFFF, 0x55FFFFFF, 0x22FFFFFF, 0x44FFFFFF},
-                    new float[]{0f, 0.35f, 0.75f, 1f}, Shader.TileMode.CLAMP));
+            p.setShader(new LinearGradient(0, 0, 0, hh,
+                    night ? new int[]{0x99FFFFFF, 0x26FFFFFF}
+                          : new int[]{0x66808090, 0x1A808090},
+                    new float[]{0f, 1f}, Shader.TileMode.CLAMP));
             r.set(d, d, w - d, hh - d);
             cv.drawRoundRect(r, rad - d, rad - d, p);
             p.setShader(null);
@@ -550,10 +567,33 @@ public class ConnectivityPanelIos extends LinearLayout {
             float cx = w / 2f;
             float cy = 34f * d;
             float rad = 28f * d;
+            // SZKŁO: nieaktywny = półprzezroczysty + światło Z GÓRY; aktywny = pełny kolor
             p.setStyle(Paint.Style.FILL);
+            p.setShader(null);
             p.setColor(active ? (kind == 3 ? 0xFFFF9F0A : 0xFF1C94FF)
-                    : (night ? 0xFF4A4F50 : 0xFFD1D1D6));
+                    : (night ? 0x9E4E4E53 : 0xCCFFFFFF));
             cv.drawCircle(cx, cy, rad, p);
+            if (!active) {
+                int saveG = cv.save();
+                Path clipG = new Path();
+                clipG.addCircle(cx, cy, rad, Path.Direction.CW);
+                cv.clipPath(clipG);
+                p.setShader(new LinearGradient(0, cy - rad, 0, cy + rad * 0.2f,
+                        new int[]{0x3DFFFFFF, 0x00FFFFFF},
+                        new float[]{0f, 1f}, Shader.TileMode.CLAMP));
+                cv.drawRect(cx - rad, cy - rad, cx + rad, cy + rad, p);
+                cv.restoreToCount(saveG);
+                p.setShader(null);
+                p.setStyle(Paint.Style.STROKE);
+                p.setStrokeWidth(1.4f * d);
+                p.setShader(new LinearGradient(0, cy - rad, 0, cy + rad,
+                        night ? new int[]{0x99FFFFFF, 0x26FFFFFF}
+                              : new int[]{0x66808090, 0x1A808090},
+                        new float[]{0f, 1f}, Shader.TileMode.CLAMP));
+                cv.drawCircle(cx, cy, rad - d * 0.7f, p);
+                p.setShader(null);
+                p.setStyle(Paint.Style.FILL);
+            }
             int ink = active ? 0xFFFFFFFF : (night ? 0xFFFFFFFF : 0xFF3C3C43);
             p.setColor(ink);
             p.setStyle(Paint.Style.STROKE);
@@ -621,17 +661,34 @@ public class ConnectivityPanelIos extends LinearLayout {
             float w = getWidth();
             float h = getHeight();
             float rad = w / 2f;
+            // SZKŁO: półprzezroczysty tor + pas światła Z GÓRY + pionowy rant
             p.setStyle(Paint.Style.FILL);
-            p.setColor(night ? 0xFF4A4F50 : 0xFFD1D1D6);
+            p.setShader(null);
+            p.setColor(night ? 0x9E4E4E53 : 0xCCD1D1D6);
             r.set(0, 0, w, h);
             cv.drawRoundRect(r, rad, rad, p);
             int save = cv.save();
             Path clip = new Path();
             clip.addRoundRect(r, rad, rad, Path.Direction.CW);
             cv.clipPath(clip);
-            p.setColor(0xFFFAFAFC);
+            p.setShader(new LinearGradient(0, 0, 0, h * 0.35f,
+                    new int[]{0x3DFFFFFF, 0x00FFFFFF},
+                    new float[]{0f, 1f}, Shader.TileMode.CLAMP));
+            cv.drawRect(r, p);
+            p.setShader(null);
+            p.setColor(0xE6FAFAFC);
             cv.drawRect(0, h * (1f - value), w, h, p);
             cv.restoreToCount(save);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(1.4f * d);
+            p.setShader(new LinearGradient(0, 0, 0, h,
+                    night ? new int[]{0x99FFFFFF, 0x26FFFFFF}
+                          : new int[]{0x66808090, 0x1A808090},
+                    new float[]{0f, 1f}, Shader.TileMode.CLAMP));
+            r.set(d * 0.7f, d * 0.7f, w - d * 0.7f, h - d * 0.7f);
+            cv.drawRoundRect(r, rad - d * 0.7f, rad - d * 0.7f, p);
+            p.setShader(null);
+            p.setStyle(Paint.Style.FILL);
             float cx = w / 2f;
             float cy = h - 34f * d;
             int ink = 0xFF8E8E93;
