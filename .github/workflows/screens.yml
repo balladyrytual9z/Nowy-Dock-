@@ -1,5 +1,5 @@
 name: Zrzuty ekranu emulatora (testy wizualne)
-# rerun 71: run 70 nie zakonczyl sie bot-commitem (flak emulatora), bez zmian w kodzie
+# rerun 73: run 72 rowniez bez bot-commita (flak emulatora), bez zmian w kodzie
 
 on:
   push:
