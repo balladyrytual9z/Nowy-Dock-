@@ -42,6 +42,10 @@ import android.widget.TextView;
 //    które jest w dokku/ramce okna.
 // 6. IKONY SUWAKÓW 1:1 ze zdjęcia iOS: słońce #FFD700 (koło + 8 cienkich
 //    promieni), głośnik #1EA1FF (korpus z "uszami" + 2 łuki fal konturem).
+// 7. "TRYB CIEMNY" JAK W iOS: przełącznik wł/wył zamiast cyklu Jasny/Ciemny/Auto.
+//    Klik = zmiana do najbliższego wschodu/zachodu słońca (DarkMode + SolarTimes).
+//    Ikona "kontrast" (pierścień + lewa połówka): wł = białe koło/ciemna ikona,
+//    wył = ciemne szkło/biała ikona. Podpis 2-liniowy: nazwa + stan.
 public class ConnectivityPanelIos extends LinearLayout {
 
     public interface Host {
@@ -146,22 +150,14 @@ public class ConnectivityPanelIos extends LinearLayout {
                     ViewGroup.LayoutParams.WRAP_CONTENT);
             rp.topMargin = dp(12);
             if (showMode) {
-                // JEDEN przycisk trybu: klik cykli Jasny -> Ciemny -> Auto -> Jasny
-                bMode = new RoundBtn(act, 0, "Jasny");
-                row.addView(bMode, new LayoutParams(dp(88), dp(96)));
+                // "Tryb ciemny" jak w iOS: klik = przełącz do najbliższego
+                // wschodu/zachodu słońca (potem znów rządzi słońce)
+                bMode = new RoundBtn(act, 4, "Tryb ciemny");
+                row.addView(bMode, new LayoutParams(dp(150), dp(96)));
                 bMode.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        if (Prefs.followSystem(act)) {
-                            Prefs.setFollowSystem(act, false);
-                            Prefs.setMode(act, "day");
-                        } else if ("day".equals(Prefs.mode(act))) {
-                            Prefs.setMode(act, "night");
-                        } else if ("night".equals(Prefs.mode(act))) {
-                            Prefs.setFollowSystem(act, true);
-                        } else {
-                            Prefs.setMode(act, "day");
-                        }
+                        DarkMode.toggle(act);
                         applyMode();
                     }
                 });
@@ -368,21 +364,16 @@ public class ConnectivityPanelIos extends LinearLayout {
         tHot.set(th, 0xFF30D158, Icons.tether(128, white, false), "Hotspot osobisty",
                 th ? "Włączony" : "Wyłączony");
         if (bMode != null) {
-            boolean follow = Prefs.followSystem(act);
-            String m = Prefs.mode(act);
-            if (follow) {
-                bMode.setKind(2, "Auto");
-            } else if ("night".equals(m)) {
-                bMode.setKind(1, "Ciemny");
-            } else {
-                bMode.setKind(0, "Jasny");
-            }
+            // "Tryb ciemny" jak w iOS: stan + podpis "do wsch./zach. słońca"
+            boolean on = DarkMode.isNight(act);
+            bMode.setKind(4, "Tryb ciemny");
+            bMode.setSub(DarkMode.label(act));
+            bMode.setActive(on);
         }
         if (bShift != null) bShift.setActive(NightShift.isOn(act));
         if (note != null) {
-            boolean follow = Prefs.followSystem(act);
-            note.setText(follow ? "Wygląd automatyczny: od zachodu do wschodu słońca" : "");
-            note.setVisibility(follow ? VISIBLE : GONE);
+            // stan trybu jest teraz w podpisie przycisku "Tryb ciemny"
+            note.setVisibility(GONE);
         }
     }
 
@@ -535,10 +526,12 @@ public class ConnectivityPanelIos extends LinearLayout {
     }
 
     // ---------------------------------------------------------------- okrągły przycisk z podpisem
-    // kind: 0 jasny (słońce), 1 ciemny (księżyc), 2 auto (A), 3 Night Shift
+    // kind: 0 jasny (słońce), 1 ciemny (księżyc), 2 auto (A), 3 Night Shift,
+    //       4 tryb ciemny (ikona "kontrast", 2 linie podpisu)
     private class RoundBtn extends View {
         private int kind;
         private String label;
+        private String sub;
         private boolean active;
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final float d = getResources().getDisplayMetrics().density;
@@ -563,6 +556,11 @@ public class ConnectivityPanelIos extends LinearLayout {
             invalidate();
         }
 
+        void setSub(String s) {
+            sub = s;
+            invalidate();
+        }
+
         @Override
         protected void onDraw(Canvas cv) {
             float w = getWidth();
@@ -572,7 +570,8 @@ public class ConnectivityPanelIos extends LinearLayout {
             // SZKŁO: nieaktywny = półprzezroczysty + światło Z GÓRY; aktywny = pełny kolor
             p.setStyle(Paint.Style.FILL);
             p.setShader(null);
-            p.setColor(active ? (kind == 3 ? 0xFFFF9F0A : 0xFF1C94FF)
+            p.setColor(active ? (kind == 3 ? 0xFFFF9F0A
+                            : (kind == 4 ? 0xFFFFFFFF : 0xFF1C94FF))
                     : (night ? 0x9E4E4E53 : 0xCCFFFFFF));
             cv.drawCircle(cx, cy, rad, p);
             if (!active) {
@@ -596,12 +595,22 @@ public class ConnectivityPanelIos extends LinearLayout {
                 p.setShader(null);
                 p.setStyle(Paint.Style.FILL);
             }
-            int ink = active ? 0xFFFFFFFF : (night ? 0xFFFFFFFF : 0xFF3C3C43);
+            int ink = kind == 4 ? (active ? 0xFF1C1C1E : 0xFFFFFFFF)
+                    : (active ? 0xFFFFFFFF : (night ? 0xFFFFFFFF : 0xFF3C3C43));
             p.setColor(ink);
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeWidth(2.6f * d);
             p.setStrokeCap(Paint.Cap.ROUND);
-            if (kind == 0 || kind == 3) {
+            if (kind == 4) {
+                // "kontrast" jak w iOS: pierścień + wypełniona LEWA połówka
+                p.setStyle(Paint.Style.FILL);
+                Path half = new Path();
+                half.addArc(cx - 10f * d, cy - 10f * d, cx + 10f * d, cy + 10f * d, 90f, 180f);
+                half.close();
+                cv.drawPath(half, p);
+                p.setStyle(Paint.Style.STROKE);
+                cv.drawCircle(cx, cy, 10f * d, p);
+            } else if (kind == 0 || kind == 3) {
                 cv.drawCircle(cx, cy, 6f * d, p);
                 for (int i = 0; i < 8; i++) {
                     double a = Math.PI * i / 4.0;
@@ -624,11 +633,24 @@ public class ConnectivityPanelIos extends LinearLayout {
                 cv.drawText("A", cx, cy + 8f * d, p);
             }
             p.setStyle(Paint.Style.FILL);
-            p.setTypeface(Typeface.DEFAULT);
             p.setTextAlign(Paint.Align.CENTER);
-            p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
-            p.setTextSize(13f * getResources().getDisplayMetrics().scaledDensity);
-            cv.drawText(label, cx, 84f * d, p);
+            float sd = getResources().getDisplayMetrics().scaledDensity;
+            if (sub != null) {
+                // dwie linie jak w iOS: nazwa (bold) + stan
+                p.setTypeface(Typeface.DEFAULT_BOLD);
+                p.setTextSize(13f * sd);
+                p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
+                cv.drawText(label, cx, 78f * d, p);
+                p.setTypeface(Typeface.DEFAULT);
+                p.setTextSize(11f * sd);
+                p.setColor(night ? 0xFFC9CFCF : 0xFF6C6C70);
+                cv.drawText(sub, cx, 92f * d, p);
+            } else {
+                p.setTypeface(Typeface.DEFAULT);
+                p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
+                p.setTextSize(13f * sd);
+                cv.drawText(label, cx, 84f * d, p);
+            }
         }
     }
 

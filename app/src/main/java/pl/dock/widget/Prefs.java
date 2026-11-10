@@ -1136,6 +1136,34 @@ public class Prefs {
     public static void setMapNightTiles(Context c, boolean v) {
         ed(c).putBoolean("map_night_tiles", v).apply();
     }
+
+    // ---------- Tryb ciemny jak w iOS (przełącznik + słońce) ----------
+    // Flaga: user użył nowego przełącznika (od tego momentu on steruje trybem
+    // zamiast starych ustawień Jasny/Ciemny/Auto).
+    public static boolean darkUsed(Context c) {
+        return sp(c).getBoolean("darkused", false);
+    }
+
+    public static void setDarkUsed(Context c, boolean v) {
+        ed(c).putBoolean("darkused", v).apply();
+    }
+
+    // Ręczna zmiana: 0 = brak, 1 = włączony, 2 = wyłączony (do "darkovr_until")
+    public static int darkOverride(Context c) {
+        return sp(c).getInt("darkovr", 0);
+    }
+
+    public static long darkOverrideUntil(Context c) {
+        return sp(c).getLong("darkovr_until", 0L);
+    }
+
+    public static void setDarkOverride(Context c, int v, long until) {
+        ed(c).putInt("darkovr", v).putLong("darkovr_until", until).apply();
+    }
+
+    public static void clearDarkOverride(Context c) {
+        ed(c).remove("darkovr").remove("darkovr_until").apply();
+    }
 }
 
 

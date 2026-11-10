@@ -12,7 +12,11 @@ public class Look {
     // Czy teraz jest tryb nocny (ręcznie, wg godzin albo wg systemu)
     public static boolean night(Context c) {
         boolean result;
-        if (Prefs.followSystem(c)) {
+        if (Prefs.darkUsed(c)) {
+            // nowy przełącznik "Tryb ciemny" (panel łączności) przejął sterowanie:
+            // ręczna zmiana do najbliższego wydarzenia słońca, potem harmonogram
+            result = DarkMode.isNight(c);
+        } else if (Prefs.followSystem(c)) {
             int m = Resources.getSystem().getConfiguration().uiMode
                     & Configuration.UI_MODE_NIGHT_MASK;
             result = m == Configuration.UI_MODE_NIGHT_YES;
