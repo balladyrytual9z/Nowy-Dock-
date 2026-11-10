@@ -50,6 +50,9 @@ import android.widget.TextView;
 //    druga tylko gruby obrys, oczko na środku z odwróconymi połówkami
 //    (wycinane na przezroczysto). Wł = białe koło/ciemna ikona,
 //    wył = ciemne szkło/biała ikona. Podpis 3-liniowy: nazwa + stan w 2 wierszach.
+// 8. IKONA WIĘKSZA + ODSTĘPY TEKSTU: wewnętrzny element kontrastu ~1/2 średnicy
+//    białego koła (jak na zdjęciach źródłowych), przycisk wyższy (104dp),
+//    linie podpisu rozsunięte - żadna nie wchodzi na drugą ani na koło.
 public class ConnectivityPanelIos extends LinearLayout {
 
     public interface Host {
@@ -157,7 +160,7 @@ public class ConnectivityPanelIos extends LinearLayout {
                 // "Tryb ciemny" jak w iOS: klik = przełącz do najbliższego
                 // wschodu/zachodu słońca (potem znów rządzi słońce)
                 bMode = new RoundBtn(act, 4, "Tryb ciemny");
-                row.addView(bMode, new LayoutParams(dp(150), dp(96)));
+                row.addView(bMode, new LayoutParams(dp(150), dp(104)));
                 bMode.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -169,7 +172,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             if (showNs) {
                 // Night Shift OBOK przycisku trybu (bez elasticznej przerwy)
                 bShift = new RoundBtn(act, 3, "Night Shift");
-                LayoutParams sp = new LayoutParams(dp(110), dp(96));
+                LayoutParams sp = new LayoutParams(dp(110), dp(104));
                 sp.leftMargin = dp(12);
                 row.addView(bShift, sp);
                 bShift.setOnClickListener(new OnClickListener() {
@@ -616,10 +619,12 @@ public class ConnectivityPanelIos extends LinearLayout {
             if (kind == 4) {
                 // "kontrast" 1:1 z iOS: koło podzielone PIONOWO na pół -
                 // jedna połowa pełna, druga tylko gruby obrys; oczko na środku
-                // z połówkami ODWRÓCONYMI względem koła (wycinane na przezroczysto)
-                float R = 10f * d;
+                // z połówkami ODWRÓCONYMI względem koła (wycinane na przezroczysto).
+                // Wewnętrzny element ~1/2 średnicy białego koła (zdjęcia źródłowe):
+                // koło ma 56dp, element 28dp (R=14d).
+                float R = 14f * d;
                 float Ro = R - 1.3f * d;      // obrys mieści się w tym samym kole
-                float rd = 4.2f * d;          // oczko
+                float rd = 6.2f * d;          // oczko (~45% elementu, jak w iOS)
                 boolean fullLeft = active;    // wył: pełna prawa; wł: pełna lewa
                 int sc4 = cv.saveLayer(cx - R - d, cy - R - d, cx + R + d, cy + R + d, null);
                 p.setXfermode(null);
@@ -674,20 +679,21 @@ public class ConnectivityPanelIos extends LinearLayout {
             p.setTextAlign(Paint.Align.CENTER);
             float sd = getResources().getDisplayMetrics().scaledDensity;
             if (sub != null) {
-                // trzy linie jak w iOS: nazwa (bold) + stan w dwóch wierszach
+                // trzy linie jak w iOS: nazwa (bold) + stan w dwóch wierszach;
+                // wyraźne odstępy - linie nie dotykają koła ani siebie nawzajem
                 p.setTypeface(Typeface.DEFAULT_BOLD);
                 p.setTextSize(12f * sd);
                 p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
-                cv.drawText(label, cx, 70f * d, p);
+                cv.drawText(label, cx, 72f * d, p);
                 p.setTypeface(Typeface.DEFAULT);
                 p.setTextSize(10.5f * sd);
                 p.setColor(night ? 0xFFC9CFCF : 0xFF6C6C70);
                 int di = sub.indexOf(" do ");
                 if (di > 0) {
-                    cv.drawText(sub.substring(0, di + 3), cx, 82f * d, p);
-                    cv.drawText(sub.substring(di + 4), cx, 94f * d, p);
+                    cv.drawText(sub.substring(0, di + 3), cx, 85f * d, p);
+                    cv.drawText(sub.substring(di + 4), cx, 98f * d, p);
                 } else {
-                    cv.drawText(sub, cx, 82f * d, p);
+                    cv.drawText(sub, cx, 85f * d, p);
                 }
             } else {
                 p.setTypeface(Typeface.DEFAULT);
