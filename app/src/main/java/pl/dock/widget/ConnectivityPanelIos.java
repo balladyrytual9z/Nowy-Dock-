@@ -37,6 +37,8 @@ import android.widget.TextView;
 // 4. NAPRAWA UCIĘCIA: zawartość panelu ma 574dp (400+10+70+70+24), a okno
 //    było 560dp - prawy suwak (jasność) wystawał poza tło. Panel ma teraz
 //    szerokość WRAP_CONTENT, więc tło obejmuje całą zawartość.
+// 5. Suwaki = frameworkowy PillSlider z ConnectivityPanel (rysują się na każdym
+//    GPU); tło okna = PanelGlassFrame - ramka szkła doka 1:1, jak w nakładce.
 public class ConnectivityPanelIos extends LinearLayout {
 
     public interface Host {
@@ -74,11 +76,19 @@ public class ConnectivityPanelIos extends LinearLayout {
         this.night = night;
         this.host = host;
         setOrientation(VERTICAL);
-        // tło jak w obecnym launcherze (popupBg) - bez zmian
-        setBackground(Ui.popupBg(a, night));
+        // tło okna = ramka szkła doka 1:1 (rozbłysk w lewym górnym rogu, jasny
+        // rim u góry, ukośna obwódka) - to samo co nakładka launchera.
+        // Tylko OKNO panelu; elementy wewnątrz bez zmian.
+        setBackground(new PanelGlassFrame(a, night));
         setPadding(dp(12), dp(12), dp(12), dp(10));
         setClickable(true);
         setElevation(dp(12));
+        // Warstwa SOFTWARE na API < 30 - ta sama, potwierdzona konfiguracja co w
+        // nakładce (ConnectivityPanel, PR #14): na Mali-T720 i emulatorze API 28
+        // rysowanie przez warstwę sprzętową potrafi gubić własne onDraw.
+        if (android.os.Build.VERSION.SDK_INT < 30) {
+            setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        }
         build();
     }
 
@@ -109,22 +119,37 @@ public class ConnectivityPanelIos extends LinearLayout {
         if (Prefs.customBars(act)) {
             LinearLayout bars = new LinearLayout(act);
             bars.setOrientation(HORIZONTAL);
-            PillSlider vol = new PillSlider(act, false, volumeValue());
-            PillSlider bri = new PillSlider(act, true, brightnessValue());
+            // SUWAKI = wyłącznie frameworkowy PillSlider z ConnectivityPanel
+            // (FrameLayout + GradientDrawable + FillDrawable + ImageView, zero
+            // własnego onDraw). Poprzedni suwak (widok z własnym rysowaniem)
+            // przestał się rysować na emulatorze (API 28) - ten sam objaw co na
+            // tablecie ESSGOO (Mali-T720), gdzie własne onDraw w panelu znika
+            // (patrz nagłówek ConnectivityPanel). Frameworkowy suwak rysuje się
+            // wszędzie - używa go nakładka launchera.
+            ConnectivityPanel.PillSlider vol = new ConnectivityPanel.PillSlider(act, false, volumeValue());
+            ConnectivityPanel.PillSlider bri = new ConnectivityPanel.PillSlider(act, true, brightnessValue());
             LayoutParams bp = new LayoutParams(dp(70), dp(238));
             bp.leftMargin = dp(10);
             bars.addView(vol, bp);
             bars.addView(bri, bp);
-            vol.setListener(new PillSlider.Listener() {
+            vol.setListener(new ConnectivityPanel.PillSlider.Listener() {
                 @Override
                 public void on(float v) {
                     setVolume(v);
                 }
+
+                @Override
+                public void onLong() {
+                }
             });
-            bri.setListener(new PillSlider.Listener() {
+            bri.setListener(new ConnectivityPanel.PillSlider.Listener() {
                 @Override
                 public void on(float v) {
                     setBrightness(v);
+                }
+
+                @Override
+                public void onLong() {
                 }
             });
             top.addView(bars);
@@ -578,100 +603,4 @@ public class ConnectivityPanelIos extends LinearLayout {
             cv.drawText(label, cx, 84f * d, p);
         }
     }
-
-    // ---------------------------------------------------------------- pionowy suwak
-    public static class PillSlider extends View {
-        public interface Listener {
-            void on(float v);
-        }
-
-        private float value;
-        private final boolean sun;
-        private final boolean night;
-        private Listener l;
-        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final RectF r = new RectF();
-        private final float d = getResources().getDisplayMetrics().density;
-
-        public PillSlider(Context c, boolean sun, float v) {
-            super(c);
-            this.sun = sun;
-            this.value = Math.max(0f, Math.min(1f, v));
-            this.night = Look.night(c);
-            setContentDescription(sun ? "Jasność ekranu" : "Głośność");
-        }
-
-        public void setListener(Listener l) {
-            this.l = l;
-        }
-
-        @Override
-        protected void onDraw(Canvas cv) {
-            float w = getWidth();
-            float h = getHeight();
-            float rad = w / 2f;
-            p.setStyle(Paint.Style.FILL);
-            p.setColor(night ? 0xFF4A4F50 : 0xFFD1D1D6);
-            r.set(0, 0, w, h);
-            cv.drawRoundRect(r, rad, rad, p);
-            int save = cv.save();
-            Path clip = new Path();
-            clip.addRoundRect(r, rad, rad, Path.Direction.CW);
-            cv.clipPath(clip);
-            p.setColor(0xFFFAFAFC);
-            cv.drawRect(0, h * (1f - value), w, h, p);
-            cv.restoreToCount(save);
-            float cx = w / 2f;
-            float cy = h - 34f * d;
-            int ink = 0xFF8E8E93;
-            p.setColor(ink);
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(2.4f * d);
-            p.setStrokeCap(Paint.Cap.ROUND);
-            if (sun) {
-                p.setColor(0xFFF2C94C);
-                p.setStyle(Paint.Style.FILL);
-                cv.drawCircle(cx, cy, 7f * d, p);
-                p.setStyle(Paint.Style.STROKE);
-                for (int i = 0; i < 8; i++) {
-                    double a = Math.PI * i / 4.0;
-                    cv.drawLine(cx + (float) Math.cos(a) * 11f * d, cy + (float) Math.sin(a) * 11f * d,
-                            cx + (float) Math.cos(a) * 15f * d, cy + (float) Math.sin(a) * 15f * d, p);
-                }
-            } else {
-                p.setStyle(Paint.Style.FILL);
-                p.setColor(0xFF5AC8FA);
-                Path sp = new Path();
-                sp.moveTo(cx - 12f * d, cy - 5f * d);
-                sp.lineTo(cx - 6f * d, cy - 5f * d);
-                sp.lineTo(cx + 1f * d, cy - 11f * d);
-                sp.lineTo(cx + 1f * d, cy + 11f * d);
-                sp.lineTo(cx - 6f * d, cy + 5f * d);
-                sp.lineTo(cx - 12f * d, cy + 5f * d);
-                sp.close();
-                cv.drawPath(sp, p);
-                p.setStyle(Paint.Style.STROKE);
-                cv.drawArc(new RectF(cx - 2f * d, cy - 7f * d, cx + 10f * d, cy + 7f * d), -50, 100,
-                        false, p);
-            }
-        }
-
-        @Override
-        public boolean onTouchEvent(MotionEvent e) {
-            int a = e.getActionMasked();
-            if (a == MotionEvent.ACTION_DOWN) {
-                getParent().requestDisallowInterceptTouchEvent(true);
-            }
-            if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_MOVE
-                    || a == MotionEvent.ACTION_UP) {
-                value = Math.max(0f, Math.min(1f, 1f - e.getY() / getHeight()));
-                invalidate();
-                if (l != null && (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_MOVE)) {
-                    l.on(value);
-                }
-            }
-            return true;
-        }
-    }
 }
-
