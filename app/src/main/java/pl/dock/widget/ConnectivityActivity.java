@@ -11,10 +11,8 @@ import java.util.List;
 
 // Okno zapasowe centrum lacznosci (np. po kliknieciu paska widzetu na innym launcherze).
 // NAPRAWA (ESSGOO/MT8163, Android 9): pelnoekranowe okno z dokiem rysowanym wewnatrz.
-// Wczesniej Ui.dockWindow zawezalo okno o 77 dp - pasek po boku pokazywal tlo
-// systemu, a FLAG_NOT_TOUCH_MODAL blokowalo wysuwanie panelu powiadomien.
-// PORT (Liquid-Glass-Diplay---Launcher-Switcher-): panel w stylu iOS
-// (ConnectivityPanelIos) + SZERZE okno - zgloszenie: okno bylo za male.
+// PORT: panel w stylu iOS (ConnectivityPanelIos) 1:1 z Liquid-Glass -
+// okno 560dp jak w oryginale.
 public class ConnectivityActivity extends BaseActivity {
 
     private ConnectivityPanelIos panel;
@@ -51,7 +49,7 @@ public class ConnectivityActivity extends BaseActivity {
         });
         boolean dockLeft = Ui.dockLeft(this);
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
-        int w = Math.min(Ui.dp(this, 860),
+        int w = Math.min(Ui.dp(this, 560),
                 getResources().getDisplayMetrics().widthPixels - dockPx - Ui.dp(this, 24));
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(w,
                 ViewGroup.LayoutParams.WRAP_CONTENT,

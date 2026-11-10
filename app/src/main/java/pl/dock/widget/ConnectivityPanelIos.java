@@ -23,17 +23,17 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.SeekBar;
 import android.widget.TextView;
 
-// Centrum łaczności w stylu iOS (port z Liquid-Glass-Diplay---Launcher-Switcher-):
-// kafelki Wi-Fi/Bluetooth/Hotspot z własnym onDraw + pionowe suwaki głośności/jasności.
-// Używane w ConnectivityActivity (zwykłe okno aktywności - tam własne onDraw działa).
-// RÓŻNICE wobec oryginału:
-// 1. Ikony Wi-Fi/Bluetooth przez Glyphs.bitmapFull zamiast Icons.vector - na tablecie
-//    ESSGOO/MT8163 (Mali-T720, Android 9) wektory XML z filtrem SRC_IN znikają;
-//    bitmapy z Glyphs są bezpieczne.
-// 2. Wymiary ~15% większe (kafelki 172/88dp, suwaki 80x272dp, przyciski 100x108dp),
-//    a ConnectivityActivity otwiera szersze okno - zgłoszenie: okno było za małe.
+// Centrum łacznosci w stylu iOS - port 1:1 z Liquid-Glass-Diplay---Launcher-Switcher-.
+// Ikony Wi-Fi/Bluetooth/Hotspot DOKŁADNIE jak w oryginale (Icons.vector na
+// ic_wifi/ic_wifi_off/ic_bt + Icons.tether). Wymiary oryginalne: kafelki 150/76dp,
+// suwaki 70x238dp, przyciski 88x96dp, lewa kolumna 400dp, okno 560dp.
+// Zmiany na życzenie:
+// 1. Jasny/Ciemny/Auto w JEDNYM przycisku (klik = cykl trybów).
+// 2. Night Shift: klik = wl/wyl, PRZYTRZYMANIE = suwak ciepła (jak w iOS).
+// 3. Tło panelu szkliste (półprzezroczyste) - widać przyciemnione tło pod spodem.
 public class ConnectivityPanelIos extends LinearLayout {
 
     public interface Host {
@@ -46,9 +46,21 @@ public class ConnectivityPanelIos extends LinearLayout {
     private final boolean night;
     private final Host host;
     private Tile tWifi, tBt, tHot;
-    private RoundBtn bDay, bNight, bAuto, bShift;
+    private RoundBtn bMode, bShift;
     private TextView note;
     private BroadcastReceiver rc;
+    private LinearLayout warmthRow;
+    private SeekBar warmthBar;
+    private final Runnable hideWarmth = new Runnable() {
+        @Override
+        public void run() {
+            if (warmthRow != null && warmthBar != null && !warmthBar.isPressed()) {
+                warmthRow.setVisibility(GONE);
+            } else {
+                scheduleWarmthHide();
+            }
+        }
+    };
 
     private int dp(float v) {
         return Ui.dp(act, v);
@@ -60,7 +72,12 @@ public class ConnectivityPanelIos extends LinearLayout {
         this.night = night;
         this.host = host;
         setOrientation(VERTICAL);
-        setBackground(Ui.popupBg(a, night));
+        // szkliste tło zamiast pełnego popupBg: widać przyciemniony ekran pod spodem
+        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setColor(night ? 0xCC101014 : 0xCCF2F2F7);
+        bg.setCornerRadius(dp(34));
+        bg.setStroke(Math.max(1, dp(1)), night ? 0x33FFFFFF : 0x22000000);
+        setBackground(bg);
         setPadding(dp(12), dp(12), dp(12), dp(10));
         setClickable(true);
         setElevation(dp(12));
@@ -76,25 +93,25 @@ public class ConnectivityPanelIos extends LinearLayout {
         LinearLayout row1 = new LinearLayout(act);
         tWifi = new Tile(act, false);
         tBt = new Tile(act, false);
-        LayoutParams l1 = new LayoutParams(0, dp(172), 1f);
+        LayoutParams l1 = new LayoutParams(0, dp(150), 1f);
         l1.rightMargin = dp(6);
-        LayoutParams l2 = new LayoutParams(0, dp(172), 1f);
+        LayoutParams l2 = new LayoutParams(0, dp(150), 1f);
         l2.leftMargin = dp(6);
         row1.addView(tWifi, l1);
         row1.addView(tBt, l2);
         left.addView(row1);
         tHot = new Tile(act, true);
-        LayoutParams l3 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(88));
+        LayoutParams l3 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(76));
         l3.topMargin = dp(12);
         left.addView(tHot, l3);
-        top.addView(left, new LayoutParams(dp(470), ViewGroup.LayoutParams.WRAP_CONTENT));
+        top.addView(left, new LayoutParams(dp(400), ViewGroup.LayoutParams.WRAP_CONTENT));
 
         if (Prefs.customBars(act)) {
             LinearLayout bars = new LinearLayout(act);
             bars.setOrientation(HORIZONTAL);
             PillSlider vol = new PillSlider(act, false, volumeValue());
             PillSlider bri = new PillSlider(act, true, brightnessValue());
-            LayoutParams bp = new LayoutParams(dp(80), dp(272));
+            LayoutParams bp = new LayoutParams(dp(70), dp(238));
             bp.leftMargin = dp(10);
             bars.addView(vol, bp);
             bars.addView(bri, bp);
@@ -123,32 +140,22 @@ public class ConnectivityPanelIos extends LinearLayout {
                     ViewGroup.LayoutParams.WRAP_CONTENT);
             rp.topMargin = dp(12);
             if (showMode) {
-                bDay = new RoundBtn(act, 0, "Jasny");
-                bNight = new RoundBtn(act, 1, "Ciemny");
-                bAuto = new RoundBtn(act, 2, "Auto");
-                row.addView(bDay, new LayoutParams(dp(100), dp(108)));
-                row.addView(bNight, new LayoutParams(dp(100), dp(108)));
-                row.addView(bAuto, new LayoutParams(dp(100), dp(108)));
-                bDay.setOnClickListener(new OnClickListener() {
+                // JEDEN przycisk trybu: klik cykli Jasny -> Ciemny -> Auto -> Jasny
+                bMode = new RoundBtn(act, 0, "Jasny");
+                row.addView(bMode, new LayoutParams(dp(88), dp(96)));
+                bMode.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        Prefs.setFollowSystem(act, false);
-                        Prefs.setMode(act, "day");
-                        applyMode();
-                    }
-                });
-                bNight.setOnClickListener(new OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        Prefs.setFollowSystem(act, false);
-                        Prefs.setMode(act, "night");
-                        applyMode();
-                    }
-                });
-                bAuto.setOnClickListener(new OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        Prefs.setFollowSystem(act, true);
+                        if (Prefs.followSystem(act)) {
+                            Prefs.setFollowSystem(act, false);
+                            Prefs.setMode(act, "day");
+                        } else if ("day".equals(Prefs.mode(act))) {
+                            Prefs.setMode(act, "night");
+                        } else if ("night".equals(Prefs.mode(act))) {
+                            Prefs.setFollowSystem(act, true);
+                        } else {
+                            Prefs.setMode(act, "day");
+                        }
                         applyMode();
                     }
                 });
@@ -157,7 +164,7 @@ public class ConnectivityPanelIos extends LinearLayout {
                 View gap = new View(act);
                 row.addView(gap, new LayoutParams(0, 1, 1f));
                 bShift = new RoundBtn(act, 3, "Night Shift");
-                row.addView(bShift, new LayoutParams(dp(124), dp(108)));
+                row.addView(bShift, new LayoutParams(dp(110), dp(96)));
                 bShift.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -165,6 +172,14 @@ public class ConnectivityPanelIos extends LinearLayout {
                         boolean ok = NightShift.set(act, on);
                         if (!ok) host.close();
                         update();
+                    }
+                });
+                // PRZYTRZYMANIE Night Shift = suwak ciepła (jak w iOS)
+                bShift.setOnLongClickListener(new OnLongClickListener() {
+                    @Override
+                    public boolean onLongClick(View v) {
+                        showWarmthSlider();
+                        return true;
                     }
                 });
             }
@@ -175,53 +190,76 @@ public class ConnectivityPanelIos extends LinearLayout {
             note.setPadding(dp(6), dp(2), 0, dp(4));
             addView(note);
         }
+    }
 
-        tWifi.setOnClickListener(new OnClickListener() {
+    /** Suwak ciepła Night Shift (przytrzymanie przycisku, jak w iOS).
+     *  Ustawia filtr NA BIEŻĄCO, chowa się po 6 s bez dotyku. */
+    private void showWarmthSlider() {
+        if (warmthRow != null) {
+            warmthRow.setVisibility(VISIBLE);
+            warmthBar.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
+            scheduleWarmthHide();
+            return;
+        }
+        warmthRow = new LinearLayout(act);
+        warmthRow.setOrientation(HORIZONTAL);
+        warmthRow.setGravity(Gravity.CENTER_VERTICAL);
+        warmthRow.setPadding(dp(6), dp(2), dp(6), dp(2));
+        warmthRow.setBackground(Ui.round(night ? 0x33787880 : 0x1F787880, 20, act));
+
+        TextView cool = new TextView(act);
+        cool.setText("Chłodniejsze");
+        cool.setTextSize(13);
+        cool.setTypeface(null, Typeface.BOLD);
+        cool.setTextColor(night ? 0xB3FFFFFF : 0xFF3C3C43);
+        warmthRow.addView(cool, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        warmthBar = new SeekBar(act);
+        warmthBar.setMax(80);
+        warmthBar.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
+        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(220),
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        bp.leftMargin = dp(12);
+        bp.rightMargin = dp(12);
+        warmthRow.addView(warmthBar, bp);
+
+        TextView warm = new TextView(act);
+        warm.setText("Cieplejsze");
+        warm.setTextSize(13);
+        warm.setTypeface(null, Typeface.BOLD);
+        warm.setTextColor(night ? 0xB3FFFFFF : 0xFF3C3C43);
+        warmthRow.addView(warm, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        warmthBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
-            public void onClick(View v) {
-                // Android nie pozwala przełączać Wi-Fi z aplikacji: od razu ekran Wi-Fi w ustawieniach
-                Net.openWifiSettings(act);
-                host.close();
+            public void onProgressChanged(SeekBar sb, int prog, boolean fromUser) {
+                if (!fromUser) return;
+                Prefs.setNightShiftStrength(act, Math.max(5, Math.min(80, prog)));
+                NightShift.refresh(act);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar sb) {
+                removeCallbacks(hideWarmth);
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar sb) {
+                sb.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
+                scheduleWarmthHide();
             }
         });
-        tWifi.setOnLongClickListener(new OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                Net.openWifiSettings(act);
-                host.close();
-                return true;
-            }
-        });
-        tBt.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                toggleBt();
-            }
-        });
-        tBt.setOnLongClickListener(new OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                Net.openBluetoothSettings(act);
-                host.close();
-                return true;
-            }
-        });
-        tHot.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String r = Net.setTethering(act, !Net.tethering(act));
-                if (!"ok".equals(r)) host.close();   // otwarto ekran Hotspot Wi-Fi
-                update();
-            }
-        });
-        tHot.setOnLongClickListener(new OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                Net.openTetherSettings(act);
-                host.close();
-                return true;
-            }
-        });
+
+        addView(warmthRow, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        scheduleWarmthHide();
+    }
+
+    private void scheduleWarmthHide() {
+        removeCallbacks(hideWarmth);
+        postDelayed(hideWarmth, 6000);
     }
 
     private void applyMode() {
@@ -251,7 +289,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             @Override
             public void run() {
                 if (Net.bluetoothOn() == before && isAttachedToWindow()) {
-                    Net.openBluetoothApp(act);   // radio przejmuje Bluetooth: otwórz jego aplikację
+                    Net.openBluetoothApp(act);   // radio przejmuje Bluetooth: otworz jego aplikacje
                     host.close();
                 }
             }
@@ -313,24 +351,29 @@ public class ConnectivityPanelIos extends LinearLayout {
         boolean bt = Net.bluetoothOn();
         boolean th = Net.tethering(act);
         int white = 0xFFFFFFFF;
-        // Glyphs zamiast wektorów XML - bezpieczne na GPU tabletu (Mali-T720)
-        tWifi.set(wEn, 0xFF1C94FF, Glyphs.bitmapFull(wEn ? "wifi" : "wifi_off", 128, white),
-                "Wi-Fi", ws == 3 ? "Połączono" : (ws == 2 ? "Brak internetu"
+        // ikony 1:1 jak w oryginale (wektory ic_wifi / ic_wifi_off / ic_bt)
+        tWifi.set(wEn, 0xFF1C94FF, Icons.vector(act, wEn ? R.drawable.ic_wifi : R.drawable.ic_wifi_off,
+                128, white), "Wi-Fi", ws == 3 ? "Połączono" : (ws == 2 ? "Brak internetu"
                 : (ws == 1 ? "Włączone" : "Wyłączone")));
-        tBt.set(bt, 0xFF1C94FF, Glyphs.bitmapFull("bt", 128, white), "Bluetooth",
+        tBt.set(bt, 0xFF1C94FF, Icons.vector(act, R.drawable.ic_bt, 128, white), "Bluetooth",
                 BtDevice.isConnected(act) && Prefs.btDevice(act).length() > 0
                         ? "Telefon połączony" : (bt ? "Włączony" : "Wyłączony"));
         tHot.set(th, 0xFF30D158, Icons.tether(128, white, false), "Hotspot osobisty",
                 th ? "Włączony" : "Wyłączony");
-        boolean follow = Prefs.followSystem(act);
-        String m = Prefs.mode(act);
-        if (bDay != null) {
-            bDay.setActive(!follow && "day".equals(m));
-            bNight.setActive(!follow && "night".equals(m));
-            bAuto.setActive(follow);
+        if (bMode != null) {
+            boolean follow = Prefs.followSystem(act);
+            String m = Prefs.mode(act);
+            if (follow) {
+                bMode.setKind(2, "Auto");
+            } else if ("night".equals(m)) {
+                bMode.setKind(1, "Ciemny");
+            } else {
+                bMode.setKind(0, "Jasny");
+            }
         }
         if (bShift != null) bShift.setActive(NightShift.isOn(act));
         if (note != null) {
+            boolean follow = Prefs.followSystem(act);
             note.setText(follow ? "Wygląd automatyczny: od zachodu do wschodu słońca" : "");
             note.setVisibility(follow ? VISIBLE : GONE);
         }
@@ -367,6 +410,7 @@ public class ConnectivityPanelIos extends LinearLayout {
         } catch (Throwable ignored) {
         }
         rc = null;
+        removeCallbacks(hideWarmth);
     }
 
     // ---------------------------------------------------------------- kafelek
@@ -419,14 +463,14 @@ public class ConnectivityPanelIos extends LinearLayout {
             cv.drawRoundRect(r, rad - d, rad - d, p);
             p.setShader(null);
 
-            float cd = 54f * d;
+            float cd = 50f * d;
             float cx = wide ? 20f * d + cd / 2f : 18f * d + cd / 2f;
             float cy = wide ? hh / 2f : 18f * d + cd / 2f;
             p.setStyle(Paint.Style.FILL);
             p.setColor(active ? color : 0xFF7E8686);
             cv.drawCircle(cx, cy, cd / 2f, p);
             if (icon != null) {
-                float is = 30f * d;
+                float is = 28f * d;
                 r.set(cx - is / 2f, cy - is / 2f, cx + is / 2f, cy + is / 2f);
                 cv.drawBitmap(icon, null, r, p);
             }
@@ -447,11 +491,11 @@ public class ConnectivityPanelIos extends LinearLayout {
             } else {
                 p.setColor(tc);
                 p.setTextSize(19f * sd);
-                cv.drawText(title, 18f * d, hh - 44f * d, p);
+                cv.drawText(title, 18f * d, hh - 40f * d, p);
                 p.setTypeface(Typeface.DEFAULT);
                 p.setColor(sc);
                 p.setTextSize(15f * sd);
-                cv.drawText(sub, 18f * d, hh - 18f * d, p);
+                cv.drawText(sub, 18f * d, hh - 16f * d, p);
             }
         }
 
@@ -470,9 +514,10 @@ public class ConnectivityPanelIos extends LinearLayout {
     }
 
     // ---------------------------------------------------------------- okrągły przycisk z podpisem
+    // kind: 0 jasny (słońce), 1 ciemny (księżyc), 2 auto (A), 3 Night Shift
     private class RoundBtn extends View {
-        private final int kind;   // 0 jasny, 1 ciemny, 2 auto, 3 Night Shift
-        private final String label;
+        private int kind;
+        private String label;
         private boolean active;
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final float d = getResources().getDisplayMetrics().density;
@@ -482,6 +527,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             this.kind = kind;
             this.label = label;
             setContentDescription(label);
+            this.active = true;
         }
 
         void setActive(boolean a) {
@@ -489,12 +535,19 @@ public class ConnectivityPanelIos extends LinearLayout {
             invalidate();
         }
 
+        void setKind(int k, String lbl) {
+            kind = k;
+            label = lbl;
+            setContentDescription(lbl);
+            invalidate();
+        }
+
         @Override
         protected void onDraw(Canvas cv) {
             float w = getWidth();
             float cx = w / 2f;
-            float cy = 36f * d;
-            float rad = 30f * d;
+            float cy = 34f * d;
+            float rad = 28f * d;
             p.setStyle(Paint.Style.FILL);
             p.setColor(active ? (kind == 3 ? 0xFFFF9F0A : 0xFF1C94FF)
                     : (night ? 0xFF4A4F50 : 0xFFD1D1D6));
@@ -531,7 +584,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             p.setTextAlign(Paint.Align.CENTER);
             p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
             p.setTextSize(13f * getResources().getDisplayMetrics().scaledDensity);
-            cv.drawText(label, cx, 92f * d, p);
+            cv.drawText(label, cx, 84f * d, p);
         }
     }
 
@@ -578,7 +631,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             cv.drawRect(0, h * (1f - value), w, h, p);
             cv.restoreToCount(save);
             float cx = w / 2f;
-            float cy = h - 36f * d;
+            float cy = h - 34f * d;
             int ink = 0xFF8E8E93;
             p.setColor(ink);
             p.setStyle(Paint.Style.STROKE);
