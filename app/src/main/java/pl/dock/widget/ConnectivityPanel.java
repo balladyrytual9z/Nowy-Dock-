@@ -998,7 +998,7 @@ public class ConnectivityPanel extends LinearLayout {
             boolean showLetter = (k == 2);
             letter.setVisibility(showLetter ? VISIBLE : GONE);
             icon.setVisibility(showLetter ? GONE : VISIBLE);
-            icon.setImageBitmap(glyphBitmap("sun", dp(30), 0xFFFFFFFF));
+            icon.setImageBitmap(glyphBitmap(k == 1 ? "moon" : "sun", dp(30), 0xFFFFFFFF));
             refreshColor();
         }
 
