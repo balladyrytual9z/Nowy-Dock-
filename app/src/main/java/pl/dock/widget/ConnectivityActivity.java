@@ -59,6 +59,27 @@ public class ConnectivityActivity extends BaseActivity {
         lp.setMargins(Ui.dp(this, 8), Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 8));
         root.addView(panel, lp);
 
+        // Gdy ekran jest nizszy niz panel (inne dpi niz tablet ESSGOO), skaluj
+        // panel JEDNOLICIE w dol - proporcje i wyglad 1:1 bez znieksztalcen.
+        // Gdy panel sie miesci (tablet), ten kod nic nie robi.
+        panel.post(new Runnable() {
+            @Override
+            public void run() {
+                int availH = getResources().getDisplayMetrics().heightPixels
+                        - Ui.dp(ConnectivityActivity.this, 12)
+                        - Ui.dp(ConnectivityActivity.this, 8);
+                int h = panel.getHeight();
+                if (h > 0 && h > availH) {
+                    float sc = (float) availH / h;
+                    panel.setPivotY(0f);
+                    panel.setPivotX(Ui.dockLeft(ConnectivityActivity.this)
+                            ? panel.getWidth() : 0f);
+                    panel.setScaleX(sc);
+                    panel.setScaleY(sc);
+                }
+            }
+        });
+
         // dok po wlasciwej stronie - widoczny i klikalny wewnatrz tego okna
         DockView dock = new DockView(this);
         FrameLayout.LayoutParams dockLp = new FrameLayout.LayoutParams(
