@@ -1,4 +1,5 @@
 name: Zrzuty ekranu emulatora (testy wizualne)
+# rerun 70: run 69 zawisl na emulatorze (flak), bez zmian w kodzie
 
 on:
   push:
