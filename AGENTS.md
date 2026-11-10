@@ -779,3 +779,22 @@ na ekranach OBD mial byc domyslnie schowany (dostepny tylko do wyciagniecia gest
   na koncu, dopisac sesje do AGENTS.md po zakonczeniu pracy.
 
 <!-- rerun zrzutow po zawieszeniu runa 63 (2026-11-10) -->
+
+## 2026-11-10 (sesja: centrum łaczności = port 1:1 z Liquid-Glass)
+
+- `ConnectivityPanelIos.java` (NOWY, tylko w `ConnectivityActivity`): panel 1:1 z repo
+  `Liquid-Glass-Diplay---Launcher-Switcher-` (trzy myślniki w nazwie!). Wymiary oryginalne
+  (kafelki 150/76dp, suwaki 70x238dp, przyciski 88/96dp, lewa kolumna 400dp), ikony przez
+  `Icons.vector(ic_wifi/ic_wifi_off/ic_bt)` + `Icons.tether`. Zmiany na życzenie usera:
+  JEDEN przycisk trybu (Jasny/Ciemny/Auto cyklem) i Night Shift long-press = suwak ciepła.
+  Tło = `Ui.popupBg` (nie szkło). Docelowego `ConnectivityPanel.java` NIE ruszać (nakładka).
+- **Ikony centrum łaczności**: drawables `ic_wifi/ic_wifi_off/ic_bt` podmienione 1:1 ze
+  źródła (wypełnione glify Material; docelowe były ręcznie rysowane łukami — user odrzucił).
+  Te drawables używa TYLKO ConnectivityPanelIos. `Icons.tether` = implementacja ze źródła
+  (łańcuch, drawTether z PorterDuff.CLEAR na bitmapie CPU — GPU-safe). Dock/widżet dalej
+  używają Glyphs (nie zmieniane).
+- **Ucięcie panelu**: na emulatorze panel wychodził za wysoki i był ucinany przez dolną
+  krawędź ekranu; w ConnectivityActivity jest teraz jednolite skalowanie w dół gdy panel >
+  dostępna wysokość (na tablecie = no-op). Szerokość panelu WRAP_CONTENT (naprawa
+  poziomego ucięcia 574dp > okno 560dp). Weryfikacja: run 64 zielony, zrzut obejrzany.
+- Wizja (analyze_image) przy małych ikonach zawodzi — werdykt = kod + zrzut całości.
