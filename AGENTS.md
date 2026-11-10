@@ -777,3 +777,5 @@ na ekranach OBD mial byc domyslnie schowany (dostepny tylko do wyciagniecia gest
 - **ZAKAZ bez zmian:** UfoClusterFullView.kt NIETYKALNY (user sam pracuje).
 - **Komunikacja:** user kazal "o nic nie pytaj" — raport bez pytania tak/nie
   na koncu, dopisac sesje do AGENTS.md po zakonczeniu pracy.
+
+<!-- rerun zrzutow po zawieszeniu runa 63 (2026-11-10) -->
