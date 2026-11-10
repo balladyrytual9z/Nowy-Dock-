@@ -13,9 +13,11 @@ import java.util.List;
 // NAPRAWA (ESSGOO/MT8163, Android 9): pelnoekranowe okno z dokiem rysowanym wewnatrz.
 // Wczesniej Ui.dockWindow zawezalo okno o 77 dp - pasek po boku pokazywal tlo
 // systemu, a FLAG_NOT_TOUCH_MODAL blokowalo wysuwanie panelu powiadomien.
+// PORT (Liquid-Glass-Diplay---Launcher-Switcher-): panel w stylu iOS
+// (ConnectivityPanelIos) + SZERZE okno - zgloszenie: okno bylo za male.
 public class ConnectivityActivity extends BaseActivity {
 
-    private ConnectivityPanel panel;
+    private ConnectivityPanelIos panel;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -36,7 +38,7 @@ public class ConnectivityActivity extends BaseActivity {
                 finish();
             }
         });
-        panel = new ConnectivityPanel(this, night, new ConnectivityPanel.Host() {
+        panel = new ConnectivityPanelIos(this, night, new ConnectivityPanelIos.Host() {
             @Override
             public void close() {
                 finish();
@@ -49,7 +51,7 @@ public class ConnectivityActivity extends BaseActivity {
         });
         boolean dockLeft = Ui.dockLeft(this);
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
-        int w = Math.min(Ui.dp(this, 560),
+        int w = Math.min(Ui.dp(this, 860),
                 getResources().getDisplayMetrics().widthPixels - dockPx - Ui.dp(this, 24));
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(w,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
