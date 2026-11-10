@@ -107,41 +107,8 @@ public class ConnectivityPanel extends LinearLayout {
         // Babel w stylu macOS: kwadratowy z zaokraglonymi rogami, szklany
         // (tresc modulow lezy na nim jak na popoverze). Klikalne, by tap w tlo
         // panelu nie zamykal nakladki.
-        // tlo jak w reszcie aplikacji (popupBg - wspolne tlo popupow launchera),
-        // a na wierzchu RAMA OKNA = dokladnie TEN SAM rysunek swiatla co ramka
-        // doka i kart ekranu glownego (Ui.ringStroke: gradient od lewego gornego
-        // rogu). Wczesniejsza biala poswiata (rozmyta bitmapa ZA oknem) zostala
-        // usunieta - miala byc tylko ramka, bez poswiaty.
-        final android.graphics.drawable.Drawable baseBg = Ui.popupBg(act, night);
-        final float frameRad = dp(34);
-        final float frameStroke = Math.max(1f, dp(1.8f));
-        setBackground(new android.graphics.drawable.Drawable() {
-            private final RectF fr = new RectF();
-
-            @Override
-            public void draw(Canvas cv) {
-                baseBg.setBounds(getBounds());
-                baseBg.draw(cv);
-                if (getBounds().width() <= 0 || getBounds().height() <= 0) return;
-                fr.set(getBounds());
-                Ui.ringStroke(cv, fr, frameRad, frameStroke, night);
-            }
-
-            @Override
-            public void setAlpha(int alpha) {
-                baseBg.setAlpha(alpha);
-            }
-
-            @Override
-            public void setColorFilter(android.graphics.ColorFilter cf) {
-                baseBg.setColorFilter(cf);
-            }
-
-            @Override
-            public int getOpacity() {
-                return android.graphics.PixelFormat.TRANSLUCENT;
-            }
-        });
+        // tlo jak w reszcie aplikacji (popupBg - wspolne tlo popupow launchera)
+        setBackground(Ui.popupBg(act, night));
         setPadding(dp(12), dp(12), dp(12), dp(10));
         setClickable(true);
         // Warstwa SOFTWARE na API < 30 zostaje (potwierdzona w PR #14): dla widokow
@@ -917,12 +884,10 @@ public class ConnectivityPanel extends LinearLayout {
     // ---------------------------------------------------------------- kafelek (framework-only)
     // Wyglad 1:1 z Liquid-Glass: zaokraglony prostokat (34dp / polowa wysokosci
     // dla szerokiego), kolo 50dp z ikona, bold tytul + podpis. Zero onDraw:
-    // tla to BevelDrawable (wypelnienie + obwodka ze swiatlem od lewego gornego
-    // rogu, jak ikony iOS Control Center), ikony to Bitmapy w ImageView.
+    // GradientDrawable + ImageView + TextView.
     private class Tile extends FrameLayout {
         private final boolean wide;
         private final View circle;
-        private final BevelDrawable circleBg;
         private final ImageView icon;
         private final TextView title;
         private final TextView sub;
@@ -930,15 +895,15 @@ public class ConnectivityPanel extends LinearLayout {
         Tile(Context c, boolean wide) {
             super(c);
             this.wide = wide;
-            // obwodka ze swiatlem od lewego gornego rogu (jak na screenie iOS
-            // Control Center) zamiast jednolitego stroke'u GradientDrawable
-            setBackground(new BevelDrawable(night ? 0xF046464B : 0xFFCACACF,
-                    wide ? dp(38) : dp(34), dp(1.8f), night));
+            GradientDrawable bg = new GradientDrawable();
+            bg.setColor(night ? 0xF046464B : 0xFFCACACF);
+            bg.setCornerRadius(wide ? dp(38) : dp(34));
+            bg.setStroke(Math.max(1, dp(1)), 0x55FFFFFF);
+            setBackground(bg);
 
             FrameLayout circ = new FrameLayout(c);
             circle = new View(c);
-            circleBg = new BevelDrawable(0xFF7E8686, dp(25), dp(1.8f), night);
-            circle.setBackground(circleBg);
+            circle.setBackground(Ui.round(0xFF7E8686, 999, act));
             circ.addView(circle, new FrameLayout.LayoutParams(dp(50), dp(50), Gravity.CENTER));
             icon = new ImageView(c);
             icon.setLayoutParams(new FrameLayout.LayoutParams(dp(28), dp(28), Gravity.CENTER));
@@ -982,7 +947,7 @@ public class ConnectivityPanel extends LinearLayout {
         }
 
         void set(boolean active, int color, Bitmap bmp, String t, String s) {
-            circleBg.setFill(active ? color : 0xFF7E8686);
+            circle.setBackground(Ui.round(active ? color : 0xFF7E8686, 999, act));
             icon.setImageBitmap(bmp);
             title.setText(t);
             sub.setText(s);
@@ -995,7 +960,6 @@ public class ConnectivityPanel extends LinearLayout {
     // kind: 0 jasny (slonce), 1 ciemny (ksiezyc), 2 auto (A), 3 Night Shift.
     private class RoundBtn extends LinearLayout {
         private final View circle;
-        private final BevelDrawable circleBg;
         private final ImageView icon;
         private final TextView letter;
         private final TextView label;
@@ -1009,8 +973,7 @@ public class ConnectivityPanel extends LinearLayout {
 
             FrameLayout circ = new FrameLayout(c);
             circle = new View(c);
-            circleBg = new BevelDrawable(0xFF1C94FF, dp(28), dp(1.8f), night);
-            circle.setBackground(circleBg);
+            circle.setBackground(Ui.round(0xFF1C94FF, 999, act));
             circ.addView(circle, new FrameLayout.LayoutParams(dp(56), dp(56), Gravity.CENTER));
             icon = new ImageView(c);
             icon.setLayoutParams(new FrameLayout.LayoutParams(dp(30), dp(30), Gravity.CENTER));
@@ -1056,83 +1019,8 @@ public class ConnectivityPanel extends LinearLayout {
         }
 
         private void refreshColor() {
-            circleBg.setFill(active ? (kind == 3 ? 0xFFFF9F0A : 0xFF1C94FF)
-                    : (night ? 0xFF4A4F50 : 0xFFD1D1D6));
-        }
-    }
-
-    // ---------------------------------------------------------------- bevel swiatla (framework-only)
-    // Wypelnienie + obwodka z gradientem swiatla od lewego gornego rogu - TEN
-    // SAM zestaw kolorow co ramka doka (Ui.ringStroke). Zastepuje jednolity
-    // stroke GradientDrawable na kafelkach i kolach panelu, jak na screenie
-    // iOS Control Center (elementy z efektem padajacego swiatla). Custom
-    // Drawable (NIE widok z onDraw) = zgodny z zasada framework-only.
-    private static class BevelDrawable extends android.graphics.drawable.Drawable {
-        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint s = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final float radiusPx;
-        private final float strokePx;
-        private final boolean nightMode;
-        private int fill;
-
-        BevelDrawable(int fillColor, float radiusPx, float strokePx, boolean nightMode) {
-            this.fill = fillColor;
-            this.radiusPx = radiusPx;
-            this.strokePx = strokePx;
-            this.nightMode = nightMode;
-        }
-
-        void setFill(int c) {
-            if (c != fill) {
-                fill = c;
-                invalidateSelf();
-            }
-        }
-
-        @Override
-        public void draw(Canvas cv) {
-            RectF b = new RectF(getBounds());
-            float w = b.width();
-            float h = b.height();
-            if (w <= 0 || h <= 0) return;
-            boolean circle = radiusPx >= w / 2f - 0.5f;
-            p.setStyle(Paint.Style.FILL);
-            p.setColor(fill);
-            if (circle) {
-                cv.drawCircle(b.centerX(), b.centerY(), w / 2f, p);
-            } else {
-                cv.drawRoundRect(b, radiusPx, radiusPx, p);
-            }
-            s.setStyle(Paint.Style.STROKE);
-            s.setStrokeWidth(strokePx);
-            s.setShader(new android.graphics.LinearGradient(b.left, b.top, b.right, b.bottom,
-                    nightMode ? new int[]{0xCCFFFFFF, 0x4DFFFFFF, 0x14FFFFFF, 0x33FFFFFF}
-                              : new int[]{0x99FFFFFF, 0x55808090, 0x22808090, 0x40808090},
-                    new float[]{0f, 0.3f, 0.75f, 1f}, android.graphics.Shader.TileMode.CLAMP));
-            if (circle) {
-                cv.drawCircle(b.centerX(), b.centerY(), w / 2f - strokePx / 2f, s);
-            } else {
-                RectF in = new RectF(b.left + strokePx / 2f, b.top + strokePx / 2f,
-                        b.right - strokePx / 2f, b.bottom - strokePx / 2f);
-                cv.drawRoundRect(in, Math.max(0f, radiusPx - strokePx / 2f),
-                        Math.max(0f, radiusPx - strokePx / 2f), s);
-            }
-            s.setShader(null);
-        }
-
-        @Override
-        public void setAlpha(int alpha) {
-            p.setAlpha(alpha);
-        }
-
-        @Override
-        public void setColorFilter(android.graphics.ColorFilter cf) {
-            p.setColorFilter(cf);
-        }
-
-        @Override
-        public int getOpacity() {
-            return android.graphics.PixelFormat.TRANSLUCENT;
+            circle.setBackground(Ui.round(active ? (kind == 3 ? 0xFFFF9F0A : 0xFF1C94FF)
+                    : (night ? 0xFF4A4F50 : 0xFFD1D1D6), 999, act));
         }
     }
 
@@ -1336,7 +1224,7 @@ public class ConnectivityPanel extends LinearLayout {
                 return true;   // po dlugim przytrzymaniu nie przestawiaj wartosci
             }
             // Wartosc ustawiaja dopiero MOVE/UP, nie DOWN: samo przytrzymanie
-            // pigulki (long-press 550 ms -> suwak ciepla) nie moze
+            // pigulki (long-press 550 ms -> suwak ciepla Night Shift) nie moze
             // przeskakiwac wypelnienia do palca - inaczej pigulka pokazuje inna
             // wartosc niz faktycznie jest (desync do najblizszego update()).
             // Tap-to-set obsluguje UP, drag - MOVE.
