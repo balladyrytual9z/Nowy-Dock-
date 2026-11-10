@@ -1396,7 +1396,7 @@ public class LauncherActivity extends BaseActivity {
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
         // szerokość panelu: min 240dp, maks 560dp i nigdy szersza niż ekran - 24dp
         int panelW = Math.max(Ui.dp(this, 240),
-                Math.min(Ui.dp(this, 560), Ui.windowWidth(this) - Ui.dp(this, 24)));
+                Math.min(Ui.dp(this, 574), Ui.windowWidth(this) - Ui.dp(this, 24)));
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 panelW, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.START);
         // Babel w stylu macOS: ZAWSZE wyskakuje przy doku (z lewej czesci,

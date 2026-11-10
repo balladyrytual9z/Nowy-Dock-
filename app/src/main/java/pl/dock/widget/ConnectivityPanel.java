@@ -8,6 +8,9 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.media.AudioManager;
@@ -54,15 +57,12 @@ public class ConnectivityPanel extends LinearLayout {
     private final boolean night;
     private final Host host;
     private ToolGrid grid;
-    private TextView btnEdit;
     private TextView btnAdd;
-    private TextView note;
     // narzedzia stalego modulu bazowego - nie moga sie powtarzac w edytowalnej siatce
     static final String[] BASE_IDS =
             {"bri", "vol", "nightshift", "mode", "wifi", "bt", "hot", "conn"};
-    private NightShiftRow nightRow;
-    private ModeSegmentView modeSeg;
-    private final List<View> railTiles = new ArrayList<View>();
+    private Tile tWifi, tBt, tHot;
+    private RoundBtn bMode, bShift;
     private LinearLayout warmthRow;
     private android.widget.SeekBar warmthBar;
     private PillSlider volSlider;
@@ -112,7 +112,7 @@ public class ConnectivityPanel extends LinearLayout {
         bubble.setCornerRadius(dp(24));
         bubble.setStroke(Math.max(1, dp(1)), night ? 0x33FFFFFF : 0x1E787880);
         setBackground(bubble);
-        setPadding(dp(16), dp(14), dp(16), dp(12));
+        setPadding(dp(12), dp(12), dp(12), dp(10));
         setClickable(true);
         // Warstwa SOFTWARE na API < 30 zostaje (potwierdzona w PR #14): dla widokow
         // frameworka jest nieszkodliwa, a chroni, gdyby ktos dozyl widok z onDraw.
@@ -147,121 +147,124 @@ public class ConnectivityPanel extends LinearLayout {
     }
 
     private void build() {
-        // naglowek: tytul + przycisk Edytuj / Gotowe
-        LinearLayout head = new LinearLayout(act);
-        head.setOrientation(HORIZONTAL);
-        head.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title = new TextView(act);
-        title.setText("Łączność");
-        title.setTextSize(20);
-        title.setTypeface(null, Typeface.BOLD);
-        title.setTextColor(night ? 0xFFFFFFFF : 0xFF1C1C1E);
-        head.addView(title, new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        btnEdit = pill("Edytuj");
-        btnEdit.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (editMode) exitEditMode();
-                else enterEditMode();
-            }
-        });
-        head.addView(btnEdit, new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(36)));
-        LayoutParams hp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        hp.leftMargin = dp(6);
-        hp.bottomMargin = dp(10);
-        addView(head, hp);
+        // ===== modul bazowy 1:1 jak w Liquid-Glass =====
+        // lewa kolumna 400dp: kafelki Wi-Fi/Bluetooth (150dp) + szeroki Hotspot (76dp);
+        // prawa kolumna: dwa pionowe suwaki 70x238dp. BEZ naglowka, BEZ "Edytuj"
+        // (edycja = przytrzymanie tla panelu), BEZ podpisow dodatkowych.
+        LinearLayout top = new LinearLayout(act);
+        top.setOrientation(HORIZONTAL);
 
-        // ===== STALY MODUL BAZOWY (zawsze widoczny po otwarciu) =====
-        // Jak w iOS: karta lacznosci po LEWEJ, suwaki po PRAWEJ.
-        // Stale dp zamiast weight (Mali-T720): 146 + 10 + 180 + 12 + 180 = 528 dp
-        // = panel 560 dp minus padding 2 x 16 dp; wysokosc modulow jednakowa.
-        LinearLayout main = new LinearLayout(act);
-        main.setOrientation(HORIZONTAL);
+        LinearLayout left = new LinearLayout(act);
+        left.setOrientation(VERTICAL);
+        LinearLayout row1 = new LinearLayout(act);
+        tWifi = new Tile(act, false);
+        tBt = new Tile(act, false);
+        LayoutParams l1 = new LayoutParams(0, dp(150), 1f);
+        l1.rightMargin = dp(6);
+        LayoutParams l2 = new LayoutParams(0, dp(150), 1f);
+        l2.leftMargin = dp(6);
+        row1.addView(tWifi, l1);
+        row1.addView(tBt, l2);
+        left.addView(row1);
+        tHot = new Tile(act, true);
+        LayoutParams l3 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(76));
+        l3.topMargin = dp(12);
+        left.addView(tHot, l3);
+        top.addView(left, new LayoutParams(dp(400), ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        // LEWA kolumna: szklana karta lacznosci jak w iOS - trzy okragle
-        // PRZELACZNIKI Wi-Fi / Bluetooth / Hotspot (kolo + etykieta pod spodem)
-        LinearLayout rail = new LinearLayout(act);
-        rail.setOrientation(VERTICAL);
-        rail.setPadding(dp(10), 0, dp(10), 0);
-        rail.setBackground(glassBg());
-        buildRail(rail);
-        LayoutParams rlp = new LayoutParams(dp(146), dp(198));
-        rlp.rightMargin = dp(10);
-        main.addView(rail, rlp);
+        if (Prefs.customBars(act)) {
+            LinearLayout bars = new LinearLayout(act);
+            bars.setOrientation(HORIZONTAL);
+            PillSlider vol = new PillSlider(act, false, volumeValue());
+            PillSlider bri = new PillSlider(act, true, brightnessValue());
+            LayoutParams bp = new LayoutParams(dp(70), dp(238));
+            bp.leftMargin = dp(10);
+            bars.addView(vol, bp);
+            bars.addView(bri, bp);
+            vol.setListener(new PillSlider.Listener() {
+                @Override
+                public void on(float v) {
+                    setVolume(v);
+                }
 
-        // ===== 3 KOLUMNY (uklad uzytkownika, 2026-11-07) =====
-        // kol 1: Wi-Fi / tethering / BT; kol 2: suwak jasnosci + Night Shift;
-        // kol 3: suwak glosnosci + tryb Dzienny/Nocny/Auto.
-        // Stale dp bez weight (Mali-T720): 146+10+180+12+180 = 528 dp.
-        LinearLayout colBri = new LinearLayout(act);
-        colBri.setOrientation(VERTICAL);
-        colBri.setGravity(Gravity.CENTER_HORIZONTAL);
-        briSlider = new PillSlider(act, true, brightnessValue());
-        briSlider.setListener(new PillSlider.Listener() {
-            @Override
-            public void on(float v) {
-                setBrightness(v);
-            }
+                @Override
+                public void onLong() {
+                    openAndClose("android.settings.SOUND_SETTINGS");
+                }
+            });
+            bri.setListener(new PillSlider.Listener() {
+                @Override
+                public void on(float v) {
+                    setBrightness(v);
+                }
 
-            @Override
-            public void onLong() {
-                showWarmthSlider();   // jak w iOS: przytrzymanie jasnosci = cieplo ekranu
-            }
-        });
-        // waski suwak jak w iOS (bylo 160 dp); wysokosc = dwa przelaczniki (72+8+72)
-        LayoutParams blp = new LayoutParams(dp(120), dp(152));
-        colBri.addView(briSlider, blp);
-        if (Prefs.showNightShift(act)) {
-            nightRow = new NightShiftRow(act);
-            LayoutParams nlp = new LayoutParams(dp(124), dp(80));
-            nlp.topMargin = dp(8);
-            colBri.addView(nightRow, nlp);
+                @Override
+                public void onLong() {
+                    showWarmthSlider();
+                }
+            });
+            volSlider = vol;
+            briSlider = bri;
+            top.addView(bars);
         }
-        LayoutParams clp = new LayoutParams(dp(180), dp(240));
-        clp.leftMargin = dp(10);
-        main.addView(colBri, clp);
+        addView(top);
 
-        LinearLayout colVol = new LinearLayout(act);
-        colVol.setOrientation(VERTICAL);
-        colVol.setGravity(Gravity.CENTER_HORIZONTAL);
-        volSlider = new PillSlider(act, false, volumeValue());
-        volSlider.setListener(new PillSlider.Listener() {
-            @Override
-            public void on(float v) {
-                setVolume(v);
+        // dolny rzad: JEDEN przycisk trybu (klik = cykl Jasny -> Ciemny -> Auto)
+        // + Night Shift (klik = wl/wyl, przytrzymanie = suwak ciepla)
+        boolean showMode = Prefs.showModeButtons(act);
+        boolean showNs = Prefs.showNightShift(act);
+        if (showMode || showNs) {
+            LinearLayout row = new LinearLayout(act);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            LayoutParams rp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            rp.topMargin = dp(12);
+            if (showMode) {
+                bMode = new RoundBtn(act);
+                bMode.setKind(0, "Jasny");
+                row.addView(bMode, new LayoutParams(dp(88), dp(96)));
+                bMode.setOnClickListener(new OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        if (Prefs.followSystem(act)) {
+                            Prefs.setFollowSystem(act, false);
+                            Prefs.setMode(act, "day");
+                        } else if ("day".equals(Prefs.mode(act))) {
+                            Prefs.setMode(act, "night");
+                        } else if ("night".equals(Prefs.mode(act))) {
+                            Prefs.setFollowSystem(act, true);
+                        } else {
+                            Prefs.setMode(act, "day");
+                        }
+                        applyMode();
+                    }
+                });
             }
-
-            @Override
-            public void onLong() {
-                openAndClose("android.settings.SOUND_SETTINGS");
+            if (showNs) {
+                View gap = new View(act);
+                row.addView(gap, new LayoutParams(0, 1, 1f));
+                bShift = new RoundBtn(act);
+                bShift.setKind(3, "Night Shift");
+                row.addView(bShift, new LayoutParams(dp(110), dp(96)));
+                bShift.setOnClickListener(new OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        boolean on = !NightShift.isOn(act);
+                        boolean ok = NightShift.set(act, on);
+                        if (!ok) host.close();
+                        update();
+                    }
+                });
+                bShift.setOnLongClickListener(new OnLongClickListener() {
+                    @Override
+                    public boolean onLongClick(View v) {
+                        showWarmthSlider();
+                        return true;
+                    }
+                });
             }
-        });
-        LayoutParams vlp = new LayoutParams(dp(120), dp(152));
-        colVol.addView(volSlider, vlp);
-        if (Prefs.showModeButtons(act)) {
-            modeSeg = new ModeSegmentView(act);
-            LayoutParams mlp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(80));
-            mlp.topMargin = dp(8);
-            colVol.addView(modeSeg, mlp);
+            addView(row, rp);
         }
-        LayoutParams klp = new LayoutParams(dp(180), dp(240));
-        klp.leftMargin = dp(12);
-        main.addView(colVol, klp);
-
-        addView(main, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        // ===== MODUL WYSWIETLACZA (jak w iOS) =====
-        // ===== Night Shift i tryb wygladu przeniesione pod suwaki (kol 2 i 3) =====
-
-        // podpis trybu automatycznego (od zachodu do wschodu slonca)
-        note = new TextView(act);
-        note.setTextSize(13);
-        note.setTextColor(night ? 0xFF9A9AA0 : 0xFF6C6C70);
-        note.setPadding(dp(6), dp(6), 0, dp(4));
-        note.setVisibility(GONE);
-        addView(note);
 
         // ===== siatka dodatkowych narzedzi (edytowalna) =====
         grid = new ToolGrid(act, night, new ToolGrid.Host() {
@@ -277,18 +280,15 @@ public class ConnectivityPanel extends LinearLayout {
             }
         });
         List<String> toolIds = PanelTool.load(act);
-        // narzedzia ze stalego modulu bazowego nigdy nie duplikuja sie w siatce
         toolIds = withoutBaseTools(toolIds);
         grid.setTools(toolIds);
-        // BAZOWY widok babelka = tylko 3 kolumny (przelaczniki + suwaki).
-        // Siatka dodatkowych narzedzi wyskakuje dopiero w trybie edycji.
         grid.setVisibility(GONE);
         LayoutParams gp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         gp.topMargin = dp(10);
         addView(grid, gp);
 
-        // dlugie przytrzymanie tla = tryb edycji
+        // dlugie przytrzymanie tla = tryb edycji (zamiast przycisku "Edytuj")
         setOnLongClickListener(new OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
@@ -311,36 +311,28 @@ public class ConnectivityPanel extends LinearLayout {
         ap.gravity = Gravity.CENTER_HORIZONTAL;
         ap.topMargin = dp(12);
         addView(btnAdd, ap);
+
+        // akcje kafelkow lacznosci (tap/przytrzymanie jak dotychczas)
+        wireTile(tWifi, "wifi");
+        wireTile(tBt, "bt");
+        wireTile(tHot, "hot");
     }
 
-    // ---------------------------------------------------------------- kafelki Wi-Fi / BT / Hotspot
-    private void buildRail(LinearLayout rail) {
-        String[] railIds = {"wifi", "hot", "bt"};
-        for (String rid : railIds) {
-            final PanelTool.Def def = PanelTool.find(rid);
-            if (def == null) continue;
-            final View tile = ToolGrid.createTile(act, night, def);
-            tile.setTag(def);
-            tile.setOnClickListener(new OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    onRailTap(def);
-                }
-            });
-            tile.setOnLongClickListener(new OnLongClickListener() {
-                @Override
-                public boolean onLongClick(View v) {
-                    onRailLong(def);
-                    return true;
-                }
-            });
-            // 3 x (58 + 8) = 198 dp = wysokosc karty (kafelki bez etykiet jak w iOS CC)
-            LayoutParams tlp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(58));
-            tlp.topMargin = dp(4);
-            tlp.bottomMargin = dp(4);
-            rail.addView(tile, tlp);
-            railTiles.add(tile);
-        }
+    private void wireTile(Tile t, String id) {
+        t.setTag(PanelTool.find(id));
+        t.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onRailTap((PanelTool.Def) v.getTag());
+            }
+        });
+        t.setOnLongClickListener(new OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                onRailLong((PanelTool.Def) v.getTag());
+                return true;
+            }
+        });
     }
 
     private void onRailTap(PanelTool.Def d) {
@@ -390,7 +382,6 @@ public class ConnectivityPanel extends LinearLayout {
     public void enterEditMode() {
         if (editMode) return;
         editMode = true;
-        btnEdit.setText("Gotowe");
         try {
             if (grid != null) grid.setEditing(true);
             if (grid != null) grid.setVisibility(VISIBLE);
@@ -413,7 +404,6 @@ public class ConnectivityPanel extends LinearLayout {
     public void exitEditMode() {
         if (!editMode) return;
         editMode = false;
-        btnEdit.setText("Edytuj");
         try {
             if (grid != null) grid.setEditing(false);
             if (grid != null) grid.setVisibility(GONE);
@@ -804,19 +794,32 @@ public class ConnectivityPanel extends LinearLayout {
         if (grid != null) grid.refreshTiles();
         if (volSlider != null) volSlider.setValue(volumeValue());
         if (briSlider != null) briSlider.setValue(brightnessValue());
-        if (modeSeg != null) modeSeg.refreshSelection();
-        if (nightRow != null) nightRow.refresh();
-        for (int i = 0; i < railTiles.size(); i++) {
-            PanelTool.Def d = (PanelTool.Def) railTiles.get(i).getTag();
-            if (d != null) ToolGrid.refreshTile(act, night, railTiles.get(i), d);
-        }
-        if (note != null) {
-            boolean nsSun = "sunset".equals(NightShift.mode(act));
+        int white = 0xFFFFFFFF;
+        boolean wEn = Net.wifiEnabled(act);
+        int ws = Net.wifiState(act);
+        boolean bt = Net.bluetoothOn();
+        boolean th = Net.tethering(act);
+        // ikony 1:1 z Liquid-Glass (te same drawables i tether co w oryginale)
+        tWifi.set(wEn, 0xFF1C94FF, Icons.vector(act, wEn ? R.drawable.ic_wifi : R.drawable.ic_wifi_off,
+                128, white), "Wi-Fi", ws == 3 ? "Połączono" : (ws == 2 ? "Brak internetu"
+                : (ws == 1 ? "Włączone" : "Wyłączone")));
+        tBt.set(bt, 0xFF1C94FF, Icons.vector(act, R.drawable.ic_bt, 128, white), "Bluetooth",
+                BtDevice.isConnected(act) && Prefs.btDevice(act).length() > 0
+                        ? "Telefon połączony" : (bt ? "Włączony" : "Wyłączony"));
+        tHot.set(th, 0xFF30D158, Icons.tether(128, white, false), "Hotspot osobisty",
+                th ? "Włączony" : "Wyłączony");
+        if (bMode != null) {
             boolean follow = Prefs.followSystem(act);
-            note.setText(nsSun ? "Night Shift automatyczny: od zachodu do wschodu slonca"
-                    : (follow ? "Wyglad automatyczny: od zachodu do wschodu slonca" : ""));
-            note.setVisibility(note.getText().length() > 0 ? VISIBLE : GONE);
+            String m = Prefs.mode(act);
+            if (follow) {
+                bMode.setKind(2, "Auto");
+            } else if ("night".equals(m)) {
+                bMode.setKind(1, "Ciemny");
+            } else {
+                bMode.setKind(0, "Jasny");
+            }
         }
+        if (bShift != null) bShift.setActive(NightShift.isOn(act));
     }
 
     @Override
@@ -872,164 +875,142 @@ public class ConnectivityPanel extends LinearLayout {
         rc = null;
     }
 
-    // ---------------------------------------------------------------- Night Shift (framework-only)
-    // Okragly przycisk jak w Control Center (screen "Night Shift / wl."):
-    // kolko z ikona slonca, pod nim pogrubiony podpis "Night Shift"
-    // i drobny podpodpis ze stanem. Tap = cykl trybow, przytrzymanie = cieplo.
-    private class NightShiftRow extends LinearLayout {
-        private final View circleBg;
-        private final TextView label;
+    // ---------------------------------------------------------------- kafelek (framework-only)
+    // Wyglad 1:1 z Liquid-Glass: zaokraglony prostokat (34dp / polowa wysokosci
+    // dla szerokiego), kolo 50dp z ikona, bold tytul + podpis. Zero onDraw:
+    // GradientDrawable + ImageView + TextView.
+    private class Tile extends FrameLayout {
+        private final boolean wide;
+        private final View circle;
+        private final ImageView icon;
+        private final TextView title;
         private final TextView sub;
-        private String mode = "off";
-        private boolean on;
 
-        NightShiftRow(Context c) {
+        Tile(Context c, boolean wide) {
+            super(c);
+            this.wide = wide;
+            GradientDrawable bg = new GradientDrawable();
+            bg.setColor(night ? 0xF0606767 : 0xFFE4E4EA);
+            bg.setCornerRadius(wide ? dp(38) : dp(34));
+            bg.setStroke(Math.max(1, dp(1)), 0x55FFFFFF);
+            setBackground(bg);
+
+            FrameLayout circ = new FrameLayout(c);
+            circle = new View(c);
+            circle.setBackground(Ui.round(0xFF7E8686, 999, act));
+            circ.addView(circle, new FrameLayout.LayoutParams(dp(50), dp(50), Gravity.CENTER));
+            icon = new ImageView(c);
+            icon.setLayoutParams(new FrameLayout.LayoutParams(dp(28), dp(28), Gravity.CENTER));
+            circ.addView(icon);
+            LayoutParams clp = new LayoutParams(dp(50), dp(50));
+            if (wide) {
+                clp.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
+                clp.leftMargin = dp(20);
+            } else {
+                clp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+                clp.topMargin = dp(18);
+            }
+            addView(circ, clp);
+
+            LinearLayout texts = new LinearLayout(c);
+            texts.setOrientation(VERTICAL);
+            title = new TextView(c);
+            title.setTextSize(19);
+            title.setTypeface(null, Typeface.BOLD);
+            title.setTextColor(night ? 0xFFFFFFFF : 0xFF111114);
+            texts.addView(title);
+            sub = new TextView(c);
+            sub.setTextSize(wide ? 16 : 15);
+            sub.setTextColor(night ? 0xFFC9CFCF : 0xFF6C6C70);
+            texts.addView(sub);
+            LayoutParams tlp = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            if (wide) {
+                tlp.gravity = Gravity.CENTER_VERTICAL;
+                tlp.leftMargin = dp(84);
+            } else {
+                tlp.gravity = Gravity.BOTTOM;
+                tlp.leftMargin = dp(18);
+                tlp.bottomMargin = dp(12);
+            }
+            addView(texts, tlp);
+        }
+
+        void set(boolean active, int color, Bitmap bmp, String t, String s) {
+            circle.setBackground(Ui.round(active ? color : 0xFF7E8686, 999, act));
+            icon.setImageBitmap(bmp);
+            title.setText(t);
+            sub.setText(s);
+            setContentDescription(t + ", " + s);
+        }
+    }
+
+    // ---------------------------------------------------------------- okragly przycisk z podpisem (framework-only)
+    // Wyglad 1:1 z Liquid-Glass: kolo 56dp z ikona, pod spodem podpis 13sp.
+    // kind: 0 jasny (slonce), 1 ciemny (ksiezyc), 2 auto (A), 3 Night Shift.
+    private class RoundBtn extends LinearLayout {
+        private final View circle;
+        private final ImageView icon;
+        private final TextView letter;
+        private final TextView label;
+        private int kind = -1;
+        private boolean active = true;
+
+        RoundBtn(Context c) {
             super(c);
             setOrientation(VERTICAL);
             setGravity(Gravity.CENTER_HORIZONTAL);
 
             FrameLayout circ = new FrameLayout(c);
-            circleBg = new View(c);
-            FrameLayout.LayoutParams clp = new FrameLayout.LayoutParams(dp(48), dp(48),
-                    Gravity.CENTER);
-            circ.addView(circleBg, clp);
-            ImageView icon = new ImageView(c);
-            icon.setImageBitmap(glyphBitmap("sun", dp(24), 0xFFFFFFFF));
-            FrameLayout.LayoutParams ilp = new FrameLayout.LayoutParams(dp(26), dp(26),
-                    Gravity.CENTER);
-            circ.addView(icon, ilp);
-            addView(circ, new LayoutParams(dp(48), dp(48)));
+            circle = new View(c);
+            circle.setBackground(Ui.round(0xFF1C94FF, 999, act));
+            circ.addView(circle, new FrameLayout.LayoutParams(dp(56), dp(56), Gravity.CENTER));
+            icon = new ImageView(c);
+            icon.setLayoutParams(new FrameLayout.LayoutParams(dp(30), dp(30), Gravity.CENTER));
+            circ.addView(icon);
+            letter = new TextView(c);
+            letter.setText("A");
+            letter.setTextSize(22);
+            letter.setTypeface(null, Typeface.BOLD);
+            letter.setTextColor(0xFFFFFFFF);
+            letter.setGravity(Gravity.CENTER);
+            letter.setLayoutParams(new FrameLayout.LayoutParams(dp(30), dp(30), Gravity.CENTER));
+            circ.addView(letter);
+            LayoutParams clp = new LayoutParams(dp(56), dp(56));
+            clp.topMargin = dp(6);
+            addView(circ, clp);
 
             label = new TextView(c);
-            label.setText("Night Shift");
-            label.setTextSize(12);
-            label.setTypeface(null, Typeface.BOLD);
+            label.setTextSize(13);
             label.setGravity(Gravity.CENTER);
             label.setTextColor(night ? 0xFFFFFFFF : 0xFF111114);
-            addView(label, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT));
-
-            sub = new TextView(c);
-            sub.setTextSize(10);
-            sub.setGravity(Gravity.CENTER);
-            sub.setTextColor(night ? 0x99EBEBF5 : 0x993C3C43);
-            addView(sub, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT));
-
-            refresh();
-            setOnClickListener(new OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    cycle();
-                }
-            });
-            setOnLongClickListener(new OnLongClickListener() {
-                @Override
-                public boolean onLongClick(View v) {
-                    showWarmthSlider();
-                    return true;
-                }
-            });
+            LayoutParams llp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            llp.topMargin = dp(2);
+            addView(label, llp);
         }
 
-        void refresh() {
-            mode = NightShift.mode(act);
-            on = NightShift.isOn(act);
-            // kolko: pomaranczowe jak w iOS gdy wlaczone, inaczej systemowa szarosc
-            circleBg.setBackground(Ui.round(on ? 0xFFFF9F0A
-                    : (night ? 0x4D787880 : 0xFFE4E4EA), 999, act));
-            sub.setText("sunset".equals(mode) ? "Automatyczny"
-                    : ("on".equals(mode) ? "Włączony" : "Wyłączony"));
+        void setKind(int k, String lbl) {
+            if (k == kind && lbl.contentEquals(label.getText())) return;
+            kind = k;
+            label.setText(lbl);
+            setContentDescription(lbl);
+            boolean showLetter = (k == 2);
+            letter.setVisibility(showLetter ? VISIBLE : GONE);
+            icon.setVisibility(showLetter ? GONE : VISIBLE);
+            icon.setImageBitmap(glyphBitmap("sun", dp(30), 0xFFFFFFFF));
+            refreshColor();
         }
 
-        private void cycle() {
-            String next = NightShift.nextMode(mode);
-            boolean ok = NightShift.setMode(act, next);
-            if (!ok) {
-                host.close();
-                return;
-            }
-            refresh();
-            update();
-        }
-    }
-
-    // ---------------------------------------------------------------- tryb wygladu (framework-only)
-    // Trzy okragle przyciski jak w module wyswietlacza iOS (screeny "Tryb ciemny"):
-    // slonce = Dzienny, ksiiezyc = Nocny, pol-kolo = Auto. Wybrany ma niebieskie
-    // kolko i pogrubiony podpis. Logika wyboru bez zmian (Prefs.setMode/followSystem).
-    private class ModeSegmentView extends LinearLayout {
-        private final View[] bgs = new View[3];
-        private final TextView[] labels = new TextView[3];
-        private final String[] glyphs = {"sun", "moon", "half"};
-        private final String[] texts = {"Dzienny", "Nocny", "Auto"};
-
-        ModeSegmentView(Context c) {
-            super(c);
-            setOrientation(HORIZONTAL);
-            setGravity(Gravity.CENTER);
-            for (int i = 0; i < 3; i++) {
-                final int idx = i;
-                LinearLayout btn = new LinearLayout(c);
-                btn.setOrientation(VERTICAL);
-                btn.setGravity(Gravity.CENTER_HORIZONTAL);
-
-                FrameLayout circ = new FrameLayout(c);
-                bgs[i] = new View(c);
-                FrameLayout.LayoutParams clp = new FrameLayout.LayoutParams(dp(48), dp(48),
-                        Gravity.CENTER);
-                circ.addView(bgs[i], clp);
-                ImageView icon = new ImageView(c);
-                icon.setImageBitmap(glyphBitmap(glyphs[i], dp(24), 0xFFFFFFFF));
-                FrameLayout.LayoutParams ilp = new FrameLayout.LayoutParams(dp(26), dp(26),
-                        Gravity.CENTER);
-                circ.addView(icon, ilp);
-                btn.addView(circ, new LayoutParams(dp(48), dp(48)));
-
-                labels[i] = new TextView(c);
-                labels[i].setText(texts[i]);
-                labels[i].setTextSize(11);
-                labels[i].setGravity(Gravity.CENTER);
-                btn.addView(labels[i], new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT));
-
-                btn.setOnClickListener(new OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        select(idx);
-                    }
-                });
-                LayoutParams blp = new LayoutParams(dp(56),
-                        ViewGroup.LayoutParams.WRAP_CONTENT);
-                addView(btn, blp);
-            }
-            refreshSelection();
+        void setActive(boolean a) {
+            if (a == active) return;
+            active = a;
+            refreshColor();
         }
 
-        void refreshSelection() {
-            int sel = Prefs.followSystem(act) ? 2 : ("night".equals(Prefs.mode(act)) ? 1 : 0);
-            for (int i = 0; i < 3; i++) {
-                boolean s = i == sel;
-                bgs[i].setBackground(Ui.round(s ? 0xFF0A84FF
-                        : (night ? 0x4D787880 : 0xFFE4E4EA), 999, act));
-                labels[i].setTextColor(s ? 0xFFFFFFFF
-                        : (night ? 0x99EBEBF5 : 0x993C3C43));
-                labels[i].setTypeface(null, s ? Typeface.BOLD : Typeface.NORMAL);
-            }
-        }
-
-        private void select(int idx) {
-            if (idx == 0) {
-                Prefs.setFollowSystem(act, false);
-                Prefs.setMode(act, "day");
-            } else if (idx == 1) {
-                Prefs.setFollowSystem(act, false);
-                Prefs.setMode(act, "night");
-            } else {
-                Prefs.setFollowSystem(act, true);
-            }
-            refreshSelection();
-            applyMode();
+        private void refreshColor() {
+            circle.setBackground(Ui.round(active ? (kind == 3 ? 0xFFFF9F0A : 0xFF1C94FF)
+                    : (night ? 0xFF4A4F50 : 0xFFD1D1D6), 999, act));
         }
     }
 
@@ -1076,26 +1057,35 @@ public class ConnectivityPanel extends LinearLayout {
             super(c);
             // tor = ciemne szklo przepuszczajace rozmyte tlo (pigulka jak w iOS)
             GradientDrawable track = new GradientDrawable();
-            track.setColor(Look.night(c) ? 0x663A3A3C : 0x99E9E9EE);
+            track.setColor(Look.night(c) ? 0xFF4A4F50 : 0xFFD1D1D6);
             track.setCornerRadius(999f);
             setBackground(track);
             value = Math.max(0f, Math.min(1f, v));
 
             // wypelnienie od dolu - zwykly View z bialym GradientDrawable
             fill = new View(c);
-            fill.setBackground(Ui.round(0xF2FFFFFF, 999, c));
+            fill.setBackground(Ui.round(0xFFFAFAFC, 999, c));
             FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, 1, Gravity.BOTTOM);
-            flp.setMargins(dp(2), dp(2), dp(2), dp(2));
             addView(fill, flp);
+
+            // przyciecie zawartosci do pigulki (odpowiednik clipPath w oryginale)
+            android.view.ViewOutlineProvider op = new android.view.ViewOutlineProvider() {
+                @Override
+                public void getOutline(View view, android.graphics.Outline outline) {
+                    outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(),
+                            view.getWidth() / 2f);
+                }
+            };
+            setOutlineProvider(op);
+            setClipToOutline(true);
 
             // ikona przy dolnej krawedzi (Bitmapa -> ImageView, framework)
             icon = new ImageView(c);
-            int ink = sun ? 0xFFF2C94C : 0xFF8E8E93;
-            icon.setImageBitmap(makeSliderIcon(c, sun, ink));
-            FrameLayout.LayoutParams ilp = new FrameLayout.LayoutParams(dp(30), dp(30),
+            icon.setImageBitmap(makeSliderIcon(c, sun));
+            FrameLayout.LayoutParams ilp = new FrameLayout.LayoutParams(dp(34), dp(34),
                     Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-            ilp.bottomMargin = dp(10);
+            ilp.bottomMargin = dp(17);
             addView(icon, ilp);
 
             setOnTouchListener(new OnTouchListener() {
@@ -1185,12 +1175,44 @@ public class ConnectivityPanel extends LinearLayout {
             return true;
         }
 
-        private static Bitmap makeSliderIcon(Context c, boolean sun, int ink) {
+        // ikony suwakow 1:1 z Liquid-Glass: zolte slonce (kolo + promienie),
+        // niebieski glosnik (path + luk) - rysowane raz na bitmapie CPU
+        private static Bitmap makeSliderIcon(Context c, boolean sun) {
             float den = c.getResources().getDisplayMetrics().density;
-            int px = (int) Math.ceil(30f * den);
+            int px = (int) Math.ceil(34f * den);
             Bitmap b = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
             Canvas cv = new Canvas(b);
-            PanelTool.glyph(cv, sun ? "sun" : "speaker", px / 2f, px / 2f, 24f * den, ink);
+            float cx = px / 2f;
+            float cy = px / 2f;
+            Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+            if (sun) {
+                p.setColor(0xFFF2C94C);
+                p.setStyle(Paint.Style.FILL);
+                cv.drawCircle(cx, cy, 7f * den, p);
+                p.setStyle(Paint.Style.STROKE);
+                p.setStrokeWidth(2.4f * den);
+                p.setStrokeCap(Paint.Cap.ROUND);
+                for (int i = 0; i < 8; i++) {
+                    double a = Math.PI * i / 4.0;
+                    cv.drawLine(cx + (float) Math.cos(a) * 11f * den, cy + (float) Math.sin(a) * 11f * den,
+                            cx + (float) Math.cos(a) * 15f * den, cy + (float) Math.sin(a) * 15f * den, p);
+                }
+            } else {
+                p.setStyle(Paint.Style.FILL);
+                p.setColor(0xFF5AC8FA);
+                Path sp = new Path();
+                sp.moveTo(cx - 12f * den, cy - 5f * den);
+                sp.lineTo(cx - 6f * den, cy - 5f * den);
+                sp.lineTo(cx + 1f * den, cy - 11f * den);
+                sp.lineTo(cx + 1f * den, cy + 11f * den);
+                sp.lineTo(cx - 6f * den, cy + 5f * den);
+                sp.lineTo(cx - 12f * den, cy + 5f * den);
+                sp.close();
+                cv.drawPath(sp, p);
+                p.setStyle(Paint.Style.STROKE);
+                cv.drawArc(new RectF(cx - 2f * den, cy - 7f * den, cx + 10f * den, cy + 7f * den),
+                        -50, 100, false, p);
+            }
             return b;
         }
     }

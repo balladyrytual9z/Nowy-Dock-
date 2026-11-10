@@ -1,23 +1,3 @@
-# screens.yml v18: diagnostyka pagera - zrzut po kazdym swipe (sw1..sw7), biblioteka nie jest ostatnia strona
-# =====================================================================
-# GLOBALNY MECHANIZM TESTOW WIZUALNYCH (2026-11-08, zadanie uzytkownika):
-# po kazdym pushu kodu CI odpala emulator Androida 9 (API 28 = wersja
-# tabletu ESSGOO), instaluje APK, otwiera kolejne aktywnosci i robi
-# zrzuty ekranu do screens/ w repo ([skip ci]) - agent widzi UI wlasnymi
-# oczami zanim odda build. Uczciwie: emulator ma inna GPU niz Mali-T720
-# tabletu (weryfikacja ukladu/logiki, nie dziwactw sprzetowych).
-# HISTORIA NAPRAW: #1 brak kroku Android SDK; #2/#3: akcja emulatorowa
-# wykonuje script LINIJKA PO LINIJCE jako osobne /usr/bin/sh -c, wiec
-# zmienne shellowe i funkcje NIE przetrwal miedzy liniami (tee padal na
-# pustym $LOG). v4: skrypt plaski - kazda linia samodzielna, zero
-# zmiennych/funkcji, delikatne komendy z "|| true". v5: skin 1280x720 =
-# NATYWNA rozdzielczosc tabletu ESSGOO - domyslny HVGA (320dp szerokosci)
-# UCINAL panel 560dp (kolumna suwaka glosnosci i trybow znikala za prawa
-# krawedzia - zlapane na zrzucie runa #4).
-# v6: po kazdym runie do screens/ trafia tez diag-terminal.txt
-# (dumpsys window + logcat przy terminalu) - to on wykryl, ze ekran
-# terminala crashowal przy starcie, a "zrzut terminala" byl launcherem.
-# =====================================================================
 name: Zrzuty ekranu emulatora (testy wizualne)
 
 on:
@@ -113,6 +93,11 @@ jobs:
             adb shell am start -n "pl.dock.widget/.LauncherActivity" >/dev/null 2>&1 || true
             sleep 6
             adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/launcher.png" || true
+            adb shell input tap 40 90 >/dev/null 2>&1 || true
+            sleep 2
+            adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/cc_overlay.png" || true
+            adb shell input keyevent 4 >/dev/null 2>&1 || true
+            sleep 1
             adb shell input swipe 1000 360 200 360 >/dev/null 2>&1 || true
             sleep 2
             adb exec-out screencap -p > "$GITHUB_WORKSPACE/out/sw1.png" || true
