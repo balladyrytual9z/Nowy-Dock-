@@ -1441,18 +1441,34 @@ public class LauncherActivity extends BaseActivity {
                             android.graphics.Paint gp = new android.graphics.Paint(
                                     android.graphics.Paint.ANTI_ALIAS_FLAG);
                             gp.setStyle(android.graphics.Paint.Style.STROKE);
-                            float inset = Ui.dp(LauncherActivity.this, 4);
                             float rad = Ui.dp(LauncherActivity.this, 34);
-                            // dwie warstwy: szeroka słaba aureola + wąska jasna krawędź
-                            // (jak rim szkła doka); rozmycie zjada ~2/3 alfy, więc
-                            // kolory sa celowo mocne
-                            gp.setStrokeWidth(Ui.dp(LauncherActivity.this, 24));
-                            gp.setColor(0x40FFFFFF);
-                            gc.drawRoundRect(inset, inset, w - inset, hgt - inset, rad, rad, gp);
-                            gp.setStrokeWidth(Ui.dp(LauncherActivity.this, 9));
-                            gp.setColor(0xC8FFFFFF);
-                            gc.drawRoundRect(inset, inset, w - inset, hgt - inset, rad, rad, gp);
+                            // 1) miękka aureola: dwie warstwy podane POD rozmycie
+                            gp.setStrokeWidth(Ui.dp(LauncherActivity.this, 26));
+                            gp.setColor(0x50FFFFFF);
+                            gc.drawRoundRect(glowPadF, glowPadF, w - glowPadF,
+                                    hgt - glowPadF, rad, rad, gp);
+                            gp.setStrokeWidth(Ui.dp(LauncherActivity.this, 12));
+                            gp.setColor(0xB0FFFFFF);
+                            gc.drawRoundRect(glowPadF, glowPadF, w - glowPadF,
+                                    hgt - glowPadF, rad, rad, gp);
                             Blur.blur(gb, 8, 4);
+                            // 2) OSTRA obwódka tuż przy oknie - ten sam rysunek co
+                            // rim/obwódka szkła doka (DockView.onDraw, warstwy 3-4).
+                            // Tam poświata JEST czytelna, bo to ostra linia z
+                            // gradientem, a nie rozmyte halo: poprzednia wersja
+                            // ginęła po rozmyciu na jasnym tle szkła.
+                            float den = getResources().getDisplayMetrics().density;
+                            android.graphics.Paint ep = new android.graphics.Paint(
+                                    android.graphics.Paint.ANTI_ALIAS_FLAG);
+                            ep.setStyle(android.graphics.Paint.Style.STROKE);
+                            float eo = 1.5f * den;
+                            ep.setStrokeWidth(2.5f * den);
+                            ep.setShader(new android.graphics.LinearGradient(0, 0, w, hgt,
+                                    new int[]{0xE6FFFFFF, 0x66FFFFFF, 0x22FFFFFF, 0x66FFFFFF},
+                                    new float[]{0f, 0.3f, 0.75f, 1f},
+                                    android.graphics.Shader.TileMode.CLAMP));
+                            gc.drawRoundRect(glowPadF - eo, glowPadF - eo,
+                                    w - glowPadF + eo, hgt - glowPadF + eo, rad, rad, ep);
                             glowRef.setImageBitmap(gb);
                         } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);
                         }
@@ -1473,6 +1489,8 @@ public class LauncherActivity extends BaseActivity {
         // potwierdzil, ze tresc panelu sie rysuje): DOKLADNIE ta sekwencja wejscia -
         // fade overlay + animacja panelu (skala 0.92 -> 1, translateY 40 -> 0,
         // Overshoot) + withEndAction wymuszajacy re-layout i invalidate.
+        // Komentarz z tamtej poprawki: "na MT8163 pierwszy pomiar panelu
+        // w animowanej overlay potrafil wyjsc 0x0 i tresc nigdy sie nie rysowala" -
         // koncowy requestLayout()+invalidate() przebudowuje pomiar i rysunek,
         // dopiero wtedy custom Canvas views sie pojawiaja.
         // ⚠️ NIE usuwac animacji ani withEndAction - bez tego panel jest pusty.
