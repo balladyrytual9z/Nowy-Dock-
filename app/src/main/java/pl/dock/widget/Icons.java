@@ -1,4 +1,3 @@
-
 package pl.dock.widget;
 
 import android.content.Context;
@@ -314,21 +313,21 @@ public class Icons {
     // Wi-Fi w czterech stanach: wyłączone (przekreślone), włączone bez sieci (przygaszone),
     // połączone bez internetu (z pomarańczowym znakiem), połączone
     //
-    // Kształt ikony bierze się z Glyphs - to samo źródło prawdy, z którego rysuje
-    // panel łączności i ikony pod zegarem w doku. Wcześniej był tu wektor z
-    // res/drawable/ic_wifi barwiony filtrem PorterDuff.SRC_IN; na docelowym sprzęcie
-    // (ESSGOO MT8163 / Mali-T720 / Android 9) obrysowy wektor z przezroczystym
-    // wypełnieniem po takim filtrze wychodził pusty i ikona Wi-Fi nie pojawiała się.
+    // Kształt ikony = DOKŁADNIE ten sam co w kafelku panelu łączności
+    // (res/drawable/ic_wifi / ic_wifi_off przez Icons.vector - ta sama ścieżka
+    // kodu co panel). Na MT8163 zawodziły wcześniej wektory OBRYSOWE z
+    // przezroczystym wypełnieniem; ic_wifi/ic_wifi_off mają pełne wypełnienie
+    // i renderują się poprawnie (potwierdzone na tablecie w panelu).
     public static Bitmap wifi(Context c, int state, int fg) {
         int dim = (fg & 0x00FFFFFF) | 0x66000000;
         int dimmer = (fg & 0x00FFFFFF) | 0x40000000;
-        if (state == 0) return Glyphs.bitmapFull("wifi_off", 96, dimmer);   // nie XML - na tym GPU ginie
-        if (state == 1) return Glyphs.bitmapFull("wifi", 96, dim);
-        if (state == 3) return Glyphs.bitmapFull("wifi", 96, fg);
+        if (state == 0) return vector(c, R.drawable.ic_wifi_off, 96, dimmer);
+        if (state == 1) return vector(c, R.drawable.ic_wifi, 96, dim);
+        if (state == 3) return vector(c, R.drawable.ic_wifi, 96, fg);
         String key = "wf2|" + fg;
         Bitmap cached = cache.get(key);
         if (cached != null) return cached;
-        Bitmap base = Glyphs.bitmapFull("wifi", 96, fg);
+        Bitmap base = vector(c, R.drawable.ic_wifi, 96, fg);
         Bitmap out = Bitmap.createBitmap(96, 96, Bitmap.Config.ARGB_8888);
         Canvas cv = new Canvas(out);
         cv.drawBitmap(base, 0, 0, null);

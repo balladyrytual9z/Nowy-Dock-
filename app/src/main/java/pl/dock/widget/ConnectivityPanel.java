@@ -288,11 +288,13 @@ public class ConnectivityPanel extends LinearLayout {
         gp.topMargin = dp(10);
         addView(grid, gp);
 
-        // dlugie przytrzymanie tla = tryb edycji (zamiast przycisku "Edytuj")
+        // dlugie przytrzymanie tla = przelacznik trybu edycji: pierwsze przytrzymanie
+        // otwiera (siatka narzedzi + "Dodaj narzedzie"), nastepne zamyka
         setOnLongClickListener(new OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
-                enterEditMode();
+                if (editMode) exitEditMode();
+                else enterEditMode();
                 return true;
             }
         });
@@ -1064,12 +1066,15 @@ public class ConnectivityPanel extends LinearLayout {
             setBackground(track);
             value = Math.max(0f, Math.min(1f, v));
 
-            // wypelnienie od dolu - zwykly View z PLASKIM tlem (prostokat
-            // przycinany do pigulki przez clipToOutline). Promien 999 na
-            // wypelnieniu zawijal krawedz poziomu w polokrag - ma byc plasko.
+            // wypelnienie od dolu: PLASKA gorna krawedz poziomu, ZAOKRAGLONY dol
+            // (promien dolnych rogow = pol szerokosci pigulki 70dp = 35dp), zeby
+            // wypelnienie ladnie wypelnialo polokragly tor na dole. Gora NIE moze
+            // miec promienia 999 - ten zawijal krawedz poziomu w polokrag.
             fill = new View(c);
             GradientDrawable fillBg = new GradientDrawable();
             fillBg.setColor(0xFFFAFAFC);
+            float fr = dp(35);
+            fillBg.setCornerRadii(new float[]{0f, 0f, 0f, 0f, fr, fr, fr, fr});
             fill.setBackground(fillBg);
             FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, 1, Gravity.BOTTOM);
@@ -1223,4 +1228,5 @@ public class ConnectivityPanel extends LinearLayout {
         }
     }
 }
+
 

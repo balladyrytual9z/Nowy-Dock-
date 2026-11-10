@@ -170,15 +170,14 @@ public class DockView extends View {
         int dimmer = (fg & 0x00FFFFFF) | 0x40000000;
         Context c = getContext();
         StatusCenter.Snap s = snap;
-        // Ikony pod zegarem (Wi-Fi, hotspot, Bluetooth) rysowane kodem przez Glyphs -
-        // to samo źródło prawdy, z którego korzysta panel łączności. Wcześniej hotspot
-        // i Bluetooth szły z res/drawable/ic_*.xml przez Icons.vector() z filtrem
-        // PorterDuff.SRC_IN, który na docelowym sprzęcie (ESSGOO MT8163 / Mali-T720 /
-        // Android 9) gubił obrysowe wektory z przezroczystym wypełnieniem i ikony
-        // w doku nie pojawiały się.
+        // Ikony pod zegarem = TE SAME co w panelu łączności: ic_wifi/ic_bt przez
+        // Icons.vector + Icons.tether (identyczna ścieżka kodu jak kafelki panelu,
+        // które użytkownik zatwierdził na tablecie). Wcześniejsze glify z Glyphs
+        // miały inne kształty; pełne wektory z opaque fill renderują się na
+        // MT8163 poprawnie (zawodne były tylko wektory obrysowe z pustym fill).
         bWifi = Icons.wifi(c, s.wifi, fg);
-        bTether = Glyphs.bitmapFull("hot", 96, s.tether ? fg : dimmer);
-        bBt = Glyphs.bitmapFull("bt", 96, s.bt ? fg : dimmer);
+        bTether = Icons.tether(96, s.tether ? fg : dimmer, false);
+        bBt = Icons.vector(c, R.drawable.ic_bt, 96, s.bt ? fg : dimmer);
         bBattery = Icons.vector(c, R.drawable.ic_battery, 96, fg);
         bCharge = Icons.batteryCharging(c, 96, fg);
         bCp = Icons.carplayMark(96, CarplayState.color(s.cp, fg));
