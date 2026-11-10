@@ -191,6 +191,10 @@ kręciła się na boki). Progi to stałe w `HeadingSmoother`.
 
 Zanim agent cokolwiek zrobi — **musi być pewien, że dobrze zrozumiał**.
 
+- **(2026-11-10, wyraźne życzenie użytkownika) ŻELAZNA REGUŁA: zanim agent cokolwiek
+  zrobi przy nowym zadaniu, sparafrazuje własnymi słowami, co zrozumiał, i poczekana
+  na potwierdzenie użytkownika.** Najpierw zrozumienie → potwierdzenie → dopiero potem
+  kod. Dotyczy też każdej zmiany kierunku w trakcie zadania.
 - Jeśli polecenie użytkownika jest niejasne, nieprecyzyjne, brakuje szczegółów technicznych albo agent ma więcej niż jedną interpretację — **agent MA OBOWIĄZEK dopytać**, zanim ruszy dalej.
 - Użytkownik mówi potocznie, po polsku, często nietechnicznie — to normalne. Agent nie zakłada, że wie o co chodzi. Dopytuje dopóki nie ma 100% pewności.
 - Agent nie zgaduje intencji. Nie domyśla się. Nie „robi coś, bo tak zwykle się robi".
@@ -800,3 +804,24 @@ na ekranach OBD mial byc domyslnie schowany (dostepny tylko do wyciagniecia gest
 - Wizja (analyze_image) przy małych ikonach zawodzi — werdykt = kod + zrzut całości.
 
 <!-- SESJA 2026-11-10 (popoludnie): nakladka centrum lacznosci (LauncherActivity/ConnectivityPanel) przebudowana 1:1 z Liquid-Glass: kafelki Wi-Fi/BT/Hotspot 150/76dp z ikonami zrodlowymi (ic_wifi/ic_wifi_off/ic_bt + tether), suwaki PillSlider 70x238 (tory nieprzezroczyste 4A4F50/D1D1D6, fill FAFAFC, clipToOutline, ikony sun/speaker rysowane jak w zrodle), JEDEN przycisk trybu bMode (cykl Jasny->Ciemny->Auto, księżyc dla Ciemny, A dla Auto) + bShift Night Shift (long = suwak ciepla); USUNIETE: naglowek 'Lacznosc', pill 'Edytuj' (edycja = przytrzymanie tla panelu), note 'Wyglad automatyczny...'; LauncherActivity panelW max 574dp; screens.yml: cc_overlay.png (tap 40,90 otwiera nakladke) + appops REQUEST_INSTALL_PACKAGES allow (emulator nie otwiera juz Install unknown apps). Zweryfikowane na zrzutach run 67. ConnectivityPanelIos/ConnectivityActivity bez zmian (juz 1:1). -->
+
+## 2026-11-10 (sesja: PEŁNY REVERT do v1.0.459 — nowa baza pracy)
+
+- Na życzenie użytkownika cofnięto WSZYSTKO, co weszło po tagu `v1.0.459`
+  (commit `655a5cc4`): poświata okna (`bd33ecee`, `e611a783`), rim/edge 1:1 z
+  DockView (`2d4dd4d7`), rama=dok + BevelDrawable + animacje iOS 26
+  (`611ea125`), zmiany CI (`281ad055`, `8b97bb57`).
+- **Kod na `main` = 1:1 z tagiem `v1.0.459`** — zweryfikowane SHA-1 blobów
+  (ConnectivityPanel.java, LauncherActivity.java, ConnectivityPanelGuardTest.java,
+  screens.yml). Metoda: forward-revert pushami na `main`, BEZ force-push
+  (commity revertu zostają w historii).
+- **Bazą wszystkich dalszych prac jest stan v1.0.459.** Odrzucone eksperymenty
+  poświaty/ramki NIE wracają — kolejne podejścia projektować od zera na bazie 459.
+- Do instalacji: release `v1.0.471` (APK = kod 459, wyższy versionCode —
+  aktualizacja bez odinstalowywania).
+- **Nowe zadanie (2026-11-10, dopiero po potwierdzeniu z użytkownikiem):**
+  1) efekt ramki/światła z doka (rozbłysk w lewym górnym rogu) na OKNIE panelu
+     łączności — tylko okno, NIE elementy wewnątrz;
+  2) identyczna animacja otwierania i zamykania panelu (jak w iOS), otwieranie
+     ma się rozwijać od punktu dotknięcia.
+  Zadanie wstrzymane do potwierdzenia zrozumienia przez użytkownika.
