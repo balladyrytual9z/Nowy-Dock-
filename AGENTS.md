@@ -69,6 +69,14 @@ Zasady zarządzania pamięcią:
   (`exec gradle "$@"`), więc hook `.openhands/hooks/quality_gate.sh` nie ma szans
   przejść lokalnie — to oczekiwane, nie jest objawem błędu w kodzie.
   Zamiast tego: push gałęzi → PR → `gh run watch`.
+- **(2026-11-10, wyraźne życzenie użytkownika) PO KAŻDYM pushu do `main` pilnuj
+  statusu builda — Actions na czerwono (X) = build się nie kompiluje.** Zrzuty
+  z emulatora to NIE dowód zielonego builda — nie czekaj na nie, gdy build
+  jest czerwony. Sygnały awarii: release dla commita nie pojawia się w ~10 min,
+  brak bot-commita ze zrzutami, user zgłasza czerwony X. Wtedy: napraw błąd
+  kompilacji NATYCHMIAST (kompilacja lokalna niemożliwa — sprawdzaj każdy typ
+  przed pushem, np. `getBounds()` zwraca `Rect`, nie `RectF`), a dopiero potem
+  czekaj na zrzuty.
 
 ## CI
 
@@ -825,3 +833,4 @@ na ekranach OBD mial byc domyslnie schowany (dostepny tylko do wyciagniecia gest
   2) identyczna animacja otwierania i zamykania panelu (jak w iOS), otwieranie
      ma się rozwijać od punktu dotknięcia.
   Zadanie wstrzymane do potwierdzenia zrozumienia przez użytkownika.
+
