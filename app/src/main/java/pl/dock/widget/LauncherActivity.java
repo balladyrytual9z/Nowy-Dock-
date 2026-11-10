@@ -1409,7 +1409,8 @@ public class LauncherActivity extends BaseActivity {
         // wokół okna: osobny widok ZA panelem z bitmapą rozmytego obrysu. Blur
         // liczony raz na CPU (ten sam mechanizm co liquid glass - działa na
         // Mali-T720), wnętrze panelu bez zmian. Bitmapę generujemy przy pierwszym
-        // wymiarowaniu panelu (do tego momentu widok jest pusty i niewidoczny).
+        // wymiarowaniu panelu (do tego momentu widok jest pusty i niewidoczny,
+        // bo rysuje wyłącznie wygenerowaną bitmapę poświaty).
         final int glowPad = Ui.dp(this, 16);
         glowView = new ImageView(this);
         glowView.setScaleType(ImageView.ScaleType.FIT_XY);
@@ -1473,7 +1474,6 @@ public class LauncherActivity extends BaseActivity {
         // ⚠️ NIE usuwac animacji ani withEndAction - bez tego panel jest pusty.
         overlay.setAlpha(0f);
         overlay.animate().alpha(1f).setDuration(Prefs.reduceMotion(this) ? 0 : 220).start();
-        panel.setScaleX(0.92f);
         panel.setScaleY(0.92f);
         panel.setTranslationY(Ui.dp(this, 40));
         panel.setPivotX(panelW / 2f);
