@@ -1047,6 +1047,7 @@ public class ConnectivityPanel extends LinearLayout {
         private boolean longFired;
         private Runnable longPress;
         private final View fill;
+        private FillDrawable fillBg;
         private final ImageView icon;
         private Listener l;
 
@@ -1057,9 +1058,8 @@ public class ConnectivityPanel extends LinearLayout {
         // NAPRAWA (ESSGOO/MT8163, API 28): stary suwak uzywal potomka z weight
         // ( wysokosc 0 + waga 1 ) - na tym GPU weight potrafil wyjsc zerowy i
         // suwak splaszcza sie do poziomej pigulki z wielka ikona. Teraz czysty
-        // FrameLayout: fill to View z Gravity.BOTTOM o wysokosci ustawianej
-        // recznie w applyFill() - zero wag. Smuklejszy tor jak w iOS Control
-        // Center, mniejsza ikona przy dolnej krawedzi.
+        // FrameLayout. Smuklejszy tor jak w iOS Control Center, mniejsza ikona
+        // przy dolnej krawedzi.
         public PillSlider(Context c, boolean sun, float v) {
             super(c);
             // tor = ciemne szklo przepuszczajace rozmyte tlo (pigulka jak w iOS)
@@ -1069,19 +1069,21 @@ public class ConnectivityPanel extends LinearLayout {
             setBackground(track);
             value = Math.max(0f, Math.min(1f, v));
 
-            // wypelnienie od dolu: ZAOKRAGLONY dol (promien dolnych rogow = pol
-            // szerokosci pigulki 70dp = 35dp), zeby wypelnienie ladnie wypelnialo
-            // polokragly tor na dole. Gora jest plaska przy czesciowym wypelnieniu,
-            // a applyFill() nadaje jej promien 35dp, gdy poziom dochodzi do gornej
-            // strefy zaokraglenia (makro) - wtedy krawedz chowa sie w polokrag toru.
+            // Wypelnienie od dolu jako pelna pigulka przycieta prosta pozioma do
+            // poziomu wypelnienia (FillDrawable ponizej). Dzieki temu:
+            //  - dol ZAWSZE dokladnie wypelnia polokragly dol toru,
+            //  - gorna krawedz jest CALY CZAS PROSTA (zadnej kopulki),
+            //  - a przy poziomie dochodzacym do gory krawedz chowa sie w
+            //    polokragly gor toru (boki podazaja za okregiem).
+            // Dlaczego nie clipToOutline: przy warstwie SOFTWARE (API < 30,
+            // Mali-T720) przycinanie do obrysu NIE dziala - stad wlasny Drawable
+            // z clipRect, rysowany ta sama sciezka co backgroundy GradientDrawable
+            // (czyli renderujace sie poprawnie na tym GPU).
             fill = new View(c);
-            GradientDrawable fillBg = new GradientDrawable();
-            fillBg.setColor(0xFFFAFAFC);
-            float fr = dp(35);
-            fillBg.setCornerRadii(new float[]{0f, 0f, 0f, 0f, fr, fr, fr, fr});
+            fillBg = new FillDrawable(0xFFFAFAFC, dp(4));
             fill.setBackground(fillBg);
             FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, 1, Gravity.BOTTOM);
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
             addView(fill, flp);
 
             // przyciecie zawartosci do pigulki (odpowiednik clipPath w oryginale)
@@ -1130,24 +1132,57 @@ public class ConnectivityPanel extends LinearLayout {
         }
 
         private void applyFill() {
-            int H = getHeight();
-            int h = H - dp(4);
-            if (h <= 0) return;
-            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) fill.getLayoutParams();
-            int fh = Math.max(1, Math.round(h * value));
-            lp.height = fh;
-            fill.setLayoutParams(lp);
-            // Gorna krawedz wypelnienia tez musi chowac sie w polokragly gor toru:
-            // gdy poziom dochodzi do gornej strefy zaokraglenia (ustawienie na
-            // makso), gorne rogi dostaja ten sam promien 35dp co dolne (pelna
-            // pigulka) i krawedz nie wystaje poza polokrag. Nizej tej strefy gora
-            // zostaje plaska - czesciowy poziom "ucina" sie prosto.
-            GradientDrawable fb = (GradientDrawable) fill.getBackground();
-            float fr = dp(35);
-            if (fh >= H - fr) {
-                fb.setCornerRadii(new float[]{fr, fr, fr, fr, fr, fr, fr, fr});
-            } else {
-                fb.setCornerRadii(new float[]{0f, 0f, 0f, 0f, fr, fr, fr, fr});
+            if (fillBg != null) fillBg.setFrac(value);
+        }
+
+        /** Tlo wypelnienia: pelna pigulka (drawRoundRect o promieniu pol szerokosci)
+         *  przycieta clipRect do poziomu wypelnienia. Widoczny ksztalt = przeciecie
+         *  pigulki toru z prosta pozioma: dol dokladnie polokragly, gorna krawedz
+         *  prosta i wpasowana w polokragly gor toru przy kazdym poziomie. */
+        private static class FillDrawable extends android.graphics.drawable.Drawable {
+            private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+            private final int insetPx;
+            private float frac = 0f;
+
+            FillDrawable(int color, int insetPx) {
+                p.setColor(color);
+                this.insetPx = insetPx;
+            }
+
+            void setFrac(float f) {
+                float nf = Math.max(0f, Math.min(1f, f));
+                if (nf != frac) {
+                    frac = nf;
+                    invalidateSelf();
+                }
+            }
+
+            @Override
+            public void draw(Canvas cv) {
+                RectF b = new RectF(getBounds());
+                float w = b.width();
+                float h = b.height();
+                if (w <= 0 || h <= 0) return;
+                float r = w / 2f;
+                cv.save();
+                cv.clipRect(0f, h - frac * (h - insetPx), w, h);
+                cv.drawRoundRect(b, r, r, p);
+                cv.restore();
+            }
+
+            @Override
+            public void setAlpha(int alpha) {
+                p.setAlpha(alpha);
+            }
+
+            @Override
+            public void setColorFilter(android.graphics.ColorFilter cf) {
+                p.setColorFilter(cf);
+            }
+
+            @Override
+            public int getOpacity() {
+                return android.graphics.PixelFormat.TRANSLUCENT;
             }
         }
 
