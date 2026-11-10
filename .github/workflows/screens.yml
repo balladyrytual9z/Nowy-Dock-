@@ -87,6 +87,7 @@ jobs:
             adb shell appops set pl.dock.widget WRITE_SETTINGS allow || true
             adb shell appops set pl.dock.widget SYSTEM_ALERT_WINDOW allow || true
             adb shell appops set pl.dock.widget PACKAGE_USAGE_STATS allow || true
+            adb shell appops set pl.dock.widget REQUEST_INSTALL_PACKAGES allow || true
             mkdir -p "$GITHUB_WORKSPACE/out" || true
             adb shell am force-stop pl.dock.widget >/dev/null 2>&1 || true
             sleep 1
