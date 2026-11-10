@@ -40,6 +40,8 @@ import android.widget.TextView;
 // 5. SZKŁO (jak w iOS): kafelki, przyciski i suwaki półprzezroczyste,
 //    światło TYLKO Z GÓRY (pionowe gradienty) - bez ukośnego światła z lewej,
 //    które jest w dokku/ramce okna.
+// 6. IKONY SUWAKÓW 1:1 ze zdjęcia iOS: słońce #FFD700 (koło + 8 cienkich
+//    promieni), głośnik #1EA1FF (korpus z "uszami" + 2 łuki fal konturem).
 public class ConnectivityPanelIos extends LinearLayout {
 
     public interface Host {
@@ -691,35 +693,40 @@ public class ConnectivityPanelIos extends LinearLayout {
             p.setStyle(Paint.Style.FILL);
             float cx = w / 2f;
             float cy = h - 34f * d;
-            int ink = 0xFF8E8E93;
-            p.setColor(ink);
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(2.4f * d);
+            // IKONY 1:1 z iOS (zdjęcie usera): słońce #FFD700, głośnik #1EA1FF
             p.setStrokeCap(Paint.Cap.ROUND);
+            p.setStrokeJoin(Paint.Join.ROUND);
             if (sun) {
-                p.setColor(0xFFF2C94C);
+                // słońce: wypełnione koło + 8 cienkich prostych promieni
+                p.setColor(0xFFFFD700);
                 p.setStyle(Paint.Style.FILL);
-                cv.drawCircle(cx, cy, 7f * d, p);
+                cv.drawCircle(cx, cy, 6.5f * d, p);
                 p.setStyle(Paint.Style.STROKE);
+                p.setStrokeWidth(2.2f * d);
                 for (int i = 0; i < 8; i++) {
                     double a = Math.PI * i / 4.0;
-                    cv.drawLine(cx + (float) Math.cos(a) * 11f * d, cy + (float) Math.sin(a) * 11f * d,
-                            cx + (float) Math.cos(a) * 15f * d, cy + (float) Math.sin(a) * 15f * d, p);
+                    cv.drawLine(cx + (float) Math.cos(a) * 10.5f * d, cy + (float) Math.sin(a) * 10.5f * d,
+                            cx + (float) Math.cos(a) * 14.5f * d, cy + (float) Math.sin(a) * 14.5f * d, p);
                 }
             } else {
-                p.setStyle(Paint.Style.FILL);
-                p.setColor(0xFF5AC8FA);
+                // głośnik: wypełniony korpus z "uszami" po lewej + 2 łuki fal (kontur)
+                p.setColor(0xFF1EA1FF);
+                p.setStyle(Paint.Style.FILL_AND_STROKE);
+                p.setStrokeWidth(2f * d);
                 Path sp = new Path();
-                sp.moveTo(cx - 12f * d, cy - 5f * d);
-                sp.lineTo(cx - 6f * d, cy - 5f * d);
-                sp.lineTo(cx + 1f * d, cy - 11f * d);
-                sp.lineTo(cx + 1f * d, cy + 11f * d);
-                sp.lineTo(cx - 6f * d, cy + 5f * d);
-                sp.lineTo(cx - 12f * d, cy + 5f * d);
+                sp.moveTo(cx - 11f * d, cy - 4.5f * d);
+                sp.lineTo(cx - 4f * d, cy - 4.5f * d);
+                sp.lineTo(cx + 3f * d, cy - 10.5f * d);
+                sp.lineTo(cx + 3f * d, cy + 10.5f * d);
+                sp.lineTo(cx - 4f * d, cy + 4.5f * d);
+                sp.lineTo(cx - 11f * d, cy + 4.5f * d);
                 sp.close();
                 cv.drawPath(sp, p);
                 p.setStyle(Paint.Style.STROKE);
-                cv.drawArc(new RectF(cx - 2f * d, cy - 7f * d, cx + 10f * d, cy + 7f * d), -50, 100,
+                p.setStrokeWidth(2.2f * d);
+                cv.drawArc(new RectF(cx - 1f * d, cy - 5f * d, cx + 9f * d, cy + 5f * d), -48, 96,
+                        false, p);
+                cv.drawArc(new RectF(cx - 5.5f * d, cy - 9.5f * d, cx + 13.5f * d, cy + 9.5f * d), -48, 96,
                         false, p);
             }
         }
