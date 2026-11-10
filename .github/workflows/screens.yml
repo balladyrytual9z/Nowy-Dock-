@@ -1,5 +1,4 @@
 name: Zrzuty ekranu emulatora (testy wizualne)
-# rerun 84: run 83 (po 611ea125) bez bot-commita (flak emulatora), bez zmian w kodzie
 # rerun 73: run 72 rowniez bez bot-commita (flak emulatora), bez zmian w kodzie
 
 on:
