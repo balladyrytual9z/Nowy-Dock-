@@ -107,8 +107,11 @@ public class ConnectivityPanel extends LinearLayout {
         // Babel w stylu macOS: kwadratowy z zaokraglonymi rogami, szklany
         // (tresc modulow lezy na nim jak na popoverze). Klikalne, by tap w tlo
         // panelu nie zamykal nakladki.
-        // tlo jak w reszcie aplikacji (popupBg - wspolne tlo popupow launchera)
-        setBackground(Ui.popupBg(act, night));
+        // tlo okna = ramka szkla doka 1:1 (rozblysk u gory, jasny rim, ukosna
+        // obwodka od lewego gornego rogu - "swiatlo padajace na szklo").
+        // Tylko OKNO panelu; elementy wewnatrz bez zmian. Czysty Drawable -
+        // zero onDraw w tej klasie (strażnik panelJestFrameworkowy).
+        setBackground(new PanelGlassFrame(act, night));
         setPadding(dp(12), dp(12), dp(12), dp(10));
         setClickable(true);
         // Warstwa SOFTWARE na API < 30 zostaje (potwierdzona w PR #14): dla widokow
@@ -1284,3 +1287,4 @@ public class ConnectivityPanel extends LinearLayout {
         }
     }
 }
+

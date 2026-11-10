@@ -63,6 +63,8 @@ public class DockView extends View {
     private Drawable bg;
     private int bgRes = -1;
     private boolean showCp = true;
+    // ostatni tap w naglowek doka (wspolrzedne lokalne) - punkt startu animacji panelu lacznosci
+    private float lastTapX, lastTapY;
 
     private final Paint clockPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint voltPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -105,6 +107,15 @@ public class DockView extends View {
 
     public void setListener(Listener l) {
         listener = l;
+    }
+
+    /** Ostatni tap w naglowek doka (wspolrzedne lokalne) - start animacji panelu lacznosci. */
+    public float lastTapX() {
+        return lastTapX;
+    }
+
+    public float lastTapY() {
+        return lastTapY;
     }
 
     public void setCarplayState(int cpState) {
@@ -616,6 +627,10 @@ public class DockView extends View {
                 invalidate();
                 if (p >= 0 && !bottomLongFired && listener != null) {
                     if (p == HEADER) {
+                        // zapamietaj miejsce tapniecia (pod zegarem) - panel
+                        // lacznosci rosnie/zanika od tego punktu (jak w iOS)
+                        lastTapX = downX;
+                        lastTapY = downY;
                         listener.onHeader();
                     } else if (p == BOTTOM) {
                         listener.onBottom();
@@ -636,3 +651,4 @@ public class DockView extends View {
         }
     }
 }
+

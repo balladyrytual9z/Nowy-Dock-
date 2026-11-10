@@ -463,7 +463,14 @@ public class LauncherActivity extends BaseActivity {
         dock.setListener(new DockView.Listener() {
             @Override
             public void onHeader() {
-                toggleOverlay();
+                // animacja panelu startuje od miejsca tapniecia pod zegarem
+                if (overlay != null) {
+                    hideOverlay(true);
+                } else {
+                    float ox = dock != null ? dock.getLeft() + dock.lastTapX() : 0f;
+                    float oy = dock != null ? dock.getTop() + dock.lastTapY() : 0f;
+                    showOverlayAt(ox, oy);
+                }
             }
 
             @Override
@@ -540,7 +547,7 @@ public class LauncherActivity extends BaseActivity {
             @Override
             public void onSwipeUp(float x) {
                 // gest ze strefy dolnej ekranu - centrum lacznosci
-                if (overlay == null) showOverlayAt(x);
+                if (overlay == null) showOverlayAt(x, root != null ? root.getHeight() : 0f);
             }
         });
 
@@ -1324,19 +1331,25 @@ public class LauncherActivity extends BaseActivity {
         } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);}
     }
 
+    // punkt, z ktorego panel sie rozrasta / do ktorego sie zwija
+    // (tap w naglowek doka pod zegarem albo gest od dolnej krawedzi)
+    private float ccOriginX, ccOriginY;
+
     private void toggleOverlay() {
         if (overlay != null) {
             hideOverlay(true);
         } else {
-            showOverlayAt(root != null ? root.getWidth() / 2f : 0f);
+            showOverlayAt(root != null ? root.getWidth() / 2f : 0f,
+                    root != null ? root.getHeight() / 2f : 0f);
         }
     }
 
     private void showOverlay() {
-        showOverlayAt(root != null ? root.getWidth() / 2f : 0f);
+        showOverlayAt(root != null ? root.getWidth() / 2f : 0f,
+                root != null ? root.getHeight() / 2f : 0f);
     }
 
-    private void showOverlayAt(float gestureX) {
+    private void showOverlayAt(float gestureX, float gestureY) {
         if (overlay != null) return;
         // dolny przycisk doka = ikona "zamknij centrum lacznosci"
         if (dock != null) dock.setBottomMode(DockView.BOTTOM_CC);
@@ -1417,22 +1430,33 @@ public class LauncherActivity extends BaseActivity {
         }
         // NAPRAWA (potwierdzona na urzadzeniu, PR #14, commit b21e953 - uzytkownik
         // potwierdzil, ze tresc panelu sie rysuje): DOKLADNIE ta sekwencja wejscia -
-        // fade overlay + animacja panelu (skala 0.92 -> 1, translateY 40 -> 0,
-        // Overshoot) + withEndAction wymuszajacy re-layout i invalidate.
-        // Komentarz z tamtej poprawki: "na MT8163 pierwszy pomiar panelu
-        // w animowanej overlay potrafil wyjsc 0x0 i tresc nigdy sie nie rysowala" -
-        // koncowy requestLayout()+invalidate() przebudowuje pomiar i rysunek,
-        // dopiero wtedy custom Canvas views sie pojawiaja.
+        // fade overlay + animacja panelu + withEndAction wymuszajacy re-layout
+        // i invalidate. Komentarz z tamtej poprawki: "na MT8163 pierwszy pomiar
+        // panelu w animowanej overlay potrafil wyjsc 0x0 i tresc nigdy sie
+        // nie rysowala" - koncowy requestLayout()+invalidate() przebudowuje
+        // pomiar i rysunek, dopiero wtedy custom Canvas views sie pojawiaja.
         // ⚠️ NIE usuwac animacji ani withEndAction - bez tego panel jest pusty.
+        //
+        // 2026-11-10 (zadanie uzytkownika): panel ROŚNIE od miejsca tapniecia
+        // (naglowek doka pod zegarem / dolna krawedz przy geście) - pivot animacji
+        // lezy w punkcie dotkniecia, jak otwieranie okien w iOS. Zamkniecie to
+        // lustrzane odwrocenie tej samej animacji (zob. hideOverlay).
+        ccOriginX = gestureX;
+        ccOriginY = gestureY;
+        boolean panelLeftSide = left;
+        float panelLeft = panelLeftSide ? dockPx + Ui.dp(this, 10)
+                : root.getWidth() - (dockPx + Ui.dp(this, 10)) - panelW;
+        float panelTop = Ui.dp(this, 12);
+        float px = Math.max(0f, Math.min(panelW, gestureX - panelLeft));
+        float py = Math.max(0f, Math.min(Ui.dp(this, 600), gestureY - panelTop));
         overlay.setAlpha(0f);
         overlay.animate().alpha(1f).setDuration(Prefs.reduceMotion(this) ? 0 : 220).start();
-        panel.setScaleX(0.92f);
-        panel.setScaleY(0.92f);
-        panel.setTranslationY(Ui.dp(this, 40));
-        panel.setPivotX(panelW / 2f);
-        panel.setPivotY(0f);
-        panel.animate().scaleX(1f).scaleY(1f).translationY(0f)
-                .setDuration(Prefs.reduceMotion(this) ? 0 : 280)
+        panel.setPivotX(px);
+        panel.setPivotY(py);
+        panel.setScaleX(0.6f);
+        panel.setScaleY(0.6f);
+        panel.animate().scaleX(1f).scaleY(1f)
+                .setDuration(Prefs.reduceMotion(this) ? 0 : 300)
                 .setInterpolator(new android.view.animation.OvershootInterpolator(0.9f))
                 .withEndAction(new Runnable() {
                     @Override
@@ -1452,6 +1476,7 @@ public class LauncherActivity extends BaseActivity {
     private void hideOverlay(boolean animate) {
         final FrameLayout ov = overlay;
         if (ov == null) return;
+        final View pv = panel;   // do lustrzanej animacji zamkniecia
         overlay = null;
         panel = null;
         // zamkniecie centrum lacznosci: wroc do normalnego glifu dolnego
@@ -1466,9 +1491,19 @@ public class LauncherActivity extends BaseActivity {
             root.removeView(ov);
             return;
         }
-        // Tylko fade overlay - żadnego scale/translate na panelu (zob. NAPRAWA
-        // w showOverlayAt: animacje transformacyjne na panelu nie wyświeżają
-        // poprawnie rysowania dzieci na MT8163 i po drodze psuły layout).
+        // 2026-11-10 (zadanie uzytkownika): zamkniecie = LUSTRO otwarcia - panel
+        // kurczy sie DO punktu tapniecia (pivot w miejscu dotkniecia), rownolegle
+        // fade overlayu. Fade overlayu (potwierdzony na urzadzeniu) maskuje
+        // odswiezanie tresci na MT8163, a widok jest zaraz usuwany.
+        if (pv != null) {
+            float px = Math.max(0f, Math.min(pv.getWidth(), ccOriginX - pv.getLeft()));
+            float py = Math.max(0f, Math.min(pv.getHeight(), ccOriginY - pv.getTop()));
+            pv.setPivotX(px);
+            pv.setPivotY(py);
+            pv.animate().scaleX(0.6f).scaleY(0.6f)
+                    .setDuration(220).start();
+        }
+        // fade overlay - potwierdzona sciezka zamykania (PR #14)
         ov.animate().alpha(0f).setDuration(180)
                 .setListener(new AnimatorListenerAdapter() {
                     @Override
@@ -1972,6 +2007,7 @@ public class LauncherActivity extends BaseActivity {
         if (currentRef != null && currentRef.get() == this) currentRef = null;
     }
 }
+
 
 
 

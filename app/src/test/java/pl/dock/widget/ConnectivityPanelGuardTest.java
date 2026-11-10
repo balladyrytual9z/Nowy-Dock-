@@ -81,9 +81,12 @@ public class ConnectivityPanelGuardTest {
                 src.contains("panel.requestLayout()"));
         assertTrue("Brak overlay.invalidate() po animacji wejscia (PR #14)",
                 src.contains("overlay.invalidate()"));
-        assertTrue("Brak animacji wejscia panelu (panel.setScaleX(0.92f)) -"
+        // 2026-11-10 (zadanie uzytkownika): animacja otwarcia/zamkniecia od punktu
+        // tapniecia - start skali 0.6 z pivotem w miejscu dotkniecia (naglowek doka
+        // pod zegarem). withEndAction z re-layoutem zostaje (mechanizm naprawczy).
+        assertTrue("Brak animacji wejscia panelu (panel.setScaleX(0.6f)) -"
                         + " bez niej nie ma withEndAction i tresc nie odtwarza sie",
-                src.contains("panel.setScaleX(0.92f)"));
+                src.contains("panel.setScaleX(0.6f)"));
         assertTrue("Brak withEndAction po animacji wejscia panelu (PR #14)",
                 src.contains("withEndAction"));
     }
@@ -233,3 +236,4 @@ public class ConnectivityPanelGuardTest {
                 + new File(".").getAbsolutePath() + ")");
     }
 }
+
