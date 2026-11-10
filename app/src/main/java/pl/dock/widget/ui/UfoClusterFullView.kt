@@ -9,6 +9,7 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RadialGradient
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
@@ -45,7 +46,7 @@ class UfoClusterFullView(context: Context) : View(context) {
     private val TICK_RED = Color.parseColor("#FF0F1F") 
     private val BLUE_GLOW = Color.parseColor("#3A2CE8")
     private val CYAN_HUD = Color.parseColor("#00C3FF")
-    private val LCD_BG = Color.parseColor("#6E706F")
+    private val LCD_BG = Color.parseColor("#0B0D12")
     private val LCD_TEXT = Color.parseColor("#E1E6F0")
     private val OFF_SEGMENT = Color.parseColor("#13161C")
     private val GREEN = Color.parseColor("#11E840")
@@ -140,7 +141,7 @@ class UfoClusterFullView(context: Context) : View(context) {
     private val LCD_R = CX + 102f
     private val LCD_B = CY + 102f
     private val lcdShader = LinearGradient(0f, LCD_T, 0f, LCD_B,
-        0xFF7C7E7D.toInt(), 0xFF626564.toInt(), Shader.TileMode.CLAMP)
+        0xFF14171E.toInt(), 0xFF07080B.toInt(), Shader.TileMode.CLAMP)
     // Wyświetlacz MID: górne rogi ścięte pod 45 stopni jak w oryginale
     private val lcdPath = Path().apply {
         val ch = 20f
@@ -165,20 +166,20 @@ class UfoClusterFullView(context: Context) : View(context) {
     
     // Zwężona (condensed) czcionka pochylona - idealna imitacja paneli VFD z UFO
     private val pSpeed = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        typeface = Typeface.create("sans-serif", Typeface.BOLD) // ta sama czcionka co cyfry tarczy
-        textSkewX = -0.2f // to samo pochylenie co cyfry tarczy
+        typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD_ITALIC)
+        textSkewX = -0.15f // Ekstra pochylenie dla dynamiki
     }
     
     private val pNum = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        typeface = Typeface.create("sans-serif", Typeface.BOLD)
-        textSkewX = -0.2f // lekkie pochylenie jak na oryginalnych zegarach
+        typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD_ITALIC)
     }
     
     private val pMono = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        typeface = Typeface.create("sans-serif", Typeface.BOLD)
+        typeface = Typeface.create("monospace", Typeface.BOLD)
     }
     
     private val rectF = RectF()
+    private val textBounds = Rect()
     
     // Promień łuków bocznych (współśrodkowy z głównym zegarem - likwiduje pokrzywienia)
     private val sideGaugeRadius = 372f // współśrodkowo z tarczą, jak w oryginale 
@@ -190,89 +191,63 @@ class UfoClusterFullView(context: Context) : View(context) {
 
     private val tfBold = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
 
-    // Własny krój cyfr: szerokie, zaokrąglone-kwadratowe, pochylone jak na zegarach Civica
-    private val glyphs = Array(10) { Path() }
-    private val glyphTmp = Path()
-    private val glyphB = RectF()
-    private val glyphMat = Matrix()
-    private val pDigit = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeJoin = Paint.Join.MITER
-        strokeMiter = 3f
-        strokeCap = Paint.Cap.BUTT
-    }
-    private val glyphsBuilt = buildGlyphs()
+    // Cyfry prędkości jak na oryginalnym wyświetlaczu: białe segmenty z cienkimi przerwami na stykach
+    private val segPath = Path()
+    // bity: a=1 (góra), b=2 (prawa góra), c=4 (prawa dół), d=8 (dół), e=16 (lewa dół), f=32 (lewa góra), g=64 (środek)
+    private val segMask = intArrayOf(63, 6, 91, 79, 102, 109, 125, 7, 127, 111)
 
-    private fun buildGlyphs(): Boolean {
-        val hx = 0.315f
-        val hy = 0.405f
-        fun poly(d: Int, close: Boolean, vararg v: Float) {
-            val g = glyphs[d]
-            var i = 0
-            while (i < v.size) {
-                val x = (v[i] - 0.5f) * 2f * hx
-                val y = (v[i + 1] - 0.5f) * 2f * hy
-                if (i == 0) g.moveTo(x, y) else g.lineTo(x, y)
-                i += 2
-            }
-            if (close) g.close()
-        }
-        poly(0, true, 0f, 0f, 1f, 0f, 1f, 1f, 0f, 1f)
-        poly(1, false, 0.05f, 0.3f, 0.6f, 0f, 0.6f, 1f)
-        poly(2, false, 0f, 0f, 1f, 0f, 1f, 0.5f, 0f, 0.5f, 0f, 1f, 1f, 1f)
-        poly(3, false, 0f, 0f, 1f, 0f, 1f, 1f, 0f, 1f)
-        poly(3, false, 0.3f, 0.5f, 1f, 0.5f)
-        poly(4, false, 0.72f, 1f, 0.72f, 0f, 0f, 0.66f, 1f, 0.66f)
-        poly(5, false, 1f, 0f, 0f, 0f, 0f, 0.5f, 1f, 0.5f, 1f, 1f, 0f, 1f)
-        poly(6, false, 1f, 0f, 0f, 0f, 0f, 1f, 1f, 1f, 1f, 0.5f, 0f, 0.5f)
-        poly(7, false, 0f, 0f, 1f, 0f, 0.4f, 1f)
-        poly(8, true, 0f, 0f, 1f, 0f, 1f, 1f, 0f, 1f)
-        poly(8, false, 0f, 0.5f, 1f, 0.5f)
-        poly(9, false, 0f, 1f, 1f, 1f, 1f, 0f, 0f, 0f, 0f, 0.5f, 1f, 0.5f)
-        return true
+    private fun segHoriz(c: Canvas, x1: Float, x2: Float, yc: Float, t: Float) {
+        segPath.reset()
+        segPath.moveTo(x1, yc)
+        segPath.lineTo(x1 + t / 2f, yc - t / 2f)
+        segPath.lineTo(x2 - t / 2f, yc - t / 2f)
+        segPath.lineTo(x2, yc)
+        segPath.lineTo(x2 - t / 2f, yc + t / 2f)
+        segPath.lineTo(x1 + t / 2f, yc + t / 2f)
+        segPath.close()
+        c.drawPath(segPath, pFill)
     }
 
-    // Rysuje jedną cyfrę o wysokości h wyśrodkowaną w (cx, cy): ciemny obrys + ostra jasna kreska
-    private fun drawGlyph(c: Canvas, d: Int, cx: Float, cy: Float, h: Float,
-                          col: Int, glow: Int, blur: Float) {
-        glyphMat.reset()
-        glyphMat.postScale(h, h)
-        glyphMat.postSkew(-0.3f, 0f)
-        glyphTmp.reset()
-        glyphs[d].transform(glyphMat, glyphTmp)
-        // po pochyleniu środek ramki cyfry ustawiamy dokładnie w punkcie (cx, cy)
-        glyphTmp.computeBounds(glyphB, true)
-        glyphTmp.offset(cx - glyphB.centerX(), cy - glyphB.centerY())
-
-        pDigit.clearShadowLayer()
-        pDigit.color = Color.parseColor("#03040A")
-        pDigit.strokeWidth = 0.19f * h + 3.4f
-        c.drawPath(glyphTmp, pDigit)
-
-        pDigit.color = col
-        pDigit.strokeWidth = 0.19f * h
-        pDigit.setShadowLayer(blur, 0f, 0f, glow)
-        c.drawPath(glyphTmp, pDigit)
-        pDigit.clearShadowLayer()
+    private fun segVert(c: Canvas, xc: Float, y1: Float, y2: Float, t: Float) {
+        segPath.reset()
+        segPath.moveTo(xc, y1)
+        segPath.lineTo(xc + t / 2f, y1 + t / 2f)
+        segPath.lineTo(xc + t / 2f, y2 - t / 2f)
+        segPath.lineTo(xc, y2)
+        segPath.lineTo(xc - t / 2f, y2 - t / 2f)
+        segPath.lineTo(xc - t / 2f, y1 + t / 2f)
+        segPath.close()
+        c.drawPath(segPath, pFill)
     }
 
-    // Napis złożony z cyfr i kresek tym samym krojem (np. prędkość)
-    private fun drawDigits(c: Canvas, text: String, cx: Float, cy: Float, h: Float,
-                           col: Int, glow: Int, blur: Float) {
-        val adv = h * 0.98f
-        val total = text.length * adv
-        var x = cx - total / 2f + adv / 2f
-        for (ch in text) {
-            if (ch in '0'..'9') {
-                drawGlyph(c, ch - '0', x, cy, h, col, glow, blur)
-            } else if (ch == '-') {
-                pDigit.color = col
-                pDigit.strokeWidth = 0.19f * h
-                pDigit.setShadowLayer(blur, 0f, 0f, glow)
-                c.drawLine(x - h * 0.25f, cy, x + h * 0.25f, cy, pDigit)
-                pDigit.clearShadowLayer()
-            }
-            x += adv
+    // Jedna cyfra 7-segmentowa w prostokącie (x, y, w, h), grubość segmentu t; mask=-1 oznacza kreskę
+    private fun drawSeg7(c: Canvas, mask: Int, x: Float, y: Float, w: Float, h: Float, t: Float) {
+        val g = 1.2f
+        val xc0 = x + t / 2f
+        val xc1 = x + w - t / 2f
+        val yTop = y + t / 2f
+        val yMid = y + h / 2f
+        val yBot = y + h - t / 2f
+        if (mask and 1 != 0) segHoriz(c, x + g, x + w - g, yTop, t)
+        if (mask and 64 != 0) segHoriz(c, x + g, x + w - g, yMid, t)
+        if (mask and 8 != 0) segHoriz(c, x + g, x + w - g, yBot, t)
+        if (mask and 2 != 0) segVert(c, xc1, yTop + g, yMid - g, t)
+        if (mask and 4 != 0) segVert(c, xc1, yMid + g, yBot - g, t)
+        if (mask and 16 != 0) segVert(c, xc0, yMid + g, yBot - g, t)
+        if (mask and 32 != 0) segVert(c, xc0, yTop + g, yMid - g, t)
+    }
+
+    // Napis z cyfr i kresek, wyrównany do prawej krawędzi xRight; wysokość h
+    private fun drawSpeedSeg(c: Canvas, text: String, xRight: Float, top: Float, h: Float) {
+        val w = h * 0.56f
+        val t = h * 0.15f
+        val gap = h * 0.16f
+        var x = xRight - w
+        for (i in text.length - 1 downTo 0) {
+            val ch = text[i]
+            val mask = if (ch in '0'..'9') segMask[ch - '0'] else if (ch == '-') 64 else 0
+            drawSeg7(c, mask, x, top, w, h, t)
+            x -= w + gap
         }
     }
 
@@ -280,6 +255,10 @@ class UfoClusterFullView(context: Context) : View(context) {
     private val hudGlowShader = RadialGradient(0f, 0f, 150f,
         intArrayOf(0xBB142BFF.toInt(), 0x330011AA, 0x00000000),
         floatArrayOf(0f, 0.4f, 1f), Shader.TileMode.CLAMP)
+
+    // Niebieski wyświetlacz prędkości (owalny, jak w oryginale): gradient w pionie
+    private val pillShader = LinearGradient(0f, 56f, 0f, 112f,
+        0xFF4A55FF.toInt(), 0xFF1A1FB5.toInt(), Shader.TileMode.CLAMP)
 
     // Połysk szyby zegarów (zero alokacji w onDraw)
     private val glassShader = LinearGradient(0f, 0f, 1280f, 640f,
@@ -549,7 +528,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         val sweep = Math.toRadians(270.0)   // 8000 RPM: prawy dół
         val ringR = 258f                    // błękitny pierścień
         val tickOut = 244f                  // zewnętrzny koniec wszystkich kresek
-        val numR = 192f                     // promień środka cyfr
+        val numR = 196f                     // promień środka cyfr
 
         // Tło obudowy
         pFill.color = Color.parseColor("#050608")
@@ -611,24 +590,24 @@ class UfoClusterFullView(context: Context) : View(context) {
         pStroke.clearShadowLayer()
 
         // szczeliny między kreskami; przy kreskach co 500 zostaje szersza, pełna kreska
-        pStroke.strokeWidth = 6f
+        pStroke.strokeWidth = 3.2f
         pStroke.color = Color.parseColor("#12030A")
-        for (r in 6500 until 8000 step 100) {
-            if (r % 500 == 0 || (r + 100) % 500 == 0) continue
-            val ang = a0 + sweep * ((r + 50) / 8000f)
+        for (r in 6500 until 8000 step 50) {
+            if (r % 500 == 0 || (r + 50) % 500 == 0) continue
+            val ang = a0 + sweep * ((r + 25) / 8000f)
             c.drawLine(
                 (CX + (rIn - 1f) * cos(ang)).toFloat(), (CY + (rIn - 1f) * sin(ang)).toFloat(),
                 (CX + (tickOut - 4.5f) * cos(ang)).toFloat(), (CY + (tickOut - 4.5f) * sin(ang)).toFloat(), pStroke
             )
         }
 
-        // 4. Podziałka co 100 obr/min: wszystkie kreski równej długości, różna grubość i jasność
-        for (r in 0 until 6500 step 100) {
+        // 4. Podziałka co 50 obr/min (zmierzone na zdjęciach: 30 kresek w czerwonym polu 6500-8000): wszystkie kreski równej długości, różna grubość i jasność
+        for (r in 0 until 6500 step 50) {
             val ang = a0 + sweep * (r / 8000f)
             val major = r % 1000 == 0
             val mid = r % 500 == 0
 
-            pStroke.strokeWidth = when { major -> 7f; mid -> 5.6f; else -> 4.2f }
+            pStroke.strokeWidth = when { major -> 6f; mid -> 4.8f; else -> 3.3f }
             val tickColor = when {
                 major -> Color.parseColor("#F3F0B0")
                 mid -> Color.parseColor("#E4D993")
@@ -643,11 +622,19 @@ class UfoClusterFullView(context: Context) : View(context) {
             pStroke.clearShadowLayer()
         }
         // 5. Cyfry 0-8 własnym krojem, pod kreskami
+        pNum.textSize = 44f
+        pNum.color = TICK_OEM
+        pNum.textAlign = Paint.Align.LEFT
         for (r in 0..8000 step 1000) {
             val ang = a0 + sweep * (r / 8000f)
-            drawGlyph(c, r / 1000,
-                (CX + numR * cos(ang)).toFloat(),
-                (CY + numR * sin(ang)).toFloat(), 34f, TICK_OEM, TICK_OEM, 4f)
+            val label = (r / 1000).toString()
+            val tx = (CX + numR * cos(ang)).toFloat()
+            val ty = (CY + numR * sin(ang)).toFloat()
+            // środek widocznej cyfry (po pochyleniu) dokładnie na promieniu indeksu
+            pNum.getTextBounds(label, 0, label.length, textBounds)
+            pNum.setShadowLayer(10f, 0f, 0f, TICK_OEM)
+            c.drawText(label, tx - textBounds.exactCenterX(), ty - textBounds.exactCenterY(), pNum)
+            pNum.clearShadowLayer()
         }
 
         // Napis jednostki pod tarczą, wyśrodkowany w dolnym pasie
@@ -744,25 +731,30 @@ class UfoClusterFullView(context: Context) : View(context) {
         } else {
             "-"
         }
-        val gearColor = Color.parseColor("#D9DDE6")
-        if (gear == "N") {
-            pSpeed.color = gearColor
-            pSpeed.textSize = 62f
-            pSpeed.textAlign = Paint.Align.CENTER
-            c.drawText(gear, 52f, rowY + 22f, pSpeed)
-        } else {
-            drawDigits(c, gear, 52f, rowY, 46f, gearColor, gearColor, 0f)
-        }
+        // bieg: powiększony, jasny, oryginalna czcionka
+        pSpeed.color = Color.parseColor("#D9DDE6")
+        pSpeed.textSize = 58f
+        pSpeed.textAlign = Paint.Align.CENTER
+        c.drawText(gear, 48f, rowY + 21f, pSpeed)
 
-        // prędkość (wyrównana do prawej krawędzi x=226) z mocną poświatą jak wcześniej
-        val spdH = 40f
-        val spdCx = 226f - (spdCache.length * 0.98f * spdH) / 2f
-        drawDigits(c, spdCache, spdCx, rowY, spdH, Color.WHITE, CYAN_HUD, 22f)
+        // prędkość: niebieski owal jak na oryginalnym zegarze, białe cyfry 7-segmentowe i "km/h"
+        rectF.set(92f, rowY - 28f, 258f, rowY + 28f)
+        pFill.shader = pillShader
+        pFill.setShadowLayer(18f, 0f, 0f, Color.parseColor("#2A3CFF"))
+        c.drawRoundRect(rectF, 28f, 28f, pFill)
+        pFill.clearShadowLayer()
+        pFill.shader = null
 
-        pSpeed.textSize = 18f
-        pSpeed.color = Color.WHITE
-        pSpeed.textAlign = Paint.Align.LEFT
-        c.drawText(if (useMph) "mph" else "km/h", 234f, rowY + 20f, pSpeed)
+        pFill.color = Color.WHITE
+        pFill.setShadowLayer(5f, 0f, 0f, Color.parseColor("#B8C2FF"))
+        drawSpeedSeg(c, spdCache, 212f, rowY - 17f, 34f)
+        pFill.clearShadowLayer()
+
+        pText.textAlign = Paint.Align.LEFT
+        pText.textSize = 14f
+        pText.typeface = tfBold
+        pText.color = Color.WHITE
+        c.drawText(if (useMph) "mph" else "km/h", 217f, rowY + 15f, pText)
         pSpeed.textAlign = Paint.Align.CENTER
 
         val segW = 18f
@@ -798,13 +790,13 @@ class UfoClusterFullView(context: Context) : View(context) {
         pNum.color = if (eco) GREEN else OFF_SEGMENT
         if (eco) pNum.setShadowLayer(10f, 0f, 0f, GREEN)
         pNum.textAlign = Paint.Align.LEFT
-        c.drawText("ECO", 296f, rowY - 8f, pNum)
+        c.drawText("ECO", 278f, rowY - 8f, pNum)
         pNum.clearShadowLayer()
         
         val vtec = rpm >= vtecRpm
         pNum.color = if (vtec) CYAN_HUD else OFF_SEGMENT
         if (vtec) pNum.setShadowLayer(10f, 0f, 0f, CYAN_HUD)
-        c.drawText("VTEC", 296f, rowY + 22f, pNum)
+        c.drawText("VTEC", 278f, rowY + 22f, pNum)
         pNum.clearShadowLayer()
     }
 
@@ -1082,7 +1074,6 @@ class UfoClusterFullView(context: Context) : View(context) {
         }
 
         pText.textAlign = if (left) Paint.Align.RIGHT else Paint.Align.LEFT
-        pText.textSkewX = -0.2f // ta sama czcionka co cyfry tarczy
         pText.typeface = tfBold
 
         pText.textSize = 24f
@@ -1095,7 +1086,6 @@ class UfoClusterFullView(context: Context) : View(context) {
         pText.setShadowLayer(8f, 0f, 0f, if (alarm) TICK_RED else TICK_OEM)
         c.drawText(if (left) arcTxtCacheL else arcTxtCacheR, labelX, CY + 28f, pText)
         pText.clearShadowLayer()
-        pText.textSkewX = 0f
     }
 
     private fun drawFooter(c: Canvas) {
