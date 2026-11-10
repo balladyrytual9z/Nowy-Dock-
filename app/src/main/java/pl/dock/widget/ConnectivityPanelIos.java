@@ -871,12 +871,15 @@ public class ConnectivityPanelIos extends LinearLayout {
     // 1:1 ze zdjęcia iOS ("Temperatura kolorów"): niebieski tor wypełnienia,
     // biały pigułkowy uchwyt, dwa małe punkty-pozycjonery pod torem.
     // ZAKRES 0-50: maksimum = połowa obecnego maksimum ciepła (decyzja usera).
-    private class WarmthSlider extends View {
+    // Klasa STATYCZNA (jak PillSlider): w niestatycznej klasie wewnętrznej
+    // nie wolno deklarować interfejsu (javac: "Illegal static declaration").
+    private static class WarmthSlider extends View {
         interface Listener {
             void on(int v);
         }
 
         private int value;
+        private final boolean night;
         private Listener l;
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final RectF r = new RectF();
@@ -884,6 +887,7 @@ public class ConnectivityPanelIos extends LinearLayout {
 
         WarmthSlider(Context c) {
             super(c);
+            this.night = Look.night(c);
             setContentDescription("Temperatura kolorów");
         }
 
