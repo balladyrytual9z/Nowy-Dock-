@@ -217,10 +217,13 @@ public class ConnectivityPanel extends LinearLayout {
             row.setGravity(Gravity.CENTER_VERTICAL);
             LayoutParams rp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-            // Odstęp wizualny od kafelka Hotspot = 12dp (6 tu + 6 wewnętrznego
-            // marginesu górnego koła w RoundBtn) - czyli TYLE SAMA co przerwa
-            // między kafelkami Wi-Fi/Bluetooth a Hotspotem (topMargin 12dp).
-            rp.topMargin = dp(6);
+            // Odstęp wizualny kół od kafelka Hotspot = 12dp, czyli TYLE SAMA co
+            // przerwa między kafelkami Wi-Fi/Bluetooth a Hotspotem (topMargin 12dp).
+            // Gdy suwaki są włączone, ich kolumna (238dp) jest o 22dp wyższa od
+            // kolumny kafelków (128 + 12 + 76 = 216dp) i to ona wyznacza dolną
+            // krawędź kontenera - stąd korekta -16dp: 22 nadmiaru - 16 = 6 tu,
+            // + 6 wewnętrznego marginesu górnego koła w RoundBtn = 12dp przerwy.
+            rp.topMargin = dp(Prefs.customBars(act) ? -16 : 6);
             if (showMode) {
                 bMode = new RoundBtn(act);
                 bMode.setKind(0, "Jasny");
