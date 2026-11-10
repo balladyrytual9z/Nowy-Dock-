@@ -162,10 +162,11 @@ public class ConnectivityPanelIos extends LinearLayout {
                 });
             }
             if (showNs) {
-                View gap = new View(act);
-                row.addView(gap, new LayoutParams(0, 1, 1f));
+                // Night Shift OBOK przycisku trybu (bez elasticznej przerwy)
                 bShift = new RoundBtn(act, 3, "Night Shift");
-                row.addView(bShift, new LayoutParams(dp(110), dp(96)));
+                LayoutParams sp = new LayoutParams(dp(110), dp(96));
+                sp.leftMargin = dp(12);
+                row.addView(bShift, sp);
                 bShift.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
