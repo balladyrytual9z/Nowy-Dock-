@@ -10,6 +10,8 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Shader;
@@ -44,8 +46,10 @@ import android.widget.TextView;
 //    promieni), głośnik #1EA1FF (korpus z "uszami" + 2 łuki fal konturem).
 // 7. "TRYB CIEMNY" JAK W iOS: przełącznik wł/wył zamiast cyklu Jasny/Ciemny/Auto.
 //    Klik = zmiana do najbliższego wschodu/zachodu słońca (DarkMode + SolarTimes).
-//    Ikona "kontrast" (pierścień + lewa połówka): wł = białe koło/ciemna ikona,
-//    wył = ciemne szkło/biała ikona. Podpis 2-liniowy: nazwa + stan.
+//    Ikona "kontrast" 1:1 z iOS: koło podzielone pionowo - jedna połowa pełna,
+//    druga tylko gruby obrys, oczko na środku z odwróconymi połówkami
+//    (wycinane na przezroczysto). Wł = białe koło/ciemna ikona,
+//    wył = ciemne szkło/biała ikona. Podpis 3-liniowy: nazwa + stan w 2 wierszach.
 public class ConnectivityPanelIos extends LinearLayout {
 
     public interface Host {
@@ -610,14 +614,40 @@ public class ConnectivityPanelIos extends LinearLayout {
             p.setStrokeWidth(2.6f * d);
             p.setStrokeCap(Paint.Cap.ROUND);
             if (kind == 4) {
-                // "kontrast" jak w iOS: pierścień + wypełniona LEWA połówka
+                // "kontrast" 1:1 z iOS: koło podzielone PIONOWO na pół -
+                // jedna połowa pełna, druga tylko gruby obrys; oczko na środku
+                // z połówkami ODWRÓCONYMI względem koła (wycinane na przezroczysto)
+                float R = 10f * d;
+                float Ro = R - 1.3f * d;      // obrys mieści się w tym samym kole
+                float rd = 4.2f * d;          // oczko
+                boolean fullLeft = active;    // wył: pełna prawa; wł: pełna lewa
+                int sc4 = cv.saveLayer(cx - R - d, cy - R - d, cx + R + d, cy + R + d, null);
+                p.setXfermode(null);
+                // pełna połówka
+                Path full = new Path();
+                full.addArc(cx - R, cy - R, cx + R, cy + R, fullLeft ? 90f : -90f, 180f);
+                full.close();
                 p.setStyle(Paint.Style.FILL);
-                Path half = new Path();
-                half.addArc(cx - 10f * d, cy - 10f * d, cx + 10f * d, cy + 10f * d, 90f, 180f);
-                half.close();
-                cv.drawPath(half, p);
+                cv.drawPath(full, p);
+                // gruby obrys drugiej połówki
                 p.setStyle(Paint.Style.STROKE);
-                cv.drawCircle(cx, cy, 10f * d, p);
+                p.setStrokeWidth(2.6f * d);
+                cv.drawArc(cx - Ro, cy - Ro, cx + Ro, cy + Ro, fullLeft ? -90f : 90f, 180f,
+                        false, p);
+                // oczko: połówka wypełniona (odwrotna niż pełna połowa koła)
+                Path dotF = new Path();
+                dotF.addArc(cx - rd, cy - rd, cx + rd, cy + rd, fullLeft ? -90f : 90f, 180f);
+                dotF.close();
+                p.setStyle(Paint.Style.FILL);
+                cv.drawPath(dotF, p);
+                // oczko: połówka wycinana na przezroczysto (prześwituje tło przycisku)
+                Paint clearP = new Paint(Paint.ANTI_ALIAS_FLAG);
+                clearP.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
+                Path dotC = new Path();
+                dotC.addArc(cx - rd, cy - rd, cx + rd, cy + rd, fullLeft ? 90f : -90f, 180f);
+                dotC.close();
+                cv.drawPath(dotC, clearP);
+                cv.restoreToCount(sc4);
             } else if (kind == 0 || kind == 3) {
                 cv.drawCircle(cx, cy, 6f * d, p);
                 for (int i = 0; i < 8; i++) {
@@ -644,15 +674,21 @@ public class ConnectivityPanelIos extends LinearLayout {
             p.setTextAlign(Paint.Align.CENTER);
             float sd = getResources().getDisplayMetrics().scaledDensity;
             if (sub != null) {
-                // dwie linie jak w iOS: nazwa (bold) + stan
+                // trzy linie jak w iOS: nazwa (bold) + stan w dwóch wierszach
                 p.setTypeface(Typeface.DEFAULT_BOLD);
-                p.setTextSize(13f * sd);
+                p.setTextSize(12f * sd);
                 p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
-                cv.drawText(label, cx, 78f * d, p);
+                cv.drawText(label, cx, 70f * d, p);
                 p.setTypeface(Typeface.DEFAULT);
-                p.setTextSize(11f * sd);
+                p.setTextSize(10.5f * sd);
                 p.setColor(night ? 0xFFC9CFCF : 0xFF6C6C70);
-                cv.drawText(sub, cx, 92f * d, p);
+                int di = sub.indexOf(" do ");
+                if (di > 0) {
+                    cv.drawText(sub.substring(0, di + 3), cx, 82f * d, p);
+                    cv.drawText(sub.substring(di + 4), cx, 94f * d, p);
+                } else {
+                    cv.drawText(sub, cx, 82f * d, p);
+                }
             } else {
                 p.setTypeface(Typeface.DEFAULT);
                 p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
