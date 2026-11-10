@@ -66,7 +66,7 @@ public class LauncherActivity extends BaseActivity {
     private WidgetPage stacksPage;
     private HomeSections home;
     private NowPlayingCard nowCard;
-    private final List<AppsGridPage> appPages = new ArrayList<AppsGridPage>();
+    private final List<AppsGridPage.Item> appPages = new ArrayList<AppsGridPage.Item>();
     private List<AppsGridPage.Item> items = new ArrayList<AppsGridPage.Item>();
     private AppLibraryPage appLibraryPage;
 
@@ -89,7 +89,10 @@ public class LauncherActivity extends BaseActivity {
     private boolean receiversOn;
     private FrameLayout overlay;
     private ConnectivityPanel panel;
-    private ImageView glowView;
+    // punkt, z ktorego centrum lacznosci rosnie / do ktorego sie kurczy
+    // (iOS 26: animacja zaczyna sie w miejscu dotkniecia - gest swipe-up albo dok)
+    private float ccOriginX;
+    private float ccOriginY;
     // pelna lista aplikacji dla ostatniej strony (lista alfabetyczna), ladowana w tle
     private List<AppsGridPage.Item> libraryItems = new ArrayList<AppsGridPage.Item>();
     private VolumeHud hud;
@@ -293,7 +296,7 @@ public class LauncherActivity extends BaseActivity {
     // - na stronie widzetow, siatce aplikacji lub Bibliotece: najpierw wraca na
     //   ekran glowny (kolejne Home dziala juz jak na glownym);
     // - z DiPlay: ZAWSZE na ekran glowny (nie na strone, z ktorej ja otwarto);
-    // - z innych aplikacji: wraca na strone, z ktorej ja otwarto (origin page).
+    // - z innych aplikacji: wraca na strone, z ktorej je otwarto (origin page).
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
@@ -464,7 +467,12 @@ public class LauncherActivity extends BaseActivity {
         dock.setListener(new DockView.Listener() {
             @Override
             public void onHeader() {
-                toggleOverlay();
+                // centrum laczności rosnie z punktu naglowka doka (miejsce dotkniecia)
+                if (overlay != null) {
+                    hideOverlay(true);
+                } else {
+                    showOverlayAt(dockPointX(), dock.getTop() + Ui.dp(LauncherActivity.this, 90));
+                }
             }
 
             @Override
@@ -481,7 +489,7 @@ public class LauncherActivity extends BaseActivity {
             public void onBottom() {
                 if (overlay != null) {
                     // otwarte centrum lacznosci: dolny przycisk je zamyka
-                    toggleOverlay();
+                    hideOverlay(true);
                     return;
                 }
                 if (pager.position() < homeIdx + 0.5f) {
@@ -540,8 +548,11 @@ public class LauncherActivity extends BaseActivity {
 
             @Override
             public void onSwipeUp(float x) {
-                // gest ze strefy dolnej ekranu - centrum lacznosci
-                if (overlay == null) showOverlayAt(x);
+                // gest ze strefy dolnej ekranu - centrum lacznosci rosnie z punktu
+                // dotkniecia (x palca, dolna krawedz ekranu)
+                if (overlay == null) {
+                    showOverlayAt(x, root.getHeight() - Ui.dp(LauncherActivity.this, 4));
+                }
             }
         });
 
@@ -663,7 +674,7 @@ public class LauncherActivity extends BaseActivity {
             appLibraryPage.setNight(night);
             order.add(appLibraryPage);
         }
-        // 1) strony, ktorych juz nie ma na liscie
+        // 1) strony, ktorej juz nie ma na liscie
         for (int i = pager.getChildCount() - 1; i >= 0; i--) {
             if (!order.contains(pager.getChildAt(i))) pager.removeViewAt(i);
         }
@@ -1129,14 +1140,11 @@ public class LauncherActivity extends BaseActivity {
         try {
             List<AppEntry> ordered = new ArrayList<AppEntry>();
             java.util.LinkedHashSet<Integer> used = new java.util.LinkedHashSet<Integer>();
-            for (AppsGridPage.Item i2 : items) {
-                if (i2.entry != null) {
-                    ordered.add(i2.entry);
-                    used.add((int) i2.entry.id);
-                }
-            }
             for (AppEntry e : Prefs.apps(this)) {
                 if (!used.contains((int) e.id)) ordered.add(e);
+            }
+            for (AppEntry e : Prefs.apps(this)) {
+                if (used.contains((int) e.id)) ordered.add(e);
             }
             Prefs.saveApps(this, ordered);
         } catch (Throwable ignored) {
@@ -1213,7 +1221,7 @@ public class LauncherActivity extends BaseActivity {
     // ------------------------------------------------- dok a ekrany systemowe
     // Android celowo blokuje rysowanie ponad bezpiecznymi ekranami (Ustawienia,
     // odinstalowanie, uprawnienia) - tego nie da sie obejsc bez roota. Zamiast
-    // naglego znikania doka robiimy zamierzone, plynne przejscie: dok "celowo"
+    // naglego znikania doka robiimi zamierzone, plynne przejscie: dok "celowo"
     // wyjezdza za krawedz przy otwieraniu ekranu systemowego i plynnie wraca
     // po powrocie (iluzja intencjonalnego designu jak w iOS).
     private void dockSlideIn() {
@@ -1237,7 +1245,7 @@ public class LauncherActivity extends BaseActivity {
     // (withEndAction). Zamkniecie menu zwracalo fokus launcherowi ->
     // onWindowFocusChanged(true) -> dockSlideIn() -> animate().cancel()
     // przerywalo te animacje w trakcie, wiec withEndAction nigdy nie odpalalo
-    // i zadne systemowe okno sie nie otwieralo. Teraz intencja startuje
+    // i zadne systemowe okno sie nie otwalo. Teraz intencja startuje
     // NATYCHMIAST; animacja doka jest czysto kosmetyczna, a po powrocie
     // fokusu dok plynnie wraca (dockSlideIn).
 
@@ -1325,11 +1333,18 @@ public class LauncherActivity extends BaseActivity {
         } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);}
     }
 
+    /** Punkt na doku, z ktorego panel ma rosnac (srodek szerokosci doka). */
+    private float dockPointX() {
+        return dock != null ? dock.getLeft() + dock.getWidth() / 2f
+                : (root != null ? root.getWidth() / 2f : 0f);
+    }
+
     private void toggleOverlay() {
         if (overlay != null) {
             hideOverlay(true);
         } else {
-            showOverlayAt(root != null ? root.getWidth() / 2f : 0f);
+            showOverlayAt(dockPointX(), dock != null
+                    ? dock.getTop() + Ui.dp(this, 90) : Ui.dp(this, 90));
         }
     }
 
@@ -1338,7 +1353,18 @@ public class LauncherActivity extends BaseActivity {
     }
 
     private void showOverlayAt(float gestureX) {
+        // gest swipe-up: punkt rozwijania = dol ekranu pod palcem
+        showOverlayAt(gestureX, root != null ? root.getHeight() - Ui.dp(this, 4) : 0f);
+    }
+
+    private void showOverlayAt(float gestureX, float originY) {
         if (overlay != null) return;
+        // iOS 26: panel rosnie z miejsca dotkniecia. Zapamietujemy punkt - ta
+        // sama pozycja jest punktem zaciecia przy zamykaniu (animacja w obie
+        // strony przebiega przez ten sam punkt).
+        ccOriginX = gestureX > 0f ? gestureX : dockPointX();
+        ccOriginY = originY > 0f ? originY
+                : (root != null ? root.getHeight() / 2f : 0f);
         // dolny przycisk doka = ikona "zamknij centrum lacznosci"
         if (dock != null) dock.setBottomMode(DockView.BOTTOM_CC);
         Bitmap snap = null;
@@ -1399,81 +1425,15 @@ public class LauncherActivity extends BaseActivity {
         int panelW = Math.max(Ui.dp(this, 240),
                 Math.min(Ui.dp(this, 536), Ui.windowWidth(this) - Ui.dp(this, 24)));
         // Panel przy doku (po jego wewnętrznej stronie) - nie zasłania doka.
+        // Rama okna (gradient swiatla od lewego gornego rogu, jak na doku) jest
+        // czescia tla panelu (ConnectivityPanel) - wczesniejsza osobna biala
+        // poswiata (rozmyta bitmapa za oknem) zostala usunieta.
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 panelW, ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.TOP | (left ? Gravity.START : Gravity.END));
         lp.leftMargin = left ? dockPx + Ui.dp(this, 10) : 0;
         lp.rightMargin = left ? 0 : dockPx + Ui.dp(this, 10);
         lp.topMargin = Ui.dp(this, 12);
-        // Poświata wokół okna (jak przy doku i oknach na ekranie głównym) - TYLKO
-        // wokół okna: osobny widok ZA panelem z bitmapą rozmytego obrysu. Blur
-        // liczony raz na CPU (ten sam mechanizm co liquid glass - działa na
-        // Mali-T720), wnętrze panelu bez zmian. Bitmapę generujemy przy pierwszym
-        // wymiarowaniu panelu (do tego momentu widok jest pusty i niewidoczny,
-        // bo rysuje wyłącznie wygenerowaną bitmapę poświaty).
-        final int glowPad = Ui.dp(this, 16);
-        glowView = new ImageView(this);
-        glowView.setScaleType(ImageView.ScaleType.FIT_XY);
-        FrameLayout.LayoutParams glp = new FrameLayout.LayoutParams(
-                panelW, ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.TOP | (left ? Gravity.START : Gravity.END));
-        glp.leftMargin = lp.leftMargin - glowPad;
-        glp.rightMargin = lp.rightMargin - glowPad;
-        glp.topMargin = lp.topMargin - glowPad;
-        overlay.addView(glowView, glp);
-        final ImageView glowRef = glowView;
-        final int glowPadF = glowPad;
-        panel.getViewTreeObserver().addOnGlobalLayoutListener(
-                new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
-                    @Override
-                    public void onGlobalLayout() {
-                        if (glowRef.getDrawable() != null || panel == null
-                                || panel.getWidth() <= 0 || panel.getHeight() <= 0) return;
-                        try {
-                            panel.getViewTreeObserver().removeOnGlobalLayoutListener(this);
-                        } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);
-                        }
-                        try {
-                            int w = panel.getWidth() + 2 * glowPadF;
-                            int hgt = panel.getHeight() + 2 * glowPadF;
-                            Bitmap gb = Bitmap.createBitmap(w, hgt, Bitmap.Config.ARGB_8888);
-                            Canvas gc = new Canvas(gb);
-                            android.graphics.Paint gp = new android.graphics.Paint(
-                                    android.graphics.Paint.ANTI_ALIAS_FLAG);
-                            gp.setStyle(android.graphics.Paint.Style.STROKE);
-                            float rad = Ui.dp(LauncherActivity.this, 34);
-                            // 1) miękka aureola: dwie warstwy podane POD rozmycie
-                            gp.setStrokeWidth(Ui.dp(LauncherActivity.this, 26));
-                            gp.setColor(0x50FFFFFF);
-                            gc.drawRoundRect(glowPadF, glowPadF, w - glowPadF,
-                                    hgt - glowPadF, rad, rad, gp);
-                            gp.setStrokeWidth(Ui.dp(LauncherActivity.this, 12));
-                            gp.setColor(0xB0FFFFFF);
-                            gc.drawRoundRect(glowPadF, glowPadF, w - glowPadF,
-                                    hgt - glowPadF, rad, rad, gp);
-                            Blur.blur(gb, 8, 4);
-                            // 2) OSTRA obwódka tuż przy oknie - ten sam rysunek co
-                            // rim/obwódka szkła doka (DockView.onDraw, warstwy 3-4).
-                            // Tam poświata JEST czytelna, bo to ostra linia z
-                            // gradientem, a nie rozmyte halo: poprzednia wersja
-                            // ginęła po rozmyciu na jasnym tle szkła.
-                            float den = getResources().getDisplayMetrics().density;
-                            android.graphics.Paint ep = new android.graphics.Paint(
-                                    android.graphics.Paint.ANTI_ALIAS_FLAG);
-                            ep.setStyle(android.graphics.Paint.Style.STROKE);
-                            float eo = 1.5f * den;
-                            ep.setStrokeWidth(2.5f * den);
-                            ep.setShader(new android.graphics.LinearGradient(0, 0, w, hgt,
-                                    new int[]{0xE6FFFFFF, 0x66FFFFFF, 0x22FFFFFF, 0x66FFFFFF},
-                                    new float[]{0f, 0.3f, 0.75f, 1f},
-                                    android.graphics.Shader.TileMode.CLAMP));
-                            gc.drawRoundRect(glowPadF - eo, glowPadF - eo,
-                                    w - glowPadF + eo, hgt - glowPadF + eo, rad, rad, ep);
-                            glowRef.setImageBitmap(gb);
-                        } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);
-                        }
-                    }
-                });
         overlay.addView(panel, lp);
         // defensive: dodajemy pod dok (nad resztą). indexOfChild może dać -1
         // w krótkim oknie po odbudowie UI - wtedy zwykły addView na wierzch.
@@ -1486,9 +1446,8 @@ public class LauncherActivity extends BaseActivity {
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         }
         // NAPRAWA (potwierdzona na urzadzeniu, PR #14, commit b21e953 - uzytkownik
-        // potwierdzil, ze tresc panelu sie rysuje): DOKLADNIE ta sekwencja wejscia -
-        // fade overlay + animacja panelu (skala 0.92 -> 1, translateY 40 -> 0,
-        // Overshoot) + withEndAction wymuszajacy re-layout i invalidate.
+        // potwierdzil, ze tresc panelu sie rysuje): fade overlay + animacja panelu
+        // + withEndAction wymuszajacy re-layout i invalidate.
         // Komentarz z tamtej poprawki: "na MT8163 pierwszy pomiar panelu
         // w animowanej overlay potrafil wyjsc 0x0 i tresc nigdy sie nie rysowala" -
         // koncowy requestLayout()+invalidate() przebudowuje pomiar i rysunek,
@@ -1496,28 +1455,32 @@ public class LauncherActivity extends BaseActivity {
         // ⚠️ NIE usuwac animacji ani withEndAction - bez tego panel jest pusty.
         overlay.setAlpha(0f);
         overlay.animate().alpha(1f).setDuration(Prefs.reduceMotion(this) ? 0 : 220).start();
-        panel.setScaleX(0.92f);
-        panel.setScaleY(0.92f);
-        panel.setTranslationY(Ui.dp(this, 40));
-        panel.setPivotX(panelW / 2f);
-        panel.setPivotY(0f);
-        glowView.setScaleX(0.92f);
-        glowView.setScaleY(0.92f);
-        glowView.setTranslationY(Ui.dp(this, 40));
-        glowView.setPivotX(panelW / 2f);
-        glowView.setPivotY(0f);
+        // iOS 26: panel WYRASTA z miejsca dotkniecia - pivot w punkcie dotyku,
+        // skala 0.3 -> 1 ze sprężyną (DockMotion.IOS_SPRING), alpha 0 -> 1.
+        // Zamykanie (hideOverlay) to dokladnie ten sam ruch w odwrotna strone
+        // do tego samego punktu.
+        final float startScale = 0.3f;
+        panel.setScaleX(startScale);
+        panel.setScaleY(startScale);
+        panel.setAlpha(0f);
+        panel.setTranslationY(0f);
         // NAPRAWA ("otwiera się bez animacji"): animacja startowała natychmiast po
         // dodaniu panelu i ciężki pierwszy pomiar/rys na MT8163 zjadał jej przebieg -
         // panel pojawiał się skokowo. Startujemy ją dopiero po pierwszym przebiegu
-        // layoutu (panel.post); overlay jest wtedy wciąż niemal przezroczysty,
-        // więc nic nie miga. withEndAction zostaje (mechanizm naprawczy).
+        // layoutu (panel.post); wtedy znamy też dokładną pozycję panelu, więc
+        // pivot można osadzić precyzyjnie w punkcie dotknięcia. withEndAction
+        // zostaje (mechanizm naprawczy).
         panel.post(new Runnable() {
             @Override
             public void run() {
                 if (panel == null) return;
-                panel.animate().scaleX(1f).scaleY(1f).translationY(0f)
-                        .setDuration(Prefs.reduceMotion(LauncherActivity.this) ? 0 : 280)
-                        .setInterpolator(new android.view.animation.OvershootInterpolator(0.9f))
+                panel.setPivotX(Math.max(0f, Math.min(panel.getWidth(),
+                        ccOriginX - panel.getLeft())));
+                panel.setPivotY(Math.max(0f, Math.min(panel.getHeight(),
+                        ccOriginY - panel.getTop())));
+                panel.animate().scaleX(1f).scaleY(1f).alpha(1f)
+                        .setDuration(Prefs.reduceMotion(LauncherActivity.this) ? 0 : 420)
+                        .setInterpolator(pl.dock.widget.ui.DockMotion.IOS_SPRING)
                         .withEndAction(new Runnable() {
                             @Override
                             public void run() {
@@ -1531,12 +1494,6 @@ public class LauncherActivity extends BaseActivity {
                             }
                         })
                         .start();
-                if (glowView != null) {
-                    glowView.animate().scaleX(1f).scaleY(1f).translationY(0f)
-                            .setDuration(Prefs.reduceMotion(LauncherActivity.this) ? 0 : 280)
-                            .setInterpolator(new android.view.animation.OvershootInterpolator(0.9f))
-                            .start();
-                }
             }
         });
     }
@@ -1544,11 +1501,9 @@ public class LauncherActivity extends BaseActivity {
     private void hideOverlay(boolean animate) {
         final FrameLayout ov = overlay;
         final ConnectivityPanel pn = panel;
-        final ImageView gv = glowView;
         if (ov == null) return;
         overlay = null;
         panel = null;
-        glowView = null;
         // zamkniecie centrum lacznosci: wroc do normalnego glifu dolnego
         // przycisku (crossfade siatka/kwadrat wg biezacej strony)
         if (dock != null) {
@@ -1561,26 +1516,18 @@ public class LauncherActivity extends BaseActivity {
             root.removeView(ov);
             return;
         }
-        // Zamknięcie lustrzane do otwarcia (jak w macOS): ta sama transformacja
-        // w odwrotną stronę (skala 1 -> 0.92, zjazd 40 dp w dół) + wygaszenie
-        // overlaya. Panel jest już wymierzony (problem 0x0 dotyczył tylko
-        // pierwszego otwarcia), a widok usuwamy po animacji, więc transformacja
-        // nie psuje już żadnego layoutu.
+        // Zamknięcie = dokładnie ODWROTNA animacja otwarcia (iOS 26): panel
+        // kurczy się do punktu, z którego wyrosło (pivot = miejsce dotknięcia),
+        // a tło (rozmycie) zanika. Ten sam charakter ruchu w obie strony.
         if (pn != null) {
-            pn.animate().scaleX(0.92f).scaleY(0.92f)
-                    .translationY(Ui.dp(this, 40))
-                    .setDuration(Prefs.reduceMotion(this) ? 0 : 220)
+            pn.setPivotX(Math.max(0f, Math.min(pn.getWidth(), ccOriginX - pn.getLeft())));
+            pn.setPivotY(Math.max(0f, Math.min(pn.getHeight(), ccOriginY - pn.getTop())));
+            pn.animate().scaleX(0.3f).scaleY(0.3f).alpha(0f)
+                    .setDuration(Prefs.reduceMotion(this) ? 0 : 300)
                     .setInterpolator(new android.view.animation.AccelerateInterpolator(0.9f))
                     .start();
         }
-        if (gv != null) {
-            gv.animate().scaleX(0.92f).scaleY(0.92f)
-                    .translationY(Ui.dp(this, 40))
-                    .setDuration(Prefs.reduceMotion(this) ? 0 : 220)
-                    .setInterpolator(new android.view.animation.AccelerateInterpolator(0.9f))
-                    .start();
-        }
-        ov.animate().alpha(0f).setDuration(220)
+        ov.animate().alpha(0f).setDuration(260)
                 .setListener(new AnimatorListenerAdapter() {
                     @Override
                     public void onAnimationEnd(Animator a) {
@@ -1829,7 +1776,7 @@ public class LauncherActivity extends BaseActivity {
         if (pendingId >= 0) {
             try {
                 host.deleteAppWidgetId(pendingId);
-            } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);
+            } catch (Throwable ignored) {
             }
         }
         pendingId = -1;
@@ -1884,7 +1831,7 @@ public class LauncherActivity extends BaseActivity {
         if (e.id > 0) {
             try {
                 host.deleteAppWidgetId(e.id);
-            } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);
+            } catch (Throwable ignored) {
             }
         }
         List<WidgetEntry> list = Prefs.widgets(this);

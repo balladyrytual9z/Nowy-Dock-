@@ -72,18 +72,21 @@ public class ConnectivityPanelGuardTest {
         String src = new String(Files.readAllBytes(f.toPath()), Charset.forName("UTF-8"));
 
         // Potwierdzona na urzadzeniu sekwencja (PR #14, commit b21e953): fade
-        // overlayu + animacja wejscia panelu (skala/pivot/translate/Overshoot)
-        // + withEndAction z wymuszonym requestLayout()+invalidate(). Komentarz
-        // z tamtej poprawki: "pierwszy pomiar panelu w animowanej overlay potrafil
-        // wyjsc 0x0 i tresc nigdy sie nie rysowala" - bez tego panel jest pusty.
+        // overlayu + animacja wejscia panelu (skala/pivot/alpha) + withEndAction
+        // z wymuszonym requestLayout()+invalidate(). Komentarz z tamtej poprawki:
+        // "pierwszy pomiar panelu w animowanej overlay potrafil wyjsc 0x0 i tresc
+        // nigdy sie nie rysowala" - bez tego panel jest pusty.
         assertTrue("Brak wymuszonego re-layoutu panelu (panel.requestLayout() w"
                         + " withEndAction) - to mechanizm naprawczy z PR #14",
                 src.contains("panel.requestLayout()"));
         assertTrue("Brak overlay.invalidate() po animacji wejscia (PR #14)",
                 src.contains("overlay.invalidate()"));
-        assertTrue("Brak animacji wejscia panelu (panel.setScaleX(0.92f)) -"
+        assertTrue("Brak animacji wejscia panelu (panel.setScaleX(...)) -"
                         + " bez niej nie ma withEndAction i tresc nie odtwarza sie",
-                src.contains("panel.setScaleX(0.92f)"));
+                src.contains("panel.setScaleX("));
+        assertTrue("Brak punktu rozwijania panelu (panel.setPivotX(...)) - panel ma"
+                        + " rosnac i kurczyc sie z miejsca dotkniecia (iOS 26)",
+                src.contains("panel.setPivotX("));
         assertTrue("Brak withEndAction po animacji wejscia panelu (PR #14)",
                 src.contains("withEndAction"));
     }
