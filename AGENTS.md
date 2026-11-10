@@ -192,7 +192,7 @@ kręciła się na boki). Progi to stałe w `HeadingSmoother`.
 Zanim agent cokolwiek zrobi — **musi być pewien, że dobrze zrozumiał**.
 
 - **(2026-11-10, wyraźne życzenie użytkownika) ŻELAZNA REGUŁA: zanim agent cokolwiek
-  zrobi przy nowym zadaniu, sparafrazuje własnymi słowami, co zrozumiał, i poczekana
+  zrobi przy nowym zadaniu, sparafrazuje własnymi słowami, co zrozumiał, i poczeka
   na potwierdzenie użytkownika.** Najpierw zrozumienie → potwierdzenie → dopiero potem
   kod. Dotyczy też każdej zmiany kierunku w trakcie zadania.
 - Jeśli polecenie użytkownika jest niejasne, nieprecyzyjne, brakuje szczegółów technicznych albo agent ma więcej niż jedną interpretację — **agent MA OBOWIĄZEK dopytać**, zanim ruszy dalej.
