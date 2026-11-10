@@ -1972,3 +1972,9 @@ public class LauncherActivity extends BaseActivity {
         if (currentRef != null && currentRef.get() == this) currentRef = null;
     }
 }
+
+
+
+
+
+
