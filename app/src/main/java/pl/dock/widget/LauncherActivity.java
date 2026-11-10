@@ -1441,12 +1441,18 @@ public class LauncherActivity extends BaseActivity {
                             android.graphics.Paint gp = new android.graphics.Paint(
                                     android.graphics.Paint.ANTI_ALIAS_FLAG);
                             gp.setStyle(android.graphics.Paint.Style.STROKE);
-                            gp.setStrokeWidth(Ui.dp(LauncherActivity.this, 7));
-                            gp.setColor(0x8CFFFFFF);
                             float inset = Ui.dp(LauncherActivity.this, 4);
                             float rad = Ui.dp(LauncherActivity.this, 34);
+                            // dwie warstwy: szeroka słaba aureola + wąska jasna krawędź
+                            // (jak rim szkła doka); rozmycie zjada ~2/3 alfy, więc
+                            // kolory sa celowo mocne
+                            gp.setStrokeWidth(Ui.dp(LauncherActivity.this, 24));
+                            gp.setColor(0x40FFFFFF);
                             gc.drawRoundRect(inset, inset, w - inset, hgt - inset, rad, rad, gp);
-                            Blur.blur(gb, 5, 3);
+                            gp.setStrokeWidth(Ui.dp(LauncherActivity.this, 9));
+                            gp.setColor(0xC8FFFFFF);
+                            gc.drawRoundRect(inset, inset, w - inset, hgt - inset, rad, rad, gp);
+                            Blur.blur(gb, 8, 4);
                             glowRef.setImageBitmap(gb);
                         } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);
                         }
@@ -1467,13 +1473,12 @@ public class LauncherActivity extends BaseActivity {
         // potwierdzil, ze tresc panelu sie rysuje): DOKLADNIE ta sekwencja wejscia -
         // fade overlay + animacja panelu (skala 0.92 -> 1, translateY 40 -> 0,
         // Overshoot) + withEndAction wymuszajacy re-layout i invalidate.
-        // Komentarz z tamtej poprawki: "na MT8163 pierwszy pomiar panelu
-        // w animowanej overlay potrafil wyjsc 0x0 i tresc nigdy sie nie rysowala" -
         // koncowy requestLayout()+invalidate() przebudowuje pomiar i rysunek,
         // dopiero wtedy custom Canvas views sie pojawiaja.
         // ⚠️ NIE usuwac animacji ani withEndAction - bez tego panel jest pusty.
         overlay.setAlpha(0f);
         overlay.animate().alpha(1f).setDuration(Prefs.reduceMotion(this) ? 0 : 220).start();
+        panel.setScaleX(0.92f);
         panel.setScaleY(0.92f);
         panel.setTranslationY(Ui.dp(this, 40));
         panel.setPivotX(panelW / 2f);
