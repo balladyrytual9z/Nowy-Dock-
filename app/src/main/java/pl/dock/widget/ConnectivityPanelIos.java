@@ -138,7 +138,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             row.setGravity(Gravity.CENTER_VERTICAL);
             LayoutParams rp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-            rp.topMargin = dp(12);
+            rp.topMargin = dp(4);
             if (showMode) {
                 // JEDEN przycisk trybu: klik cykli Jasny -> Ciemny -> Auto -> Jasny
                 bMode = new RoundBtn(act, 0, "Jasny");
@@ -438,7 +438,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             float hh = getHeight();
             float rad = wide ? hh / 2f : 34f * d;
             p.setStyle(Paint.Style.FILL);
-            p.setColor(night ? 0xF0545459 : 0xFFD8D8DD);
+            p.setColor(night ? 0xF046464B : 0xFFCACACF);
             r.set(0, 0, w, hh);
             cv.drawRoundRect(r, rad, rad, p);
             if (pressed) {
@@ -674,3 +674,4 @@ public class ConnectivityPanelIos extends LinearLayout {
         }
     }
 }
+

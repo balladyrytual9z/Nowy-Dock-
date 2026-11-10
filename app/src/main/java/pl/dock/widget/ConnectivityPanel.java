@@ -217,7 +217,7 @@ public class ConnectivityPanel extends LinearLayout {
             row.setGravity(Gravity.CENTER_VERTICAL);
             LayoutParams rp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-            rp.topMargin = dp(12);
+            rp.topMargin = dp(4);
             if (showMode) {
                 bMode = new RoundBtn(act);
                 bMode.setKind(0, "Jasny");
@@ -890,7 +890,7 @@ public class ConnectivityPanel extends LinearLayout {
             super(c);
             this.wide = wide;
             GradientDrawable bg = new GradientDrawable();
-            bg.setColor(night ? 0xF0545459 : 0xFFD8D8DD);
+            bg.setColor(night ? 0xF046464B : 0xFFCACACF);
             bg.setCornerRadius(wide ? dp(38) : dp(34));
             bg.setStroke(Math.max(1, dp(1)), 0x55FFFFFF);
             setBackground(bg);
@@ -1064,9 +1064,13 @@ public class ConnectivityPanel extends LinearLayout {
             setBackground(track);
             value = Math.max(0f, Math.min(1f, v));
 
-            // wypelnienie od dolu - zwykly View z bialym GradientDrawable
+            // wypelnienie od dolu - zwykly View z PLASKIM tlem (prostokat
+            // przycinany do pigulki przez clipToOutline). Promien 999 na
+            // wypelnieniu zawijal krawedz poziomu w polokrag - ma byc plasko.
             fill = new View(c);
-            fill.setBackground(Ui.round(0xFFFAFAFC, 999, c));
+            GradientDrawable fillBg = new GradientDrawable();
+            fillBg.setColor(0xFFFAFAFC);
+            fill.setBackground(fillBg);
             FrameLayout.LayoutParams flp = new FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, 1, Gravity.BOTTOM);
             addView(fill, flp);
@@ -1219,3 +1223,4 @@ public class ConnectivityPanel extends LinearLayout {
         }
     }
 }
+
