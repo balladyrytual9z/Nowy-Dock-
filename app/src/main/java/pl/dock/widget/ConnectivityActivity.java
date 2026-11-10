@@ -11,8 +11,10 @@ import java.util.List;
 
 // Okno zapasowe centrum lacznosci (np. po kliknieciu paska widzetu na innym launcherze).
 // NAPRAWA (ESSGOO/MT8163, Android 9): pelnoekranowe okno z dokiem rysowanym wewnatrz.
-// PORT: panel w stylu iOS (ConnectivityPanelIos) 1:1 z Liquid-Glass -
-// okno 560dp jak w oryginale.
+// PORT: panel w stylu iOS (ConnectivityPanelIos) 1:1 z Liquid-Glass.
+// NAPRAWA UCIĘCIA: zawartosc panelu (400+10+70+70+24 = 574 dp) byla szersza niz
+// okno 560 dp - suwak jasności wystawal poza tlo. Panel ma teraz szerokosc
+// WRAP_CONTENT, dzieki czemu tlo obejmuje cala zawartosc.
 public class ConnectivityActivity extends BaseActivity {
 
     private ConnectivityPanelIos panel;
@@ -48,10 +50,9 @@ public class ConnectivityActivity extends BaseActivity {
             }
         });
         boolean dockLeft = Ui.dockLeft(this);
-        int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
-        int w = Math.min(Ui.dp(this, 560),
-                getResources().getDisplayMetrics().widthPixels - dockPx - Ui.dp(this, 24));
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(w,
+        // szerokosc dopasowana do zawartosci panelu (naprawa uciętego suwaka jasności)
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.TOP | (dockLeft ? Gravity.END : Gravity.START));
         lp.setMargins(Ui.dp(this, 8), Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 8));

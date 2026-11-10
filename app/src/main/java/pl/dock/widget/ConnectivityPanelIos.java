@@ -29,11 +29,14 @@ import android.widget.TextView;
 // Centrum łacznosci w stylu iOS - port 1:1 z Liquid-Glass-Diplay---Launcher-Switcher-.
 // Ikony Wi-Fi/Bluetooth/Hotspot DOKŁADNIE jak w oryginale (Icons.vector na
 // ic_wifi/ic_wifi_off/ic_bt + Icons.tether). Wymiary oryginalne: kafelki 150/76dp,
-// suwaki 70x238dp, przyciski 88x96dp, lewa kolumna 400dp, okno 560dp.
-// Zmiany na życzenie:
+// suwaki 70x238dp, przyciski 88x96dp, lewa kolumna 400dp.
+// Zmiany na życzenie (i NIC więcej):
 // 1. Jasny/Ciemny/Auto w JEDNYM przycisku (klik = cykl trybów).
 // 2. Night Shift: klik = wl/wyl, PRZYTRZYMANIE = suwak ciepła (jak w iOS).
-// 3. Tło panelu szkliste (półprzezroczyste) - widać przyciemnione tło pod spodem.
+// 3. Tło panelu = popupBg (jak w obecnym launcherze).
+// 4. NAPRAWA UCIĘCIA: zawartość panelu ma 574dp (400+10+70+70+24), a okno
+//    było 560dp - prawy suwak (jasność) wystawał poza tło. Panel ma teraz
+//    szerokość WRAP_CONTENT, więc tło obejmuje całą zawartość.
 public class ConnectivityPanelIos extends LinearLayout {
 
     public interface Host {
@@ -72,12 +75,8 @@ public class ConnectivityPanelIos extends LinearLayout {
         this.night = night;
         this.host = host;
         setOrientation(VERTICAL);
-        // szkliste tło zamiast pełnego popupBg: widać przyciemniony ekran pod spodem
-        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-        bg.setColor(night ? 0xCC101014 : 0xCCF2F2F7);
-        bg.setCornerRadius(dp(34));
-        bg.setStroke(Math.max(1, dp(1)), night ? 0x33FFFFFF : 0x22000000);
-        setBackground(bg);
+        // tło jak w obecnym launcherze (popupBg) - bez zmian
+        setBackground(Ui.popupBg(a, night));
         setPadding(dp(12), dp(12), dp(12), dp(10));
         setClickable(true);
         setElevation(dp(12));
