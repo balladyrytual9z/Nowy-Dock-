@@ -15,13 +15,16 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.provider.Settings;
 import android.view.View;
 import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
 
 // Nakladka Night Shift. Kolor narasta plynnie:
-// - reczne wlaczenie / wylaczenie: krotkie przejscie ok. 800 ms,
-// - tryb "od zachodu do wschodu": po zachodzie sila narasta od 0 do celu w ~2 min,
+// - reczne wlaczenie / wylaczenie (klik w przycisk): krotkie przejscie ok. 800 ms,
+// - AUTO (harmonogram slonca, jak w iOS): PO 30 S - filtr narasta/wygasa przez 30 s,
+//   a w tym samym czasie podswietlenie PLYNNIE spada do najnizszej wartosci
+//   (auto-wlaczenie) albo wraca do zapamietanej (auto-wylaczenie),
 // - suwak ciepla w panelu lacznosci zmienia kolor na zywo.
 //
 // Na czas systemowego okna instalacji APK nakladka schodzi z ekranu ("pause")
@@ -29,14 +32,16 @@ import android.view.animation.DecelerateInterpolator;
 // odcinaja dotyk, gdy cokolwiek rysuje sie nad nimi (ochrona przed tapjackingiem).
 public class NightShiftService extends Service {
 
-    private static final long FADE_MS = 800L;        // plynne przejscie przy recznym on/off
-    private static final long SUNSET_RAMP_MS = 120000L; // narastanie po zachodzie (~2 min)
-    private static final long SUN_CHECK_MS = 60000L;  // sprawdzenie zachodu co minute
+    private static final long FADE_MS = 800L;         // plynne przejscie przy recznym on/off
+    private static final long RAMP_MS = 30000L;       // AUTO: 30 s (filtr + jasnost, jak w iOS)
+    private static final long SUN_CHECK_MS = 60000L;  // sprawdzenie slonca co minute
+    private static final int BRIGHT_MIN = 10;         // najnizsza wartosc podswietlenia
 
     private WindowManager wm;
     private FilterView overlay;
     private final Handler h = new Handler(Looper.getMainLooper());
     private android.animation.ValueAnimator anim;
+    private android.animation.ValueAnimator bAnim;    // rampa jasnosci (auto 30 s)
     private float currentAlpha = 0f;   // aktualna widoczna sila filtru (0..1)
     private boolean sunsetMode = false;
     private boolean paused = false;    // pauza na czas okna instalatora APK
@@ -50,8 +55,10 @@ public class NightShiftService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         boolean refresh = intent != null && intent.getBooleanExtra("refresh", false);
+        boolean manual = intent != null && intent.getBooleanExtra("manual", false);
         String mode = Prefs.nightShiftMode(this);
-        sunsetMode = "sunset".equals(mode);
+        // nowy model (nsUsed): baza = harmonogram slonca, nawet gdy pref mowi "off"
+        sunsetMode = "sunset".equals(mode) || NightShift.nsUsed(this);
 
         // PAUZA: okno instalatora APK (potwierdzenie instalacji / Play Protect
         // "Zainstaluj bez skanowania") odcina dotyk, gdy cokolwiek rysuje sie
@@ -61,6 +68,7 @@ public class NightShiftService extends Service {
         if (intent != null && intent.getBooleanExtra("pause", false)) {
             paused = true;
             if (anim != null) anim.cancel();
+            if (bAnim != null) bAnim.cancel();
             removeOverlayNow();
             h.removeCallbacksAndMessages(null);   // petla sloncka milczy podczas pauzy
             return START_NOT_STICKY;
@@ -68,12 +76,12 @@ public class NightShiftService extends Service {
         if (intent != null && intent.getBooleanExtra("resume", false)) {
             boolean wasPaused = paused;
             paused = false;
-            if ("off".equals(mode)) {
+            if ("off".equals(mode) && !NightShift.nsUsed(this)) {
                 stopSelf();
                 return START_NOT_STICKY;
             }
             showOverlay();
-            boolean night = !sunsetMode || NightShift.isNightBySun(this);
+            boolean night = currentNight(mode);
             float target = night ? targetStrengthFraction() : 0f;
             // po powrocie z instalatora plynny powrot filtra; bez pauzy nic
             // nierestartujemy (np. rampa zachodu ma prawo trwac dalej)
@@ -85,7 +93,7 @@ public class NightShiftService extends Service {
         }
 
         paused = false;
-        if ("off".equals(mode)) {
+        if ("off".equals(mode) && !NightShift.nsUsed(this)) {
             hideOverlayAnimated();
             stopSelf();
             return START_NOT_STICKY;
@@ -93,31 +101,40 @@ public class NightShiftService extends Service {
         if (refresh) {
             // zmiana ciepla suwakiem: plytka korekta do nowej sily
             showOverlay();
-            animateTo(targetStrengthFraction(), 250L);
+            animateTo(currentNight(mode) ? targetStrengthFraction() : 0f, 250L);
             scheduleSunCheck();
             return START_NOT_STICKY;
         }
         showOverlay();
-        boolean night = !sunsetMode || NightShift.isNightBySun(this);
-        if (night) {
-            // po zachodzie filtr narasta powoli; przy recznym wlaczeniu krotko
-            animateTo(targetStrengthFraction(), sunsetMode ? SUNSET_RAMP_MS : FADE_MS);
-        } else {
-            animateTo(0f, FADE_MS);
-        }
+        boolean night = currentNight(mode);
+        // reczny klik = krotkie przejscie; auto = 30 s (bez rampy jasnosci przy
+        // starcie uslugi - ta odpala sie tylko z petli slonckiej, na realnym
+        // przejsciu dzien/noc)
+        animateTo(night ? targetStrengthFraction() : 0f, manual ? FADE_MS : RAMP_MS);
+        if (manual && bAnim != null) bAnim.cancel();
         scheduleSunCheck();
         return START_NOT_STICKY;
     }
 
+    /** Czy filtr ma teraz dzialac (nowy model: reczna zmiana -> potem slonce). */
+    private boolean currentNight(String mode) {
+        if (NightShift.nsUsed(this)) return NightShift.effectiveOn(this);
+        if ("on".equals(mode)) return true;
+        if ("sunset".equals(mode)) return NightShift.isNightBySun(this);
+        return false;
+    }
+
     /**
-     * Wartosc 5-80 z suwaka w Ustawieniach/Panelu -> glebia ciepla 0..1.
-     * 5  -> 0.06  (subtelne cieplo)
-     * 40 -> 0.50  (domyslne, punkt bieli ok. 4200 K)
-     * 80 -> 1.00  (maksimum jak w iOS: punkt bieli 2700 K)
+     * Wartosc 0-50 z suwaka ciepla (max = POLOWA obecnego maksimum - decyzja
+     * uzytkownika) -> glebia ciepla 0..1:
+     *   0  -> 0.00  (brak filtra)
+     *  40  -> 0.40  (domyslne)
+     *  50  -> 0.50  (nowe maksimum = polowa dawnego 80 -> 1.00)
+     * Stare zapisy > 50 sa przycinane do 50.
      */
     private float targetStrengthFraction() {
-        int strength = Math.max(5, Math.min(80, Prefs.nightShiftStrength(this)));
-        return strength / 80f;
+        int strength = Math.max(0, Math.min(50, Prefs.nightShiftStrength(this)));
+        return strength / 100f;
     }
 
     private void applyFraction(float f) {
@@ -147,6 +164,63 @@ public class NightShiftService extends Service {
     }
 
     /**
+     * AUTO-przejscie (z petli slonckiej): w tle plynnie prowadzimy tez
+     * podswietlenie - przy wlaczaniu spada do najnizszej wartosci (30 s),
+     * przy wylaczaniu wraca do zapamietanej (30 s). Wymaga zgody na zmiane
+     * ustawien systemowych; bez niej tylko filtr sie animuje.
+     */
+    private void startBrightnessRamp(boolean down) {
+        if (bAnim != null) bAnim.cancel();
+        try {
+            if (!Settings.System.canWrite(this)) return;
+            int from = currentBrightness();
+            int to;
+            if (down) {
+                if (!NightShift.nsBrightSaved(this)) {
+                    NightShift.setNsBrightPrev(this, from);
+                    NightShift.setNsBrightSaved(this, true);
+                }
+                to = BRIGHT_MIN;
+            } else {
+                to = NightShift.nsBrightPrev(this);
+                if (to <= BRIGHT_MIN) to = Math.max(from, 100);
+                NightShift.setNsBrightSaved(this, false);
+            }
+            if (to == from) return;
+            bAnim = android.animation.ValueAnimator.ofInt(from, to);
+            bAnim.setDuration(RAMP_MS);
+            bAnim.addUpdateListener(new android.animation.ValueAnimator.AnimatorUpdateListener() {
+                private int last = -1;
+
+                @Override
+                public void onAnimationUpdate(android.animation.ValueAnimator a) {
+                    int v = (Integer) a.getAnimatedValue();
+                    if (v == last) return;
+                    last = v;
+                    try {
+                        Settings.System.putInt(getContentResolver(),
+                                Settings.System.SCREEN_BRIGHTNESS_MODE,
+                                Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
+                        Settings.System.putInt(getContentResolver(),
+                                Settings.System.SCREEN_BRIGHTNESS, v);
+                    } catch (Throwable ignored) {
+                    }
+                }
+            });
+            bAnim.start();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private int currentBrightness() {
+        try {
+            return Settings.System.getInt(getContentResolver(), Settings.System.SCREEN_BRIGHTNESS);
+        } catch (Throwable t) {
+            return 100;
+        }
+    }
+
+    /**
      * Nagle zdejmuje nakladke z ekranu. Wydarza sie to tylko przy pauzie na
      * czas instalatora: USUWAMY okno z WindowManager, a nie tylko zerujemy
      * alphe - nawet w pelni przezroczyste okno nad instalatorem ustawia mu
@@ -170,10 +244,12 @@ public class NightShiftService extends Service {
             @Override
             public void run() {
                 if (!sunsetMode || paused) return;
-                boolean night = NightShift.isNightBySun(NightShiftService.this);
+                boolean night = currentNight(Prefs.nightShiftMode(NightShiftService.this));
                 float target = night ? targetStrengthFraction() : 0f;
                 if (Math.abs(target - currentAlpha) > 0.001f) {
-                    animateTo(target, night ? SUNSET_RAMP_MS : FADE_MS);
+                    // AUTO: filtr 30 s + podswietlenie plynnie do minimum / powrot
+                    animateTo(target, RAMP_MS);
+                    startBrightnessRamp(night);
                 }
                 h.postDelayed(this, SUN_CHECK_MS);
             }
@@ -229,6 +305,7 @@ public class NightShiftService extends Service {
     public void onDestroy() {
         h.removeCallbacksAndMessages(null);
         if (anim != null) anim.cancel();
+        if (bAnim != null) bAnim.cancel();
         try {
             if (wm != null && overlay != null) wm.removeView(overlay);
         } catch (Throwable ignored) {

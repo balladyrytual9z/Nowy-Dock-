@@ -25,7 +25,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
-import android.widget.SeekBar;
 import android.widget.TextView;
 
 // Centrum łacznosci w stylu iOS - port 1:1 z Liquid-Glass-Diplay---Launcher-Switcher-.
@@ -51,8 +50,17 @@ import android.widget.TextView;
 //    (wycinane na przezroczysto). Wł = białe koło/ciemna ikona,
 //    wył = ciemne szkło/biała ikona. Podpis 3-liniowy: nazwa + stan w 2 wierszach.
 // 8. IKONA WIĘKSZA + ODSTĘPY TEKSTU: wewnętrzny element kontrastu ~1/2 średnicy
-//    białego koła (jak na zdjęciach źródłowych), przycisk wyższy (104dp),
+//    białego koła (jak na zdjęciach źródłowych), przycisk wyższy (112dp),
 //    linie podpisu rozsunięte - żadna nie wchodzi na drugą ani na koło.
+// 9. NIGHT SHIFT JAK W iOS: ta sama logika co "Tryb ciemny" (harmonogram
+//    zachód -> wschód słońca, klik = zmiana do najbliższego wydarzenia,
+//    NightShift.effectiveOn/toggle). AUTO-przejścia trwają 30 s: filtr
+//    narasta/wygasa, a podświetlenie płynnie spada do minimum (włączanie)
+//    albo wraca do zapamiętanej wartości (wyłączanie) - NightShiftService.
+//    Ikona: słońce z WYCIĘTYM półksiężycem (na przezroczysto). Suwak ciepła
+//    (przytrzymanie) jak na zdjęciu iOS: wycentrowany podpis
+//    "Temperatura kolorów", niebieski tor, biały pigułkowy uchwyt,
+//    punkty-pozycjonery, ZAKRES 0-50 (max = połowa obecnego maksimum ciepła).
 public class ConnectivityPanelIos extends LinearLayout {
 
     public interface Host {
@@ -69,7 +77,7 @@ public class ConnectivityPanelIos extends LinearLayout {
     private TextView note;
     private BroadcastReceiver rc;
     private LinearLayout warmthRow;
-    private SeekBar warmthBar;
+    private WarmthSlider warmthBar;
     private final Runnable hideWarmth = new Runnable() {
         @Override
         public void run() {
@@ -160,7 +168,7 @@ public class ConnectivityPanelIos extends LinearLayout {
                 // "Tryb ciemny" jak w iOS: klik = przełącz do najbliższego
                 // wschodu/zachodu słońca (potem znów rządzi słońce)
                 bMode = new RoundBtn(act, 4, "Tryb ciemny");
-                row.addView(bMode, new LayoutParams(dp(150), dp(104)));
+                row.addView(bMode, new LayoutParams(dp(150), dp(112)));
                 bMode.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -172,14 +180,15 @@ public class ConnectivityPanelIos extends LinearLayout {
             if (showNs) {
                 // Night Shift OBOK przycisku trybu (bez elasticznej przerwy)
                 bShift = new RoundBtn(act, 3, "Night Shift");
-                LayoutParams sp = new LayoutParams(dp(110), dp(104));
+                LayoutParams sp = new LayoutParams(dp(110), dp(112));
                 sp.leftMargin = dp(12);
                 row.addView(bShift, sp);
                 bShift.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        boolean on = !NightShift.isOn(act);
-                        boolean ok = NightShift.set(act, on);
+                        // jak "Tryb ciemny": klik = przełącz do najbliższego
+                        // wschodu/zachodu słońca (potem znów rządzi słońce)
+                        boolean ok = NightShift.toggle(act);
                         if (!ok) host.close();
                         update();
                     }
@@ -207,62 +216,65 @@ public class ConnectivityPanelIos extends LinearLayout {
     private void showWarmthSlider() {
         if (warmthRow != null) {
             warmthRow.setVisibility(VISIBLE);
-            warmthBar.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
+            warmthBar.setValue(Math.max(0, Math.min(50, Prefs.nightShiftStrength(act))));
             scheduleWarmthHide();
             return;
         }
-        warmthRow = new LinearLayout(act);
-        warmthRow.setOrientation(HORIZONTAL);
-        warmthRow.setGravity(Gravity.CENTER_VERTICAL);
-        warmthRow.setPadding(dp(6), dp(2), dp(6), dp(2));
-        warmthRow.setBackground(Ui.round(night ? 0x33787880 : 0x1F787880, 20, act));
+        // karta jak na zdjęciu iOS: wycentrowany podpis "Temperatura kolorów",
+        // w środku "Chłodniejsze" / suwak / "Cieplejsze"
+        LinearLayout wrap = new LinearLayout(act);
+        wrap.setOrientation(VERTICAL);
+        wrap.setGravity(Gravity.CENTER_HORIZONTAL);
+        wrap.setPadding(dp(14), dp(10), dp(14), dp(12));
+        wrap.setBackground(Ui.round(night ? 0xFF202024 : 0x33FFFFFF, 24, act));
+
+        TextView title = new TextView(act);
+        title.setText("Temperatura kolorów");
+        title.setTextSize(14);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setTextColor(night ? 0xFF9A9AA0 : 0xFF6C6C70);
+        wrap.addView(title, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        LinearLayout row = new LinearLayout(act);
+        row.setOrientation(HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        rp.topMargin = dp(6);
 
         TextView cool = new TextView(act);
         cool.setText("Chłodniejsze");
-        cool.setTextSize(13);
-        cool.setTypeface(null, Typeface.BOLD);
-        cool.setTextColor(night ? 0xB3FFFFFF : 0xFF3C3C43);
-        warmthRow.addView(cool, new LinearLayout.LayoutParams(
+        cool.setTextSize(15);
+        cool.setTextColor(night ? 0xFFFFFFFF : 0xFF111114);
+        row.addView(cool, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        warmthBar = new SeekBar(act);
-        warmthBar.setMax(80);
-        warmthBar.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
-        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(220),
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        bp.leftMargin = dp(12);
-        bp.rightMargin = dp(12);
-        warmthRow.addView(warmthBar, bp);
+        warmthBar = new WarmthSlider(act);
+        warmthBar.setValue(Math.max(0, Math.min(50, Prefs.nightShiftStrength(act))));
+        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(0, dp(46), 1f);
+        bp.leftMargin = dp(10);
+        bp.rightMargin = dp(10);
+        row.addView(warmthBar, bp);
 
         TextView warm = new TextView(act);
         warm.setText("Cieplejsze");
-        warm.setTextSize(13);
-        warm.setTypeface(null, Typeface.BOLD);
-        warm.setTextColor(night ? 0xB3FFFFFF : 0xFF3C3C43);
-        warmthRow.addView(warm, new LinearLayout.LayoutParams(
+        warm.setTextSize(15);
+        warm.setTextColor(night ? 0xFFFFFFFF : 0xFF111114);
+        row.addView(warm, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        warmthBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        wrap.addView(row, rp);
+        warmthRow = wrap;
+        warmthBar.setListener(new WarmthSlider.Listener() {
             @Override
-            public void onProgressChanged(SeekBar sb, int prog, boolean fromUser) {
-                if (!fromUser) return;
-                Prefs.setNightShiftStrength(act, Math.max(5, Math.min(80, prog)));
+            public void on(int v) {
+                Prefs.setNightShiftStrength(act, Math.max(0, Math.min(50, v)));
                 NightShift.refresh(act);
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar sb) {
-                removeCallbacks(hideWarmth);
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar sb) {
-                sb.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
-                scheduleWarmthHide();
             }
         });
 
-        addView(warmthRow, new LinearLayout.LayoutParams(
+        addView(wrap, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         scheduleWarmthHide();
     }
@@ -385,7 +397,11 @@ public class ConnectivityPanelIos extends LinearLayout {
             bMode.setSub(DarkMode.label(act));
             bMode.setActive(on);
         }
-        if (bShift != null) bShift.setActive(NightShift.isOn(act));
+        if (bShift != null) {
+            // Night Shift jak w iOS: stan + podpis "do wsch./zach. słońca"
+            bShift.setActive(NightShift.effectiveOn(act));
+            bShift.setSub(NightShift.label(act));
+        }
         if (note != null) {
             // stan trybu jest teraz w podpisie przycisku "Tryb ciemny"
             note.setVisibility(GONE);
@@ -653,7 +669,37 @@ public class ConnectivityPanelIos extends LinearLayout {
                 dotC.close();
                 cv.drawPath(dotC, clearP);
                 cv.restoreToCount(sc4);
-            } else if (kind == 0 || kind == 3) {
+            } else if (kind == 3) {
+                // Night Shift 1:1 z iOS: słońce (tarcza + 8 promieni) z WYCIĘTYM
+                // półksiężycem - wycięcie na przezroczysto, więc prześwituje
+                // tło przycisku (pomarańcz gdy włączony, ciemne szkło gdy wył).
+                // Ikona biała w OBU stanach (jak na zdjęciach źródłowych).
+                float R = 6.5f * d;
+                int sc3 = cv.saveLayer(cx - 16f * d, cy - 16f * d, cx + 16f * d, cy + 16f * d,
+                        null);
+                p.setXfermode(null);
+                p.setStyle(Paint.Style.FILL);
+                cv.drawCircle(cx, cy, R, p);
+                p.setStyle(Paint.Style.STROKE);
+                p.setStrokeWidth(2.2f * d);
+                for (int i = 0; i < 8; i++) {
+                    double a = Math.PI * i / 4.0;
+                    cv.drawLine(cx + (float) Math.cos(a) * 10.5f * d,
+                            cy + (float) Math.sin(a) * 10.5f * d,
+                            cx + (float) Math.cos(a) * 14.5f * d,
+                            cy + (float) Math.sin(a) * 14.5f * d, p);
+                }
+                // półksiężyc = tarcza minus koło przesunięte w prawy górny róg
+                Path disc = new Path();
+                disc.addCircle(cx, cy, R, Path.Direction.CW);
+                Path bite = new Path();
+                bite.addCircle(cx + 2.5f * d, cy - 2.5f * d, 6f * d, Path.Direction.CW);
+                disc.op(bite, Path.Op.DIFFERENCE);
+                Paint clearP = new Paint(Paint.ANTI_ALIAS_FLAG);
+                clearP.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
+                cv.drawPath(disc, clearP);
+                cv.restoreToCount(sc3);
+            } else if (kind == 0) {
                 cv.drawCircle(cx, cy, 6f * d, p);
                 for (int i = 0; i < 8; i++) {
                     double a = Math.PI * i / 4.0;
@@ -684,16 +730,16 @@ public class ConnectivityPanelIos extends LinearLayout {
                 p.setTypeface(Typeface.DEFAULT_BOLD);
                 p.setTextSize(12f * sd);
                 p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
-                cv.drawText(label, cx, 72f * d, p);
+                cv.drawText(label, cx, 78f * d, p);
                 p.setTypeface(Typeface.DEFAULT);
                 p.setTextSize(10.5f * sd);
                 p.setColor(night ? 0xFFC9CFCF : 0xFF6C6C70);
                 int di = sub.indexOf(" do ");
                 if (di > 0) {
-                    cv.drawText(sub.substring(0, di + 3), cx, 85f * d, p);
-                    cv.drawText(sub.substring(di + 4), cx, 98f * d, p);
+                    cv.drawText(sub.substring(0, di + 3), cx, 91f * d, p);
+                    cv.drawText(sub.substring(di + 4), cx, 104f * d, p);
                 } else {
-                    cv.drawText(sub, cx, 85f * d, p);
+                    cv.drawText(sub, cx, 91f * d, p);
                 }
             } else {
                 p.setTypeface(Typeface.DEFAULT);
@@ -814,6 +860,91 @@ public class ConnectivityPanelIos extends LinearLayout {
                 value = Math.max(0f, Math.min(1f, 1f - e.getY() / getHeight()));
                 invalidate();
                 if (l != null && (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_MOVE)) {
+                    l.on(value);
+                }
+            }
+            return true;
+        }
+    }
+
+    // ---------------------------------------------------------------- suwak ciepła (poziomy)
+    // 1:1 ze zdjęcia iOS ("Temperatura kolorów"): niebieski tor wypełnienia,
+    // biały pigułkowy uchwyt, dwa małe punkty-pozycjonery pod torem.
+    // ZAKRES 0-50: maksimum = połowa obecnego maksimum ciepła (decyzja usera).
+    private class WarmthSlider extends View {
+        interface Listener {
+            void on(int v);
+        }
+
+        private int value;
+        private Listener l;
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF r = new RectF();
+        private final float d = getResources().getDisplayMetrics().density;
+
+        WarmthSlider(Context c) {
+            super(c);
+            setContentDescription("Temperatura kolorów");
+        }
+
+        void setValue(int v) {
+            value = Math.max(0, Math.min(50, v));
+            invalidate();
+        }
+
+        void setListener(Listener l) {
+            this.l = l;
+        }
+
+        @Override
+        protected void onDraw(Canvas cv) {
+            float w = getWidth();
+            float h = getHeight();
+            float trackY = h * 0.40f;
+            float trackH = 7f * d;
+            float pad = 20f * d;   // miejsce na pigułkę na końcach toru
+            float trackW = w - pad * 2f;
+            // tor: niewypełniona część (ciemna)
+            p.setStyle(Paint.Style.FILL);
+            p.setShader(null);
+            p.setColor(night ? 0x2EFFFFFF : 0x22000000);
+            r.set(pad, trackY - trackH / 2f, pad + trackW, trackY + trackH / 2f);
+            cv.drawRoundRect(r, trackH / 2f, trackH / 2f, p);
+            // wypełnienie niebieskie do uchwytu
+            float frac = value / 50f;
+            if (frac > 0f) {
+                p.setColor(0xFF0A84FF);
+                r.set(pad, trackY - trackH / 2f, pad + trackW * frac, trackY + trackH / 2f);
+                cv.drawRoundRect(r, trackH / 2f, trackH / 2f, p);
+            }
+            // dwa punkty-pozycjonery pod torem (jak w iOS)
+            p.setColor(night ? 0x55FFFFFF : 0x44000000);
+            cv.drawCircle(pad + trackW * 0.10f, trackY + 9f * d, 1.6f * d, p);
+            cv.drawCircle(pad + trackW * 0.50f, trackY + 9f * d, 1.6f * d, p);
+            // biały pigułkowy uchwyt
+            float tx = pad + trackW * frac;
+            p.setColor(0xFFFFFFFF);
+            r.set(tx - 17f * d, trackY - 12f * d, tx + 17f * d, trackY + 12f * d);
+            cv.drawRoundRect(r, 12f * d, 12f * d, p);
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent e) {
+            int a = e.getActionMasked();
+            if (a == MotionEvent.ACTION_DOWN) {
+                getParent().requestDisallowInterceptTouchEvent(true);
+            }
+            if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_MOVE
+                    || a == MotionEvent.ACTION_UP) {
+                float pad = 20f * d;
+                float trackW = getWidth() - pad * 2f;
+                float frac = trackW <= 0 ? 0f : (e.getX() - pad) / trackW;
+                int v = Math.round(Math.max(0f, Math.min(1f, frac)) * 50f);
+                if (v != value) {
+                    value = v;
+                    invalidate();
+                }
+                if (l != null && (a == MotionEvent.ACTION_MOVE || a == MotionEvent.ACTION_UP)) {
                     l.on(value);
                 }
             }

@@ -6,9 +6,22 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.provider.Settings;
 
+import java.util.Calendar;
+
 // Night Shift: ciepły filtr barwy ekranu (nakładka). Wymaga zgody "Wyświetlaj nad innymi aplikacjami".
 // Tryby: "off" | "on" | "sunset" (od zachodu do wschodu słońca wg SolarTimes).
+//
+// NOWE (jak w iOS, na wzór Trybu ciemnego): po pierwszym kliknięciu nowego
+// przycisku (nsUsed) Night Shift działa na harmonogramie słońca
+// zachód -> wschód, a klik zmienia stan "do najbliższego wydarzenia":
+// wł. do wsch. słońca / wył. do zach. słońca. Po tym wydarzeniu znów
+// rządzi słońce. Własne klucze w osobnym pliku prefs "dock_ns" (nie ruszamy
+// Prefs.java - te same wzorce co DarkMode w Prefs).
 public class NightShift {
+
+    private static SharedPreferences sp(Context c) {
+        return c.getApplicationContext().getSharedPreferences("dock_ns", Context.MODE_PRIVATE);
+    }
 
     public static boolean canDraw(Context c) {
         try {
@@ -34,6 +47,120 @@ public class NightShift {
 
     public static String mode(Context c) {
         return Prefs.nightShiftMode(c);
+    }
+
+    // ---------- nowy model (jak Tryb ciemny) ----------
+
+    // Flaga: user użył nowego przycisku - od tego momentu harmonogram słońca
+    // przejmuje sterowanie (przed tym: stary model off/on/sunset).
+    public static boolean nsUsed(Context c) {
+        return sp(c).getBoolean("nsused", false);
+    }
+
+    public static void setNsUsed(Context c, boolean v) {
+        sp(c).edit().putBoolean("nsused", v).apply();
+    }
+
+    // Ręczna zmiana: 0 = brak, 1 = włączony, 2 = wyłączony (do "nsovr_until")
+    public static int nsOverride(Context c) {
+        return sp(c).getInt("nsovr", 0);
+    }
+
+    public static long nsOverrideUntil(Context c) {
+        return sp(c).getLong("nsovr_until", 0L);
+    }
+
+    public static void setNsOverride(Context c, int v, long until) {
+        sp(c).edit().putInt("nsovr", v).putLong("nsovr_until", until).apply();
+    }
+
+    public static void clearNsOverride(Context c) {
+        sp(c).edit().remove("nsovr").remove("nsovr_until").apply();
+    }
+
+    // Jasność zapamiętana przed płynnym schodzeniem do minimum (auto-włączenie);
+    // zapisy bez `Prefs.version` - to nie rysunek launchera.
+    public static int nsBrightPrev(Context c) {
+        return sp(c).getInt("ns_bright_prev", 0);
+    }
+
+    public static void setNsBrightPrev(Context c, int v) {
+        sp(c).edit().putInt("ns_bright_prev", v).apply();
+    }
+
+    public static boolean nsBrightSaved(Context c) {
+        return sp(c).getBoolean("ns_bright_saved", false);
+    }
+
+    public static void setNsBrightSaved(Context c, boolean v) {
+        sp(c).edit().putBoolean("ns_bright_saved", v).apply();
+    }
+
+    // Czy filtr MA teraz działać: najpierw ręczna zmiana (do najbliższego
+    // wydarzenia), po jej wygaśnięciu - harmonogram słońca (zachód -> wschód).
+    public static boolean effectiveOn(Context c) {
+        if (!nsUsed(c)) return Prefs.nightShiftOn(c);
+        int o = nsOverride(c);
+        if (o != 0) {
+            if (System.currentTimeMillis() < nsOverrideUntil(c)) return o == 1;
+            clearNsOverride(c);   // ręczna zmiana wygasła - przejmuje słońce
+        }
+        return isNightBySun(c);
+    }
+
+    // Klik: przełącz i utrzymaj do najbliższego wschodu/zachodu słońca.
+    // Zwraca false, gdy trzeba najpierw dać zgodę (otwiera się ekran Androida).
+    public static boolean toggle(Context c) {
+        if (!canDraw(c)) {
+            requestPermission(c);
+            return false;
+        }
+        boolean now = effectiveOn(c);
+        setNsUsed(c, true);
+        Prefs.setNightShiftMode(c, "sunset");   // baza = harmonogram słońca
+        setNsOverride(c, now ? 2 : 1, nextEvent(c, now));
+        try {
+            Intent i = new Intent(c, NightShiftService.class);
+            i.putExtra("manual", true);   // krótkie przejście (bez 30 s i bez jasności)
+            if (android.os.Build.VERSION.SDK_INT >= 26) {
+                c.startForegroundService(i);
+            } else {
+                c.startService(i);
+            }
+        } catch (Throwable ignored) {
+        }
+        return true;
+    }
+
+    // Podpis pod przyciskiem (jak w iOS / Trybie ciemnym).
+    public static String label(Context c) {
+        return effectiveOn(c) ? "Włączony do wsch. słońca" : "Wyłączony do zach. słońca";
+    }
+
+    // Następne wydarzenie: gdy teraz działa -> wschód, gdy nie działa -> zachód.
+    private static long nextEvent(Context c, boolean nowOn) {
+        try {
+            Calendar cal = Calendar.getInstance();
+            double[] ss = pl.dock.widget.util.SolarTimes.INSTANCE.sunriseSunset(
+                    readCoord(c, "lat", 52.23), readCoord(c, "lon", 21.01), cal);
+            if (ss != null) {
+                double target = nowOn ? ss[0] : ss[1];   // działa -> wschód; nie -> zachód
+                long t = midnight(cal) + (long) (target * 60000.0);
+                if (t <= System.currentTimeMillis()) t += 24L * 3600L * 1000L;   // już było - jutro
+                return t;
+            }
+        } catch (Throwable ignored) {
+        }
+        return System.currentTimeMillis() + 6L * 3600L * 1000L;   // bezpiecznik: 6 h
+    }
+
+    private static long midnight(Calendar cal) {
+        Calendar m = (Calendar) cal.clone();
+        m.set(Calendar.HOUR_OF_DAY, 0);
+        m.set(Calendar.MINUTE, 0);
+        m.set(Calendar.SECOND, 0);
+        m.set(Calendar.MILLISECOND, 0);
+        return m.getTimeInMillis();
     }
 
     // Czy wg słońca jest teraz noc (lat/lon z ustawień OBD)
