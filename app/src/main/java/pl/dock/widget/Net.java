@@ -73,6 +73,22 @@ public class Net {
         return 3;
     }
 
+    // Nazwa sieci WiFi (SSID) lub "" gdy brak połączenia / system nie oddaje nazwy.
+    @SuppressWarnings("deprecation")
+    public static String wifiSsid(Context c) {
+        try {
+            WifiManager w = wm(c);
+            if (w == null || !wifiConnected(c)) return "";
+            String s = w.getConnectionInfo().getSSID();
+            if (s == null) return "";
+            s = s.replace("\"", "").trim();
+            if (s.length() == 0 || "<unknown ssid>".equals(s)) return "";
+            return s;
+        } catch (Throwable t) {
+            return "";
+        }
+    }
+
     // hotspot WiFi (ukryte API przez refleksję); null = brak odczytu
     public static Boolean apEnabled(Context c) {
         try {

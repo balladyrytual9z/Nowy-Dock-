@@ -98,6 +98,29 @@ public class BtDevice {
         return connected.contains(mac);
     }
 
+    // Nazwy podłączonych urządzeń (np. do podpisu kafelka Bluetooth).
+    // Gdy system nie odda nazwy - adres MAC jako zapas.
+    public static List<String> connectedNames() {
+        List<String> out = new ArrayList<String>();
+        BluetoothAdapter ad = null;
+        try {
+            ad = BluetoothAdapter.getDefaultAdapter();
+        } catch (Throwable ignored) {
+        }
+        synchronized (connected) {
+            for (String mac : connected) {
+                String n = null;
+                try {
+                    BluetoothDevice d = ad == null ? null : ad.getRemoteDevice(mac);
+                    if (d != null) n = d.getName();
+                } catch (Throwable ignored) {
+                }
+                out.add(n == null || n.trim().length() == 0 ? mac : n.trim());
+            }
+        }
+        return out;
+    }
+
     public static List<BluetoothDevice> bonded() {
         List<BluetoothDevice> out = new ArrayList<BluetoothDevice>();
         try {

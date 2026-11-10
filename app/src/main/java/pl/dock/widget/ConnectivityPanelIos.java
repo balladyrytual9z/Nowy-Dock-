@@ -355,12 +355,20 @@ public class ConnectivityPanelIos extends LinearLayout {
         boolean th = Net.tethering(act);
         int white = 0xFFFFFFFF;
         // ikony 1:1 jak w oryginale (wektory ic_wifi / ic_wifi_off / ic_bt)
+        // podpis Wi-Fi: sama nazwa sieci (SSID); gdy system jej nie da - "Połączono"
+        String ssid = Net.wifiSsid(act);
         tWifi.set(wEn, 0xFF1C94FF, Icons.vector(act, wEn ? R.drawable.ic_wifi : R.drawable.ic_wifi_off,
-                128, white), "Wi-Fi", ws == 3 ? "Połączono" : (ws == 2 ? "Brak internetu"
-                : (ws == 1 ? "Włączone" : "Wyłączone")));
+                128, white), "Wi-Fi",
+                (ws == 3 || ws == 2) ? (ssid.length() > 0 ? ssid : "Połączono")
+                        : (ws == 1 ? "Włączone" : "Wyłączone"));
+        // podpis Bluetooth: nazwy podłączonych urządzeń, po przecinku
+        StringBuilder btSub = new StringBuilder();
+        for (String n : BtDevice.connectedNames()) {
+            if (btSub.length() > 0) btSub.append(", ");
+            btSub.append(n);
+        }
         tBt.set(bt, 0xFF1C94FF, Icons.vector(act, R.drawable.ic_bt, 128, white), "Bluetooth",
-                BtDevice.isConnected(act) && Prefs.btDevice(act).length() > 0
-                        ? "Telefon połączony" : (bt ? "Włączony" : "Wyłączony"));
+                btSub.length() > 0 ? btSub.toString() : (bt ? "Włączony" : "Wyłączony"));
         tHot.set(th, 0xFF30D158, Icons.tether(128, white, false), "Hotspot osobisty",
                 th ? "Włączony" : "Wyłączony");
         if (bMode != null) {
