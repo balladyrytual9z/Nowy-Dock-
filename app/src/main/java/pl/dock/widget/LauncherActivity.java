@@ -1475,3 +1475,588 @@ public class LauncherActivity extends BaseActivity {
         overlay.animate().alpha(1f).setDuration(Prefs.reduceMotion(this) ? 0 : 220).start();
         panel.setScaleX(0.92f);
         panel.setScaleY(0.92f);
+        panel.setTranslationY(Ui.dp(this, 40));
+        panel.setPivotX(panelW / 2f);
+        panel.setPivotY(0f);
+        glowView.setScaleX(0.92f);
+        glowView.setScaleY(0.92f);
+        glowView.setTranslationY(Ui.dp(this, 40));
+        glowView.setPivotX(panelW / 2f);
+        glowView.setPivotY(0f);
+        // NAPRAWA ("otwiera się bez animacji"): animacja startowała natychmiast po
+        // dodaniu panelu i ciężki pierwszy pomiar/rys na MT8163 zjadał jej przebieg -
+        // panel pojawiał się skokowo. Startujemy ją dopiero po pierwszym przebiegu
+        // layoutu (panel.post); overlay jest wtedy wciąż niemal przezroczysty,
+        // więc nic nie miga. withEndAction zostaje (mechanizm naprawczy).
+        panel.post(new Runnable() {
+            @Override
+            public void run() {
+                if (panel == null) return;
+                panel.animate().scaleX(1f).scaleY(1f).translationY(0f)
+                        .setDuration(Prefs.reduceMotion(LauncherActivity.this) ? 0 : 280)
+                        .setInterpolator(new android.view.animation.OvershootInterpolator(0.9f))
+                        .withEndAction(new Runnable() {
+                            @Override
+                            public void run() {
+                                // w tym miejscu panel byl juz pierwszy raz wymierzony -
+                                // wymuszamy pelny re-layout + invalidate (mechanizm naprawczy)
+                                if (panel != null) {
+                                    panel.requestLayout();
+                                    panel.invalidate();
+                                }
+                                if (overlay != null) overlay.invalidate();
+                            }
+                        })
+                        .start();
+                if (glowView != null) {
+                    glowView.animate().scaleX(1f).scaleY(1f).translationY(0f)
+                            .setDuration(Prefs.reduceMotion(LauncherActivity.this) ? 0 : 280)
+                            .setInterpolator(new android.view.animation.OvershootInterpolator(0.9f))
+                            .start();
+                }
+            }
+        });
+    }
+
+    private void hideOverlay(boolean animate) {
+        final FrameLayout ov = overlay;
+        final ConnectivityPanel pn = panel;
+        final ImageView gv = glowView;
+        if (ov == null) return;
+        overlay = null;
+        panel = null;
+        glowView = null;
+        // zamkniecie centrum lacznosci: wroc do normalnego glifu dolnego
+        // przycisku (crossfade siatka/kwadrat wg biezacej strony)
+        if (dock != null) {
+            dock.setBottomMode(-1);
+            if (pager != null) {
+                dock.setBottomProgress(Math.max(0f, Math.min(1f, pager.position() - homeIdx)));
+            }
+        }
+        if (!animate || Prefs.reduceMotion(this)) {
+            root.removeView(ov);
+            return;
+        }
+        // Zamknięcie lustrzane do otwarcia (jak w macOS): ta sama transformacja
+        // w odwrotną stronę (skala 1 -> 0.92, zjazd 40 dp w dół) + wygaszenie
+        // overlaya. Panel jest już wymierzony (problem 0x0 dotyczył tylko
+        // pierwszego otwarcia), a widok usuwamy po animacji, więc transformacja
+        // nie psuje już żadnego layoutu.
+        if (pn != null) {
+            pn.animate().scaleX(0.92f).scaleY(0.92f)
+                    .translationY(Ui.dp(this, 40))
+                    .setDuration(Prefs.reduceMotion(this) ? 0 : 220)
+                    .setInterpolator(new android.view.animation.AccelerateInterpolator(0.9f))
+                    .start();
+        }
+        if (gv != null) {
+            gv.animate().scaleX(0.92f).scaleY(0.92f)
+                    .translationY(Ui.dp(this, 40))
+                    .setDuration(Prefs.reduceMotion(this) ? 0 : 220)
+                    .setInterpolator(new android.view.animation.AccelerateInterpolator(0.9f))
+                    .start();
+        }
+        ov.animate().alpha(0f).setDuration(220)
+                .setListener(new AnimatorListenerAdapter() {
+                    @Override
+                    public void onAnimationEnd(Animator a) {
+                        root.removeView(ov);
+                        ov.animate().setListener(null);
+                    }
+                }).start();
+    }
+
+    // ---------------------------------------------------------------- widżety
+    private void loadWidgets() {
+        if (stacksPage != null) stacksPage.clearWidgets();
+        List<WidgetEntry> list = Prefs.widgets(this);
+        if (!Prefs.widgetsSeeded(this)) {
+            // domyślnie jak w CarPlay: zegar, pogoda, zachód słońca
+            int[] ids = {-1, -3, -4};
+            String[] wh = {"s1", "s2", "s3"};
+            for (int i = 0; i < 3; i++) {
+                WidgetEntry e = new WidgetEntry();
+                e.id = ids[i];
+                e.where = wh[i];
+                list.add(e);
+            }
+            Prefs.saveWidgets(this, list);
+            Prefs.setWidgetsSeeded(this);
+        }
+        List<WidgetEntry> keep = new ArrayList<WidgetEntry>();
+        boolean changed = false;
+        for (WidgetEntry e : list) {
+            if (e.where.startsWith("s") && stacksPage == null) {
+                keep.add(e);
+                continue;
+            }
+            View v = createWidgetView(e);
+            if (v == null) {
+                changed = true;
+                continue;
+            }
+            keep.add(e);
+            if (e.where.startsWith("s")) {
+                markGlass(v);
+                stacksPage.addWidget(e, v);
+            } else {
+                v.setTag(e);
+            }
+        }
+        if (changed) Prefs.saveWidgets(this, keep);
+        if (stacksPage != null) stacksPage.applySelection();
+        rebuildHome(keep);
+    }
+
+    private void rebuildHome(List<WidgetEntry> list) {
+        View l = null;
+        View rt = null;
+        for (WidgetEntry e : list) {
+            if ("hl".equals(e.where) && l == null) l = createWidgetView(e);
+            if ("hr".equals(e.where) && rt == null) rt = createWidgetView(e);
+        }
+        final HomeSections.Callbacks cb = new HomeSections.Callbacks() {
+            @Override
+            public void onSlot(String where) {
+                showWidgetPicker(where);
+            }
+        };
+        if (l == null) {
+            // Domyslnie lewy slot to mapa offline (jak mapa w CarPlay).
+            // Przytrzymanie pozwala podmienic na inny widzet.
+            final pl.dock.widget.maps.MapCard mc = new pl.dock.widget.maps.MapCard(this);
+            mc.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View x) {
+                    showWidgetPicker("hl");
+                    return true;
+                }
+            });
+            l = mc;
+        }
+        if (rt == null) rt = new HomeSections.Slot(this, "hr", cb);
+        for (View v : new View[]{l, rt}) {
+            if (v.getTag() instanceof WidgetEntry) {
+                final WidgetEntry we = (WidgetEntry) v.getTag();
+                v.setOnLongClickListener(new View.OnLongClickListener() {
+                    @Override
+                    public boolean onLongClick(View x) {
+                        widgetMenu(we);
+                        return true;
+                    }
+                });
+            }
+        }
+        home.setViews(l, rt, nowCard);
+        home.setNight(night);
+    }
+
+    private View createWidgetView(WidgetEntry e) {
+        try {
+            View v = null;
+            if (e.id == -1) {
+                v = new ClockCard(this);
+            } else if (e.id == -2) {
+                NowPlayingCard n = new NowPlayingCard(this);
+                n.setFrame(true, false);
+                v = n;
+            } else if (e.id == -3) {
+                v = new CardWidgets.WeatherCard(this);
+            } else if (e.id == -4) {
+                v = new CardWidgets.SunCard(this);
+            } else if (e.id == -5) {
+                v = new CardWidgets.DateCard(this);
+            } else if (e.id == -6) {
+                v = new CardWidgets.CalendarCard(this);
+            } else if (e.id == -7) {
+                v = new CardWidgets.WorldClockCard(this);
+            } else if (e.id == -8) {
+                v = new pl.dock.widget.maps.MapCard(this);
+            }
+            if (v != null) {
+                ((NightAware) v).setNight(night);
+                v.setTag(e);
+                return v;
+            }
+            AppWidgetProviderInfo info = awm.getAppWidgetInfo(e.id);
+            if (info == null) return null;
+            AppWidgetHostView hv = host.createView(this, e.id, info);
+            hv.setTag(e);
+            return hv;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private void showWidgetPicker(final String where) {
+        if (where.startsWith("s") && stacksPage == null) return;
+        PackageManager pm = getPackageManager();
+        final List<String> labels = new ArrayList<String>();
+        final int[] builtIns = {-1, -2, -3, -4, -5, -6, -7, -8};
+        String[] bn = {"Zegar analogowy", "Odtwarzane", "Pogoda", "Zachód słońca", "Data",
+                "Kalendarz", "Zegary świata", "Mapy (offline)"};
+        for (String s : bn) labels.add(s);
+        final PackageManager pmf = pm;
+        final List<AppWidgetProviderInfo> sorted =
+                new ArrayList<AppWidgetProviderInfo>(awm.getInstalledProviders());
+        Collections.sort(sorted, new Comparator<AppWidgetProviderInfo>() {
+            @Override
+            public int compare(AppWidgetProviderInfo a, AppWidgetProviderInfo b) {
+                return a.loadLabel(pmf).compareToIgnoreCase(b.loadLabel(pmf));
+            }
+        });
+        for (AppWidgetProviderInfo i : sorted) {
+            labels.add(i.loadLabel(pm) + "  ·  " + i.provider.getPackageName());
+        }
+        Popups.menu(this, "Dodaj widżet", labels.toArray(new String[0]), new Popups.OnSel() {
+            @Override
+            public void on(int idx) {
+                if (idx < builtIns.length) {
+                    addBuiltin(builtIns[idx], where);
+                } else {
+                    beginBind(sorted.get(idx - builtIns.length), where);
+                }
+            }
+        });
+    }
+
+    private void addBuiltin(int id, String where) {
+        List<WidgetEntry> list = Prefs.widgets(this);
+        for (WidgetEntry e : list) {
+            if (e.id == id) {
+                Toast.makeText(this, "Ten widżet jest już dodany", Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
+        WidgetEntry e = new WidgetEntry();
+        e.id = id;
+        e.where = where;
+        list.add(e);
+        Prefs.saveWidgets(this, list);
+        attach(e, list);
+    }
+
+    private void attach(WidgetEntry e, List<WidgetEntry> list) {
+        if (e.where.startsWith("s")) {
+            View v = createWidgetView(e);
+            if (v == null || stacksPage == null) return;
+            markGlass(v);
+            stacksPage.addWidget(e, v);
+            stacksPage.applySelection();
+        } else {
+            rebuildHome(list);
+        }
+    }
+
+    // widzety na stronie widzetow (skrajnie lewy ekran) sa przezroczyste ("szklo"):
+    // tapeta prześwituje zamiast nieprzezroczystej karty; ekran glowny bez zmian
+    private void markGlass(View v) {
+        if (v instanceof GlassAware) ((GlassAware) v).setGlass(true);
+    }
+
+    private void beginBind(AppWidgetProviderInfo info, String where) {
+        pendingWhere = where;
+        pendingId = host.allocateAppWidgetId();
+        boolean ok = false;
+        try {
+            ok = awm.bindAppWidgetIdIfAllowed(pendingId, info.provider);
+        } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);
+        }
+        if (ok) {
+            afterBind();
+        } else {
+            try {
+                Intent i = new Intent(AppWidgetManager.ACTION_APPWIDGET_BIND);
+                i.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, pendingId);
+                i.putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, info.provider);
+                startActivityForResult(i, REQ_BIND);
+            } catch (Throwable t) {
+                Toast.makeText(this, "System nie pozwala dodać tego widżetu", Toast.LENGTH_LONG).show();
+                cancelPending();
+            }
+        }
+    }
+
+    private void afterBind() {
+        AppWidgetProviderInfo info = awm.getAppWidgetInfo(pendingId);
+        if (info != null && info.configure != null) {
+            try {
+                host.startAppWidgetConfigureActivityForResult(this, pendingId, 0, REQ_CONFIG, null);
+                return;
+            } catch (Throwable t) {
+                // brak konfiguracji = dodajemy bez niej
+            }
+        }
+        finishAdd();
+    }
+
+    private void finishAdd() {
+        WidgetEntry e = new WidgetEntry();
+        e.id = pendingId;
+        e.where = pendingWhere;
+        List<WidgetEntry> list = Prefs.widgets(this);
+        list.add(e);
+        Prefs.saveWidgets(this, list);
+        attach(e, list);
+        pendingId = -1;
+    }
+
+    private void cancelPending() {
+        if (pendingId >= 0) {
+            try {
+                host.deleteAppWidgetId(pendingId);
+            } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);
+            }
+        }
+        pendingId = -1;
+    }
+
+    @Override
+    protected void onActivityResult(int req, int res, Intent data) {
+        super.onActivityResult(req, res, data);
+        if (req == REQ_BIND) {
+            if (res == RESULT_OK && pendingId >= 0) {
+                afterBind();
+            } else {
+                cancelPending();
+            }
+        } else if (req == REQ_CONFIG) {
+            if (res == RESULT_OK && pendingId >= 0) {
+                finishAdd();
+            } else {
+                cancelPending();
+            }
+        } else if (req == AppsGridPage.REQ_UNINSTALL) {
+            // refresh apps after possible uninstall
+            rebuildAppPages();
+        }
+    }
+
+    private void widgetMenu(final WidgetEntry e) {
+        final boolean stack = e.where.startsWith("s") && stacksPage != null;
+        final boolean multi = stack && stacksPage.count(e.where) > 1;
+        List<String> labels = new ArrayList<String>();
+        if (multi) labels.add("Pokaż następny widżet w kolumnie");
+        labels.add("Usuń widżet");
+        Popups.menu(this, "Widżet", labels.toArray(new String[0]), new Popups.OnSel() {
+            @Override
+            public void on(int i) {
+                if (multi && i == 0) {
+                    stacksPage.cycle(e.where);
+                } else {
+                    Popups.confirm(LauncherActivity.this, "Usunąć widżet?", "", "Usuń",
+                            new Runnable() {
+                                @Override
+                                public void run() {
+                                    removeWidget(e);
+                                }
+                            });
+                }
+            }
+        });
+    }
+
+    private void removeWidget(WidgetEntry e) {
+        if (e.id > 0) {
+            try {
+                host.deleteAppWidgetId(e.id);
+            } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);
+            }
+        }
+        List<WidgetEntry> list = Prefs.widgets(this);
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i).id == e.id) {
+                list.remove(i);
+                break;
+            }
+        }
+        Prefs.saveWidgets(this, list);
+        if (e.where.startsWith("s") && stacksPage != null) {
+            stacksPage.removeWidget(e.id);
+        } else {
+            rebuildHome(list);
+        }
+    }
+
+    // ---------------------------------------------------------------- pasek głośności
+    private static class VolumeHud extends View {
+        private float value;
+        private String title = "";
+        private boolean wide;
+        private final android.graphics.Paint p = new android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.RectF r = new android.graphics.RectF();
+        private final Runnable hide = new Runnable() {
+            @Override
+            public void run() {
+                animate().alpha(0f).setDuration(200).start();
+                wide = false;
+            }
+        };
+
+        VolumeHud(Context c) {
+            super(c);
+            setAlpha(0f);
+        }
+
+        void show(float v, String title) {
+            value = v;
+            this.title = title;
+            wide = title.length() > 0;
+            setAlpha(1f);
+            invalidate();
+            removeCallbacks(hide);
+            postDelayed(hide, 1800);
+        }
+
+        @Override
+        protected void onDraw(Canvas cv) {
+            float d = getResources().getDisplayMetrics().density;
+            float sd = getResources().getDisplayMetrics().scaledDensity;
+            float w = wide ? getWidth() : getWidth() * 0.62f;
+            float x0 = (getWidth() - w) / 2f;
+            r.set(x0, 0, x0 + w, getHeight());
+            p.setStyle(android.graphics.Paint.Style.FILL);
+            p.setColor(0xEE131418);
+            cv.drawRoundRect(r, getHeight() / 2f, getHeight() / 2f, p);
+            float barL = x0 + 64f * d;
+            float barR = x0 + w - 28f * d;
+            float cy = wide ? getHeight() * 0.62f : getHeight() / 2f;
+            if (wide) {
+                p.setColor(0xFFFFFFFF);
+                p.setTextSize(15f * sd);
+                p.setTextAlign(android.graphics.Paint.Align.LEFT);
+                cv.drawText(android.text.TextUtils.ellipsize(title, new android.text.TextPaint(p),
+                        barR - barL, android.text.TextUtils.TruncateAt.END).toString(), barL,
+                        getHeight() * 0.36f, p);
+            }
+            Bitmap mark = Icons.carplayMark(64, 0xFFFFFFFF);
+            r.set(x0 + 22f * d, getHeight() / 2f - 12f * d, x0 + 46f * d, getHeight() / 2f + 12f * d);
+            cv.drawBitmap(mark, null, r, p);
+            p.setColor(0x44FFFFFF);
+            r.set(barL, cy - 3f * d, barR, cy + 3f * d);
+            cv.drawRoundRect(r, 3f * d, 3f * d, p);
+            p.setColor(0xFFFFFFFF);
+            r.set(barL, cy - 3f * d, barL + (barR - barL) * value, cy + 3f * d);
+            cv.drawRoundRect(r, 3f * d, 3f * d, p);
+        }
+    }
+
+    // ---------- stan stron / integracja zewnętrzna ----------
+    public static final String ACTION_NAVIGATE = "pl.dock.widget.NAVIGATE";
+    public static final String ACTION_STATE_QUERY = "pl.dock.widget.STATE_QUERY";
+    public static final String ACTION_STATE = "pl.dock.widget.STATE";
+
+    private static java.lang.ref.WeakReference<LauncherActivity> currentRef;
+    private boolean restoredOnce;
+    private BroadcastReceiver navReceiver;
+
+    private final AppListWatcher.Listener appsListener = new AppListWatcher.Listener() {
+        @Override
+        public void onAppsChanged() {
+            loadApps();
+        }
+    };
+
+    public static LauncherActivity current() {
+        return currentRef == null ? null : currentRef.get();
+    }
+
+
+    /** Liczba stron panelu BEZ strony wyszukiwania (ta nigdy nie liczy sie do kropek). */
+    private int panelPageCount() {
+        int n = pager == null ? 1 : pager.count();
+        return Math.max(1, n - 1);
+    }
+
+    private void saveLastPage(int index) {
+        if (stacksPage != null && index == 0) {
+            Prefs.setLastPage(this, Prefs.PAGE_WIDGETS);
+        } else if (index == homeIdx) {
+            Prefs.setLastPage(this, Prefs.PAGE_HOME);
+        } else if (index >= appsStart) {
+            Prefs.setLastPage(this, Prefs.PAGE_APPS);
+        }
+    }
+
+    private void restoreLastPage() {
+        if (pager == null) return;
+        int widgetsIdx = (stacksPage != null) ? 0 : -1;
+        int appsIdx = (appPages.isEmpty()) ? -1 : appsStart;
+        int idx = Prefs.lastPageIndex(this, widgetsIdx, homeIdx, appsIdx);
+        if (idx < 0) idx = homeIdx;
+        pager.setPosition(idx);
+    }
+
+    public void fillStateBundle(android.os.Bundle b) {
+        int pos = pager == null ? homeIdx : Math.round(pager.position());
+        String page = Prefs.PAGE_HOME;
+        if (stacksPage != null && pos == 0) page = Prefs.PAGE_WIDGETS;
+        else if (pos >= appsStart) page = Prefs.PAGE_APPS;
+        b.putString("page", page);
+        b.putInt("page_index", pos);
+        b.putInt("home_index", homeIdx);
+        b.putInt("apps_index", appsStart);
+        b.putInt("pages_total", pager == null ? 0 : pager.count());
+    }
+
+    public void navigateToPage(String page) {
+        if (pager == null) return;
+        if (Prefs.PAGE_APPS.equals(page)) pager.goTo(appsStart, true);
+        else if (Prefs.PAGE_WIDGETS.equals(page) && stacksPage != null) pager.goTo(0, true);
+        else pager.goTo(homeIdx, true);
+    }
+
+    private void handleExternalNavigate(Intent i) {
+        if (i == null) return;
+        String caller = i.getStringExtra("caller");
+        String page = i.getStringExtra("page");
+        boolean save = i.getBooleanExtra("save_return", true);
+        if (save && caller != null) Prefs.setExternalCaller(this, caller);
+        navigateToPage(page);
+    }
+
+    private void broadcastState(String requester) {
+        Intent r = new Intent(ACTION_STATE);
+        if (requester != null) r.setPackage(requester);
+        fillStateBundle(r.getExtras() == null ? new android.os.Bundle() : r.getExtras());
+        android.os.Bundle b = new android.os.Bundle();
+        fillStateBundle(b);
+        r.putExtras(b);
+        r.putExtra("last_page", Prefs.lastPage(this));
+        r.putExtra("external_caller", Prefs.externalCaller(this));
+        sendBroadcast(r);
+    }
+
+    private void registerNav() {
+        if (navReceiver != null) return;
+        navReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context c, Intent i) {
+                String a = i.getAction();
+                if (ACTION_NAVIGATE.equals(a)) handleExternalNavigate(i);
+                else if (ACTION_STATE_QUERY.equals(a)) broadcastState(i.getStringExtra("caller"));
+            }
+        };
+        IntentFilter f = new IntentFilter();
+        f.addAction(ACTION_NAVIGATE);
+        f.addAction(ACTION_STATE_QUERY);
+        registerReceiver(navReceiver, f);
+    }
+
+    private void unregisterNav() {
+        if (navReceiver == null) return;
+        try {
+            unregisterReceiver(navReceiver);
+        } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);}
+        navReceiver = null;
+    }
+
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (currentRef != null && currentRef.get() == this) currentRef = null;
+    }
+}
