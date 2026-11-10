@@ -1,12 +1,12 @@
 WINDOW MANAGER WINDOWS (dumpsys window windows)
-  Window #0 Window{195e5e8 u0 StatusBar}:
-    mDisplayId=0 stackId=0 mSession=Session{7dc4e3 2103:u0a10031} mClient=android.os.BinderProxy@a686485
-    mOwnerUid=10031 mShowToOwnerOnly=false package=com.android.systemui appop=NONE
+  Window #0 Window{6970ed5 u0 StatusBar}:
+    mDisplayId=0 stackId=0 mSession=Session{f89ea21 2192:u0a10029} mClient=android.os.BinderProxy@80f7ade
+    mOwnerUid=10029 mShowToOwnerOnly=false package=com.android.systemui appop=NONE
     mAttrs={(0,0)(fillx24) gr=TOP CENTER_VERTICAL sim={adjust=resize} layoutInDisplayCutoutMode=always ty=STATUS_BAR fmt=TRANSLUCENT
       fl=NOT_FOCUSABLE TOUCHABLE_WHEN_WAKING WATCH_OUTSIDE_TOUCH SPLIT_TOUCH HARDWARE_ACCELERATED DRAWS_SYSTEM_BAR_BACKGROUNDS}
-    Requested w=1280 h=24 mLayoutSeq=494
+    Requested w=1280 h=24 mLayoutSeq=593
     mBaseLayer=171000 mSubLayer=0 mAnimLayer=0+=0 mLastLayer=0
-    mToken=WindowToken{b4f530b android.os.BinderProxy@f182da}
+    mToken=WindowToken{e9b078c android.os.BinderProxy@bbb24bf}
     mViewVisibility=0x0 mHaveFrame=true mObscured=false
     mSeq=0 mSystemUiVisibility=0x0
     mPolicyVisibility=false mPolicyVisibilityAfterAnim=false mAppOpVisibility=true parentHidden=false mPermanentlyHidden=false mHiddenWhileSuspended=false mForceHideNonSystemOverlayWindow=false
@@ -22,23 +22,23 @@ WINDOW MANAGER WINDOWS (dumpsys window windows)
         outset=[0,0][1280,720]
     Cur insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,0][0,0] stable=[0,0][0,0] surface=[0,0][0,0] outsets=[0,0][0,0] cutout=DisplayCutout{insets=Rect(0, 0 - 0, 0) boundingRect=Rect(0, 0 - 0, 0)}
     Lst insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,0][0,0] stable=[0,0][0,0] physical=[0,0][0,0] outset=[0,0][0,0] cutout=com.android.server.wm.utils.WmDisplayCutout@3c1
-    WindowStateAnimator{b3741a5 StatusBar}:
-      mSurface=Surface(name=StatusBar)/@0x725697a
+    WindowStateAnimator{89eea8a StatusBar}:
+      mSurface=Surface(name=StatusBar)/@0x7dc18fb
       Surface: shown=false layer=0 alpha=1.0 rect=(0.0,0.0) 1280 x 24 transform=(1.0, 0.0, 1.0, 0.0)
       mDrawState=HAS_DRAWN       mLastHidden=true
       mSystemDecorRect=[0,0][1280,24] mLastClipRect=[0,0][1280,24]
-    mLastFreezeDuration=+782ms
+    mLastFreezeDuration=+1s82ms
     isOnScreen=false
     isVisible=false
-  Window #1 Window{5ea9de9 u0 AssistPreviewPanel}:
-    mDisplayId=0 stackId=0 mSession=Session{7dc4e3 2103:u0a10031} mClient=android.os.BinderProxy@ccb8e22
-    mOwnerUid=10031 mShowToOwnerOnly=true package=com.android.systemui appop=NONE
+  Window #1 Window{b3e1983 u0 AssistPreviewPanel}:
+    mDisplayId=0 stackId=0 mSession=Session{f89ea21 2192:u0a10029} mClient=android.os.BinderProxy@5961594
+    mOwnerUid=10029 mShowToOwnerOnly=true package=com.android.systemui appop=NONE
     mAttrs={(0,0)(fillx250) gr=BOTTOM START CENTER sim={state=unchanged adjust=nothing} ty=VOICE_INTERACTION_STARTING fmt=TRANSLUCENT
       fl=NOT_FOCUSABLE NOT_TOUCHABLE LAYOUT_IN_SCREEN HARDWARE_ACCELERATED
       vsysui=LAYOUT_STABLE LAYOUT_HIDE_NAVIGATION LAYOUT_FULLSCREEN}
     Requested w=0 h=0 mLayoutSeq=19
     mBaseLayer=41000 mSubLayer=0 mAnimLayer=0+=0 mLastLayer=0
-    mToken=WindowToken{c5dd670 android.os.BinderProxy@84610b3}
+    mToken=WindowToken{70df832 android.os.BinderProxy@ff2783d}
     mViewVisibility=0x8 mHaveFrame=true mObscured=false
     mSeq=0 mSystemUiVisibility=0x700
     mGivenContentInsets=[0,0][0,0] mGivenVisibleInsets=[0,0][0,0]
@@ -53,22 +53,22 @@ WINDOW MANAGER WINDOWS (dumpsys window windows)
         outset=[0,0][0,0]
     Cur insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,0][0,0] stable=[0,0][0,0] surface=[0,0][0,0] outsets=[0,0][0,0] cutout=DisplayCutout{insets=Rect(0, 0 - 0, 0) boundingRect=Rect(0, 0 - 0, 0)}
     Lst insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,0][0,0] stable=[0,0][0,0] physical=[0,0][0,0] outset=[0,0][0,0] cutout=com.android.server.wm.utils.WmDisplayCutout@3c1
-    WindowStateAnimator{f6d452b AssistPreviewPanel}:
+    WindowStateAnimator{5754d18 AssistPreviewPanel}:
       mDrawState=NO_SURFACE       mLastHidden=false
       mSystemDecorRect=[0,0][0,0] mLastClipRect=[0,0][0,0]
       mShownAlpha=0.0 mAlpha=1.0 mLastAlpha=0.0
     isOnScreen=false
     isVisible=false
-  Window #2 Window{fd0b711 u0 DockedStackDivider}:
-    mDisplayId=0 stackId=0 mSession=Session{7dc4e3 2103:u0a10031} mClient=android.os.BinderProxy@b4ea3aa
-    mOwnerUid=10031 mShowToOwnerOnly=false package=com.android.systemui appop=NONE
+  Window #2 Window{86c9cf2 u0 DockedStackDivider}:
+    mDisplayId=0 stackId=0 mSession=Session{f89ea21 2192:u0a10029} mClient=android.os.BinderProxy@1ccfa7
+    mOwnerUid=10029 mShowToOwnerOnly=false package=com.android.systemui appop=NONE
     mAttrs={(0,0)(48xfill) sim={adjust=pan} layoutInDisplayCutoutMode=always ty=DOCK_DIVIDER fmt=TRANSLUCENT
       fl=NOT_FOCUSABLE NOT_TOUCH_MODAL WATCH_OUTSIDE_TOUCH SPLIT_TOUCH HARDWARE_ACCELERATED FLAG_SLIPPERY
       pfl=NO_MOVE_ANIMATION
       vsysui=LAYOUT_STABLE LAYOUT_HIDE_NAVIGATION LAYOUT_FULLSCREEN}
-    Requested w=48 h=696 mLayoutSeq=494
+    Requested w=48 h=696 mLayoutSeq=593
     mBaseLayer=21000 mSubLayer=0 mAnimLayer=0+=0 mLastLayer=0
-    mToken=WindowToken{b257b38 android.os.BinderProxy@5d5ab9b}
+    mToken=WindowToken{a45b7fd android.os.BinderProxy@5b37c54}
     mViewVisibility=0x4 mHaveFrame=true mObscured=false
     mSeq=0 mSystemUiVisibility=0x700
     mPolicyVisibility=false mPolicyVisibilityAfterAnim=false mAppOpVisibility=true parentHidden=false mPermanentlyHidden=false mHiddenWhileSuspended=false mForceHideNonSystemOverlayWindow=false
@@ -86,23 +86,23 @@ WINDOW MANAGER WINDOWS (dumpsys window windows)
         outset=[0,0][0,0]
     Cur insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,0][0,0] stable=[0,24][0,0] surface=[0,0][0,0] outsets=[0,0][0,0] cutout=DisplayCutout{insets=Rect(0, 0 - 0, 0) boundingRect=Rect(0, 0 - 0, 0)}
     Lst insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,0][0,0] stable=[0,24][0,0] physical=[0,0][0,0] outset=[0,0][0,0] cutout=com.android.server.wm.utils.WmDisplayCutout@3c1
-    WindowStateAnimator{6dbbd88 DockedStackDivider}:
+    WindowStateAnimator{8ff5371 DockedStackDivider}:
       mDrawState=NO_SURFACE       mLastHidden=false
       mSystemDecorRect=[0,0][0,0] mLastClipRect=[0,0][0,0]
       mShownAlpha=0.0 mAlpha=1.0 mLastAlpha=0.0
     isOnScreen=false
     isVisible=false
-  Window #3 Window{d64373c u0 pl.dock.widget/pl.dock.widget.terminal.ObdTerminalActivity}:
-    mDisplayId=0 stackId=11 mSession=Session{763d909 6040:u0a10086} mClient=android.os.BinderProxy@611852f
+  Window #3 Window{507f11b u0 pl.dock.widget/pl.dock.widget.terminal.ObdTerminalActivity}:
+    mDisplayId=0 stackId=11 mSession=Session{da665cc 6056:u0a10086} mClient=android.os.BinderProxy@9708f2a
     mOwnerUid=10086 mShowToOwnerOnly=true package=pl.dock.widget appop=NONE
     mAttrs={(0,0)(fillxfill) sim={state=always_hidden adjust=pan} ty=BASE_APPLICATION wanim=0x10302f8
       fl=LAYOUT_IN_SCREEN FULLSCREEN LAYOUT_INSET_DECOR SPLIT_TOUCH HARDWARE_ACCELERATED DRAWS_SYSTEM_BAR_BACKGROUNDS
       pfl=FORCE_DRAW_STATUS_BAR_BACKGROUND
       vsysui=HIDE_NAVIGATION FULLSCREEN LAYOUT_STABLE LAYOUT_HIDE_NAVIGATION LAYOUT_FULLSCREEN IMMERSIVE_STICKY}
-    Requested w=1280 h=720 mLayoutSeq=494
+    Requested w=1280 h=720 mLayoutSeq=593
     mBaseLayer=21000 mSubLayer=0 mAnimLayer=0+=0 mLastLayer=0
-    mToken=AppWindowToken{2a40086 token=Token{87cdd61 ActivityRecord{e0c08c8 u0 pl.dock.widget/.terminal.ObdTerminalActivity t16}}}
-    mAppToken=AppWindowToken{2a40086 token=Token{87cdd61 ActivityRecord{e0c08c8 u0 pl.dock.widget/.terminal.ObdTerminalActivity t16}}}
+    mToken=AppWindowToken{c42d3ed token=Token{7a4d204 ActivityRecord{a2c2e17 u0 pl.dock.widget/.terminal.ObdTerminalActivity t16}}}
+    mAppToken=AppWindowToken{c42d3ed token=Token{7a4d204 ActivityRecord{a2c2e17 u0 pl.dock.widget/.terminal.ObdTerminalActivity t16}}}
      isAnimatingWithSavedSurface()= mAppDied=false    drawnStateEvaluated=true    mightAffectAllDrawn=true
     mViewVisibility=0x0 mHaveFrame=true mObscured=false
     mSeq=0 mSystemUiVisibility=0x1706
@@ -118,24 +118,24 @@ WINDOW MANAGER WINDOWS (dumpsys window windows)
         outset=[0,0][1280,720]
     Cur insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,0][0,0] stable=[0,24][0,0] surface=[0,0][0,0] outsets=[0,0][0,0] cutout=DisplayCutout{insets=Rect(0, 0 - 0, 0) boundingRect=Rect(0, 0 - 0, 0)}
     Lst insets: overscan=[0,0][0,0] content=[0,0][0,0] visible=[0,0][0,0] stable=[0,24][0,0] physical=[0,0][0,0] outset=[0,0][0,0] cutout=com.android.server.wm.utils.WmDisplayCutout@3c1
-    WindowStateAnimator{e7f5321 pl.dock.widget/pl.dock.widget.terminal.ObdTerminalActivity}:
-      mSurface=Surface(name=pl.dock.widget/pl.dock.widget.terminal.ObdTerminalActivity)/@0x410a346
+    WindowStateAnimator{a892556 pl.dock.widget/pl.dock.widget.terminal.ObdTerminalActivity}:
+      mSurface=Surface(name=pl.dock.widget/pl.dock.widget.terminal.ObdTerminalActivity)/@0xc4949d7
       Surface: shown=true layer=0 alpha=1.0 rect=(0.0,0.0) 1280 x 720 transform=(1.0, 0.0, 1.0, 0.0)
       mDrawState=HAS_DRAWN       mLastHidden=false
       mSystemDecorRect=[0,0][1280,720] mLastClipRect=[0,0][1280,720]
     isOnScreen=true
     isVisible=true
-  Window #4 Window{4f6d0e7 u0 com.google.android.apps.nexuslauncher/com.google.android.apps.nexuslauncher.NexusLauncherActivity}:
-    mDisplayId=0 stackId=0 mSession=Session{cfd31e8 2599:u0a10026} mClient=android.os.BinderProxy@c8b1ea6
-    mOwnerUid=10026 mShowToOwnerOnly=true package=com.google.android.apps.nexuslauncher appop=NONE
-    mAttrs={(0,0)(fillxfill) gr=LEFT CENTER_HORIZONTAL sim={adjust=resize} ty=DRAWN_APPLICATION fmt=TRANSPARENT wanim=0x10302f8 alpha=0.0
+  Window #4 Window{915c617 u0 com.google.android.apps.nexuslauncher/com.google.android.apps.nexuslauncher.NexusLauncherActivity}:
+    mDisplayId=0 stackId=0 mSession=Session{4bc796c 2818:u0a10027} mClient=android.os.BinderProxy@784ea96
+    mOwnerUid=10027 mShowToOwnerOnly=true package=com.google.android.apps.nexuslauncher appop=NONE
+    mAttrs={(0,0)(fillxfill) gr=LEFT CENTER_HORIZONTAL sim={adjust=pan} ty=DRAWN_APPLICATION fmt=TRANSPARENT wanim=0x10302f8 alpha=0.0
       fl=NOT_FOCUSABLE NOT_TOUCHABLE LAYOUT_IN_SCREEN LAYOUT_INSET_DECOR WATCH_OUTSIDE_TOUCH SPLIT_TOUCH HARDWARE_ACCELERATED DRAWS_SYSTEM_BAR_BACKGROUNDS
       pfl=FORCE_DRAW_STATUS_BAR_BACKGROUND
       vsysui=LAYOUT_STABLE LAYOUT_HIDE_NAVIGATION LAYOUT_FULLSCREEN}
-    Requested w=1280 h=720 mLayoutSeq=477
+    Requested w=1280 h=720 mLayoutSeq=574
     mBaseLayer=21000 mSubLayer=0 mAnimLayer=0+=0 mLastLayer=0
-    mToken=AppWindowToken{948e38 token=Token{c192a9b ActivityRecord{84beaa u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t5}}}
-    mAppToken=AppWindowToken{948e38 token=Token{c192a9b ActivityRecord{84beaa u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t5}}}
+    mToken=AppWindowToken{4fec3a1 token=Token{fe8a008 ActivityRecord{3ee21ab u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t5}}}
+    mAppToken=AppWindowToken{4fec3a1 token=Token{fe8a008 ActivityRecord{3ee21ab u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t5}}}
      isAnimatingWithSavedSurface()= mAppDied=false    drawnStateEvaluated=true    mightAffectAllDrawn=true
     mViewVisibility=0x8 mHaveFrame=true mObscured=true
     mSeq=0 mSystemUiVisibility=0x700
@@ -151,23 +151,23 @@ WINDOW MANAGER WINDOWS (dumpsys window windows)
         outset=[0,0][0,0]
     Cur insets: overscan=[0,0][0,0] content=[0,24][0,0] visible=[0,24][0,0] stable=[0,24][0,0] surface=[0,0][0,0] outsets=[0,0][0,0] cutout=DisplayCutout{insets=Rect(0, 0 - 0, 0) boundingRect=Rect(0, 0 - 0, 0)}
     Lst insets: overscan=[0,0][0,0] content=[0,24][0,0] visible=[0,24][0,0] stable=[0,24][0,0] physical=[0,0][0,0] outset=[0,0][0,0] cutout=com.android.server.wm.utils.WmDisplayCutout@3c1
-    WindowStateAnimator{af90907 com.google.android.apps.nexuslauncher/com.google.android.apps.nexuslauncher.NexusLauncherActivity}:
+    WindowStateAnimator{2fe22c4 com.google.android.apps.nexuslauncher/com.google.android.apps.nexuslauncher.NexusLauncherActivity}:
       mDrawState=NO_SURFACE       mLastHidden=true
       mSystemDecorRect=[0,0][1280,720] mLastClipRect=[0,0][1280,720]
       mShownAlpha=0.0 mAlpha=0.0 mLastAlpha=0.0
     isOnScreen=false
     isVisible=false
-  Window #5 Window{746873a u0 com.google.android.apps.nexuslauncher/com.google.android.apps.nexuslauncher.NexusLauncherActivity}:
-    mDisplayId=0 stackId=0 mSession=Session{7c14c30 2671:u0a10022} mClient=android.os.BinderProxy@e573e65
+  Window #5 Window{db3adce u0 com.google.android.apps.nexuslauncher/com.google.android.apps.nexuslauncher.NexusLauncherActivity}:
+    mDisplayId=0 stackId=0 mSession=Session{76fc293 2823:u0a10022} mClient=android.os.BinderProxy@2c552c9
     mOwnerUid=10022 mShowToOwnerOnly=true package=com.google.android.apps.nexuslauncher appop=NONE
     mAttrs={(0,0)(fillxfill) sim={adjust=pan forwardNavigation} ty=BASE_APPLICATION fmt=TRANSPARENT wanim=0x10302f8
       fl=LAYOUT_IN_SCREEN LAYOUT_INSET_DECOR SHOW_WALLPAPER SPLIT_TOUCH HARDWARE_ACCELERATED DRAWS_SYSTEM_BAR_BACKGROUNDS
       pfl=FORCE_DRAW_STATUS_BAR_BACKGROUND
       vsysui=LAYOUT_STABLE LAYOUT_HIDE_NAVIGATION LAYOUT_FULLSCREEN}
-    Requested w=1280 h=720 mLayoutSeq=477
+    Requested w=1280 h=720 mLayoutSeq=574
     mBaseLayer=21000 mSubLayer=0 mAnimLayer=0+=0 mLastLayer=0
-    mToken=AppWindowToken{948e38 token=Token{c192a9b ActivityRecord{84beaa u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t5}}}
-    mAppToken=AppWindowToken{948e38 token=Token{c192a9b ActivityRecord{84beaa u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t5}}}
+    mToken=AppWindowToken{4fec3a1 token=Token{fe8a008 ActivityRecord{3ee21ab u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t5}}}
+    mAppToken=AppWindowToken{4fec3a1 token=Token{fe8a008 ActivityRecord{3ee21ab u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t5}}}
      isAnimatingWithSavedSurface()= mAppDied=false    drawnStateEvaluated=true    mightAffectAllDrawn=true
     mViewVisibility=0x8 mHaveFrame=true mObscured=true
     mSeq=0 mSystemUiVisibility=0x700
@@ -183,22 +183,23 @@ WINDOW MANAGER WINDOWS (dumpsys window windows)
         outset=[0,0][0,0]
     Cur insets: overscan=[0,0][0,0] content=[0,24][0,0] visible=[0,24][0,0] stable=[0,24][0,0] surface=[0,0][0,0] outsets=[0,0][0,0] cutout=DisplayCutout{insets=Rect(0, 0 - 0, 0) boundingRect=Rect(0, 0 - 0, 0)}
     Lst insets: overscan=[0,0][0,0] content=[0,24][0,0] visible=[0,24][0,0] stable=[0,24][0,0] physical=[0,0][0,0] outset=[0,0][0,0] cutout=com.android.server.wm.utils.WmDisplayCutout@3c1
-    WindowStateAnimator{f332a34 com.google.android.apps.nexuslauncher/com.google.android.apps.nexuslauncher.NexusLauncherActivity}:
+    WindowStateAnimator{c64b5ad com.google.android.apps.nexuslauncher/com.google.android.apps.nexuslauncher.NexusLauncherActivity}:
       mDrawState=NO_SURFACE       mLastHidden=true
       mSystemDecorRect=[0,0][1280,720] mLastClipRect=[0,0][1280,720]
+    mLastFreezeDuration=+1s693ms
     mWallpaperX=0.0 mWallpaperY=0.5
     mWallpaperXStep=0.33333334 mWallpaperYStep=1.0
     isOnScreen=false
     isVisible=false
-  Window #6 Window{f950a59 u0 com.android.systemui.ImageWallpaper}:
-    mDisplayId=0 stackId=0 mSession=Session{7dc4e3 2103:u0a10031} mClient=android.os.BinderProxy@b156ea0
-    mOwnerUid=10031 mShowToOwnerOnly=true package=com.android.systemui appop=NONE
+  Window #6 Window{a1322da u0 com.android.systemui.ImageWallpaper}:
+    mDisplayId=0 stackId=0 mSession=Session{f89ea21 2192:u0a10029} mClient=android.os.BinderProxy@28c8485
+    mOwnerUid=10029 mShowToOwnerOnly=true package=com.android.systemui appop=NONE
     mAttrs={(0,0)(2880x2560) gr=TOP START CENTER layoutInDisplayCutoutMode=always ty=WALLPAPER fmt=RGBX_8888 wanim=0x1030308
       fl=NOT_FOCUSABLE NOT_TOUCHABLE LAYOUT_IN_SCREEN LAYOUT_NO_LIMITS LAYOUT_INSET_DECOR}
-    Requested w=2880 h=2560 mLayoutSeq=481
+    Requested w=2880 h=2560 mLayoutSeq=579
     mIsImWindow=false mIsWallpaper=true mIsFloatingLayer=true mWallpaperVisible=false
     mBaseLayer=11000 mSubLayer=0 mAnimLayer=0+=0 mLastLayer=0
-    mToken=WallpaperWindowToken{b45badc token=android.os.Binder@27e534f}
+    mToken=WallpaperWindowToken{decc4b1 token=android.os.Binder@558bb58}
     mViewVisibility=0x0 mHaveFrame=true mObscured=true
     mSeq=0 mSystemUiVisibility=0x0
     mGivenContentInsets=[0,0][0,0] mGivenVisibleInsets=[0,0][0,0]
@@ -213,8 +214,8 @@ WINDOW MANAGER WINDOWS (dumpsys window windows)
         outset=[0,0][1280,720]
     Cur insets: overscan=[0,0][0,0] content=[0,0][1600,1840] visible=[0,24][1600,1840] stable=[0,24][1600,1840] surface=[0,0][0,0] outsets=[0,0][0,0] cutout=DisplayCutout{insets=Rect(0, 0 - 0, 0) boundingRect=Rect(0, 0 - 0, 0)}
     Lst insets: overscan=[0,0][0,0] content=[0,0][1600,1840] visible=[0,24][1600,1840] stable=[0,24][1600,1840] physical=[0,0][0,0] outset=[0,0][0,0] cutout=com.android.server.wm.utils.WmDisplayCutout@3c1
-    WindowStateAnimator{7dd005d com.android.systemui.ImageWallpaper}:
-      mSurface=Surface(name=com.android.systemui.ImageWallpaper)/@0x764f164
+    WindowStateAnimator{70a40e2 com.android.systemui.ImageWallpaper}:
+      mSurface=Surface(name=com.android.systemui.ImageWallpaper)/@0x6525fee
       Surface: shown=false layer=0 alpha=1.0 rect=(0.0,-920.0) 2880 x 2560 transform=(1.0, 0.0, 1.0, 0.0)
       mDrawState=HAS_DRAWN       mLastHidden=true
       mSystemDecorRect=[0,0][0,0] mLastClipRect=[0,0][0,0]
@@ -225,24 +226,23 @@ WINDOW MANAGER WINDOWS (dumpsys window windows)
 
   mGlobalConfiguration={1.0 310mcc260mnc [en_US] ldltr sw720dp w1280dp h696dp 160dpi xlrg long land finger -keyb/v/h tball/v winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mWindowingMode=fullscreen mActivityType=undefined} s.7}
   mHasPermanentDpad=false
-  mCurrentFocus=Window{d64373c u0 pl.dock.widget/pl.dock.widget.terminal.ObdTerminalActivity}
-  mFocusedApp=AppWindowToken{2a40086 token=Token{87cdd61 ActivityRecord{e0c08c8 u0 pl.dock.widget/.terminal.ObdTerminalActivity t16}}}
+  mCurrentFocus=Window{507f11b u0 pl.dock.widget/pl.dock.widget.terminal.ObdTerminalActivity}
+  mFocusedApp=AppWindowToken{c42d3ed token=Token{7a4d204 ActivityRecord{a2c2e17 u0 pl.dock.widget/.terminal.ObdTerminalActivity t16}}}
   mInTouchMode=true
-  mLastDisplayFreezeDuration=+1s37ms due to AppWindowToken{a1c5cd1 token=Token{3e51ff8 ActivityRecord{46deb5b u0 com.google.android.sdksetup/.DefaultActivity t4}}}
+  mLastDisplayFreezeDuration=+1s766ms due to Window{db3adce u0 com.google.android.apps.nexuslauncher/com.google.android.apps.nexuslauncher.NexusLauncherActivity}
   mLastWakeLockHoldingWindow=null mLastWakeLockObscuringWindow=null
   InputConsumers:
-    name=pip_input_consumer pid=2103 user=UserHandle{0}
+    name=pip_input_consumer pid=2192 user=UserHandle{0}
   SnapshotCache
   mSystemDecorLayer=0 mScreenRect=[0,0][1280,720]
   mLastStatusBarVisibility=0x170e
   mTraversalScheduled=false
   mHoldScreenWindow=null
-  mObscuringWindow=Window{d64373c u0 pl.dock.widget/pl.dock.widget.terminal.ObdTerminalActivity}
+  mObscuringWindow=Window{507f11b u0 pl.dock.widget/pl.dock.widget.terminal.ObdTerminalActivity}
   mWallpaperTarget=null
   mLastWallpaperX=0.0 mLastWallpaperY=0.5
   mSystemBooted=true mDisplayEnabled=true
-  mLayoutNeeded on displays=0
-  mTransactionSequence=634
+  mTransactionSequence=724
   mDisplayFrozen=false windows=0 client=false apps=0 waitingForConfig=false
   mRotation=0 mAltOrientation=false
   mLastWindowForcedOrientation=-1 mLastOrientation=-1
@@ -253,8 +253,8 @@ WINDOW MANAGER WINDOWS (dumpsys window windows)
     mNextAppTransition=TRANSIT_UNSET
     mAppTransitionState=APP_STATE_IDLE
     mLastUsedAppTransition=TRANSIT_WALLPAPER_CLOSE
-    mLastOpeningApp=AppWindowToken{2a40086 token=Token{87cdd61 ActivityRecord{e0c08c8 u0 pl.dock.widget/.terminal.ObdTerminalActivity t16}}}
-    mLastClosingApp=AppWindowToken{948e38 token=Token{c192a9b ActivityRecord{84beaa u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t5}}}
+    mLastOpeningApp=AppWindowToken{c42d3ed token=Token{7a4d204 ActivityRecord{a2c2e17 u0 pl.dock.widget/.terminal.ObdTerminalActivity t16}}}
+    mLastClosingApp=AppWindowToken{4fec3a1 token=Token{fe8a008 ActivityRecord{3ee21ab u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t5}}}
 WINDOW MANAGER POLICY STATE (dumpsys window policy)
     mSafeMode=false mSystemReady=true mSystemBooted=true
     mLidState=LID_OPEN mLidOpenRotation=-1
@@ -287,11 +287,11 @@ WINDOW MANAGER POLICY STATE (dumpsys window policy)
     mKeyguardDrawComplete=true mWindowManagerDrawComplete=true
     mDockLayer=268435456 mStatusBarLayer=0
     mShowingDream=false mDreamingLockscreen=false mDreamingSleepToken=null
-    mStatusBar=Window{195e5e8 u0 StatusBar} isStatusBarKeyguard=false
-    mFocusedWindow=Window{d64373c u0 pl.dock.widget/pl.dock.widget.terminal.ObdTerminalActivity}
-    mFocusedApp=Token{87cdd61 ActivityRecord{e0c08c8 u0 pl.dock.widget/.terminal.ObdTerminalActivity t16}}
-    mTopFullscreenOpaqueWindowState=Window{d64373c u0 pl.dock.widget/pl.dock.widget.terminal.ObdTerminalActivity}
-    mTopFullscreenOpaqueOrDimmingWindowState=Window{d64373c u0 pl.dock.widget/pl.dock.widget.terminal.ObdTerminalActivity}
+    mStatusBar=Window{6970ed5 u0 StatusBar} isStatusBarKeyguard=false
+    mFocusedWindow=Window{507f11b u0 pl.dock.widget/pl.dock.widget.terminal.ObdTerminalActivity}
+    mFocusedApp=Token{7a4d204 ActivityRecord{a2c2e17 u0 pl.dock.widget/.terminal.ObdTerminalActivity t16}}
+    mTopFullscreenOpaqueWindowState=Window{507f11b u0 pl.dock.widget/pl.dock.widget.terminal.ObdTerminalActivity}
+    mTopFullscreenOpaqueOrDimmingWindowState=Window{507f11b u0 pl.dock.widget/pl.dock.widget.terminal.ObdTerminalActivity}
     mTopIsFullscreen=true mKeyguardOccluded=false
     mKeyguardOccludedChanged=false mPendingKeyguardOccluded=false
     mForceStatusBar=false mForceStatusBarFromKeyguard=false
@@ -323,7 +323,7 @@ WINDOW MANAGER POLICY STATE (dumpsys window policy)
         mLastFilteredX=0.0
         mLastFilteredY=9.77631
         mLastFilteredZ=0.812349
-        mLastFilteredTimestampNanos=180480840218 (29.063292ms ago)
+        mLastFilteredTimestampNanos=175776913370 (4.75552ms ago)
         mTiltHistory={last: 5.0}
         mFlat=false
         mSwinging=false
@@ -353,155 +353,155 @@ WINDOW MANAGER POLICY STATE (dumpsys window policy)
         mTrusted=false
         mCurrentUserId=0
     Looper state:
-      Looper (android.ui, tid 19) {423add2}
+      Looper (android.ui, tid 19) {feeac73}
         (Total messages: 0, polling=true, quitting=false)
-11-10 12:07:01.083  4678  4678 D AndroidRuntime: Shutting down VM
-11-10 12:07:03.515  4783  4783 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 0 <<<<<<
-11-10 12:07:03.634  4783  4783 D AndroidRuntime: Calling main entry com.android.commands.input.Input
-11-10 12:07:03.959  4783  4783 D AndroidRuntime: Shutting down VM
-11-10 12:07:07.715  4973  4973 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 0 <<<<<<
-11-10 12:07:07.936  4973  4973 D AndroidRuntime: Calling main entry com.android.commands.input.Input
-11-10 12:07:08.269  4973  4973 D AndroidRuntime: Shutting down VM
-11-10 12:07:11.298  5219  5219 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 0 <<<<<<
-11-10 12:07:11.486  5219  5219 D AndroidRuntime: Calling main entry com.android.commands.input.Input
-11-10 12:07:11.853  5219  5219 D AndroidRuntime: Shutting down VM
-11-10 12:07:14.922  1904  4608 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 5350
-11-10 12:07:14.922  1904  4608 I ActivityManager: Killing 3346:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
-11-10 12:07:14.930  1904  4608 W ActivityManager: Scheduling restart of crashed service pl.dock.widget/.ObdCoreService in 1000ms
-11-10 12:07:14.930  1904  4608 W ActivityManager: Scheduling restart of crashed service pl.dock.widget/.StatusService in 10999ms
-11-10 12:07:14.949  1904  4608 W ActivityManager: Stopping service due to app idle: u0a86 -5s692ms pl.dock.widget/.ObdCoreService
-11-10 12:07:14.949  1904  4608 W ActivityManager: Stopping service due to app idle: u0a86 -44s348ms pl.dock.widget/.StatusService
-11-10 12:07:14.953  1904  4608 I ActivityManager:   Force finishing activity ActivityRecord{2cd2c89 u0 pl.dock.widget/.LauncherActivity t6}
-11-10 12:07:15.015  1904  4608 I ActivityManager:   Force finishing activity ActivityRecord{2cd2c89 u0 pl.dock.widget/.LauncherActivity t6 f}
-11-10 12:07:15.015  1904  4608 W ActivityManager: Duplicate finish request for ActivityRecord{2cd2c89 u0 pl.dock.widget/.LauncherActivity t6 f}
-11-10 12:07:15.064  1904  1921 I ActivityManager: Start proc 5353:pl.dock.widget/u0a86 for activity pl.dock.widget/.LauncherActivity
-11-10 12:07:15.079  5353  5353 I pl.dock.widget: Late-enabling -Xcheck:jni
-11-10 12:07:15.148  5353  5353 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
-11-10 12:07:15.226  1904  1979 W InputDispatcher: channel '4bf7ef8 pl.dock.widget/pl.dock.widget.LauncherActivity (server)' ~ Consumer closed input channel or an error occurred.  events=0x9
-11-10 12:07:15.226  1904  1979 E InputDispatcher: channel '4bf7ef8 pl.dock.widget/pl.dock.widget.LauncherActivity (server)' ~ Channel is unrecoverably broken and will be disposed!
-11-10 12:07:15.329  1904  1919 W InputDispatcher: Attempted to unregister already unregistered input channel '4bf7ef8 pl.dock.widget/pl.dock.widget.LauncherActivity (server)'
-11-10 12:07:15.342  1742  1771 W SurfaceFlinger: Attempting to destroy on removed layer: AppWindowToken{77fc4af token=Token{fe3e48e ActivityRecord{2cd2c89 u0 pl.dock.widget/.LauncherActivity t6}}}#0
-11-10 12:07:16.123  1904  3733 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.ConnectivityActivity} from uid 0
-11-10 12:07:16.341  5353  5353 W pl.dock.widget: Accessing hidden method Landroid/net/ConnectivityManager;->getTetheredIfaces()[Ljava/lang/String; (light greylist, reflection)
-11-10 12:07:17.519  1904  1904 E AppWidgetServiceImpl: Widget host dead: HostId{user:0, app:10086, hostId:4217, pkg:pl.dock.widget}
-11-10 12:07:18.702  1904  5394 I PackageManager.DexOptimizer: Running dexopt (dexoptNeeded=1) on: /data/app/pl.dock.widget-qDc6RxGY00v9mHaJfPSoKw==/base.apk pkg=pl.dock.widget isa=x86_64 dexoptFlags=boot_complete,debuggable,public,enable_hidden_api_checks targetFilter=verify oatDir=/data/app/pl.dock.widget-qDc6RxGY00v9mHaJfPSoKw==/oat classLoaderContext=PCL[]
-11-10 12:07:18.703  1748  1975 V installed: DexInv: --- BEGIN '/data/app/pl.dock.widget-qDc6RxGY00v9mHaJfPSoKw==/base.apk' ---
-11-10 12:07:18.943  1742  1778 W SurfaceFlinger: Attempting to set client state on removed layer: Splash Screen pl.dock.widget#0
-11-10 12:07:18.943  1742  1778 W SurfaceFlinger: Attempting to destroy on removed layer: Splash Screen pl.dock.widget#0
-11-10 12:07:18.945  1904  1927 I ActivityManager: Displayed pl.dock.widget/.ConnectivityActivity: +2s746ms (total +3s947ms)
-11-10 12:07:19.460  5404  5404 I dex2oat : /system/bin/dex2oat --input-vdex-fd=-1 --output-vdex-fd=10 --compiler-filter=verify --debuggable --classpath-dir=/data/app/pl.dock.widget-qDc6RxGY00v9mHaJfPSoKw== --class-loader-context=PCL[] --generate-mini-debug-info --compact-dex-level=none --compilation-reason=boot
-11-10 12:07:22.505  1904  1958 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 5458
-11-10 12:07:22.505  1904  1958 I ActivityManager: Killing 5353:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
-11-10 12:07:22.512  1904  1958 W ActivityManager: Force removing ActivityRecord{9878944 u0 pl.dock.widget/.ConnectivityActivity t8}: app died, no saved state
-11-10 12:07:23.372  2599  2998 W ErrorProcessor: onFatalError, processing error from engine(4)
-11-10 12:07:23.600  1904  2663 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.AppsActivity} from uid 0
-11-10 12:07:23.645  1904  1921 I ActivityManager: Start proc 5473:pl.dock.widget/u0a86 for activity pl.dock.widget/.AppsActivity
-11-10 12:07:23.653  5473  5473 I pl.dock.widget: Late-enabling -Xcheck:jni
-11-10 12:07:23.726  5473  5473 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
-11-10 12:07:25.294  5404  5404 W dex2oat : Verification of void pl.dock.widget.Updater$6.<init>(android.content.Context, java.lang.String) took 146.583ms
-11-10 12:07:25.335  1742  1771 W SurfaceFlinger: Attempting to set client state on removed layer: Splash Screen pl.dock.widget#0
-11-10 12:07:25.335  1742  1771 W SurfaceFlinger: Attempting to destroy on removed layer: Splash Screen pl.dock.widget#0
-11-10 12:07:25.350  1904  1927 I ActivityManager: Displayed pl.dock.widget/.AppsActivity: +1s688ms
-11-10 12:07:25.602  5404  5404 W dex2oat : Verification of java.lang.String pl.dock.widget.Volt.sourceLabel(android.content.Context) took 190.462ms
-11-10 12:07:25.894  5404  5497 W dex2oat : Verification of void pl.dock.widget.AllAppsActivity.build() took 248.806ms
-11-10 12:07:25.906  5404  5404 W dex2oat : Verification of void pl.dock.widget.WeatherData.<clinit>() took 298.529ms
-11-10 12:07:26.102  5404  5497 W dex2oat : Verification of void pl.dock.widget.AllAppsActivity.onWindowFocusChanged(boolean) took 201.496ms
-11-10 12:07:26.119  5404  5404 W dex2oat : Verification of void pl.dock.widget.ConfigActivity.onCreate(android.os.Bundle) took 176.419ms
-11-10 12:07:27.230  5404  5541 W dex2oat : Verification of java.lang.String pl.dock.widget.blackbox.TelemetrySnapshot.component12() took 202.365ms
-11-10 12:07:27.781  1748  1975 V installed: DexInv: --- END '/data/app/pl.dock.widget-qDc6RxGY00v9mHaJfPSoKw==/base.apk' (success) ---
-11-10 12:07:29.892  1904  2203 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 5561
-11-10 12:07:29.893  1904  2203 I ActivityManager: Killing 5473:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
-11-10 12:07:29.898  1904  2203 W ActivityManager: Force removing ActivityRecord{cb2ddbf u0 pl.dock.widget/.AppsActivity t9}: app died, no saved state
-11-10 12:07:30.546  2599  3092 W ErrorProcessor: onFatalError, processing error from engine(4)
-11-10 12:07:30.984  1904  2203 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.AllAppsActivity} from uid 0
-11-10 12:07:31.039  1904  1921 I ActivityManager: Start proc 5574:pl.dock.widget/u0a86 for activity pl.dock.widget/.AllAppsActivity
-11-10 12:07:31.040  5574  5574 I pl.dock.widget: Late-enabling -Xcheck:jni
-11-10 12:07:31.076  5574  5574 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
-11-10 12:07:32.866  1904  1927 I ActivityManager: Displayed pl.dock.widget/.AllAppsActivity: +1s848ms
-11-10 12:07:32.900  1742  1778 W SurfaceFlinger: Attempting to set client state on removed layer: Splash Screen pl.dock.widget#0
-11-10 12:07:32.900  1742  1778 W SurfaceFlinger: Attempting to destroy on removed layer: Splash Screen pl.dock.widget#0
-11-10 12:07:37.456  1904  2356 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 5661
-11-10 12:07:37.456  1904  2356 I ActivityManager: Killing 5574:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
-11-10 12:07:37.458  1904  2356 W ActivityManager: Force removing ActivityRecord{444369f u0 pl.dock.widget/.AllAppsActivity t10}: app died, no saved state
-11-10 12:07:37.912  2599  3023 W ErrorProcessor: onFatalError, processing error from engine(4)
-11-10 12:07:38.565  1904  4608 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.ConfigActivity} from uid 0
-11-10 12:07:38.656  5679  5679 I pl.dock.widget: Late-enabling -Xcheck:jni
-11-10 12:07:38.659  1904  1921 I ActivityManager: Start proc 5679:pl.dock.widget/u0a86 for activity pl.dock.widget/.ConfigActivity
-11-10 12:07:38.710  5679  5679 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
-11-10 12:07:39.096  5679  5684 I pl.dock.widget: Compiler allocated 4MB to compile void android.widget.TextView.<init>(android.content.Context, android.util.AttributeSet, int, int)
-11-10 12:07:39.099  5679  5679 W pl.dock.widget: Accessing hidden method Landroid/net/ConnectivityManager;->getTetheredIfaces()[Ljava/lang/String; (light greylist, reflection)
-11-10 12:07:39.304  5679  5684 I pl.dock.widget: Compiler allocated 4MB to compile void android.widget.TextView.<init>(android.content.Context, android.util.AttributeSet, int, int)
-11-10 12:07:39.538  5679  5684 I pl.dock.widget: Compiler allocated 4MB to compile void android.widget.TextView.<init>(android.content.Context, android.util.AttributeSet, int, int)
-11-10 12:07:40.313  1904  1927 I ActivityManager: Displayed pl.dock.widget/.ConfigActivity: +1s708ms
-11-10 12:07:40.327  1742  2399 W SurfaceFlinger: Attempting to set client state on removed layer: Splash Screen pl.dock.widget#0
-11-10 12:07:40.327  1742  2399 W SurfaceFlinger: Attempting to destroy on removed layer: Splash Screen pl.dock.widget#0
-11-10 12:07:44.835  1904  1916 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 5770
-11-10 12:07:44.836  1904  1916 I ActivityManager: Killing 5679:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
-11-10 12:07:44.841  1904  1916 W ActivityManager: Scheduling restart of crashed service pl.dock.widget/.StatusService in 1000ms
-11-10 12:07:44.841  1904  1916 W ActivityManager: Force removing ActivityRecord{ec72454 u0 pl.dock.widget/.ConfigActivity t11}: app died, no saved state
-11-10 12:07:44.850  1904  1979 W InputDispatcher: channel '6dff1c6 pl.dock.widget/pl.dock.widget.ConfigActivity (server)' ~ Consumer closed input channel or an error occurred.  events=0x9
-11-10 12:07:44.850  1904  1979 E InputDispatcher: channel '6dff1c6 pl.dock.widget/pl.dock.widget.ConfigActivity (server)' ~ Channel is unrecoverably broken and will be disposed!
-11-10 12:07:44.853  1904  1916 W InputDispatcher: Attempted to unregister already unregistered input channel '6dff1c6 pl.dock.widget/pl.dock.widget.ConfigActivity (server)'
-11-10 12:07:44.854  1742  1771 W SurfaceFlinger: Attempting to destroy on removed layer: AppWindowToken{48c84f2 token=Token{4d43ffd ActivityRecord{ec72454 u0 pl.dock.widget/.ConfigActivity t11}}}#0
-11-10 12:07:44.861  1904  1916 I ActivityManager:   Force stopping service ServiceRecord{8923225 u0 pl.dock.widget/.StatusService}
-11-10 12:07:45.626  2599  3023 W ErrorProcessor: onFatalError, processing error from engine(4)
-11-10 12:07:45.936  1904  2357 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.NowPlayingActivity} from uid 0
-11-10 12:07:46.012  1904  1921 I ActivityManager: Start proc 5787:pl.dock.widget/u0a86 for activity pl.dock.widget/.NowPlayingActivity
-11-10 12:07:46.078  5787  5787 I pl.dock.widget: Late-enabling -Xcheck:jni
-11-10 12:07:46.115  5787  5787 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
-11-10 12:07:46.408  5787  5787 W pl.dock.widget: Accessing hidden method Landroid/net/ConnectivityManager;->getTetheredIfaces()[Ljava/lang/String; (light greylist, reflection)
-11-10 12:07:47.806  1904  1927 I ActivityManager: Displayed pl.dock.widget/.NowPlayingActivity: +1s831ms
-11-10 12:07:47.823  1742  2399 W SurfaceFlinger: Attempting to set client state on removed layer: Splash Screen pl.dock.widget#0
-11-10 12:07:47.823  1742  2399 W SurfaceFlinger: Attempting to destroy on removed layer: Splash Screen pl.dock.widget#0
-11-10 12:07:52.192  1904  2356 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 5841
-11-10 12:07:52.192  1904  2356 I ActivityManager: Killing 5787:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
-11-10 12:07:52.193  1904  2356 W ActivityManager: Force removing ActivityRecord{143d88b u0 pl.dock.widget/.NowPlayingActivity t12}: app died, no saved state
-11-10 12:07:52.684  2599  3023 W ErrorProcessor: onFatalError, processing error from engine(4)
-11-10 12:07:53.259  1904  2663 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.MediaCenterActivity} from uid 0
-11-10 12:07:53.302  5851  5851 I pl.dock.widget: Late-enabling -Xcheck:jni
-11-10 12:07:53.302  1904  1921 I ActivityManager: Start proc 5851:pl.dock.widget/u0a86 for activity pl.dock.widget/.MediaCenterActivity
-11-10 12:07:53.332  5851  5851 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
-11-10 12:07:53.387  1742  2318 W SurfaceFlinger: Attempting to set client state on removed layer: Surface(name=AppWindowToken{29f9fb token=Token{5e3af8a ActivityRecord{82995f5 u0 pl.dock.widget/.MediaCenterActivity t13}}})/@0x3cce665 - animation-leash#0
-11-10 12:07:53.387  1742  2318 W SurfaceFlinger: Attempting to destroy on removed layer: Surface(name=AppWindowToken{29f9fb token=Token{5e3af8a ActivityRecord{82995f5 u0 pl.dock.widget/.MediaCenterActivity t13}}})/@0x3cce665 - animation-leash#0
-11-10 12:07:53.471  5851  5851 W pl.dock.widget: Accessing hidden method Landroid/net/ConnectivityManager;->getTetheredIfaces()[Ljava/lang/String; (light greylist, reflection)
-11-10 12:07:54.286  1904  1927 I ActivityManager: Displayed pl.dock.widget/.MediaCenterActivity: +1s18ms
-11-10 12:07:57.971  1904  5394 I BackgroundDexOptService: Pinning optimized code {pl.dock.widget, com.google.android.gms}
-11-10 12:07:59.529  1904  2663 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 5881
-11-10 12:07:59.529  1904  2663 I ActivityManager: Killing 5851:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
-11-10 12:07:59.529  1904  2663 W ActivityManager: Force removing ActivityRecord{82995f5 u0 pl.dock.widget/.MediaCenterActivity t13}: app died, no saved state
-11-10 12:07:59.543  1742  1771 W SurfaceFlinger: Attempting to destroy on removed layer: AppWindowToken{29f9fb token=Token{5e3af8a ActivityRecord{82995f5 u0 pl.dock.widget/.MediaCenterActivity t13}}}#0
-11-10 12:07:59.831  2599  3021 W ErrorProcessor: onFatalError, processing error from engine(4)
-11-10 12:08:00.588  1904  3168 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.dashboard.CarPlayDashboardActivity} from uid 0
-11-10 12:08:00.659  1904  1921 I ActivityManager: Start proc 5924:pl.dock.widget/u0a86 for activity pl.dock.widget/.dashboard.CarPlayDashboardActivity
-11-10 12:08:00.662  5924  5924 I pl.dock.widget: Late-enabling -Xcheck:jni
-11-10 12:08:00.698  5924  5924 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
-11-10 12:08:00.858  5924  5929 I pl.dock.widget: Compiler allocated 4MB to compile void android.widget.TextView.<init>(android.content.Context, android.util.AttributeSet, int, int)
-11-10 12:08:01.583  1904  1927 I ActivityManager: Displayed pl.dock.widget/.dashboard.CarPlayDashboardActivity: +959ms
-11-10 12:08:01.619  1742  1771 W SurfaceFlinger: Attempting to set client state on removed layer: Splash Screen pl.dock.widget#0
-11-10 12:08:01.619  1742  1771 W SurfaceFlinger: Attempting to destroy on removed layer: Splash Screen pl.dock.widget#0
-11-10 12:08:06.760  1904  4608 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 5951
-11-10 12:08:06.761  1904  4608 I ActivityManager: Killing 5924:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
-11-10 12:08:06.765  1904  4608 W ActivityManager: Force removing ActivityRecord{e074801 u0 pl.dock.widget/.dashboard.CarPlayDashboardActivity t14}: app died, no saved state
-11-10 12:08:07.252  2599  3024 W ErrorProcessor: onFatalError, processing error from engine(4)
-11-10 12:08:07.831  1904  3175 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.ui.UfoClusterActivity} from uid 0
-11-10 12:08:07.914  1904  1921 I ActivityManager: Start proc 5962:pl.dock.widget/u0a86 for activity pl.dock.widget/.ui.UfoClusterActivity
-11-10 12:08:07.916  5962  5962 I pl.dock.widget: Late-enabling -Xcheck:jni
-11-10 12:08:07.927  5962  5962 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
-11-10 12:08:09.135  1904  1927 I ActivityManager: Displayed pl.dock.widget/.ui.UfoClusterActivity: +1s253ms
-11-10 12:08:09.143  1742  1771 W SurfaceFlinger: Attempting to set client state on removed layer: Splash Screen pl.dock.widget#0
-11-10 12:08:09.143  1742  1771 W SurfaceFlinger: Attempting to destroy on removed layer: Splash Screen pl.dock.widget#0
-11-10 12:08:09.145  1742  1977 W SurfaceFlinger: Attempting to set client state on removed layer: Surface(name=6a5e395 Splash Screen pl.dock.widget)/@0x381846c - animation-leash#0
-11-10 12:08:09.145  1742  1977 W SurfaceFlinger: Attempting to destroy on removed layer: Surface(name=6a5e395 Splash Screen pl.dock.widget)/@0x381846c - animation-leash#0
-11-10 12:08:14.121  1904  3158 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 6029
-11-10 12:08:14.122  1904  3158 I ActivityManager: Killing 5962:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
-11-10 12:08:14.122  1904  3158 W ActivityManager: Scheduling restart of crashed service pl.dock.widget/.ObdCoreService in 1000ms
-11-10 12:08:14.125  1904  3158 W ActivityManager: Force removing ActivityRecord{49012c6 u0 pl.dock.widget/.ui.UfoClusterActivity t15}: app died, no saved state
-11-10 12:08:14.139  1904  3158 I ActivityManager:   Force stopping service ServiceRecord{6670b7c u0 pl.dock.widget/.ObdCoreService}
-11-10 12:08:14.567  2599  3149 W ErrorProcessor: onFatalError, processing error from engine(4)
-11-10 12:08:15.176  1904  3121 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.terminal.ObdTerminalActivity} from uid 0
-11-10 12:08:15.219  6040  6040 I pl.dock.widget: Late-enabling -Xcheck:jni
-11-10 12:08:15.223  1904  1921 I ActivityManager: Start proc 6040:pl.dock.widget/u0a86 for activity pl.dock.widget/.terminal.ObdTerminalActivity
-11-10 12:08:15.273  6040  6040 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
-11-10 12:08:15.820  1904  1927 I ActivityManager: Displayed pl.dock.widget/.terminal.ObdTerminalActivity: +606ms
-11-10 12:08:15.842  1742  1778 W SurfaceFlinger: Attempting to set client state on removed layer: Splash Screen pl.dock.widget#0
-11-10 12:08:15.842  1742  1778 W SurfaceFlinger: Attempting to destroy on removed layer: Splash Screen pl.dock.widget#0
+11-10 12:36:08.728  2011  2026 W BroadcastQueue: Background execution not allowed: receiving Intent { act=android.intent.action.PACKAGE_ADDED dat=package:pl.dock.widget flg=0x4000010 (has extras) } to com.google.android.gms/.gass.chimera.PackageChangeBroadcastReceiver
+11-10 12:36:08.728  2011  2026 W BroadcastQueue: Background execution not allowed: receiving Intent { act=android.intent.action.PACKAGE_ADDED dat=package:pl.dock.widget flg=0x4000010 (has extras) } to com.google.android.gms/.chimera.GmsIntentOperationService$PersistentTrustedReceiver
+11-10 12:36:08.728  2011  2026 W BroadcastQueue: Background execution not allowed: receiving Intent { act=android.intent.action.PACKAGE_ADDED dat=package:pl.dock.widget flg=0x4000010 (has extras) } to com.google.android.googlequicksearchbox/com.google.android.apps.gsa.googlequicksearchbox.GelStubAppWatcher
+11-10 12:36:08.728  2011  2026 W BroadcastQueue: Background execution not allowed: receiving Intent { act=android.intent.action.PACKAGE_ADDED dat=package:pl.dock.widget flg=0x4000010 (has extras) } to com.google.android.ims/.receivers.RcsAutoStartReceiver
+11-10 12:36:09.135  4131  4131 D AndroidRuntime: Calling main entry com.android.commands.input.Input
+11-10 12:36:09.446  4131  4131 D AndroidRuntime: Shutting down VM
+11-10 12:36:13.032  4266  4266 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 0 <<<<<<
+11-10 12:36:13.567  4266  4266 D AndroidRuntime: Calling main entry com.android.commands.input.Input
+11-10 12:36:13.889  4266  4266 D AndroidRuntime: Shutting down VM
+11-10 12:36:16.879  4503  4503 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 0 <<<<<<
+11-10 12:36:17.198  4503  4503 D AndroidRuntime: Calling main entry com.android.commands.input.Input
+11-10 12:36:17.538  4503  4503 D AndroidRuntime: Shutting down VM
+11-10 12:36:21.161  4741  4741 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 0 <<<<<<
+11-10 12:36:21.461  4741  4741 D AndroidRuntime: Calling main entry com.android.commands.input.Input
+11-10 12:36:21.841  4741  4741 D AndroidRuntime: Shutting down VM
+11-10 12:36:24.528  4845  4845 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 0 <<<<<<
+11-10 12:36:24.642  4845  4845 D AndroidRuntime: Calling main entry com.android.commands.input.Input
+11-10 12:36:25.024  4845  4845 D AndroidRuntime: Shutting down VM
+11-10 12:36:27.903  5102  5102 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 0 <<<<<<
+11-10 12:36:28.008  5102  5102 D AndroidRuntime: Calling main entry com.android.commands.input.Input
+11-10 12:36:28.353  5102  5102 D AndroidRuntime: Shutting down VM
+11-10 12:36:31.013  5216  5216 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 0 <<<<<<
+11-10 12:36:31.194  5216  5216 D AndroidRuntime: Calling main entry com.android.commands.input.Input
+11-10 12:36:31.506  5216  5216 D AndroidRuntime: Shutting down VM
+11-10 12:36:34.532  2011  5197 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 5283
+11-10 12:36:34.532  2011  5197 I ActivityManager: Killing 3348:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
+11-10 12:36:34.535  2011  5197 W ActivityManager: Scheduling restart of crashed service pl.dock.widget/.StatusService in 1000ms
+11-10 12:36:34.535  2011  5197 W ActivityManager: Scheduling restart of crashed service pl.dock.widget/.ObdCoreService in 11000ms
+11-10 12:36:34.549  2011  5197 W ActivityManager: Stopping service due to app idle: u0a86 -5s998ms pl.dock.widget/.ObdCoreService
+11-10 12:36:34.549  2011  5197 W ActivityManager: Stopping service due to app idle: u0a86 -39s583ms pl.dock.widget/.StatusService
+11-10 12:36:34.551  2011  5197 I ActivityManager:   Force finishing activity ActivityRecord{7108120 u0 pl.dock.widget/.LauncherActivity t6}
+11-10 12:36:34.598  2011  5197 I ActivityManager:   Force finishing activity ActivityRecord{7108120 u0 pl.dock.widget/.LauncherActivity t6 f}
+11-10 12:36:34.598  2011  5197 W ActivityManager: Duplicate finish request for ActivityRecord{7108120 u0 pl.dock.widget/.LauncherActivity t6 f}
+11-10 12:36:34.649  2011  2028 I ActivityManager: Start proc 5286:pl.dock.widget/u0a86 for activity pl.dock.widget/.LauncherActivity
+11-10 12:36:34.768  5286  5286 I pl.dock.widget: Late-enabling -Xcheck:jni
+11-10 12:36:34.886  5286  5286 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
+11-10 12:36:34.968  1963  2304 W SurfaceFlinger: Attempting to destroy on removed layer: AppWindowToken{d8e4c9e token=Token{81eead9 ActivityRecord{7108120 u0 pl.dock.widget/.LauncherActivity t6}}}#0
+11-10 12:36:35.727  2011  4616 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.ConnectivityActivity} from uid 0
+11-10 12:36:35.971  5286  5286 W pl.dock.widget: Accessing hidden method Landroid/net/ConnectivityManager;->getTetheredIfaces()[Ljava/lang/String; (light greylist, reflection)
+11-10 12:36:37.340  2011  2034 I ActivityManager: Displayed pl.dock.widget/.ConnectivityActivity: +1s564ms (total +31s584ms)
+11-10 12:36:37.361  1963  1970 W SurfaceFlinger: Attempting to set client state on removed layer: Splash Screen pl.dock.widget#0
+11-10 12:36:37.361  1963  1970 W SurfaceFlinger: Attempting to destroy on removed layer: Splash Screen pl.dock.widget#0
+11-10 12:36:42.224  2011  3382 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 5409
+11-10 12:36:42.224  2011  3382 I ActivityManager: Killing 5286:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
+11-10 12:36:42.226  2011  3382 W ActivityManager: Force removing ActivityRecord{356c4c8 u0 pl.dock.widget/.ConnectivityActivity t8}: app died, no saved state
+11-10 12:36:42.244  1963  1970 W SurfaceFlinger: Attempting to destroy on removed layer: AppWindowToken{b631c86 token=Token{696e961 ActivityRecord{356c4c8 u0 pl.dock.widget/.ConnectivityActivity t8}}}#0
+11-10 12:36:42.679  2818  3277 W ErrorProcessor: onFatalError, processing error from engine(4)
+11-10 12:36:43.339  2011  4283 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.AppsActivity} from uid 0
+11-10 12:36:43.421  2011  2028 I ActivityManager: Start proc 5435:pl.dock.widget/u0a86 for activity pl.dock.widget/.AppsActivity
+11-10 12:36:43.436  5435  5435 I pl.dock.widget: Late-enabling -Xcheck:jni
+11-10 12:36:43.511  5435  5435 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
+11-10 12:36:44.019  2011  5428 I PackageManager.DexOptimizer: Running dexopt (dexoptNeeded=1) on: /data/app/pl.dock.widget-C5Jnbpuw4FYo9zQR76W2SA==/base.apk pkg=pl.dock.widget isa=x86_64 dexoptFlags=boot_complete,debuggable,public,enable_hidden_api_checks targetFilter=verify oatDir=/data/app/pl.dock.widget-C5Jnbpuw4FYo9zQR76W2SA==/oat classLoaderContext=PCL[]
+11-10 12:36:44.021  1752  2076 V installed: DexInv: --- BEGIN '/data/app/pl.dock.widget-C5Jnbpuw4FYo9zQR76W2SA==/base.apk' ---
+11-10 12:36:44.723  5435  5446 I pl.dock.widget: NativeAlloc concurrent copying GC freed 19169(3MB) AllocSpace objects, 6(120KB) LOS objects, 53% free, 1308KB/2MB, paused 727us total 150.196ms
+11-10 12:36:44.862  5458  5458 I dex2oat : /system/bin/dex2oat --input-vdex-fd=-1 --output-vdex-fd=10 --compiler-filter=verify --debuggable --classpath-dir=/data/app/pl.dock.widget-C5Jnbpuw4FYo9zQR76W2SA== --class-loader-context=PCL[] --generate-mini-debug-info --compact-dex-level=none --compilation-reason=boot
+11-10 12:36:45.162  1963  2084 W SurfaceFlinger: Attempting to set client state on removed layer: Splash Screen pl.dock.widget#0
+11-10 12:36:45.163  1963  2084 W SurfaceFlinger: Attempting to destroy on removed layer: Splash Screen pl.dock.widget#0
+11-10 12:36:45.210  2011  2034 I ActivityManager: Displayed pl.dock.widget/.AppsActivity: +1s769ms
+11-10 12:36:49.890  5458  5458 W dex2oat : Verification of android.widget.Button pl.dock.widget.maps.MapDownloadActivity.regionBtn(pl.dock.widget.maps.MapDownloadActivity$Region, int, int) took 104.437ms
+11-10 12:36:49.941  2011  4283 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 5588
+11-10 12:36:49.942  2011  4283 I ActivityManager: Killing 5435:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
+11-10 12:36:49.942  2011  4283 W ActivityManager: Force removing ActivityRecord{d47b1b2 u0 pl.dock.widget/.AppsActivity t9}: app died, no saved state
+11-10 12:36:50.393  2818  3277 W ErrorProcessor: onFatalError, processing error from engine(4)
+11-10 12:36:50.565  1752  2076 V installed: DexInv: --- END '/data/app/pl.dock.widget-C5Jnbpuw4FYo9zQR76W2SA==/base.apk' (success) ---
+11-10 12:36:51.035  2011  5197 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.AllAppsActivity} from uid 0
+11-10 12:36:51.104  5620  5620 I pl.dock.widget: Late-enabling -Xcheck:jni
+11-10 12:36:51.122  2011  2028 I ActivityManager: Start proc 5620:pl.dock.widget/u0a86 for activity pl.dock.widget/.AllAppsActivity
+11-10 12:36:51.176  5620  5620 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
+11-10 12:36:51.987  5620  5625 I pl.dock.widget: Compiler allocated 4MB to compile void android.widget.TextView.<init>(android.content.Context, android.util.AttributeSet, int, int)
+11-10 12:36:52.724  2011  2034 I ActivityManager: Displayed pl.dock.widget/.AllAppsActivity: +1s626ms
+11-10 12:36:57.426  2011  4125 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 5707
+11-10 12:36:57.426  2011  4125 I ActivityManager: Killing 5620:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
+11-10 12:36:57.427  2011  4125 W ActivityManager: Force removing ActivityRecord{4d07fc u0 pl.dock.widget/.AllAppsActivity t10}: app died, no saved state
+11-10 12:36:57.809  2818  3277 W ErrorProcessor: onFatalError, processing error from engine(4)
+11-10 12:36:58.523  2011  2423 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.ConfigActivity} from uid 0
+11-10 12:36:58.588  5719  5719 I pl.dock.widget: Late-enabling -Xcheck:jni
+11-10 12:36:58.602  2011  2028 I ActivityManager: Start proc 5719:pl.dock.widget/u0a86 for activity pl.dock.widget/.ConfigActivity
+11-10 12:36:58.670  5719  5719 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
+11-10 12:36:59.078  5719  5724 I pl.dock.widget: Compiler allocated 4MB to compile void android.widget.TextView.<init>(android.content.Context, android.util.AttributeSet, int, int)
+11-10 12:36:59.114  5719  5719 W pl.dock.widget: Accessing hidden method Landroid/net/ConnectivityManager;->getTetheredIfaces()[Ljava/lang/String; (light greylist, reflection)
+11-10 12:36:59.593  5719  5724 I pl.dock.widget: Compiler allocated 4MB to compile void android.widget.TextView.<init>(android.content.Context, android.util.AttributeSet, int, int)
+11-10 12:37:00.106  1963  1970 W SurfaceFlinger: Attempting to set client state on removed layer: Splash Screen pl.dock.widget#0
+11-10 12:37:00.106  1963  1970 W SurfaceFlinger: Attempting to destroy on removed layer: Splash Screen pl.dock.widget#0
+11-10 12:37:00.192  2011  2034 I ActivityManager: Displayed pl.dock.widget/.ConfigActivity: +1s529ms
+11-10 12:37:00.253  2011  2011 E AppWidgetServiceImpl: Widget host dead: HostId{user:0, app:10086, hostId:4217, pkg:pl.dock.widget}
+11-10 12:37:00.629  5719  5724 I pl.dock.widget: Compiler allocated 4MB to compile void android.widget.TextView.<init>(android.content.Context, android.util.AttributeSet, int, int)
+11-10 12:37:04.759  2011  3128 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 5777
+11-10 12:37:04.760  2011  3128 I ActivityManager: Killing 5719:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
+11-10 12:37:04.765  2011  3128 W ActivityManager: Scheduling restart of crashed service pl.dock.widget/.StatusService in 1000ms
+11-10 12:37:04.770  2011  3128 W ActivityManager: Force removing ActivityRecord{7501219 u0 pl.dock.widget/.ConfigActivity t11}: app died, no saved state
+11-10 12:37:04.786  2011  3128 I ActivityManager:   Force stopping service ServiceRecord{9c5aef2 u0 pl.dock.widget/.StatusService}
+11-10 12:37:05.160  2818  3381 W ErrorProcessor: onFatalError, processing error from engine(4)
+11-10 12:37:05.823  2011  2646 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.NowPlayingActivity} from uid 0
+11-10 12:37:05.878  2011  2028 I ActivityManager: Start proc 5789:pl.dock.widget/u0a86 for activity pl.dock.widget/.NowPlayingActivity
+11-10 12:37:05.886  5789  5789 I pl.dock.widget: Late-enabling -Xcheck:jni
+11-10 12:37:05.912  5789  5789 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
+11-10 12:37:06.080  5789  5789 W pl.dock.widget: Accessing hidden method Landroid/net/ConnectivityManager;->getTetheredIfaces()[Ljava/lang/String; (light greylist, reflection)
+11-10 12:37:07.348  2011  2034 I ActivityManager: Displayed pl.dock.widget/.NowPlayingActivity: +1s510ms
+11-10 12:37:07.364  1963  1966 W SurfaceFlinger: Attempting to set client state on removed layer: Splash Screen pl.dock.widget#0
+11-10 12:37:07.364  1963  1966 W SurfaceFlinger: Attempting to destroy on removed layer: Splash Screen pl.dock.widget#0
+11-10 12:37:12.053  2011  2436 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 5819
+11-10 12:37:12.054  2011  2436 I ActivityManager: Killing 5789:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
+11-10 12:37:12.059  2011  2436 W ActivityManager: Force removing ActivityRecord{1c83467 u0 pl.dock.widget/.NowPlayingActivity t12}: app died, no saved state
+11-10 12:37:12.066  1963  2084 W SurfaceFlinger: Attempting to destroy on removed layer: AppWindowToken{5ad8abd token=Token{dfe214 ActivityRecord{1c83467 u0 pl.dock.widget/.NowPlayingActivity t12}}}#0
+11-10 12:37:12.277  2818  3381 W ErrorProcessor: onFatalError, processing error from engine(4)
+11-10 12:37:13.102  2011  2063 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.MediaCenterActivity} from uid 0
+11-10 12:37:13.149  5828  5828 I pl.dock.widget: Late-enabling -Xcheck:jni
+11-10 12:37:13.150  2011  2028 I ActivityManager: Start proc 5828:pl.dock.widget/u0a86 for activity pl.dock.widget/.MediaCenterActivity
+11-10 12:37:13.178  5828  5828 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
+11-10 12:37:13.369  5828  5828 W pl.dock.widget: Accessing hidden method Landroid/net/ConnectivityManager;->getTetheredIfaces()[Ljava/lang/String; (light greylist, reflection)
+11-10 12:37:14.585  2011  2034 I ActivityManager: Displayed pl.dock.widget/.MediaCenterActivity: +1s457ms
+11-10 12:37:14.609  1963  2571 W SurfaceFlinger: Attempting to set client state on removed layer: Splash Screen pl.dock.widget#0
+11-10 12:37:14.609  1963  2571 W SurfaceFlinger: Attempting to destroy on removed layer: Splash Screen pl.dock.widget#0
+11-10 12:37:16.901  2011  5428 I BackgroundDexOptService: Pinning optimized code {pl.dock.widget, com.google.android.gms}
+11-10 12:37:19.280  2011  2787 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 5888
+11-10 12:37:19.280  2011  2787 I ActivityManager: Killing 5828:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
+11-10 12:37:19.281  2011  2787 W ActivityManager: Force removing ActivityRecord{2ee0c46 u0 pl.dock.widget/.MediaCenterActivity t13}: app died, no saved state
+11-10 12:37:19.293  1963  2304 W SurfaceFlinger: Attempting to destroy on removed layer: AppWindowToken{b2d3b34 token=Token{b3cbe07 ActivityRecord{2ee0c46 u0 pl.dock.widget/.MediaCenterActivity t13}}}#0
+11-10 12:37:19.707  2818  3390 W ErrorProcessor: onFatalError, processing error from engine(4)
+11-10 12:37:20.334  2011  2776 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.dashboard.CarPlayDashboardActivity} from uid 0
+11-10 12:37:20.386  2011  2028 I ActivityManager: Start proc 5928:pl.dock.widget/u0a86 for activity pl.dock.widget/.dashboard.CarPlayDashboardActivity
+11-10 12:37:20.391  5928  5928 I pl.dock.widget: Late-enabling -Xcheck:jni
+11-10 12:37:20.405  5928  5928 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
+11-10 12:37:20.562  5928  5933 I pl.dock.widget: Compiler allocated 4MB to compile void android.widget.TextView.<init>(android.content.Context, android.util.AttributeSet, int, int)
+11-10 12:37:21.250  2011  2034 I ActivityManager: Displayed pl.dock.widget/.dashboard.CarPlayDashboardActivity: +889ms
+11-10 12:37:26.495  2011  2063 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 5957
+11-10 12:37:26.495  2011  2063 I ActivityManager: Killing 5928:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
+11-10 12:37:26.499  2011  2063 W ActivityManager: Force removing ActivityRecord{45c7ac9 u0 pl.dock.widget/.dashboard.CarPlayDashboardActivity t14}: app died, no saved state
+11-10 12:37:26.506  1963  2304 W SurfaceFlinger: Attempting to destroy on removed layer: AppWindowToken{4d95cef token=Token{93fb5ce ActivityRecord{45c7ac9 u0 pl.dock.widget/.dashboard.CarPlayDashboardActivity t14}}}#0
+11-10 12:37:26.777  2818  3277 W ErrorProcessor: onFatalError, processing error from engine(4)
+11-10 12:37:27.547  2011  4059 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.ui.UfoClusterActivity} from uid 0
+11-10 12:37:27.594  5968  5968 I pl.dock.widget: Late-enabling -Xcheck:jni
+11-10 12:37:27.597  2011  2028 I ActivityManager: Start proc 5968:pl.dock.widget/u0a86 for activity pl.dock.widget/.ui.UfoClusterActivity
+11-10 12:37:27.612  5968  5968 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
+11-10 12:37:28.799  2011  2034 I ActivityManager: Displayed pl.dock.widget/.ui.UfoClusterActivity: +1s208ms
+11-10 12:37:28.819  1963  2084 W SurfaceFlinger: Attempting to set client state on removed layer: Splash Screen pl.dock.widget#0
+11-10 12:37:28.819  1963  2084 W SurfaceFlinger: Attempting to destroy on removed layer: Splash Screen pl.dock.widget#0
+11-10 12:37:33.824  2011  2178 I ActivityManager: Force stopping pl.dock.widget appid=10086 user=0: from pid 6042
+11-10 12:37:33.824  2011  2178 I ActivityManager: Killing 5968:pl.dock.widget/u0a86 (adj 0): stop pl.dock.widget
+11-10 12:37:33.826  2011  2178 W ActivityManager: Scheduling restart of crashed service pl.dock.widget/.ObdCoreService in 1000ms
+11-10 12:37:33.827  2011  2178 W ActivityManager: Force removing ActivityRecord{3b251dc u0 pl.dock.widget/.ui.UfoClusterActivity t15}: app died, no saved state
+11-10 12:37:33.840  2011  2178 I ActivityManager:   Force stopping service ServiceRecord{3b4440d u0 pl.dock.widget/.ObdCoreService}
+11-10 12:37:34.087  2818  3276 W ErrorProcessor: onFatalError, processing error from engine(4)
+11-10 12:37:34.876  2011  2436 I ActivityManager: START u0 {flg=0x10000000 cmp=pl.dock.widget/.terminal.ObdTerminalActivity} from uid 0
+11-10 12:37:34.903  2011  2028 I ActivityManager: Start proc 6056:pl.dock.widget/u0a86 for activity pl.dock.widget/.terminal.ObdTerminalActivity
+11-10 12:37:34.905  6056  6056 I pl.dock.widget: Late-enabling -Xcheck:jni
+11-10 12:37:34.942  6056  6056 W pl.dock.widget: Unexpected CPU variant for X86 using defaults: x86_64
+11-10 12:37:35.462  2011  2034 I ActivityManager: Displayed pl.dock.widget/.terminal.ObdTerminalActivity: +575ms
+11-10 12:37:35.477  1963  1966 W SurfaceFlinger: Attempting to set client state on removed layer: Splash Screen pl.dock.widget#0
+11-10 12:37:35.477  1963  1966 W SurfaceFlinger: Attempting to destroy on removed layer: Splash Screen pl.dock.widget#0
