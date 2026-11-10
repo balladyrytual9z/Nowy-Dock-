@@ -52,11 +52,13 @@ public class ConnectivityActivity extends BaseActivity {
         boolean dockLeft = Ui.dockLeft(this);
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
         // szerokosc dopasowana do zawartosci panelu (naprawa uciętego suwaka jasności)
+        // panel zawsze przy PRAWEJ krawędzi - nigdy nie zasłania doka
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.TOP | (dockLeft ? Gravity.END : Gravity.START));
-        lp.setMargins(Ui.dp(this, 8), Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 8));
+                Gravity.TOP | Gravity.END);
+        lp.setMargins(Ui.dp(this, 8), Ui.dp(this, 12),
+                dockLeft ? Ui.dp(this, 8) : dockPx + Ui.dp(this, 8), Ui.dp(this, 8));
         root.addView(panel, lp);
 
         // Gdy ekran jest nizszy niz panel (inne dpi niz tablet ESSGOO), skaluj
@@ -69,11 +71,18 @@ public class ConnectivityActivity extends BaseActivity {
                         - Ui.dp(ConnectivityActivity.this, 12)
                         - Ui.dp(ConnectivityActivity.this, 8);
                 int h = panel.getHeight();
-                if (h > 0 && h > availH) {
-                    float sc = (float) availH / h;
+                int w = panel.getWidth();
+                boolean dockLeft2 = Ui.dockLeft(ConnectivityActivity.this);
+                int availW = getResources().getDisplayMetrics().widthPixels
+                        - Ui.dp(ConnectivityActivity.this, 8)
+                        - (dockLeft2 ? Ui.dp(ConnectivityActivity.this, 8)
+                                : Ui.dp(ConnectivityActivity.this, Ui.DOCK_OFFSET_DP + 8));
+                float sc = 1f;
+                if (h > 0 && h > availH) sc = (float) availH / h;
+                if (w > 0 && w > availW) sc = Math.min(sc, (float) availW / w);
+                if (sc < 1f) {
                     panel.setPivotY(0f);
-                    panel.setPivotX(Ui.dockLeft(ConnectivityActivity.this)
-                            ? panel.getWidth() : 0f);
+                    panel.setPivotX(panel.getWidth());
                     panel.setScaleX(sc);
                     panel.setScaleY(sc);
                 }

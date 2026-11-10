@@ -107,11 +107,8 @@ public class ConnectivityPanel extends LinearLayout {
         // Babel w stylu macOS: kwadratowy z zaokraglonymi rogami, szklany
         // (tresc modulow lezy na nim jak na popoverze). Klikalne, by tap w tlo
         // panelu nie zamykal nakladki.
-        GradientDrawable bubble = new GradientDrawable();
-        bubble.setColor(night ? 0x80101418 : 0x99F2F2F7);
-        bubble.setCornerRadius(dp(24));
-        bubble.setStroke(Math.max(1, dp(1)), night ? 0x33FFFFFF : 0x1E787880);
-        setBackground(bubble);
+        // tlo jak w reszcie aplikacji (popupBg - wspolne tlo popupow launchera)
+        setBackground(Ui.popupBg(act, night));
         setPadding(dp(12), dp(12), dp(12), dp(10));
         setClickable(true);
         // Warstwa SOFTWARE na API < 30 zostaje (potwierdzona w PR #14): dla widokow
@@ -159,9 +156,9 @@ public class ConnectivityPanel extends LinearLayout {
         LinearLayout row1 = new LinearLayout(act);
         tWifi = new Tile(act, false);
         tBt = new Tile(act, false);
-        LayoutParams l1 = new LayoutParams(0, dp(150), 1f);
+        LayoutParams l1 = new LayoutParams(dp(150), dp(150));
         l1.rightMargin = dp(6);
-        LayoutParams l2 = new LayoutParams(0, dp(150), 1f);
+        LayoutParams l2 = new LayoutParams(dp(150), dp(150));
         l2.leftMargin = dp(6);
         row1.addView(tWifi, l1);
         row1.addView(tBt, l2);
@@ -170,7 +167,8 @@ public class ConnectivityPanel extends LinearLayout {
         LayoutParams l3 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(76));
         l3.topMargin = dp(12);
         left.addView(tHot, l3);
-        top.addView(left, new LayoutParams(dp(400), ViewGroup.LayoutParams.WRAP_CONTENT));
+        top.addView(left, new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
 
         if (Prefs.customBars(act)) {
             LinearLayout bars = new LinearLayout(act);
@@ -241,11 +239,12 @@ public class ConnectivityPanel extends LinearLayout {
                 });
             }
             if (showNs) {
-                View gap = new View(act);
-                row.addView(gap, new LayoutParams(0, 1, 1f));
+                // Night Shift bezposrednio PO PRAWEJ przycisku trybu
                 bShift = new RoundBtn(act);
                 bShift.setKind(3, "Night Shift");
-                row.addView(bShift, new LayoutParams(dp(110), dp(96)));
+                LayoutParams shp = new LayoutParams(dp(110), dp(96));
+                shp.leftMargin = dp(12);
+                row.addView(bShift, shp);
                 bShift.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {

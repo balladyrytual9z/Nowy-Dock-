@@ -50,7 +50,6 @@ public class ConnectivityPanelIos extends LinearLayout {
     private final Host host;
     private Tile tWifi, tBt, tHot;
     private RoundBtn bMode, bShift;
-    private TextView note;
     private BroadcastReceiver rc;
     private LinearLayout warmthRow;
     private SeekBar warmthBar;
@@ -92,9 +91,9 @@ public class ConnectivityPanelIos extends LinearLayout {
         LinearLayout row1 = new LinearLayout(act);
         tWifi = new Tile(act, false);
         tBt = new Tile(act, false);
-        LayoutParams l1 = new LayoutParams(0, dp(150), 1f);
+        LayoutParams l1 = new LayoutParams(dp(150), dp(150));
         l1.rightMargin = dp(6);
-        LayoutParams l2 = new LayoutParams(0, dp(150), 1f);
+        LayoutParams l2 = new LayoutParams(dp(150), dp(150));
         l2.leftMargin = dp(6);
         row1.addView(tWifi, l1);
         row1.addView(tBt, l2);
@@ -103,7 +102,8 @@ public class ConnectivityPanelIos extends LinearLayout {
         LayoutParams l3 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(76));
         l3.topMargin = dp(12);
         left.addView(tHot, l3);
-        top.addView(left, new LayoutParams(dp(400), ViewGroup.LayoutParams.WRAP_CONTENT));
+        top.addView(left, new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
 
         if (Prefs.customBars(act)) {
             LinearLayout bars = new LinearLayout(act);
@@ -160,10 +160,11 @@ public class ConnectivityPanelIos extends LinearLayout {
                 });
             }
             if (showNs) {
-                View gap = new View(act);
-                row.addView(gap, new LayoutParams(0, 1, 1f));
+                // Night Shift bezposrednio PO PRAWEJ przycisku trybu
+                LayoutParams shp = new LayoutParams(dp(110), dp(96));
+                shp.leftMargin = dp(12);
                 bShift = new RoundBtn(act, 3, "Night Shift");
-                row.addView(bShift, new LayoutParams(dp(110), dp(96)));
+                row.addView(bShift, shp);
                 bShift.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -183,11 +184,6 @@ public class ConnectivityPanelIos extends LinearLayout {
                 });
             }
             addView(row, rp);
-            note = new TextView(act);
-            note.setTextSize(13);
-            note.setTextColor(night ? 0xFF9A9AA0 : 0xFF6C6C70);
-            note.setPadding(dp(6), dp(2), 0, dp(4));
-            addView(note);
         }
     }
 
@@ -371,11 +367,6 @@ public class ConnectivityPanelIos extends LinearLayout {
             }
         }
         if (bShift != null) bShift.setActive(NightShift.isOn(act));
-        if (note != null) {
-            boolean follow = Prefs.followSystem(act);
-            note.setText(follow ? "Wygląd automatyczny: od zachodu do wschodu słońca" : "");
-            note.setVisibility(follow ? VISIBLE : GONE);
-        }
     }
 
     @Override

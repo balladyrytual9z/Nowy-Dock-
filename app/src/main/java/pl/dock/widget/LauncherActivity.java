@@ -1394,16 +1394,14 @@ public class LauncherActivity extends BaseActivity {
         });
         boolean left = Ui.dockLeft(this);
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
-        // szerokość panelu: min 240dp, maks 560dp i nigdy szersza niż ekran - 24dp
+        // szerokość panelu = zawartość (312+160+24 = 496dp), nigdy szersza niż ekran - 24dp
         int panelW = Math.max(Ui.dp(this, 240),
-                Math.min(Ui.dp(this, 574), Ui.windowWidth(this) - Ui.dp(this, 24)));
+                Math.min(Ui.dp(this, 496), Ui.windowWidth(this) - Ui.dp(this, 24)));
+        // Panel przy PRAWEJ krawędzi ekranu (po przeciwnej stronie niz dok),
+        // wiec nigdy nie zasłania doka.
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                panelW, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.START);
-        // Babel w stylu macOS: ZAWSZE wyskakuje przy doku (z lewej czesci,
-        // gdy dok po lewej) - nie sledzi palca i nie centruje sie na ekranie.
-        int panelX = left ? dockPx + Ui.dp(this, 10)
-                : Math.max(0, root.getWidth() - panelW - dockPx - Ui.dp(this, 10));
-        lp.leftMargin = panelX;
+                panelW, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
+        lp.rightMargin = left ? Ui.dp(this, 10) : dockPx + Ui.dp(this, 10);
         lp.topMargin = Ui.dp(this, 12);
         overlay.addView(panel, lp);
         // defensive: dodajemy pod dok (nad resztą). indexOfChild może dać -1
