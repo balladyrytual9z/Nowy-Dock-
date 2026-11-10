@@ -217,7 +217,10 @@ public class ConnectivityPanel extends LinearLayout {
             row.setGravity(Gravity.CENTER_VERTICAL);
             LayoutParams rp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-            rp.topMargin = dp(4);
+            // Odstęp wizualny od kafelka Hotspot = 12dp (6 tu + 6 wewnętrznego
+            // marginesu górnego koła w RoundBtn) - czyli TYLE SAMA co przerwa
+            // między kafelkami Wi-Fi/Bluetooth a Hotspotem (topMargin 12dp).
+            rp.topMargin = dp(6);
             if (showMode) {
                 bMode = new RoundBtn(act);
                 bMode.setKind(0, "Jasny");
@@ -582,8 +585,7 @@ public class ConnectivityPanel extends LinearLayout {
             boolean air = Settings.Global.getInt(act.getContentResolver(),
                     Settings.Global.AIRPLANE_MODE_ON, 0) == 1;
             boolean next = !air;
-            Settings.Global.putInt(act.getContentResolver(),
-                    Settings.Global.AIRPLANE_MODE_ON, next ? 1 : 0);
+            Settings.Global.putInt(act.getContentResolver(), Settings.Global.AIRPLANE_MODE_ON, next ? 1 : 0);
             Intent i = new Intent(Intent.ACTION_AIRPLANE_MODE_CHANGED);
             i.putExtra("state", next);
             act.sendBroadcast(i);
@@ -597,8 +599,7 @@ public class ConnectivityPanel extends LinearLayout {
         try {
             int cur = Settings.System.getInt(act.getContentResolver(),
                     Settings.System.ACCELEROMETER_ROTATION, 0);
-            Settings.System.putInt(act.getContentResolver(),
-                    Settings.System.ACCELEROMETER_ROTATION, cur == 1 ? 0 : 1);
+            Settings.System.putInt(act.getContentResolver(), Settings.System.ACCELEROMETER_ROTATION, cur == 1 ? 0 : 1);
         } catch (Throwable t) {
             openAndClose("android.settings.DISPLAY_SETTINGS");
         }
@@ -907,7 +908,9 @@ public class ConnectivityPanel extends LinearLayout {
             LayoutParams clp = new LayoutParams(dp(50), dp(50));
             if (wide) {
                 clp.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
-                clp.leftMargin = dp(20);
+                // leftMargin 16dp = IDENTYCZNIE jak w kafelkach Wi-Fi/Bluetooth:
+                // srodki kol (16 + 25 = 41dp od lewej) leza w jednej pionowej linii
+                clp.leftMargin = dp(16);
             } else {
                 // ikona w LEWYM GÓRNYM rogu kafelka (jak w iOS Control Center)
                 clp.gravity = Gravity.TOP | Gravity.START;
@@ -1066,10 +1069,11 @@ public class ConnectivityPanel extends LinearLayout {
             setBackground(track);
             value = Math.max(0f, Math.min(1f, v));
 
-            // wypelnienie od dolu: PLASKA gorna krawedz poziomu, ZAOKRAGLONY dol
-            // (promien dolnych rogow = pol szerokosci pigulki 70dp = 35dp), zeby
-            // wypelnienie ladnie wypelnialo polokragly tor na dole. Gora NIE moze
-            // miec promienia 999 - ten zawijal krawedz poziomu w polokrag.
+            // wypelnienie od dolu: ZAOKRAGLONY dol (promien dolnych rogow = pol
+            // szerokosci pigulki 70dp = 35dp), zeby wypelnienie ladnie wypelnialo
+            // polokragly tor na dole. Gora jest plaska przy czesciowym wypelnieniu,
+            // a applyFill() nadaje jej promien 35dp, gdy poziom dochodzi do gornej
+            // strefy zaokraglenia (makro) - wtedy krawedz chowa sie w polokrag toru.
             fill = new View(c);
             GradientDrawable fillBg = new GradientDrawable();
             fillBg.setColor(0xFFFAFAFC);
@@ -1126,11 +1130,25 @@ public class ConnectivityPanel extends LinearLayout {
         }
 
         private void applyFill() {
-            int h = getHeight() - dp(4);
+            int H = getHeight();
+            int h = H - dp(4);
             if (h <= 0) return;
             FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) fill.getLayoutParams();
-            lp.height = Math.max(1, Math.round(h * value));
+            int fh = Math.max(1, Math.round(h * value));
+            lp.height = fh;
             fill.setLayoutParams(lp);
+            // Gorna krawedz wypelnienia tez musi chowac sie w polokragly gor toru:
+            // gdy poziom dochodzi do gornej strefy zaokraglenia (ustawienie na
+            // makso), gorne rogi dostaja ten sam promien 35dp co dolne (pelna
+            // pigulka) i krawedz nie wystaje poza polokrag. Nizej tej strefy gora
+            // zostaje plaska - czesciowy poziom "ucina" sie prosto.
+            GradientDrawable fb = (GradientDrawable) fill.getBackground();
+            float fr = dp(35);
+            if (fh >= H - fr) {
+                fb.setCornerRadii(new float[]{fr, fr, fr, fr, fr, fr, fr, fr});
+            } else {
+                fb.setCornerRadii(new float[]{0f, 0f, 0f, 0f, fr, fr, fr, fr});
+            }
         }
 
         private boolean handleTouch(MotionEvent e) {
@@ -1228,5 +1246,3 @@ public class ConnectivityPanel extends LinearLayout {
         }
     }
 }
-
-
