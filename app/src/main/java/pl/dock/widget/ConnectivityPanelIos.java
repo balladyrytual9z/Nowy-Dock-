@@ -26,6 +26,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 // Centrum łacznosci w stylu iOS - port 1:1 z Liquid-Glass-Diplay---Launcher-Switcher-.
 // Ikony Wi-Fi/Bluetooth/Hotspot DOKŁADNIE jak w oryginale (Icons.vector na
@@ -226,6 +227,38 @@ public class ConnectivityPanelIos extends LinearLayout {
             note.setPadding(dp(6), dp(2), 0, dp(4));
             addView(note);
         }
+
+        // akcje kafelków (przywrócone ze starego panelu): tap = przełącz / ekran systemowy
+        tWifi.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                boolean before = Net.wifiEnabled(act);
+                if (!Net.setWifi(act, !before)) {
+                    // radio producenta potrafi blokować przełączanie: wtedy ustawienia
+                    if (Net.openWifiSettings(act)) host.close();
+                    else Toast.makeText(act, "Ta funkcja jest niedostepna na tym radiu",
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                update();   // stan przyjdzie też broadcastem WIFI_STATE_CHANGED
+            }
+        });
+        tBt.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                toggleBt();
+            }
+        });
+        tHot.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Android 9 nie pozwala aplikacji przełączać hotspotu: tap prowadzi
+                // wprost do ekranu „Hotspot Wi-Fi" z systemowym przełącznikiem
+                if (Net.openTetherSettings(act)) host.close();
+                else Toast.makeText(act, "Ta funkcja jest niedostepna na tym radiu",
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     /** Suwak ciepła Night Shift (przytrzymanie przycisku, jak w iOS).
@@ -990,4 +1023,5 @@ public class ConnectivityPanelIos extends LinearLayout {
         }
     }
 }
+
 
