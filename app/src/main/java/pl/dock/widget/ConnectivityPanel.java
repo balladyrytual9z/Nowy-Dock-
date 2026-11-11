@@ -230,7 +230,12 @@ public class ConnectivityPanel extends LinearLayout {
             if (showMode) {
                 bMode = new RoundBtn(act);
                 bMode.setKind(0, "Jasny");
-                row.addView(bMode, new LayoutParams(dp(88), dp(96)));
+                // srodek kola dokladnie nad srodkiem kafelka Wi-Fi (170dp/2 = 85dp
+                // od lewej krawedzi kafelkow): kolo 56dp jest wycentrowane w
+                // kontenerze 88dp, stad lewy margines 85 - 44 = 41dp
+                LayoutParams mp = new LayoutParams(dp(88), dp(96));
+                mp.leftMargin = dp(41);
+                row.addView(bMode, mp);
                 bMode.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -249,11 +254,13 @@ public class ConnectivityPanel extends LinearLayout {
                 });
             }
             if (showNs) {
-                // Night Shift bezposrednio PO PRAWEJ przycisku trybu
+                // Night Shift przesuniety w lewo, blisko przycisku trybu:
+                // 12dp przerwy miedzy kolami (jak miedzy kafelkami);
+                // kontener 88dp z wycentrowanym kolem 56dp
                 bShift = new RoundBtn(act);
                 bShift.setKind(3, "Night Shift");
-                LayoutParams shp = new LayoutParams(dp(110), dp(96));
-                shp.leftMargin = dp(12);
+                LayoutParams shp = new LayoutParams(dp(88), dp(96));
+                shp.leftMargin = dp(-20);
                 row.addView(bShift, shp);
                 bShift.setOnClickListener(new OnClickListener() {
                     @Override
@@ -1287,4 +1294,5 @@ public class ConnectivityPanel extends LinearLayout {
         }
     }
 }
+
 
