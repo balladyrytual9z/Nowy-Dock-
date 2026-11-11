@@ -116,15 +116,15 @@ public class AppLibraryPage extends FrameLayout {
         letterBar.setGravity(Gravity.CENTER);
         letterBar.setClipChildren(false);
         letterBar.setClipToPadding(false);
-        letterBar.setPadding(0, dp(8), 0, dp(8));
+        letterBar.setPadding(0, dp(4), 0, dp(4));
         for (int i = 0; i < LETTERS.length(); i++) {
             TextView tv = new TextView(ctx);
             tv.setText(String.valueOf(LETTERS.charAt(i)));
-            tv.setTextSize(15);
+            tv.setTextSize(11);
             tv.setTypeface(pl.dock.widget.ui.DockTheme.interMedium());
             tv.setTextColor(night ? 0xFF0A84FF : 0xFF007AFF);
             tv.setGravity(Gravity.CENTER);
-            tv.setPadding(0, dp(1), 0, dp(1));
+            tv.setPadding(0, 0, 0, 0);
             letterBar.addView(tv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         }
         letterBar.setOnTouchListener(new View.OnTouchListener() {
@@ -167,16 +167,18 @@ public class AppLibraryPage extends FrameLayout {
         leftCol.setClipChildren(false);
         leftCol.setClipToPadding(false);
         LinearLayout.LayoutParams colLp = new LinearLayout.LayoutParams(dp(38), ViewGroup.LayoutParams.MATCH_PARENT);
-        if (dockLeft) colLp.leftMargin = dockInset;
+        // pasek liter wycentrowany miedzy prawa krawedzia doka a lewa krawedzia
+        // ikon aplikacji (ikony = 14dp padding listy + 16dp padding wiersza)
+        if (dockLeft) colLp.leftMargin = dockInset + dp(15);
         headerGap = new View(ctx);
-        leftCol.addView(headerGap, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(66)));
+        leftCol.addView(headerGap, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(60)));
         LinearLayout.LayoutParams lbLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
-        lbLp.bottomMargin = dp(28);
+        lbLp.bottomMargin = dp(24);
         leftCol.addView(letterBar, lbLp);
         page.addView(leftCol, colLp);
 
-        // Pasek szukania plywa NAD lista: lista przewija sie pod polprzezroczystym
-        // szklanym paskiem, pasek zawsze widoczny (jak w iOS).
+        // Pasek szukania plywa NAD lista, ale lista jest przycieta na jego
+        // dolnej krawedzi: aplikacje niewidoczne pod pigulka, tapeta widoczna.
         android.widget.FrameLayout contentPane = new android.widget.FrameLayout(ctx);
         contentPane.setClipChildren(false);
         contentPane.setClipToPadding(false);
@@ -245,12 +247,23 @@ public class AppLibraryPage extends FrameLayout {
         scrollView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         listCol = new LinearLayout(ctx);
         listCol.setOrientation(LinearLayout.VERTICAL);
-        // gore listy zostawiamy na plywajacy pasek szukania - lista zaczyna sie
-        // pod nim, a przewijajac wjezdza pod szklany pasek
-        listCol.setPadding(dp(14), dp(70), dp(14) + extraR, dp(28));
+        // lista zaczyna sie POD paskiem szukania - aplikacje nie przewijaja sie
+        // pod pigulka, przez polprzezroczysta pigulke widac wylacznie tapete
+        listCol.setPadding(dp(14), dp(8), dp(14) + extraR, dp(28));
         scrollView.addView(listCol, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        contentPane.addView(scrollView, new android.widget.FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        android.widget.FrameLayout.LayoutParams svLp = new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        svLp.topMargin = dp(74); // dolna krawedz paska szukania (8 + 66)
+        contentPane.addView(scrollView, svLp);
+        // maska gradientowa: aplikacje plynnie zanikaja pod krawedzia paska
+        View fade = new View(ctx);
+        GradientDrawable fadeBg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{night ? 0x30FFFFFF : 0x4DF2F2F7, 0x00000000});
+        fade.setBackground(fadeBg);
+        android.widget.FrameLayout.LayoutParams fadeLp = new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(20), Gravity.TOP);
+        fadeLp.topMargin = dp(74);
+        contentPane.addView(fade, fadeLp);
         // pasek szukania ZAWSZE nad lista (z-order): bringChildToFront po
         // dodaniu scrollView - w przeciwnym razie lista rysowala sie na pasku
         contentPane.bringChildToFront(searchHeader);
@@ -259,15 +272,15 @@ public class AppLibraryPage extends FrameLayout {
 
         // babel z aktualna litera NAD palcem (jak w iOS w selektorze liter)
         letterBubble = new TextView(ctx);
-        letterBubble.setTextSize(40);
+        letterBubble.setTextSize(46);
         letterBubble.setTypeface(null, android.graphics.Typeface.BOLD);
         letterBubble.setTextColor(0xFFFFFFFF);
         letterBubble.setGravity(Gravity.CENTER);
-        letterBubble.setMinWidth(dp(72));
+        letterBubble.setMinWidth(dp(84));
         letterBubble.setPadding(dp(10), dp(4), dp(10), dp(8));
         GradientDrawable bubbleBg = new GradientDrawable();
         bubbleBg.setShape(GradientDrawable.RECTANGLE);
-        bubbleBg.setCornerRadius(dp(22));
+        bubbleBg.setCornerRadius(dp(26));
         bubbleBg.setColor(night ? 0xCC1C1C22 : 0xE61C1C22);
         bubbleBg.setStroke(Math.max(1, (int) (1f * d)), night ? 0x4DFFFFFF : 0x22808090);
         letterBubble.setBackground(bubbleBg);
@@ -463,8 +476,8 @@ public class AppLibraryPage extends FrameLayout {
         int[] pg = new int[2];
         getLocationOnScreen(pg);
         float fingerY = lb[1] - pg[1] + yInBar;
-        float bx = lb[0] - pg[0] + letterBar.getWidth() / 2f - dp(36);
-        float by = Math.max(dp(60), fingerY - dp(74));
+        float bx = lb[0] - pg[0] + letterBar.getWidth() / 2f - dp(42);
+        float by = Math.max(dp(70), fingerY - dp(90));
         LayoutParams lp = (LayoutParams) letterBubble.getLayoutParams();
         lp.leftMargin = (int) bx;
         lp.topMargin = (int) by;
@@ -499,3 +512,4 @@ public class AppLibraryPage extends FrameLayout {
         return (int) (v * d + 0.5f);
     }
 }
+
