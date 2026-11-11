@@ -81,6 +81,7 @@ public class LauncherActivity extends BaseActivity {
     private int homeIdx = 0;
     private int appsStart = 1;
     private int returnPage = -1;
+    private long lastHomeIntentAt = 0L;   // anty-dubel: fizyczny home wysyla HOME 2x
     private int lastCp = -1;
     private String clockText = "--:--";
     private String lastDockSig = "";
@@ -303,6 +304,19 @@ public class LauncherActivity extends BaseActivity {
             navigateToPage(intent.getStringExtra("pl.dock.widget.page"));
             return;
         }
+
+        // FIZYCZNY PRZYCISK HOME radia potrafi wyslac zdarzenie HOME DWUKROTNIE
+        // (osobno dla wcisniecia i puszczenia klawisza). Pierwszy sygnal wraca
+        // z aplikacji na launcher, drugi - ulamki sekundy pozniej - dziala jak
+        // kolejny Home: na ekranie glownym otwiera DiPlay od nowa. Efekt na
+        // ESSGOO/MT8163: fizyczny home w DiPlay "wraca do DiPlay" zamiast
+        // zostac na ekranie glownym (home z paska systemowego wysyla JEDNO
+        // zdarzenie, dlatego dziala poprawnie). Odrzucamy Home, ktory przyjdzie
+        // szybciej niz 800 ms po poprzednim - celowe drugie nacisniecie
+        // (po ok. 1 s) nadal dziala jak dotychczas.
+        long nowHi = android.os.SystemClock.uptimeMillis();
+        if (nowHi - lastHomeIntentAt < 800) return;
+        lastHomeIntentAt = nowHi;
 
         if (pager == null) return;
         if (overlay != null) {
