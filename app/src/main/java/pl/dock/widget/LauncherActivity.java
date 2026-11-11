@@ -1419,7 +1419,7 @@ public class LauncherActivity extends BaseActivity {
                 Gravity.TOP | (left ? Gravity.START : Gravity.END));
         lp.leftMargin = left ? dockPx + Ui.dp(this, 10) : 0;
         lp.rightMargin = left ? 0 : dockPx + Ui.dp(this, 10);
-        lp.topMargin = Ui.dp(this, 12);
+        lp.topMargin = Ui.dp(this, 12) + Ui.statusBarHeight(this);   // pod paskiem systemowym
         overlay.addView(panel, lp);
         // defensive: dodajemy pod dok (nad resztą). indexOfChild może dać -1
         // w krótkim oknie po odbudowie UI - wtedy zwykły addView na wierzch.
@@ -1449,7 +1449,7 @@ public class LauncherActivity extends BaseActivity {
         boolean panelLeftSide = left;
         float panelLeft = panelLeftSide ? dockPx + Ui.dp(this, 10)
                 : root.getWidth() - (dockPx + Ui.dp(this, 10)) - panelW;
-        float panelTop = Ui.dp(this, 12);
+        float panelTop = Ui.dp(this, 12) + Ui.statusBarHeight(this);
         float px = Math.max(0f, Math.min(panelW, gestureX - panelLeft));
         float py = Math.max(0f, Math.min(Ui.dp(this, 600), gestureY - panelTop));
         overlay.setAlpha(0f);
@@ -2010,6 +2010,7 @@ public class LauncherActivity extends BaseActivity {
         if (currentRef != null && currentRef.get() == this) currentRef = null;
     }
 }
+
 
 
 

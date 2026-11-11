@@ -35,6 +35,17 @@ public class Ui {
         return dm.widthPixels - dp(c, DOCK_OFFSET_DP);
     }
 
+    /** Wysokość paska systemowego (status bara). Okna panelu łączności muszą
+     *  zaczynać się POD paskiem - inaczej górna krawędź panelu chowa się pod nim. */
+    public static int statusBarHeight(Context c) {
+        try {
+            int id = c.getResources().getIdentifier("status_bar_height", "dimen", "android");
+            if (id > 0) return c.getResources().getDimensionPixelSize(id);
+        } catch (Throwable ignored) {
+        }
+        return dp(c, 24);
+    }
+
     public static void dockWindow(Window w, Context c) {
         try {
             w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));

@@ -25,6 +25,8 @@ import java.util.List;
 //    strony doka) z OvershootInterpolator + fade calego okna; na koncu wymuszony
 //    re-layout + invalidate (mechanizm naprawczy "pustego panelu" z PR #14).
 //    Zamkniecie pozostaje natychmiastowe (okno aktywnosci).
+// 3. PASEK SYSTEMOWY: cala zawartosc (blur + panel) zaczyna sie POD paskiem
+//    statusu - gorna krawedz panelu nie chowa sie juz pod androidowy pasek.
 public class ConnectivityActivity extends BaseActivity {
 
     private ConnectivityPanelIos panel;
@@ -84,12 +86,14 @@ public class ConnectivityActivity extends BaseActivity {
         boolean dockLeft = Ui.dockLeft(this);
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
         // szerokosc dopasowana do zawartosci panelu (naprawa uciętego suwaka jasności)
-        // panel przy doku (po jego wewnętrznej stronie) - nie zasłania doka
+        // panel przy doku (po jego wewnętrznej stronie) - nie zasłania doka;
+        // gora = margines + PASEK SYSTEMOWY (panel pod paskiem statusu)
+        int topInset = Ui.dp(this, 12) + Ui.statusBarHeight(this);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.TOP | (dockLeft ? Gravity.START : Gravity.END));
-        lp.setMargins(dockLeft ? dockPx + Ui.dp(this, 8) : Ui.dp(this, 8), Ui.dp(this, 12),
+        lp.setMargins(dockLeft ? dockPx + Ui.dp(this, 8) : Ui.dp(this, 8), topInset,
                 dockLeft ? Ui.dp(this, 8) : dockPx + Ui.dp(this, 8), Ui.dp(this, 8));
         root.addView(panel, lp);
 
@@ -102,6 +106,7 @@ public class ConnectivityActivity extends BaseActivity {
             public void run() {
                 int availH = getResources().getDisplayMetrics().heightPixels
                         - Ui.dp(ConnectivityActivity.this, 12)
+                        - Ui.statusBarHeight(ConnectivityActivity.this)
                         - Ui.dp(ConnectivityActivity.this, 8);
                 int h = panel.getHeight();
                 int w = panel.getWidth();

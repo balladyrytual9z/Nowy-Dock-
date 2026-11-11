@@ -882,7 +882,16 @@ public class ConnectivityPanelIos extends LinearLayout {
             }
             if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_MOVE
                     || a == MotionEvent.ACTION_UP) {
-                value = Math.max(0f, Math.min(1f, 1f - e.getY() / getHeight()));
+                // WPUST NA KOŃCACH: palec fizycznie nie wejdzie na samą krawędź
+                // widoku, więc wcześniej zakres 0..1 liczono 1:1 z całej wysokości
+                // i końców (0% / 100%) nie dało się osiągnąć. Teraz zakres dotyku
+                // jest zwężony o wpust - dotknięcie BLISKO krawędzi daje od razu
+                // wartość skrajną.
+                float inset = 30f * d;
+                float usable = getHeight() - inset * 2f;
+                float frac = usable <= 0 ? 0.5f
+                        : (getHeight() - inset - e.getY()) / usable;
+                value = Math.max(0f, Math.min(1f, frac));
                 invalidate();
                 if (l != null && (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_MOVE)) {
                     l.on(value);
@@ -981,3 +990,4 @@ public class ConnectivityPanelIos extends LinearLayout {
         }
     }
 }
+
