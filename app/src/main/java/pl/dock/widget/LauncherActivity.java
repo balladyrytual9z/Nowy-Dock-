@@ -89,6 +89,9 @@ public class LauncherActivity extends BaseActivity {
     private AppEntry cpCache;
     private boolean receiversOn;
     private FrameLayout overlay;
+    private ImageView overlayGlass;   // zblurowana migawka tła w overlayu CC
+    private View overlayTint;         // przyciemnienie pod panelem CC
+    private boolean overlayTintNight;
     private ConnectivityPanelIos panel;
     // pelna lista aplikacji dla ostatniej strony (lista alfabetyczna), ladowana w tle
     private List<AppsGridPage.Item> libraryItems = new ArrayList<AppsGridPage.Item>();
@@ -777,6 +780,56 @@ public class LauncherActivity extends BaseActivity {
         }
         lastDockSig = "";
         refreshDock();
+        // otwarte centrum łączności: płynna zamiana zblurowanego tła overlayu
+        if (overlay != null) refreshOverlayGlass();
+    }
+
+    /** Otwarte centrum łączności: tło overlayu to statyczna zblurowana migawka.
+     *  Po zmianie motywu robi nową migawkę (już w nowym motywie, bg.drawVersion
+     *  pomija trwający crossfade) i płynnie narasta nad starą; tint pod panelem
+     *  płynnie przechodzi w kolor nocny/dzienny. */
+    private void refreshOverlayGlass() {
+        if (overlay == null || root == null) return;
+        try {
+            int k = 4;
+            Bitmap snap = Bitmap.createBitmap(Math.max(1, root.getWidth() / k),
+                    Math.max(1, root.getHeight() / k), Bitmap.Config.ARGB_8888);
+            Canvas cv = new Canvas(snap);
+            cv.scale(1f / k, 1f / k);
+            bg.drawVersion(cv, night);
+            cv.save();
+            cv.translate(pager.getLeft(), pager.getTop());
+            pager.draw(cv);
+            cv.restore();
+            Blur.blur(snap, 3, 3);
+            ImageView fresh = new ImageView(this);
+            fresh.setScaleType(ImageView.ScaleType.FIT_XY);
+            fresh.setImageBitmap(snap);
+            fresh.setAlpha(0f);
+            final ImageView oldGlass = overlayGlass;
+            final FrameLayout ov = overlay;
+            int idx = oldGlass != null ? Math.max(0, overlay.indexOfChild(oldGlass) + 1) : 0;
+            overlay.addView(fresh, idx, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            overlayGlass = fresh;
+            fresh.animate().alpha(1f).setDuration(320)
+                    .withEndAction(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (oldGlass != null) {
+                                try { ov.removeView(oldGlass); } catch (Throwable ignored) {}
+                            }
+                        }
+                    }).start();
+        } catch (Throwable ignored) { android.util.Log.w("Dock", "LauncherActivity", ignored);
+        }
+        if (overlayTint != null && overlayTintNight != night) {
+            int from = overlayTintNight ? 0x59000000 : 0x4DFFFFFF;
+            int to = night ? 0x59000000 : 0x4DFFFFFF;
+            android.animation.ObjectAnimator.ofArgb(overlayTint, "backgroundColor", from, to)
+                    .setDuration(320).start();
+            overlayTintNight = night;
+        }
     }
 
     // Plynne przejscie dzien/noc na CALYM ekranie: przezroczysty scrim narasta,
@@ -1394,11 +1447,14 @@ public class LauncherActivity extends BaseActivity {
             ImageView glass = new ImageView(this);
             glass.setScaleType(ImageView.ScaleType.FIT_XY);
             glass.setImageBitmap(snap);
+            overlayGlass = glass;
             overlay.addView(glass, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT));
         }
         View tint = new View(this);
         tint.setBackgroundColor(night ? 0x59000000 : 0x4DFFFFFF);
+        overlayTint = tint;
+        overlayTintNight = night;
         overlay.addView(tint, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
         overlay.setOnClickListener(new View.OnClickListener() {
@@ -1496,6 +1552,8 @@ public class LauncherActivity extends BaseActivity {
         final View pv = panel;   // do lustrzanej animacji zamkniecia
         overlay = null;
         panel = null;
+        overlayGlass = null;
+        overlayTint = null;
         // zamkniecie centrum lacznosci: wroc do normalnego glifu dolnego
         // przycisku (crossfade siatka/kwadrat wg biezacej strony)
         if (dock != null) {
@@ -2024,6 +2082,7 @@ public class LauncherActivity extends BaseActivity {
         if (currentRef != null && currentRef.get() == this) currentRef = null;
     }
 }
+
 
 
 
