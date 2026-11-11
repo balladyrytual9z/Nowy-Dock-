@@ -61,6 +61,10 @@ import android.widget.TextView;
 //    (przytrzymanie) jak na zdjęciu iOS: wycentrowany podpis
 //    "Temperatura kolorów", niebieski tor, biały pigułkowy uchwyt,
 //    punkty-pozycjonery, ZAKRES 0-50 (max = połowa obecnego maksimum ciepła).
+// 10. IKONA NIGHT SHIFT DOPASOWANA DO WZORCA (IMG_9086): tarcza większa
+//    (wypełnia większość wnętrza przycisku), wycięcie półksiężyca po PRAWEJ
+//    stronie tarczy, promienie krótkie/grube/zaokrąglone i BLISKO tarczy;
+//    podpis "Night Shift" bliżej dolnej krawędzi koła.
 public class ConnectivityPanelIos extends LinearLayout {
 
     public interface Host {
@@ -670,30 +674,36 @@ public class ConnectivityPanelIos extends LinearLayout {
                 cv.drawPath(dotC, clearP);
                 cv.restoreToCount(sc4);
             } else if (kind == 3) {
-                // Night Shift 1:1 z iOS: słońce (tarcza + 8 promieni) z WYCIĘTYM
-                // półksiężycem - wycięcie na przezroczysto, więc prześwituje
+                // Night Shift 1:1 z iOS (wzorzec IMG_9086): tarcza WIĘKSZA
+                // (wypełnia większość wnętrza przycisku), półksiężyc wycięty
+                // po PRAWEJ stronie tarczy, promienie KRÓTKIE/GRUBE/ZAOKRĄGLONE
+                // i blisko tarczy. Wycięcie na przezroczysto, więc prześwituje
                 // tło przycisku (pomarańcz gdy włączony, ciemne szkło gdy wył).
                 // Ikona biała w OBU stanach (jak na zdjęciach źródłowych).
-                float R = 6.5f * d;
-                int sc3 = cv.saveLayer(cx - 16f * d, cy - 16f * d, cx + 16f * d, cy + 16f * d,
+                float R = 11f * d;
+                int sc3 = cv.saveLayer(cx - 21f * d, cy - 21f * d, cx + 21f * d, cy + 21f * d,
                         null);
                 p.setXfermode(null);
                 p.setStyle(Paint.Style.FILL);
                 cv.drawCircle(cx, cy, R, p);
+                // promienie: 8 szt. co 45 stopni, krótkie grube kreski z zaokrąglonymi
+                // końcami, tuż przy tarczy (jak w iOS)
                 p.setStyle(Paint.Style.STROKE);
-                p.setStrokeWidth(2.2f * d);
+                p.setStrokeWidth(3.2f * d);
+                p.setStrokeCap(Paint.Cap.ROUND);
                 for (int i = 0; i < 8; i++) {
                     double a = Math.PI * i / 4.0;
-                    cv.drawLine(cx + (float) Math.cos(a) * 10.5f * d,
-                            cy + (float) Math.sin(a) * 10.5f * d,
-                            cx + (float) Math.cos(a) * 14.5f * d,
-                            cy + (float) Math.sin(a) * 14.5f * d, p);
+                    cv.drawLine(cx + (float) Math.cos(a) * 14f * d,
+                            cy + (float) Math.sin(a) * 14f * d,
+                            cx + (float) Math.cos(a) * 17.5f * d,
+                            cy + (float) Math.sin(a) * 17.5f * d, p);
                 }
-                // półksiężyc = tarcza minus koło przesunięte w prawy górny róg
+                // półksiężyc = tarcza minus koło wcięte od PRAWEJ strony
+                // (pozostaje pełny kształt z wklęsłym wycięciem po prawej)
                 Path disc = new Path();
                 disc.addCircle(cx, cy, R, Path.Direction.CW);
                 Path bite = new Path();
-                bite.addCircle(cx + 2.5f * d, cy - 2.5f * d, 6f * d, Path.Direction.CW);
+                bite.addCircle(cx + 4.5f * d, cy - 1f * d, 8f * d, Path.Direction.CW);
                 disc.op(bite, Path.Op.DIFFERENCE);
                 Paint clearP = new Paint(Paint.ANTI_ALIAS_FLAG);
                 clearP.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
@@ -726,20 +736,20 @@ public class ConnectivityPanelIos extends LinearLayout {
             float sd = getResources().getDisplayMetrics().scaledDensity;
             if (sub != null) {
                 // trzy linie jak w iOS: nazwa (bold) + stan w dwóch wierszach;
-                // wyraźne odstępy - linie nie dotykają koła ani siebie nawzajem
+                // nazwa BLIŻEJ koła (jak we wzorcu IMG_9086), stan pod nią
                 p.setTypeface(Typeface.DEFAULT_BOLD);
                 p.setTextSize(12f * sd);
                 p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
-                cv.drawText(label, cx, 78f * d, p);
+                cv.drawText(label, cx, 70f * d, p);
                 p.setTypeface(Typeface.DEFAULT);
                 p.setTextSize(10.5f * sd);
                 p.setColor(night ? 0xFFC9CFCF : 0xFF6C6C70);
                 int di = sub.indexOf(" do ");
                 if (di > 0) {
-                    cv.drawText(sub.substring(0, di + 3), cx, 91f * d, p);
-                    cv.drawText(sub.substring(di + 4), cx, 104f * d, p);
+                    cv.drawText(sub.substring(0, di + 3), cx, 83f * d, p);
+                    cv.drawText(sub.substring(di + 4), cx, 96f * d, p);
                 } else {
-                    cv.drawText(sub, cx, 91f * d, p);
+                    cv.drawText(sub, cx, 83f * d, p);
                 }
             } else {
                 p.setTypeface(Typeface.DEFAULT);
