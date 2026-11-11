@@ -186,7 +186,10 @@ public class ConnectivityPanelIos extends LinearLayout {
                 // "Tryb ciemny" jak w iOS: klik = przełącz do najbliższego
                 // wschodu/zachodu słońca (potem znów rządzi słońce)
                 bMode = new RoundBtn(act, 4, "Tryb ciemny");
-                row.addView(bMode, new LayoutParams(dp(150), dp(112)));
+                // szerokość = szerokość kafelka Wi-Fi (194dp = (400-12)/2):
+                // środek koła (rysowanego na cx = w/2) trafia DOKŁADNIE nad
+                // środek kafelka Wi-Fi
+                row.addView(bMode, new LayoutParams(dp(194), dp(112)));
                 bMode.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -197,9 +200,13 @@ public class ConnectivityPanelIos extends LinearLayout {
             }
             if (showNs) {
                 // Night Shift OBOK przycisku trybu (bez elasticznej przerwy)
+                // Night Shift PRZESUNIĘTY W LEWO, blisko przycisku trybu:
+                // przerwa między kołami ~26dp (było ~86dp). Ujemny margines
+                // jest bezpieczny - nachodzi tylko na pusty prawy obszar
+                // kontenera przycisku trybu (koło i tekst kończą się wcześniej)
                 bShift = new RoundBtn(act, 3, "Night Shift");
-                LayoutParams sp = new LayoutParams(dp(110), dp(112));
-                sp.leftMargin = dp(12);
+                LayoutParams sp = new LayoutParams(dp(90), dp(112));
+                sp.leftMargin = dp(-60);
                 row.addView(bShift, sp);
                 bShift.setOnClickListener(new OnClickListener() {
                     @Override
@@ -1023,5 +1030,6 @@ public class ConnectivityPanelIos extends LinearLayout {
         }
     }
 }
+
 
 
