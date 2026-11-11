@@ -336,10 +336,4 @@ public class Net {
     }
 }
 
-
-
-
-
-
-
-
+// retrigger CI 2026-11-11: run #495 utknal w kolejce (zmiana tylko komentarza)
