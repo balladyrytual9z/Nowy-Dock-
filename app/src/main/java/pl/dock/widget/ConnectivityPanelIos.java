@@ -61,10 +61,10 @@ import android.widget.TextView;
 //    (przytrzymanie) jak na zdjęciu iOS: wycentrowany podpis
 //    "Temperatura kolorów", niebieski tor, biały pigułkowy uchwyt,
 //    punkty-pozycjonery, ZAKRES 0-50 (max = połowa obecnego maksimum ciepła).
-// 10. IKONA NIGHT SHIFT DOPASOWANA DO WZORCA (IMG_9086): tarcza większa
+// 10. IKONA NIGHT SHIFT DOPASOWANA DO WZORCA (IMG_9086/IMG_9097): tarcza większa
 //    (wypełnia większość wnętrza przycisku), wycięcie półksiężyca po PRAWEJ
 //    stronie tarczy, promienie krótkie/grube/zaokrąglone i BLISKO tarczy;
-//    podpis "Night Shift" bliżej dolnej krawędzi koła.
+//    odstęp podpisu od koła WIĘKSZY (jak na wzorcu) - baseline 78/91/104.
 public class ConnectivityPanelIos extends LinearLayout {
 
     public interface Host {
@@ -674,7 +674,7 @@ public class ConnectivityPanelIos extends LinearLayout {
                 cv.drawPath(dotC, clearP);
                 cv.restoreToCount(sc4);
             } else if (kind == 3) {
-                // Night Shift 1:1 z iOS (wzorzec IMG_9086): tarcza WIĘKSZA
+                // Night Shift 1:1 z iOS (wzorzec IMG_9086/IMG_9097): tarcza WIĘKSZA
                 // (wypełnia większość wnętrza przycisku), półksiężyc wycięty
                 // po PRAWEJ stronie tarczy, promienie KRÓTKIE/GRUBE/ZAOKRĄGLONE
                 // i blisko tarczy. Wycięcie na przezroczysto, więc prześwituje
@@ -736,20 +736,20 @@ public class ConnectivityPanelIos extends LinearLayout {
             float sd = getResources().getDisplayMetrics().scaledDensity;
             if (sub != null) {
                 // trzy linie jak w iOS: nazwa (bold) + stan w dwóch wierszach;
-                // nazwa BLIŻEJ koła (jak we wzorcu IMG_9086), stan pod nią
+                // odstęp nazwy od koła WIĘKSZY - dokładnie jak na wzorcu
                 p.setTypeface(Typeface.DEFAULT_BOLD);
                 p.setTextSize(12f * sd);
                 p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
-                cv.drawText(label, cx, 70f * d, p);
+                cv.drawText(label, cx, 78f * d, p);
                 p.setTypeface(Typeface.DEFAULT);
                 p.setTextSize(10.5f * sd);
                 p.setColor(night ? 0xFFC9CFCF : 0xFF6C6C70);
                 int di = sub.indexOf(" do ");
                 if (di > 0) {
-                    cv.drawText(sub.substring(0, di + 3), cx, 83f * d, p);
-                    cv.drawText(sub.substring(di + 4), cx, 96f * d, p);
+                    cv.drawText(sub.substring(0, di + 3), cx, 91f * d, p);
+                    cv.drawText(sub.substring(di + 4), cx, 104f * d, p);
                 } else {
-                    cv.drawText(sub, cx, 83f * d, p);
+                    cv.drawText(sub, cx, 91f * d, p);
                 }
             } else {
                 p.setTypeface(Typeface.DEFAULT);
