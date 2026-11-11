@@ -58,6 +58,8 @@ class PidScheduler(
     private val lastResponse = mutableMapOf<String, AtomicLong>()
     /** Czas ukonczenia poprzedniej komendy (odebrania promptu '>'). */
     private val lastDoneMs = AtomicLong(0L)
+    /** Ostatnia proba RPM w trakcie blokady ochrony (max 1/s). */
+    private val lastProtectedPollMs = AtomicLong(0L)
     private var fastFuture: ScheduledFuture<*>? = null
     private var mediumFuture: ScheduledFuture<*>? = null
     private var slowFuture: ScheduledFuture<*>? = null
@@ -165,11 +167,24 @@ class PidScheduler(
 
     private fun poll(pids: List<String>) {
         if (!running.get() || backgroundMode.get() || parked.get()) return
-        if (engineState.protected) return
+        if (engineState.protected) {
+            // NAPRAWA deadlocku ochrony (2026-11-11): blokada (rozruch /
+            // niskie napiecie) wylaczala wczesniej odpytywanie CALKOWICIE,
+            // a zdjac mogl ja tylko nowy odczyt RPM/napiecia - ktory nigdy
+            // nie nadchodzil. Blokada trzymala sie w nieskonczonosc i
+            // zegary zamrzaly po zatrzymaniu/odpaleniu auta. Teraz w trakcie
+            // blokady odpytujemy sam RPM, maksymalnie 1 raz na sekunde -
+            // stan zdjmuje sie sam, gdy obroty wroca do normy.
+            if (pids !== FAST_PIDS) return
+            val nowMs = System.currentTimeMillis()
+            if (nowMs - lastProtectedPollMs.get() < 1000L) return
+            lastProtectedPollMs.set(nowMs)
+        }
         if (!session.isInitialized()) return
         scope.launch {
             for (pid in pids) {
-                if (engineState.protected || backgroundMode.get()) break
+                if (backgroundMode.get()) break
+                if (engineState.protected && pid != "010C") break
                 try {
                     // Rate limiting: wymuszenie min. 80 ms od ukonczenia
                     // poprzedniej ramki (odbior promptu '>') do nowej komendy

@@ -68,6 +68,8 @@ class EngineState(
     private var zeroRpmSince: Long = 0L
     /** Czas ostatniego WAZNEGO odczytu RPM (0 = brak odczytu). */
     private var lastValidRpmMs: Long = 0L
+    /** Start biezacej blokady PID (ochrona) - zawor bezpieczenstwa. */
+    private var protectedSince: Long = 0L
 
     fun updateVoltage(v: Float) {
         voltage = v
@@ -108,6 +110,14 @@ class EngineState(
         val offConditions = rpm == 0 && !voltage.isNaN() && voltage < offMaxVoltage
         val now = clock()
 
+        // Zawor bezpieczenstwa (2026-11-11): blokada PID (rozruch/niskie
+        // napiecie) nie moze trwac w nieskonczonosc - bez odczytow nie ma
+        // czym jej zdjac. Po 20 s odpuszczamy automatycznie.
+        if (protected && protectedSince != 0L && now - protectedSince > 20_000L) {
+            protected = false
+            protectedSince = 0L
+        }
+
         // hold: OFF dopiero po offHoldMs ciaglych warunkow (pkt 35)
         if (offConditions) {
             if (offSince == 0L) offSince = now
@@ -128,15 +138,18 @@ class EngineState(
 
         when {
             cranking -> {
+                if (!protected) protectedSince = now
                 protected = crankingProtect
                 label = EngineStateLabel.CRANKING
             }
             lowVolt -> {
+                if (!protected) protectedSince = now
                 protected = true
                 label = EngineStateLabel.PROTECTED
             }
             running -> {
                 protected = false
+                protectedSince = 0L
                 label = EngineStateLabel.RUNNING
             }
             off -> {
@@ -155,6 +168,7 @@ class EngineState(
         rpm = -1
         label = EngineStateLabel.UNKNOWN
         protected = false
+        protectedSince = 0L
         offSince = 0L
         zeroRpmSince = 0L
         lastValidRpmMs = 0L

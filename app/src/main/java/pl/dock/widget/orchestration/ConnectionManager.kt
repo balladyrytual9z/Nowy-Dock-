@@ -383,6 +383,9 @@ class ConnectionManager(
         initAttempt = 0
         rpmMiss = 0
         needsReinit = false
+        bgJob?.cancel()
+        bgJob = null
+        foregroundRefs.set(0)
         scope.launch {
             lifecycleMutex.withLock {
                 scheduler?.shutdown()
@@ -399,11 +402,29 @@ class ConnectionManager(
         }
     }
 
+    // NAPRAWA "OBD dziala tylko za pierwszym wejsciem" (2026-11-11):
+    // onStart nowego ekranu przychodzi PRZED onStop poprzedniego, wiec
+    // pojedyncza flaga fg/bg sprawiala, ze wyjscie ze starego ekranu OBD
+    // usypialo odpytywanie PID zaraz po wejsciu na nowy (zostawal sam
+    // keep-alive ATRV - zegary staly). Licznik aktywnych ekranow OBD +
+    // opoznione usypianie: przelaczenie OBD -> OBD nie ubija odpytywania.
+    private val foregroundRefs = java.util.concurrent.atomic.AtomicInteger(0)
+    private var bgJob: Job? = null
+
     fun onAppBackground() {
-        scheduler?.enterBackground()
+        val n = foregroundRefs.updateAndGet { cur -> if (cur > 0) cur - 1 else 0 }
+        if (n > 0) return
+        bgJob?.cancel()
+        bgJob = scope.launch {
+            delay(1500)   // onStart nowego ekranu nadrobi onStart->onStop kolejnosc
+            scheduler?.enterBackground()
+        }
     }
 
     fun onAppForeground() {
+        foregroundRefs.incrementAndGet()
+        bgJob?.cancel()
+        bgJob = null
         scheduler?.enterForeground()
     }
 
