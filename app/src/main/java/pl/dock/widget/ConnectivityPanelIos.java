@@ -57,14 +57,17 @@ import android.widget.TextView;
 //    NightShift.effectiveOn/toggle). AUTO-przejścia trwają 30 s: filtr
 //    narasta/wygasa, a podświetlenie płynnie spada do minimum (włączanie)
 //    albo wraca do zapamiętanej wartości (wyłączanie) - NightShiftService.
-//    Ikona: słońce z WYCIĘTYM półksiężycem (na przezroczysto). Suwak ciepła
-//    (przytrzymanie) jak na zdjęciu iOS: wycentrowany podpis
+//    Suwak ciepła (przytrzymanie) jak na zdjęciu iOS: wycentrowany podpis
 //    "Temperatura kolorów", niebieski tor, biały pigułkowy uchwyt,
 //    punkty-pozycjonery, ZAKRES 0-50 (max = połowa obecnego maksimum ciepła).
-// 10. IKONA NIGHT SHIFT DOPASOWANA DO WZORCA (IMG_9086/IMG_9097): tarcza większa
-//    (wypełnia większość wnętrza przycisku), wycięcie półksiężyca po PRAWEJ
-//    stronie tarczy, promienie krótkie/grube/zaokrąglone i BLISKO tarczy;
-//    odstęp podpisu od koła WIĘKSZY (jak na wzorcu) - baseline 78/91/104.
+// 10. IKONA NIGHT SHIFT = STYL SF SYMBOLS (wzorzec IMG_9097): pełne koło z
+//    CIENKIM obrysem dookoła (lewa strona pusta), po PRAWEJ stronie GRUBY,
+//    całkowicie wypełniony biały sierp księżyca - rogi przy godzinach 12 i 6,
+//    wewnętrzna krawędź sierpa = gładkie, okrągłe wycięcie (rysowany jako
+//    precyzyjna ścieżka z dwóch łuków, bez wycinania). Promienie: 8 szt.
+//    co 45 stopni, CIEŃKIE (grubość = grubość obrysu koła), dłuższe,
+//    smukle, z zaokrąglonymi końcami i większym marginesem od koła.
+//    Odstęp podpisu od koła jak na wzorcu - baseline 78/91/104.
 public class ConnectivityPanelIos extends LinearLayout {
 
     public interface Host {
@@ -674,41 +677,43 @@ public class ConnectivityPanelIos extends LinearLayout {
                 cv.drawPath(dotC, clearP);
                 cv.restoreToCount(sc4);
             } else if (kind == 3) {
-                // Night Shift 1:1 z iOS (wzorzec IMG_9086/IMG_9097): tarcza WIĘKSZA
-                // (wypełnia większość wnętrza przycisku), półksiężyc wycięty
-                // po PRAWEJ stronie tarczy, promienie KRÓTKIE/GRUBE/ZAOKRĄGLONE
-                // i blisko tarczy. Wycięcie na przezroczysto, więc prześwituje
-                // tło przycisku (pomarańcz gdy włączony, ciemne szkło gdy wył).
-                // Ikona biała w OBU stanach (jak na zdjęciach źródłowych).
+                // Night Shift 1:1 z iOS (SF Symbols, wzorzec IMG_9097):
+                // pełne koło = CIENKI obrys dookoła (lewa strona pusta);
+                // po PRAWEJ stronie GRUBY, całkowicie wypełniony biały
+                // sierp księżyca - rogi przy godzinach 12 i 6, wewnętrzna
+                // krawędź = gładkie, okrągłe wycięcie (ścieżka z dwóch łuków,
+                // bez wycinania - koniec ze "zlaną plamą"). Promienie: 8 szt.
+                // co 45 stopni, CIEŃKIE (grubosć obrysu), dłuższe, smukłe,
+                // zaokrąglone końce, większy margines od koła.
                 float R = 11f * d;
-                int sc3 = cv.saveLayer(cx - 21f * d, cy - 21f * d, cx + 21f * d, cy + 21f * d,
-                        null);
-                p.setXfermode(null);
-                p.setStyle(Paint.Style.FILL);
-                cv.drawCircle(cx, cy, R, p);
-                // promienie: 8 szt. co 45 stopni, krótkie grube kreski z zaokrąglonymi
-                // końcami, tuż przy tarczy (jak w iOS)
+                float lw = 1.6f * d;          // grubość cienkiej linii (obrys = promienie)
+                // cienki obrys całego koła
                 p.setStyle(Paint.Style.STROKE);
-                p.setStrokeWidth(3.2f * d);
+                p.setStrokeWidth(lw);
+                cv.drawCircle(cx, cy, R - lw / 2f, p);
+                // sierp: łuk zewnętrzny po prawej (12 -> 6) + łuk wewnętrzny
+                // (gładkie okrągłe wycięcie) z powrotem do góry
+                Path crescent = new Path();
+                crescent.moveTo(cx, cy - R);
+                crescent.arcTo(new RectF(cx - R, cy - R, cx + R, cy + R), -90f, 180f);
+                float xb = -5.14f * d;        // środek koła wycięcia (na osi poziomej)
+                float rb = 12.14f * d;        // promień wycięcia - gładka krawędź
+                crescent.arcTo(new RectF(cx + xb - rb, cy - rb, cx + xb + rb, cy + rb),
+                        65f, -130f);
+                crescent.close();
+                p.setStyle(Paint.Style.FILL);
+                cv.drawPath(crescent, p);
+                // promienie: cienkie jak obrys, dalej od koła, zaokrąglone końce
+                p.setStyle(Paint.Style.STROKE);
+                p.setStrokeWidth(lw);
                 p.setStrokeCap(Paint.Cap.ROUND);
                 for (int i = 0; i < 8; i++) {
                     double a = Math.PI * i / 4.0;
-                    cv.drawLine(cx + (float) Math.cos(a) * 14f * d,
-                            cy + (float) Math.sin(a) * 14f * d,
-                            cx + (float) Math.cos(a) * 17.5f * d,
-                            cy + (float) Math.sin(a) * 17.5f * d, p);
+                    cv.drawLine(cx + (float) Math.cos(a) * 13.5f * d,
+                            cy + (float) Math.sin(a) * 13.5f * d,
+                            cx + (float) Math.cos(a) * 18f * d,
+                            cy + (float) Math.sin(a) * 18f * d, p);
                 }
-                // półksiężyc = tarcza minus koło wcięte od PRAWEJ strony
-                // (pozostaje pełny kształt z wklęsłym wycięciem po prawej)
-                Path disc = new Path();
-                disc.addCircle(cx, cy, R, Path.Direction.CW);
-                Path bite = new Path();
-                bite.addCircle(cx + 4.5f * d, cy - 1f * d, 8f * d, Path.Direction.CW);
-                disc.op(bite, Path.Op.DIFFERENCE);
-                Paint clearP = new Paint(Paint.ANTI_ALIAS_FLAG);
-                clearP.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
-                cv.drawPath(disc, clearP);
-                cv.restoreToCount(sc3);
             } else if (kind == 0) {
                 cv.drawCircle(cx, cy, 6f * d, p);
                 for (int i = 0; i < 8; i++) {
@@ -893,6 +898,79 @@ public class ConnectivityPanelIos extends LinearLayout {
         private Listener l;
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final RectF r = new RectF();
+        private final float d = getResources().getDisplayMetrics().density;
+
+        WarmthSlider(Context c) {
+            super(c);
+            this.night = Look.night(c);
+            setContentDescription("Temperatura kolorów");
+        }
+
+        void setValue(int v) {
+            value = Math.max(0, Math.min(50, v));
+            invalidate();
+        }
+
+        void setListener(Listener l) {
+            this.l = l;
+        }
+
+        @Override
+        protected void onDraw(Canvas cv) {
+            float w = getWidth();
+            float h = getHeight();
+            float trackY = h * 0.40f;
+            float trackH = 7f * d;
+            float pad = 20f * d;   // miejsce na pigułkę na końcach toru
+            float trackW = w - pad * 2f;
+            // tor: niewypełniona część (ciemna)
+            p.setStyle(Paint.Style.FILL);
+            p.setShader(null);
+            p.setColor(night ? 0x2EFFFFFF : 0x22000000);
+            r.set(pad, trackY - trackH / 2f, pad + trackW, trackY + trackH / 2f);
+            cv.drawRoundRect(r, trackH / 2f, trackH / 2f, p);
+            // wypełnienie niebieskie do uchwytu
+            float frac = value / 50f;
+            if (frac > 0f) {
+                p.setColor(0xFF0A84FF);
+                r.set(pad, trackY - trackH / 2f, pad + trackW * frac, trackY + trackH / 2f);
+                cv.drawRoundRect(r, trackH / 2f, trackH / 2f, p);
+            }
+            // dwa punkty-pozycjonery pod torem (jak w iOS)
+            p.setColor(night ? 0x55FFFFFF : 0x44000000);
+            cv.drawCircle(pad + trackW * 0.10f, trackY + 9f * d, 1.6f * d, p);
+            cv.drawCircle(pad + trackW * 0.50f, trackY + 9f * d, 1.6f * d, p);
+            // biały pigułkowy uchwyt
+            float tx = pad + trackW * frac;
+            p.setColor(0xFFFFFFFF);
+            r.set(tx - 17f * d, trackY - 12f * d, tx + 17f * d, trackY + 12f * d);
+            cv.drawRoundRect(r, 12f * d, 12f * d, p);
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent e) {
+            int a = e.getActionMasked();
+            if (a == MotionEvent.ACTION_DOWN) {
+                getParent().requestDisallowInterceptTouchEvent(true);
+            }
+            if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_MOVE
+                    || a == MotionEvent.ACTION_UP) {
+                float pad = 20f * d;
+                float trackW = getWidth() - pad * 2f;
+                float frac = trackW <= 0 ? 0f : (e.getX() - pad) / trackW;
+                int v = Math.round(Math.max(0f, Math.min(1f, frac)) * 50f);
+                if (v != value) {
+                    value = v;
+                    invalidate();
+                }
+                if (l != null && (a == MotionEvent.ACTION_MOVE || a == MotionEvent.ACTION_UP)) {
+                    l.on(value);
+                }
+            }
+            return true;
+        }
+    }
+}
         private final float d = getResources().getDisplayMetrics().density;
 
         WarmthSlider(Context c) {
