@@ -834,3 +834,27 @@ na ekranach OBD mial byc domyslnie schowany (dostepny tylko do wyciagniecia gest
      ma się rozwijać od punktu dotknięcia.
   Zadanie wstrzymane do potwierdzenia zrozumienia przez użytkownika.
 
+## Sesja 2026-11-11 — OBD dzialalo tylko za pierwszym wejsciem / zamartwienie
+po zatrzymaniu auta
+
+User w trasie: reconnect juz OK, ale telemetria zywla tylko przy PIERWSZYM
+wejsciu na ekran OBD; drugie wejscie albo zatrzymanie/odpalenie auta
+zamrazalo zegary. Dwa niezalezne bugi (commit adf7df6d):
+
+- **Bug 1 (kolejnosc onStart/onStop):** onStart nowego ekranu przychodzi
+  PRZED onStop poprzedniego. Pojedyncza flaga fg/bg w ConnectionManager
+  sprawiala, ze wyjscie ze starego ekranu OBD usypialo odpytywanie PID
+  (enterBackground) zaraz po wejsciu na nowy - zostawal sam keep-alive
+  ATRV. Fix: licznik aktywnych ekranow OBD (foregroundRefs) + opoznione
+  usypianie 1.5 s (bgJob anulowane przez onAppForeground). Pierwsze
+  wejscie dzialalo, bo nie poprzedzal go ekran OBD woajacy onAppBackground.
+- **Bug 2 (deadlock blokady ochrony):** EngineState.protected (rozruch
+  RPM 1..450 przy crankingProtect, badz napiecie < 11.0 V) wylaczal
+  odpytywanie CALKOWICIE (PidScheduler.poll return), a zdjac blokade
+  mogl tylko nowy odczyt RPM/napiecia - ktory nigdy nie nadchodzil.
+  Po zatrzymaniu i odpaleniu auta zegary zamrzale na zawsze. Fix:
+  w trakcie blokady odpytywany jest sam 010C (max 1/s) + zawor
+  bezpieczenstwa w EngineState.recompute (protectedSince, auto-off
+  po 20 s).
+- **Weryfikacja:** build SUCCESS, screens SUCCESS (run na adf7df6d),
+  release v1.0.490 z APK. UfoClusterFullView.kt NIETYKALNY - nie tkniety.
