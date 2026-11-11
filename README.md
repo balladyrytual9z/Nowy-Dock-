@@ -91,3 +91,5 @@ Debug keystore: `app/dock-debug.p12` (alias `dock`, password `dockdock`) if pres
 
 Ten wpis został dodany automatycznie przez agenta OpenHands w ramach zadania testowego.
 Zmiana nie wpływa na działanie aplikacji ani na proces budowania APK.
+
+<!-- retrigger CI 2026-11-11 -->
