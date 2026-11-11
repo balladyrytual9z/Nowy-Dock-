@@ -60,6 +60,8 @@ public class DockView extends View {
     private Bitmap bWifi, bTether, bBt, bBattery, bCharge, bCp, bPhone;
     private float bottomT;
     private int bottomMode = -1;   // -1 = crossfade launchera; >=0 = staly glif (ekrany wewnetrzne)
+    private float ccT;             // 0..1: płynne pojawianie/zanikanie glifu CC (panel łączności)
+    private boolean ccShowing;     // kierunek animacji glifu CC
     private Drawable bg;
     private int bgRes = -1;
     private boolean showCp = true;
@@ -206,15 +208,26 @@ public class DockView extends View {
     // 0 = ekran glowny (siatka 9 kwadratow), 1 = lista aplikacji (jeden kwadrat z zaokraglonymi rogami)
     public void setBottomProgress(float t) {
         bottomMode = -1;   // launcher: wroc do trybu crossfade
+        if (ccT > 0.001f) ccShowing = false;   // dokończ płynne wygaszanie glifu CC
         t = Math.max(0f, Math.min(1f, t));
         if (Math.abs(t - bottomT) < 0.004f) return;
         bottomT = t;
         invalidate();
     }
 
-    /** Ekrany wewnetrzne: staly glif dolnego przycisku = strona, na ktora wroci. */
+    /** Ekrany wewnetrzne: staly glif dolnego przycisku = strona, na ktora wroci.
+     *  Przejście z/na glif CC (panel łączności) to PŁYNNY crossfade
+     *  (jak przejście ekran główny ↔ siatka aplikacji). */
     public void setBottomMode(int mode) {
+        boolean wasCc = ccShowing || ccT > 0.001f;
         bottomMode = mode;
+        if (mode == BOTTOM_CC) {
+            ccShowing = true;            // płynne pojawienie glifu "zamknij"
+        } else if (wasCc) {
+            ccShowing = false;           // płynne wygaszenie na tle nowego trybu
+        } else {
+            ccT = 0f;
+        }
         invalidate();
     }
 
@@ -465,35 +478,22 @@ public class DockView extends View {
         float by = bottomCy();
         int pa = pressed == BOTTOM ? 150 : 255;
         float g = 20f * d;
-        if (bottomMode >= 0) {
-            // EKRANY WEWNETRZNE (Ustawienia, Media Center, Odtwarzane, panel
-            // lacznosci): glif pokazuje strone, na ktora przycisk WROCI
-            // (origin page), a nie cel przelaczenia jak w launcherze.
-            homePaint.setAlpha(pa);
-            if (bottomMode == BOTTOM_CC) {
-                // otwarte centrum lacznosci: ikona "zamknij" - obwodka
-                // IDENTYCZNA jak przycisk "ekran glowny" (BOTTOM_HOME): bok g,
-                // promien 6 dp, stroke 3.2 dp. Zawartosc (dwa suwaki z kolkiem)
-                // obrocona o 90 stopni, wiec suwaki sa PIONOWE.
-                homePaint.setStyle(Paint.Style.STROKE);
-                homePaint.setStrokeWidth(3.2f * d);
-                rect.set(cx - g / 2f, by - g / 2f, cx + g / 2f, by + g / 2f);
-                cv.drawRoundRect(rect, 6f * d, 6f * d, homePaint);
-                cv.save();
-                cv.rotate(90f, cx, by);
-                homePaint.setStrokeWidth(1.8f * d);
-                float k = g / 24f;
-                cv.drawLine(cx - g / 2f + 5f * k, by - g / 2f + 9.5f * k,
-                        cx - g / 2f + 19f * k, by - g / 2f + 9.5f * k, homePaint);
-                cv.drawLine(cx - g / 2f + 5f * k, by - g / 2f + 14.5f * k,
-                        cx - g / 2f + 19f * k, by - g / 2f + 14.5f * k, homePaint);
-                homePaint.setStyle(Paint.Style.FILL);
-                cv.drawCircle(cx - g / 2f + 16f * k, by - g / 2f + 9.5f * k, 2f * k, homePaint);
-                cv.drawCircle(cx - g / 2f + 8f * k, by - g / 2f + 14.5f * k, 2f * k, homePaint);
-                cv.restore();
-                homePaint.setStyle(Paint.Style.STROKE);
-                homePaint.setStrokeWidth(3.2f * d);
-            } else if (bottomMode == BOTTOM_WIDGETS) {
+        // płynna animacja glifu CC (tickCc prosi o kolejne klatki w trakcie animacji)
+        tickCc();
+        if (bottomMode == BOTTOM_CC) {
+            // otwarte centrum łączności: PŁYNNY crossfade (jak między stronami):
+            // pod spodem glif launchera (cel powrotu) wygaszany z ccT,
+            // na wierzchu glif "zamknij" narastający z ccT.
+            drawLauncherBottom(cv, cx, by, g, pa, Math.round(255 * (1f - ccT)));
+            drawCcGlyph(cv, cx, by, g, Math.round(pa * ccT));
+        } else if (bottomMode >= 0) {
+            // EKRANY WEWNETRZNE (Ustawienia, Media Center, Odtwarzane): glif
+            // pokazuje strone, na ktora przycisk WROCI (origin page), a nie cel
+            // przelaczenia jak w launcherze. Wygasający glif CC dolewa się płynnie.
+            if (ccT > 0.001f) drawCcGlyph(cv, cx, by, g, Math.round(pa * ccT));
+            int mul = Math.round(255 * (1f - ccT));
+            homePaint.setAlpha((pa * mul) / 255);
+            if (bottomMode == BOTTOM_WIDGETS) {
                 // strona widzetow: trzy kwadraciki w rzedzie (nowa ikona)
                 homePaint.setStyle(Paint.Style.FILL);
                 float gap = g / 3f;
@@ -526,9 +526,72 @@ public class DockView extends View {
                 homePaint.setStyle(Paint.Style.STROKE);
             }
             homePaint.setAlpha(255);
-        } else if (bottomT < 0.999f) {
-            // nie jestesmy jeszcze na liscie aplikacji: siatka 9 kwadratow (3x3)
-            homePaint.setAlpha((int) (pa * (1f - bottomT)));
+        } else {
+            // launcher: crossfade siatka/kwadrat wg bottomT + wygasający glif CC
+            // po zamknięciu panelu łączności (płynny powrót ikony).
+            int mul = Math.round(255 * (1f - ccT));
+            if (bottomT < 0.999f) {
+                // nie jestesmy jeszcze na liscie aplikacji: siatka 9 kwadratow (3x3)
+                homePaint.setAlpha(((int) (pa * (1f - bottomT)) * mul) / 255);
+                homePaint.setStyle(Paint.Style.FILL);
+                float gap = g / 3f;
+                float q = gap * 0.62f;
+                float rr2 = q * 0.28f;
+                for (int gy = 0; gy < 3; gy++) {
+                    for (int gx = 0; gx < 3; gx++) {
+                        float qx = cx - g / 2f + gx * gap + (gap - q) / 2f;
+                        float qy = by - g / 2f + gy * gap + (gap - q) / 2f;
+                        rect.set(qx, qy, qx + q, qy + q);
+                        cv.drawRoundRect(rect, rr2, rr2, homePaint);
+                    }
+                }
+                homePaint.setStyle(Paint.Style.STROKE);
+            }
+            if (bottomT > 0.001f) {
+                // jestesmy na liscie aplikacji: jeden kwadrat z zaokraglonymi rogami
+                homePaint.setAlpha(((int) (pa * bottomT) * mul) / 255);
+                rect.set(cx - g / 2f, by - g / 2f, cx + g / 2f, by + g / 2f);
+                cv.drawRoundRect(rect, 6f * d, 6f * d, homePaint);
+            }
+            if (ccT > 0.001f) drawCcGlyph(cv, cx, by, g, Math.round(pa * ccT));
+            homePaint.setAlpha(255);
+        }
+    }
+
+    /** Glif "zamknij centrum łączności": ramka IDENTYCZNA jak przycisk "ekran
+     *  główny" (BOTTOM_HOME): bok g, promień 6 dp, stroke 3.2 dp. Zawartość
+     *  (dwa pionowe suwaki z kółkiem, obrócona o 90 stopni) odchudzona
+     *  proporcjonalnie: suwaki 1.4 dp, kółka 1.5k (było 1.8 dp / 2k). */
+    private void drawCcGlyph(Canvas cv, float cx, float by, float g, int alpha) {
+        if (alpha <= 0) return;
+        homePaint.setStyle(Paint.Style.STROKE);
+        homePaint.setStrokeWidth(3.2f * d);
+        homePaint.setAlpha(alpha);
+        rect.set(cx - g / 2f, by - g / 2f, cx + g / 2f, by + g / 2f);
+        cv.drawRoundRect(rect, 6f * d, 6f * d, homePaint);
+        cv.save();
+        cv.rotate(90f, cx, by);
+        homePaint.setStrokeWidth(1.4f * d);
+        float k = g / 24f;
+        cv.drawLine(cx - g / 2f + 5f * k, by - g / 2f + 9.5f * k,
+                cx - g / 2f + 19f * k, by - g / 2f + 9.5f * k, homePaint);
+        cv.drawLine(cx - g / 2f + 5f * k, by - g / 2f + 14.5f * k,
+                cx - g / 2f + 19f * k, by - g / 2f + 14.5f * k, homePaint);
+        homePaint.setStyle(Paint.Style.FILL);
+        cv.drawCircle(cx - g / 2f + 16f * k, by - g / 2f + 9.5f * k, 1.5f * k, homePaint);
+        cv.drawCircle(cx - g / 2f + 8f * k, by - g / 2f + 14.5f * k, 1.5f * k, homePaint);
+        cv.restore();
+        homePaint.setStyle(Paint.Style.STROKE);
+        homePaint.setStrokeWidth(3.2f * d);
+        homePaint.setAlpha(255);
+    }
+
+    /** Glif dolnego przycisku launchera (crossfade siatka 3x3 / kwadrat wg bottomT).
+     *  alphaMul 0..255 mnoży alfy - używany przy płynnym crossfade z glifem CC. */
+    private void drawLauncherBottom(Canvas cv, float cx, float by, float g, int pa, int alphaMul) {
+        if (alphaMul <= 0) return;
+        if (bottomT < 0.999f) {
+            homePaint.setAlpha(((int) (pa * (1f - bottomT)) * alphaMul) / 255);
             homePaint.setStyle(Paint.Style.FILL);
             float gap = g / 3f;
             float q = gap * 0.62f;
@@ -543,12 +606,24 @@ public class DockView extends View {
             }
             homePaint.setStyle(Paint.Style.STROKE);
         }
-        if (bottomMode < 0 && bottomT > 0.001f) {
-            // jestesmy na liscie aplikacji: jeden kwadrat z zaokraglonymi rogami
-            homePaint.setAlpha((int) (pa * bottomT));
+        if (bottomT > 0.001f) {
+            homePaint.setAlpha(((int) (pa * bottomT) * alphaMul) / 255);
             rect.set(cx - g / 2f, by - g / 2f, cx + g / 2f, by + g / 2f);
             cv.drawRoundRect(rect, 6f * d, 6f * d, homePaint);
         }
+        homePaint.setAlpha(255);
+    }
+
+    /** Wygładzona animacja glifu CC (ccT 0..1). Wywoływana przy rysowaniu
+     *  dolnego przycisku; w trakcie animacji prosi o kolejną klatkę. */
+    private void tickCc() {
+        float target = ccShowing ? 1f : 0f;
+        if (Math.abs(ccT - target) < 0.02f) {
+            ccT = target;
+            return;
+        }
+        ccT += (target - ccT) * 0.30f;   // ~200 ms do pełna przy 60 fps
+        postInvalidateOnAnimation();
     }
 
     private void drawIcon(Canvas cv, Bitmap b, float l, float t, float w, float h, int alpha) {
@@ -651,4 +726,5 @@ public class DockView extends View {
         }
     }
 }
+
 
