@@ -1,20 +1,30 @@
 package pl.dock.widget;
 
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 
 import java.util.List;
 
-// Okno zapasowe centrum lacznosci (np. po kliknieciu paska widzetu na innym launcherze).
-// NAPRAWA (ESSGOO/MT8163, Android 9): pelnoekranowe okno z dokiem rysowanym wewnatrz.
-// PORT: panel w stylu iOS (ConnectivityPanelIos) 1:1 z Liquid-Glass.
+// Okno zapasowe centrum lacznosci (np. po kliknieciu paska widzetu na innym launcherze
+// albo z Ustawien). PORT: panel w stylu iOS (ConnectivityPanelIos) 1:1 z Liquid-Glass.
 // NAPRAWA UCIĘCIA: zawartosc panelu (400+10+70+70+24 = 574 dp) byla szersza niz
 // okno 560 dp - suwak jasności wystawal poza tlo. Panel ma teraz szerokosc
 // WRAP_CONTENT, dzieki czemu tlo obejmuje cala zawartosc.
+// UJEDNOLICENIE Z LAUNCHEREM (jeden panel wszedzie, ten sam wyglad):
+// 1. BLUR W TLE: migawka tapety 1/4 rozmiaru ekranu + rozmycie (Blur.blur) +
+//    delikatna zaslona - dokladnie ta sama sciezka co w overlayu LauncherActivity,
+//    zamiast wczesniejszej plaskiej polprzezroczystej czerni.
+// 2. ANIMACJA OTWARCIA: panel rosnie od punktu przy doku (gorny naroznik od
+//    strony doka) z OvershootInterpolator + fade calego okna; na koncu wymuszony
+//    re-layout + invalidate (mechanizm naprawczy "pustego panelu" z PR #14).
+//    Zamkniecie pozostaje natychmiastowe (okno aktywnosci).
 public class ConnectivityActivity extends BaseActivity {
 
     private ConnectivityPanelIos panel;
@@ -31,7 +41,29 @@ public class ConnectivityActivity extends BaseActivity {
         } catch (Throwable ignored) {}
         applyImmersive();
         FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(0x66000000);
+        // BLUR W TLE (jak w launcherze): rozmyta tapeta + zaslona zamiast czerni
+        try {
+            int sw = getResources().getDisplayMetrics().widthPixels;
+            int sh = getResources().getDisplayMetrics().heightPixels;
+            Bitmap snap = Bitmap.createBitmap(Math.max(1, sw / 4), Math.max(1, sh / 4),
+                    Bitmap.Config.ARGB_8888);
+            Canvas cv = new Canvas(snap);
+            cv.scale(1f / 4, 1f / 4);
+            Wallpapers.paint(cv, sw, sh, Wallpapers.byId(Prefs.style(this)), night);
+            Blur.blur(snap, 3, 3);
+            ImageView glass = new ImageView(this);
+            glass.setScaleType(ImageView.ScaleType.FIT_XY);
+            glass.setImageBitmap(snap);
+            root.addView(glass, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        } catch (Throwable ignored) {
+            // awaryjnie: stara polprzezroczysta czerń
+            root.setBackgroundColor(0x66000000);
+        }
+        View tint = new View(this);
+        tint.setBackgroundColor(night ? 0x59000000 : 0x4DFFFFFF);
+        root.addView(tint, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         root.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -64,6 +96,7 @@ public class ConnectivityActivity extends BaseActivity {
         // Gdy ekran jest nizszy niz panel (inne dpi niz tablet ESSGOO), skaluj
         // panel JEDNOLICIE w dol - proporcje i wyglad 1:1 bez znieksztalcen.
         // Gdy panel sie miesci (tablet), ten kod nic nie robi.
+        // + ANIMACJA OTWARCIA jak w launcherze (patrz naglowek klasy).
         panel.post(new Runnable() {
             @Override
             public void run() {
@@ -80,12 +113,30 @@ public class ConnectivityActivity extends BaseActivity {
                 float sc = 1f;
                 if (h > 0 && h > availH) sc = (float) availH / h;
                 if (w > 0 && w > availW) sc = Math.min(sc, (float) availW / w);
-                if (sc < 1f) {
-                    panel.setPivotY(0f);
-                    panel.setPivotX(dockLeft2 ? 0f : panel.getWidth());
-                    panel.setScaleX(sc);
-                    panel.setScaleY(sc);
-                }
+                // punkt, od ktorego panel rosnie: gorny naroznik od strony doka
+                panel.setPivotX(dockLeft2 ? 0f : panel.getWidth());
+                panel.setPivotY(0f);
+                // ANIMACJA OTWARCIA (jak w LauncherActivity): start 0.6 z
+                // OvershootInterpolator, na koncu wymuszony re-layout +
+                // invalidate (mechanizm naprawczy "pustego panelu", PR #14).
+                panel.setScaleX(sc * 0.6f);
+                panel.setScaleY(sc * 0.6f);
+                panel.animate().scaleX(sc).scaleY(sc)
+                        .setDuration(Prefs.reduceMotion(ConnectivityActivity.this) ? 0 : 300)
+                        .setInterpolator(new android.view.animation.OvershootInterpolator(0.9f))
+                        .withEndAction(new Runnable() {
+                            @Override
+                            public void run() {
+                                panel.requestLayout();
+                                panel.invalidate();
+                            }
+                        })
+                        .start();
+                // fade calego okna (blur + zaslona + panel) - jak overlay w launcherze
+                root.setAlpha(0f);
+                root.animate().alpha(1f)
+                        .setDuration(Prefs.reduceMotion(ConnectivityActivity.this) ? 0 : 220)
+                        .start();
             }
         });
 

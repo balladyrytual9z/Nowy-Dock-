@@ -68,6 +68,12 @@ import android.widget.TextView;
 //    co 45 stopni, CIEŃKIE (grubość = grubość obrysu koła), dłuższe,
 //    smukle, z zaokrąglonymi końcami i większym marginesem od koła.
 //    Odstęp podpisu od koła jak na wzorcu - baseline 78/91/104.
+// 11. JEDEN PANEL WSZĘDZIE: ta klasa jest teraz JEDYNYM panelem łączności -
+//    LauncherActivity też jej używa (zamiast starego ConnectivityPanel).
+//    Warstwa SOFTWARE na API < 30 (Mali-T720 / Android 9): bez niej w
+//    animowanej overlay tresc panelu potrafi sie nie wyrenderowac
+//    (lekcja z ConnectivityPanel, PR #14). Warstwa TYLKO na panelu -
+//    NIGDY na overlayu (dwie zagniezdzone warstwy = pusty panel, PR #46).
 public class ConnectivityPanelIos extends LinearLayout {
 
     public interface Host {
@@ -112,6 +118,10 @@ public class ConnectivityPanelIos extends LinearLayout {
         setBackground(new PanelGlassFrame(a, night));
         setPadding(dp(12), dp(12), dp(12), dp(10));
         setClickable(true);
+        // Warstwa SOFTWARE na starym API (Mali-T720 / Android 9) - patrz nagłówek (11).
+        if (android.os.Build.VERSION.SDK_INT < 30) {
+            setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        }
         setElevation(dp(12));
         build();
     }

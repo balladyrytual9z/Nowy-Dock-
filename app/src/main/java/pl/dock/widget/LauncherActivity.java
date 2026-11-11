@@ -88,7 +88,7 @@ public class LauncherActivity extends BaseActivity {
     private AppEntry cpCache;
     private boolean receiversOn;
     private FrameLayout overlay;
-    private ConnectivityPanel panel;
+    private ConnectivityPanelIos panel;
     // pelna lista aplikacji dla ostatniej strony (lista alfabetyczna), ladowana w tle
     private List<AppsGridPage.Item> libraryItems = new ArrayList<AppsGridPage.Item>();
     private VolumeHud hud;
@@ -1393,7 +1393,9 @@ public class LauncherActivity extends BaseActivity {
                 hideOverlay(true);
             }
         });
-        panel = new ConnectivityPanel(this, night, new ConnectivityPanel.Host() {
+        // JEDEN panel łączności wszędzie: ta sama klasa co w Ustawieniach
+        // (ConnectivityPanelIos) - nowe ikony Night Shift / Tryb ciemny.
+        panel = new ConnectivityPanelIos(this, night, new ConnectivityPanelIos.Host() {
             @Override
             public void close() {
                 hideOverlay(true);
@@ -1407,9 +1409,10 @@ public class LauncherActivity extends BaseActivity {
         });
         boolean left = Ui.dockLeft(this);
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
-        // szerokość panelu = zawartość (312+160+24 = 496dp), nigdy szersza niż ekran - 24dp
+        // szerokość panelu = zawartość ConnectivityPanelIos (400+10+70+70+24 = 574dp),
+        // nigdy szersza niż ekran - 24dp (inaczej suwak jasności jest ucięty)
         int panelW = Math.max(Ui.dp(this, 240),
-                Math.min(Ui.dp(this, 536), Ui.windowWidth(this) - Ui.dp(this, 24)));
+                Math.min(Ui.dp(this, 574), Ui.windowWidth(this) - Ui.dp(this, 24)));
         // Panel przy doku (po jego wewnętrznej stronie) - nie zasłania doka.
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 panelW, ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -2007,6 +2010,7 @@ public class LauncherActivity extends BaseActivity {
         if (currentRef != null && currentRef.get() == this) currentRef = null;
     }
 }
+
 
 
 
