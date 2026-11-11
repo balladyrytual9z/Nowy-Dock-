@@ -1,9 +1,12 @@
 package pl.dock.widget;
 
+import android.app.AppOpsManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
+import android.app.usage.UsageEvents;
+import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -30,26 +33,40 @@ import android.view.animation.DecelerateInterpolator;
 // Na czas systemowego okna instalacji APK nakladka schodzi z ekranu ("pause")
 // i wraca po powrocie do launchera ("resume"): okno instalatora i Play Protect
 // odcinaja dotyk, gdy cokolwiek rysuje sie nad nimi (ochrona przed tapjackingiem).
+//
+// CZUJKA OKIEN GOOGLE (watchdog): okno Play Protect ("Zalecane skanowanie
+// aplikacji") wyskakuje DOPIERO ok. minute po kliknieciu "Instaluj", kiedy
+// pauza z Updatera juz nie dziala - nakladka wracala NAD okno Google i to
+// okno odcinalo dotyk (nie da sie kliknac "Skanuj aplikacje"/"Nie instaluj").
+// Dlatego usluga co ~3 s sprawdza (UsageStatsManager, zgoda "Dostep do danych
+// o uzyciu"), ktora aplikacja jest na wierzchu - i ZDJMUJE nakladke WYLACZNIE
+// gdy na wierzchu jest okno instalatora / Google Play Protect. Zadna inna
+// sytuacja nie zdejmuje nakladki. Powrot: gdy na wierzchu znowu jest launcher.
 public class NightShiftService extends Service {
 
     private static final long FADE_MS = 800L;         // plynne przejscie przy recznym on/off
     private static final long RAMP_MS = 30000L;       // AUTO: 30 s (filtr + jasnost, jak w iOS)
     private static final long SUN_CHECK_MS = 60000L;  // sprawdzenie slonca co minute
+    private static final long WATCHDOG_MS = 3000L;    // czujka okien Google co 3 s
     private static final int BRIGHT_MIN = 10;         // najnizsza wartosc podswietlenia
 
     private WindowManager wm;
     private FilterView overlay;
     private final Handler h = new Handler(Looper.getMainLooper());
+    private final Handler hw = new Handler(Looper.getMainLooper()); // petla czujki (osobna)
     private android.animation.ValueAnimator anim;
     private android.animation.ValueAnimator bAnim;    // rampa jasnosci (auto 30 s)
     private float currentAlpha = 0f;   // aktualna widoczna sila filtru (0..1)
     private boolean sunsetMode = false;
     private boolean paused = false;    // pauza na czas okna instalatora APK
+    private boolean wPaused = false;   // pauza od czujki okien Google
+    private UsageStatsManager usm;
 
     @Override
     public void onCreate() {
         super.onCreate();
         goForeground();
+        hw.postDelayed(watchdog, WATCHDOG_MS);
     }
 
     @Override
@@ -76,6 +93,7 @@ public class NightShiftService extends Service {
         if (intent != null && intent.getBooleanExtra("resume", false)) {
             boolean wasPaused = paused;
             paused = false;
+            wPaused = false;   // resume z BaseActivity anulowal tez pauze czujki
             if ("off".equals(mode) && !NightShift.nsUsed(this)) {
                 stopSelf();
                 return START_NOT_STICKY;
@@ -114,6 +132,91 @@ public class NightShiftService extends Service {
         if (manual && bAnim != null) bAnim.cancel();
         scheduleSunCheck();
         return START_NOT_STICKY;
+    }
+
+    // ---------------------------------------------------------------- czujka okien Google
+    private final Runnable watchdog = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                tickWatchdog();
+            } catch (Throwable ignored) {
+            }
+            hw.postDelayed(this, WATCHDOG_MS);
+        }
+    };
+
+    private void tickWatchdog() {
+        if (!usageAccess()) return;   // bez zgody nie da sie wykryc okien - brak akcji
+        String fg = foregroundPkg();
+        boolean google = isGoogleInstallWindow(fg);
+        if (google && !wPaused) {
+            // OKNO GOOGLE (instalator / Play Protect) na wierzchu: zdejmujemy
+            // nakladke NATYCHMIAST - inaczej okno odcina dotyk (tapjacking).
+            wPaused = true;
+            paused = true;
+            if (anim != null) anim.cancel();
+            if (bAnim != null) bAnim.cancel();
+            removeOverlayNow();
+            return;
+        }
+        if (!google && wPaused && getPackageName().equals(fg)) {
+            // powrot do launchera po oknie Google -> przywroc filtr
+            wPaused = false;
+            paused = false;
+            String mode = Prefs.nightShiftMode(this);
+            if ("off".equals(mode) && !NightShift.nsUsed(this)) {
+                stopSelf();
+                return;
+            }
+            showOverlay();
+            float target = currentNight(mode) ? targetStrengthFraction() : 0f;
+            animateTo(target, FADE_MS);
+            scheduleSunCheck();
+        }
+    }
+
+    /** Czy Dock ma zgode "Dostep do danych o uzyciu" (wymagana do czujki). */
+    private boolean usageAccess() {
+        try {
+            AppOpsManager ao = (AppOpsManager) getSystemService(APP_OPS_SERVICE);
+            return ao.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    android.os.Process.myUid(), getPackageName()) == AppOpsManager.MODE_ALLOWED;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** Pakiet na wierzchu ekranu (z wydarzen uzycia z ostatnich 15 s). */
+    private String foregroundPkg() {
+        try {
+            if (usm == null) {
+                usm = (UsageStatsManager) getSystemService("usagestats");
+            }
+            if (usm == null) return null;
+            long now = System.currentTimeMillis();
+            UsageEvents ev = usm.queryEvents(now - 15000L, now);
+            UsageEvents.Event e = new UsageEvents.Event();
+            String last = null;
+            while (ev.hasNextEvent()) {
+                ev.getNextEvent(e);
+                if (e.getEventType() == UsageEvents.Event.MOVE_TO_FOREGROUND) {
+                    last = e.getPackageName();
+                }
+            }
+            return last;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** WYLACZNIE okna Google przy instalacji APK (instalator / Play Protect).
+     *  Nic innego nie zdejmuje nakladki - zadne inne aplikacje ani ekrany. */
+    private static boolean isGoogleInstallWindow(String pkg) {
+        if (pkg == null) return false;
+        return pkg.contains("packageinstaller")                       // instalator systemowy
+                || "com.google.android.apps.betterton".equals(pkg)    // usluga Google Play Protect
+                || "com.android.vending".equals(pkg);                 // okna instalacji Sklepu Play
     }
 
     /** Czy filtr ma teraz dzialac (nowy model: reczna zmiana -> potem slonce). */
@@ -304,6 +407,7 @@ public class NightShiftService extends Service {
     @Override
     public void onDestroy() {
         h.removeCallbacksAndMessages(null);
+        hw.removeCallbacksAndMessages(null);
         if (anim != null) anim.cancel();
         if (bAnim != null) bAnim.cancel();
         try {
