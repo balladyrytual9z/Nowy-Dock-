@@ -6,6 +6,10 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.LinearGradient;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.Shader;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
@@ -177,8 +181,9 @@ public class AppLibraryPage extends FrameLayout {
         leftCol.addView(letterBar, lbLp);
         page.addView(leftCol, colLp);
 
-        // Pasek szukania plywa NAD lista, ale lista jest przycieta na jego
-        // dolnej krawedzi: aplikacje niewidoczne pod pigulka, tapeta widoczna.
+        // Pasek szukania plywa NAD lista jak w iOS: aplikacje miekko zanikaja
+        // (maska alpha) zanim dotra pod pigulke - pigulka wyglada jak wczesniej,
+        // bez zadnego widocznego pasma, a pod nia zostaje wylacznie tapeta.
         android.widget.FrameLayout contentPane = new android.widget.FrameLayout(ctx);
         contentPane.setClipChildren(false);
         contentPane.setClipToPadding(false);
@@ -241,29 +246,18 @@ public class AppLibraryPage extends FrameLayout {
         shLp.topMargin = dp(8);
         contentPane.addView(searchHeader, shLp);
 
-        scrollView = new ScrollView(ctx);
+        scrollView = new FadeScrollView(ctx);
         scrollView.setFillViewport(true);
         scrollView.setVerticalScrollBarEnabled(false);
         scrollView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         listCol = new LinearLayout(ctx);
         listCol.setOrientation(LinearLayout.VERTICAL);
-        // lista zaczyna sie POD paskiem szukania - aplikacje nie przewijaja sie
-        // pod pigulka, przez polprzezroczysta pigulke widac wylacznie tapete
-        listCol.setPadding(dp(14), dp(8), dp(14) + extraR, dp(28));
+        // lista przewija sie pod paskiem, ale wiersze miekko zanikaja (maska
+        // alpha w FadeScrollView) zanim dotra pod pigulke - pod pigulka tylko tapeta
+        listCol.setPadding(dp(14), dp(70), dp(14) + extraR, dp(28));
         scrollView.addView(listCol, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        android.widget.FrameLayout.LayoutParams svLp = new android.widget.FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        svLp.topMargin = dp(74); // dolna krawedz paska szukania (8 + 66)
-        contentPane.addView(scrollView, svLp);
-        // maska gradientowa: aplikacje plynnie zanikaja pod krawedzia paska
-        View fade = new View(ctx);
-        GradientDrawable fadeBg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{night ? 0x30FFFFFF : 0x4DF2F2F7, 0x00000000});
-        fade.setBackground(fadeBg);
-        android.widget.FrameLayout.LayoutParams fadeLp = new android.widget.FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(20), Gravity.TOP);
-        fadeLp.topMargin = dp(74);
-        contentPane.addView(fade, fadeLp);
+        contentPane.addView(scrollView, new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         // pasek szukania ZAWSZE nad lista (z-order): bringChildToFront po
         // dodaniu scrollView - w przeciwnym razie lista rysowala sie na pasku
         contentPane.bringChildToFront(searchHeader);
@@ -508,8 +502,34 @@ public class AppLibraryPage extends FrameLayout {
         return "#";
     }
 
+    /** ScrollView z miekkim zanikiem tresci pod paskiem szukania: maska alpha
+     *  (DST_IN) wygasza wiersze listy zanim dotra pod polprzezroczysta pigulke.
+     *  Dzieki temu pod pigulka widac wylacznie tapete, a sam pasek wyglada jak
+     *  wczesniej - bez zadnego dodatkowego pasma na tle tapety. */
+    private class FadeScrollView extends ScrollView {
+        private Paint mask;
+        FadeScrollView(Context c) { super(c); }
+        @Override public void draw(Canvas c) {
+            int w = getWidth();
+            int h = getHeight();
+            int sc = c.saveLayer(0f, 0f, w, h, null, Canvas.ALL_SAVE_FLAG);
+            super.draw(c);
+            if (mask == null) {
+                mask = new Paint(Paint.ANTI_ALIAS_FLAG);
+                // alpha 0 nad dolna krawedzia paska (74dp), pelna widocznosc 26dp nizej;
+                // shader z CLAMP wygasza tez caly obszar ukryty pod pigulka
+                mask.setShader(new LinearGradient(0f, dp(74), 0f, dp(74) + dp(26),
+                        0x00000000, 0xFFFFFFFF, Shader.TileMode.CLAMP));
+                mask.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
+            }
+            c.drawRect(0f, 0f, w, h, mask);
+            c.restoreToCount(sc);
+        }
+    }
+
     private int dp(float v) {
         return (int) (v * d + 0.5f);
     }
 }
+
 
