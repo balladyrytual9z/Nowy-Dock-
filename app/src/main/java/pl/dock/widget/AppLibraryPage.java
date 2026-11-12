@@ -268,10 +268,10 @@ public class AppLibraryPage extends FrameLayout {
                 ViewGroup.LayoutParams.MATCH_PARENT, fadeH, Gravity.TOP);
         fadeLp.topMargin = dp(70);
         topFade.setLayoutParams(fadeLp);
-        topFade.setBackground(new android.graphics.drawable.LinearGradient(
-                0, 0, 0, fadeH,
-                new int[]{night ? 0xFF1C1C1E : 0xFFF2F2F7, night ? 0x001C1C1E : 0x00F2F2F7},
-                null, android.graphics.drawable.Shader.TileMode.CLAMP));
+        GradientDrawable fadeGrad = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{night ? 0xFF1C1C1E : 0xFFF2F2F7, night ? 0x001C1C1E : 0x00F2F2F7});
+        topFade.setBackground(fadeGrad);
         contentPane.addView(topFade, fadeLp);
 
         // pasek szukania ZAWSZE nad lista (z-order): bringChildToFront po
