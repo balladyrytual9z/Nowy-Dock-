@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.CornerPathEffect
 import android.graphics.Matrix
 import android.graphics.LinearGradient
 import android.graphics.Paint
@@ -350,6 +351,66 @@ class UfoClusterFullView(context: Context) : View(context) {
             drawSeg7(c, mask, x, top, w, h, t)
             x -= w + gap
         }
+    }
+
+    // Logo i-VTEC zwektoryzowane z dostarczonego obrazka (wysokość = 1, szerokość ~6.98, lewy górny róg w 0,0)
+    private val vtecData: Array<FloatArray> = arrayOf(
+        floatArrayOf(0.627f, 0.466f, 0.625f, 0.631f, 0.638f, 0.647f, 0.976f, 0.647f, 0.989f, 0.636f, 0.989f, 0.470f, 0.978f, 0.457f, 0.636f, 0.457f),
+        floatArrayOf(0.677f, 0.524f, 0.694f, 0.506f, 0.920f, 0.506f, 0.938f, 0.522f, 0.938f, 0.584f, 0.927f, 0.595f, 0.690f, 0.595f, 0.677f, 0.580f),
+        floatArrayOf(0.006f, 0.334f, 0.000f, 0.343f, 0.000f, 0.761f, 0.017f, 0.828f, 0.050f, 0.877f, 0.127f, 0.931f, 0.231f, 0.957f, 0.382f, 0.955f, 0.554f, 0.927f, 0.562f, 0.916f, 0.562f, 0.748f, 0.550f, 0.737f, 0.468f, 0.731f, 0.450f, 0.720f, 0.440f, 0.696f, 0.438f, 0.341f, 0.429f, 0.334f),
+        floatArrayOf(0.058f, 0.388f, 0.379f, 0.386f, 0.386f, 0.392f, 0.390f, 0.711f, 0.422f, 0.765f, 0.511f, 0.797f, 0.504f, 0.881f, 0.360f, 0.905f, 0.224f, 0.905f, 0.142f, 0.881f, 0.088f, 0.843f, 0.065f, 0.808f, 0.052f, 0.756f, 0.052f, 0.397f),
+        floatArrayOf(5.707f, 0.278f, 5.692f, 0.343f, 5.692f, 0.778f, 5.718f, 0.845f, 5.791f, 0.912f, 5.873f, 0.942f, 6.978f, 0.938f, 6.981f, 0.741f, 6.972f, 0.733f, 6.116f, 0.733f, 6.082f, 0.711f, 6.069f, 0.677f, 6.069f, 0.407f, 6.084f, 0.386f, 6.160f, 0.371f, 6.968f, 0.373f, 6.981f, 0.362f, 6.976f, 0.164f, 5.881f, 0.162f, 5.789f, 0.194f, 5.731f, 0.243f),
+        floatArrayOf(5.750f, 0.308f, 5.804f, 0.246f, 5.879f, 0.213f, 6.918f, 0.213f, 6.929f, 0.224f, 6.929f, 0.310f, 6.912f, 0.321f, 6.129f, 0.321f, 6.058f, 0.341f, 6.030f, 0.366f, 6.017f, 0.401f, 6.017f, 0.679f, 6.041f, 0.744f, 6.073f, 0.772f, 6.114f, 0.784f, 6.918f, 0.784f, 6.929f, 0.793f, 6.929f, 0.881f, 6.907f, 0.892f, 5.888f, 0.892f, 5.840f, 0.879f, 5.774f, 0.832f, 5.744f, 0.778f, 5.744f, 0.338f),
+        floatArrayOf(4.280f, 0.168f, 4.280f, 0.776f, 4.310f, 0.853f, 4.375f, 0.912f, 4.438f, 0.935f, 4.513f, 0.944f, 5.616f, 0.946f, 5.625f, 0.940f, 5.627f, 0.752f, 5.614f, 0.737f, 4.696f, 0.731f, 4.666f, 0.716f, 4.653f, 0.685f, 4.662f, 0.659f, 5.524f, 0.659f, 5.537f, 0.647f, 5.537f, 0.461f, 5.528f, 0.450f, 4.666f, 0.450f, 4.653f, 0.440f, 4.651f, 0.390f, 4.666f, 0.371f, 5.625f, 0.371f, 5.634f, 0.362f, 5.634f, 0.170f, 5.627f, 0.164f, 4.289f, 0.162f),
+        floatArrayOf(4.332f, 0.220f, 4.340f, 0.213f, 5.575f, 0.215f, 5.584f, 0.228f, 5.584f, 0.306f, 5.565f, 0.321f, 4.610f, 0.321f, 4.601f, 0.330f, 4.601f, 0.491f, 4.616f, 0.502f, 5.465f, 0.500f, 5.485f, 0.513f, 5.485f, 0.595f, 5.474f, 0.608f, 4.610f, 0.608f, 4.601f, 0.616f, 4.603f, 0.698f, 4.619f, 0.739f, 4.647f, 0.767f, 4.694f, 0.782f, 5.565f, 0.789f, 5.575f, 0.800f, 5.573f, 0.888f, 5.565f, 0.894f, 4.498f, 0.892f, 4.412f, 0.873f, 4.353f, 0.825f, 4.330f, 0.761f),
+        floatArrayOf(2.659f, 0.168f, 2.871f, 0.386f, 3.252f, 0.386f, 3.267f, 0.394f, 3.269f, 0.942f, 3.280f, 0.950f, 3.670f, 0.950f, 3.681f, 0.944f, 3.683f, 0.399f, 3.692f, 0.388f, 4.192f, 0.386f, 4.200f, 0.375f, 4.200f, 0.175f, 4.190f, 0.162f, 2.668f, 0.162f),
+        floatArrayOf(2.784f, 0.218f, 4.136f, 0.213f, 4.149f, 0.224f, 4.149f, 0.325f, 4.134f, 0.336f, 3.636f, 0.338f, 3.629f, 0.892f, 3.621f, 0.899f, 3.330f, 0.899f, 3.319f, 0.884f, 3.319f, 0.343f, 3.310f, 0.336f, 2.899f, 0.336f, 2.784f, 0.228f),
+        floatArrayOf(0.933f, 0.166f, 0.940f, 0.181f, 1.815f, 1.000f, 2.448f, 0.390f, 2.733f, 0.384f, 2.733f, 0.375f, 2.513f, 0.164f, 2.228f, 0.162f, 2.188f, 0.192f, 1.817f, 0.545f, 1.802f, 0.547f, 1.386f, 0.162f),
+        floatArrayOf(1.065f, 0.220f, 1.073f, 0.213f, 1.375f, 0.218f, 1.802f, 0.619f, 1.830f, 0.606f, 2.246f, 0.213f, 2.487f, 0.213f, 2.606f, 0.330f, 2.595f, 0.336f, 2.427f, 0.338f, 1.825f, 0.925f, 1.812f, 0.927f),
+        floatArrayOf(0.004f, 0.073f, 0.000f, 0.239f, 0.011f, 0.250f, 0.427f, 0.250f, 0.438f, 0.243f, 0.438f, 0.080f, 0.407f, 0.039f, 0.364f, 0.017f, 0.269f, 0.000f, 0.136f, 0.004f, 0.045f, 0.032f),
+        floatArrayOf(0.052f, 0.099f, 0.078f, 0.073f, 0.162f, 0.054f, 0.263f, 0.052f, 0.345f, 0.065f, 0.373f, 0.078f, 0.388f, 0.097f, 0.388f, 0.188f, 0.375f, 0.198f, 0.065f, 0.198f, 0.052f, 0.185f)
+    )
+    private val vtecPath = Path()
+    private val vtecTmp = Path()
+    private val vtecMat = Matrix()
+    private val vtecBuilt = buildVtec()
+
+    private fun buildVtec(): Boolean {
+        vtecPath.fillType = Path.FillType.EVEN_ODD
+        for (contour in vtecData) {
+            var i = 0
+            while (i < contour.size) {
+                if (i == 0) vtecPath.moveTo(contour[i], contour[i + 1]) else vtecPath.lineTo(contour[i], contour[i + 1])
+                i += 2
+            }
+            vtecPath.close()
+        }
+        return true
+    }
+
+    // Logo i-VTEC o wysokości h, lewy brzeg x, dolna krawędź bottom; świeci jak wcześniej napis
+    private fun drawVtecLogo(c: Canvas, x: Float, bottom: Float, h: Float, color: Int, lit: Boolean) {
+        vtecMat.reset()
+        vtecMat.postScale(h, h)
+        vtecMat.postTranslate(x, bottom - h)
+        vtecTmp.reset()
+        vtecPath.transform(vtecMat, vtecTmp)
+        vtecTmp.fillType = Path.FillType.EVEN_ODD
+
+        pFill.color = color
+        if (lit) pFill.setShadowLayer(10f, 0f, 0f, color)
+        c.drawPath(vtecTmp, pFill)
+        pFill.clearShadowLayer()
+
+        // lekkie pogrubienie cienkiego obrysu, żeby logo było czytelne w małym rozmiarze
+        pStroke.style = Paint.Style.STROKE
+        pStroke.strokeJoin = Paint.Join.ROUND
+        pStroke.strokeWidth = 0.9f
+        pStroke.color = color
+        if (lit) pStroke.setShadowLayer(10f, 0f, 0f, color)
+        c.drawPath(vtecTmp, pStroke)
+        pStroke.clearShadowLayer()
+        pStroke.style = Paint.Style.FILL
     }
 
     // Połysk szyby zegarów (zero alokacji w onDraw)
@@ -797,6 +858,9 @@ class UfoClusterFullView(context: Context) : View(context) {
             }
         }
         
+        c.save()
+        c.translate(16f, 14f)   // cały blok nieco w prawo i w dół
+
         // ===== Jeden blok po lewej: pasek shift light, niżej bieg | prędkość + jednostka | ECO / VTEC =====
         val rowY = 84f   // środek rzędu: bieg, prędkość, ECO/VTEC
 
@@ -880,10 +944,8 @@ class UfoClusterFullView(context: Context) : View(context) {
         pNum.clearShadowLayer()
         
         val vtec = rpm >= vtecRpm
-        pNum.color = if (vtec) CYAN_HUD else OFF_SEGMENT
-        if (vtec) pNum.setShadowLayer(10f, 0f, 0f, CYAN_HUD)
-        c.drawText("VTEC", 296f, rowY + 22f, pNum)
-        pNum.clearShadowLayer()
+        drawVtecLogo(c, 296f, rowY + 22f, 18f, if (vtec) CYAN_HUD else OFF_SEGMENT, vtec)
+        c.restore()
     }
 
     private fun drawEReport(c: Canvas) {
@@ -1177,18 +1239,18 @@ class UfoClusterFullView(context: Context) : View(context) {
     // ---------- DOCK (jak w iOS / CarPlay) ----------
     private val DOCK_L = 389f
     private val DOCK_R = 891f
-    private val DOCK_T = 645f
-    private val DOCK_B = 715f
+    private val DOCK_T = 636f
+    private val DOCK_B = 706f
     private val DOCK_ICON = 54f
-    private val DOCK_ICON_T = 653f
+    private val DOCK_ICON_T = 644f
     private val DOCK_PITCH = 98f
     private val DOCK_X0 = 417f          // lewa krawędź pierwszej ikony
 
-    private val dockFillShader = LinearGradient(0f, 645f, 0f, 715f,
-        0xCC232C52.toInt(), 0xCC0B0F20.toInt(), Shader.TileMode.CLAMP)
-    private val dockSheenShader = LinearGradient(0f, 645f, 0f, 685f,
+    private val dockFillShader = LinearGradient(0f, 636f, 0f, 706f,
+        0x9A2C3768.toInt(), 0x9A0D1228.toInt(), Shader.TileMode.CLAMP)
+    private val dockSheenShader = LinearGradient(0f, 636f, 0f, 676f,
         0x2CFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP)
-    private val dockStrokeShader = LinearGradient(389f, 645f, 891f, 715f,
+    private val dockStrokeShader = LinearGradient(389f, 636f, 891f, 706f,
         intArrayOf(0x88FFFFFF.toInt(), 0x18FFFFFF, 0x55B8A8FF),
         floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
 
@@ -1207,13 +1269,34 @@ class UfoClusterFullView(context: Context) : View(context) {
     private val icoShade = LinearGradient(58f, 58f, 22f, 22f, 0x3A000000, 0x00000000, Shader.TileMode.CLAMP)
     private val icoEdge = LinearGradient(0f, 0f, 58f, 58f, 0xCCFFFFFF.toInt(), 0x12FFFFFF, Shader.TileMode.CLAMP)
 
+    // poświata pod dockiem (rysowana w początku układu, spłaszczona na osi Y)
+    private val dockBgGlow = RadialGradient(0f, 0f, 420f,
+        intArrayOf(0x883A46FF.toInt(), 0x44261E9A, 0x00000000),
+        floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP)
+    private val glyphShader = LinearGradient(0f, 8f, 0f, 50f, 0xFFFFFFFF.toInt(), 0xFFDCE4F2.toInt(), Shader.TileMode.CLAMP)
+    private val gearShader = LinearGradient(0f, 10f, 0f, 48f, 0xFF5B616D.toInt(), 0xFF262A31.toInt(), Shader.TileMode.CLAMP)
+    private val icoGloss = LinearGradient(0f, 0f, 0f, 31f, 0x4DFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP)
+    private val cornerFx = CornerPathEffect(2.4f)
+    private val enginePts = floatArrayOf(
+        13f, 23f, 21f, 23f, 21f, 17f, 31f, 17f, 31f, 13f, 36f, 13f, 36f, 17f, 40f, 17f,
+        40f, 23f, 44f, 23f, 44f, 27f, 50f, 27f, 50f, 35f, 44f, 35f, 44f, 41f, 39f, 41f,
+        39f, 46f, 33f, 46f, 33f, 41f, 25f, 41f, 25f, 46f, 19f, 46f, 19f, 41f, 13f, 41f,
+        13f, 37f, 8f, 37f, 8f, 27f, 13f, 27f)
+
     private var voltNum = "---"
 
     private fun dockIconX(i: Int): Float = DOCK_X0 + i * DOCK_PITCH
 
     private fun drawFooter(c: Canvas) {
-        pFill.color = Color.parseColor("#05070B")
-        c.drawRect(0f, 640f, 1280f, 720f, pFill)
+        // ładne tło pod dockiem: miękka fioletowo-niebieska poświata jak za tarczą (zamiast czarnego paska)
+        c.save()
+        c.clipRect(0f, 622f, 1280f, 720f)
+        c.translate(640f, 690f)
+        c.scale(1f, 0.30f)
+        pFill.shader = dockBgGlow
+        c.drawCircle(0f, 0f, 420f, pFill)
+        pFill.shader = null
+        c.restore()
 
         // tło docka: półprzezroczysta szklana tafla z ramką jak w CarPlay
         rectF.set(DOCK_L, DOCK_T, DOCK_R, DOCK_B)
@@ -1261,16 +1344,20 @@ class UfoClusterFullView(context: Context) : View(context) {
         c.translate(dockIconX(i), DOCK_ICON_T)
         c.scale(k, k)
 
-        // korpus ikony (squircle) + cień pod spodem
+        // korpus ikony (squircle) z cieniem pod spodem
         rectF.set(0f, 0f, 58f, 58f)
         pFill.shader = base
-        pFill.setShadowLayer(8f, 0f, 4f, 0x66000000)
+        pFill.setShadowLayer(9f, 0f, 5f, 0x77000000)
         c.drawRoundRect(rectF, 13f, 13f, pFill)
         pFill.clearShadowLayer()
+        // światło z lewego górnego rogu + połysk górnej połowy + przyciemnienie przeciwległego rogu
         pFill.shader = icoHi
         c.drawRoundRect(rectF, 13f, 13f, pFill)
         pFill.shader = icoShade
         c.drawRoundRect(rectF, 13f, 13f, pFill)
+        rectF.set(1.5f, 1.5f, 56.5f, 31f)
+        pFill.shader = icoGloss
+        c.drawRoundRect(rectF, 11.5f, 11.5f, pFill)
         pFill.shader = null
 
         pStroke.style = Paint.Style.STROKE
@@ -1282,12 +1369,13 @@ class UfoClusterFullView(context: Context) : View(context) {
         pStroke.style = Paint.Style.FILL
 
         when (i) {
-            0 -> glyphEngine(c)
+            0 -> glyphEngine(c, base)
             1 -> glyphEvent(c)
             2 -> glyphSwap(c)
-            3 -> glyphGear(c)
+            3 -> glyphGear(c, base)
             else -> glyphVolt(c)
         }
+        pFill.shader = null
 
         // plakietka z liczbą kodów błędów, jak powiadomienia w iOS
         if (i == 0 && dtcCount > 0) {
@@ -1307,94 +1395,115 @@ class UfoClusterFullView(context: Context) : View(context) {
         c.restore()
     }
 
-    private fun whiteInk() {
+    // biały "szklany" wypełniacz symboli z miękkim cieniem
+    private fun glassInk() {
+        pFill.shader = glyphShader
         pFill.color = Color.WHITE
-        pFill.setShadowLayer(3f, 0f, 1.5f, 0x55000000)
+        pFill.setShadowLayer(4f, 0f, 2f, 0x66000000)
     }
 
-    // silnik (kody błędów / kontrolka check engine)
-    private fun glyphEngine(c: Canvas) {
-        whiteInk()
-        rectF.set(15f, 24f, 43f, 42f); c.drawRoundRect(rectF, 3f, 3f, pFill)
-        rectF.set(22f, 17f, 35f, 24f); c.drawRoundRect(rectF, 2f, 2f, pFill)
-        rectF.set(35f, 19f, 40f, 24f); c.drawRoundRect(rectF, 1.5f, 1.5f, pFill)
-        rectF.set(9f, 28f, 15f, 38f); c.drawRoundRect(rectF, 2f, 2f, pFill)
-        rectF.set(43f, 27f, 49f, 37f); c.drawRoundRect(rectF, 2f, 2f, pFill)
-        rectF.set(24f, 42f, 34f, 46f); c.drawRoundRect(rectF, 1.5f, 1.5f, pFill)
+    // klasyczny symbol "check engine": sylwetka silnika z wykrzyknikiem wyciętym w bloku
+    private fun glyphEngine(c: Canvas, base: LinearGradient) {
+        needlePath.reset()
+        needlePath.moveTo(enginePts[0], enginePts[1])
+        var n = 2
+        while (n < enginePts.size) {
+            needlePath.lineTo(enginePts[n], enginePts[n + 1])
+            n += 2
+        }
+        needlePath.close()
+        glassInk()
+        pFill.pathEffect = cornerFx
+        c.drawPath(needlePath, pFill)
+        pFill.pathEffect = null
         pFill.clearShadowLayer()
-        pFill.color = 0x40000000
-        c.drawCircle(29f, 33f, 5.2f, pFill)
+
+        // wykrzyknik "wycięty" kolorem tła ikony
+        pFill.shader = base
+        rectF.set(27.1f, 25.5f, 30.9f, 34.8f)
+        c.drawRoundRect(rectF, 1.9f, 1.9f, pFill)
+        c.drawCircle(29f, 38f, 2.1f, pFill)
+        pFill.shader = null
     }
 
-    // zapis ostatnich 30 s telemetrii: fala + czerwona kropka nagrywania
+    // zapis ostatnich 30 s telemetrii: przebieg sygnału i czerwony znacznik nagrywania
     private fun glyphEvent(c: Canvas) {
-        whiteInk()
-        val hs = floatArrayOf(12f, 22f, 32f, 20f, 28f, 14f)
+        glassInk()
+        val hs = floatArrayOf(10f, 20f, 30f, 38f, 26f, 16f, 8f)
         for (n in hs.indices) {
-            val x = 10.3f + n * 6.8f
-            rectF.set(x, 29f - hs[n] / 2f, x + 3.4f, 29f + hs[n] / 2f)
-            c.drawRoundRect(rectF, 1.7f, 1.7f, pFill)
+            val x = 7.5f + n * 6.2f
+            rectF.set(x, 29f - hs[n] / 2f, x + 3.6f, 29f + hs[n] / 2f)
+            c.drawRoundRect(rectF, 1.8f, 1.8f, pFill)
         }
         pFill.clearShadowLayer()
+        pFill.shader = null
         pFill.color = Color.parseColor("#FF453A")
-        pFill.setShadowLayer(4f, 0f, 0f, Color.parseColor("#FF453A"))
-        c.drawCircle(46f, 12f, 4.6f, pFill)
+        pFill.setShadowLayer(5f, 0f, 0f, Color.parseColor("#FF453A"))
+        c.drawCircle(46.5f, 11.5f, 4.8f, pFill)
         pFill.clearShadowLayer()
     }
 
-    // zmiana interfejsu UFO / CarPlay: dwie strzałki w przeciwne strony
+    // zmiana interfejsu UFO / CarPlay: dwie strzałki w przeciwne strony (jak "arrow.left.arrow.right")
     private fun glyphSwap(c: Canvas) {
         pStroke.style = Paint.Style.STROKE
-        pStroke.strokeWidth = 4.6f
+        pStroke.strokeWidth = 5f
         pStroke.strokeCap = Paint.Cap.ROUND
         pStroke.strokeJoin = Paint.Join.ROUND
+        pStroke.shader = glyphShader
         pStroke.color = Color.WHITE
-        pStroke.setShadowLayer(3f, 0f, 1.5f, 0x55000000)
-        c.drawLine(13f, 22f, 44f, 22f, pStroke)
-        c.drawLine(37f, 15f, 44f, 22f, pStroke)
-        c.drawLine(37f, 29f, 44f, 22f, pStroke)
-        c.drawLine(45f, 37f, 14f, 37f, pStroke)
-        c.drawLine(21f, 30f, 14f, 37f, pStroke)
-        c.drawLine(21f, 44f, 14f, 37f, pStroke)
+        pStroke.setShadowLayer(4f, 0f, 2f, 0x66000000)
+        c.drawLine(12f, 21f, 45f, 21f, pStroke)
+        c.drawLine(37f, 13f, 45f, 21f, pStroke)
+        c.drawLine(37f, 29f, 45f, 21f, pStroke)
+        c.drawLine(46f, 37f, 13f, 37f, pStroke)
+        c.drawLine(21f, 29f, 13f, 37f, pStroke)
+        c.drawLine(21f, 45f, 13f, 37f, pStroke)
         pStroke.clearShadowLayer()
+        pStroke.shader = null
         pStroke.strokeCap = Paint.Cap.BUTT
         pStroke.style = Paint.Style.FILL
     }
 
-    // ustawienia: ciemne koło zębate na srebrnym tle
-    private fun glyphGear(c: Canvas) {
-        pStroke.style = Paint.Style.STROKE
-        pStroke.color = Color.parseColor("#3B4049")
-        pStroke.strokeWidth = 5f
-        c.drawCircle(29f, 29f, 9f, pStroke)
-        pStroke.strokeWidth = 5.6f
+    // ustawienia: ciemne wypełnione koło zębate z otworem na srebrnym tle (jak w iOS)
+    private fun glyphGear(c: Canvas, base: LinearGradient) {
+        pFill.shader = gearShader
+        pFill.setShadowLayer(2.5f, 0f, 1.5f, 0x55FFFFFF)
+        c.drawCircle(29f, 29f, 11.8f, pFill)
         for (k in 0 until 8) {
-            val a = Math.toRadians((k * 45).toDouble())
-            c.drawLine(
-                (29f + 11f * cos(a)).toFloat(), (29f + 11f * sin(a)).toFloat(),
-                (29f + 16.5f * cos(a)).toFloat(), (29f + 16.5f * sin(a)).toFloat(), pStroke
-            )
+            c.save()
+            c.rotate(k * 45f, 29f, 29f)
+            rectF.set(25.6f, 11.5f, 32.4f, 19.5f)
+            c.drawRoundRect(rectF, 1.8f, 1.8f, pFill)
+            c.restore()
         }
-        pStroke.style = Paint.Style.FILL
+        pFill.clearShadowLayer()
+        pFill.shader = base
+        c.drawCircle(29f, 29f, 5f, pFill)
+        pFill.shader = null
     }
 
     // napięcie na żywo: bateria nad liczbą i literą V
     private fun glyphVolt(c: Canvas) {
         pStroke.style = Paint.Style.STROKE
+        pStroke.shader = glyphShader
         pStroke.color = Color.WHITE
-        pStroke.strokeWidth = 2.2f
-        rectF.set(17f, 8f, 39f, 19f)
-        c.drawRoundRect(rectF, 2.5f, 2.5f, pStroke)
+        pStroke.strokeWidth = 2.4f
+        pStroke.setShadowLayer(3f, 0f, 1.5f, 0x55000000)
+        rectF.set(16f, 7.5f, 39f, 19f)
+        c.drawRoundRect(rectF, 3f, 3f, pStroke)
+        pStroke.clearShadowLayer()
+        pStroke.shader = null
         pStroke.style = Paint.Style.FILL
-        whiteInk()
-        rectF.set(39.8f, 11.5f, 42.8f, 15.5f)
-        c.drawRoundRect(rectF, 1f, 1f, pFill)
+        glassInk()
+        rectF.set(40.2f, 11f, 43.4f, 15.5f)
+        c.drawRoundRect(rectF, 1.2f, 1.2f, pFill)
         pFill.clearShadowLayer()
+        pFill.shader = null
 
         pText.typeface = tfBold
         pText.textAlign = Paint.Align.CENTER
         pText.color = Color.WHITE
-        pText.setShadowLayer(3f, 0f, 1.5f, 0x55000000)
+        pText.setShadowLayer(4f, 0f, 2f, 0x66000000)
         pText.textSize = if (voltNum.length > 4) 18f else 22f
         c.drawText(voltNum, 29f, 40f, pText)
         pText.textSize = 12f
@@ -1742,7 +1851,7 @@ class UfoClusterFullView(context: Context) : View(context) {
             return true 
         }
         
-        if (y > 640f) { 
+        if (y > 630f) { 
             if (x in (DOCK_L - 30f)..(DOCK_R + 30f)) {
                 when (((x - (DOCK_X0 - 22f)) / DOCK_PITCH).toInt().coerceIn(0, 4)) { 
                     0 -> onOpenDtc()
@@ -1798,7 +1907,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         }
         
         // Obszar HUD (Prędkościomierz)
-        if (y in 40f..130f && x in 90f..300f) { 
+        if (y in 54f..144f && x in 106f..316f) { 
             onSpeedTap()
             return true 
         }
