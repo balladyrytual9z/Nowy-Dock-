@@ -6,10 +6,6 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.GradientDrawable;
-import android.graphics.LinearGradient;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffXfermode;
-import android.graphics.Shader;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
@@ -246,14 +242,20 @@ public class AppLibraryPage extends FrameLayout {
         shLp.topMargin = dp(8);
         contentPane.addView(searchHeader, shLp);
 
-        scrollView = new FadeScrollView(ctx);
+        scrollView = new ScrollView(ctx);
         scrollView.setFillViewport(true);
         scrollView.setVerticalScrollBarEnabled(false);
         scrollView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        // zanikanie pod paskiem = wbudowane fading edges (lekki kod frameworkowy,
+        // bez offscreen layeru co klatke, ktory zabijal przewijanie na Mali-T720);
+        // wlacza sie dopiero gdy cos NAPRAWDE przewija sie pod pasek - przy
+        // spoczynku na gorze listy pierwsza ikona jest pelna; pasmo konczy sie
+        // na dolnej krawedzi pigulki (74dp)
+        scrollView.setVerticalFadingEdgeEnabled(true);
+        scrollView.setFadingEdgeLength(dp(74));
         listCol = new LinearLayout(ctx);
         listCol.setOrientation(LinearLayout.VERTICAL);
-        // lista przewija sie pod paskiem, ale wiersze miekko zanikaja (maska
-        // alpha w FadeScrollView) zanim dotra pod pigulke - pod pigulka tylko tapeta
+        // lista przewija sie pod paskiem; zanikanie robi fading edge ScrollView
         listCol.setPadding(dp(14), dp(70), dp(14) + extraR, dp(28));
         scrollView.addView(listCol, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         contentPane.addView(scrollView, new android.widget.FrameLayout.LayoutParams(
@@ -266,15 +268,15 @@ public class AppLibraryPage extends FrameLayout {
 
         // babel z aktualna litera NAD palcem (jak w iOS w selektorze liter)
         letterBubble = new TextView(ctx);
-        letterBubble.setTextSize(46);
+        letterBubble.setTextSize(36);
         letterBubble.setTypeface(null, android.graphics.Typeface.BOLD);
         letterBubble.setTextColor(0xFFFFFFFF);
         letterBubble.setGravity(Gravity.CENTER);
-        letterBubble.setMinWidth(dp(84));
-        letterBubble.setPadding(dp(10), dp(4), dp(10), dp(8));
+        letterBubble.setMinWidth(dp(64));
+        letterBubble.setPadding(dp(8), dp(3), dp(8), dp(6));
         GradientDrawable bubbleBg = new GradientDrawable();
         bubbleBg.setShape(GradientDrawable.RECTANGLE);
-        bubbleBg.setCornerRadius(dp(26));
+        bubbleBg.setCornerRadius(dp(20));
         bubbleBg.setColor(night ? 0xCC1C1C22 : 0xE61C1C22);
         bubbleBg.setStroke(Math.max(1, (int) (1f * d)), night ? 0x4DFFFFFF : 0x22808090);
         letterBubble.setBackground(bubbleBg);
@@ -470,8 +472,9 @@ public class AppLibraryPage extends FrameLayout {
         int[] pg = new int[2];
         getLocationOnScreen(pg);
         float fingerY = lb[1] - pg[1] + yInBar;
-        float bx = lb[0] - pg[0] + letterBar.getWidth() / 2f - dp(42);
-        float by = Math.max(dp(70), fingerY - dp(90));
+        float bx = lb[0] - pg[0] + letterBar.getWidth() / 2f - dp(32);
+        // podniesiony ~30dp (5mm) nad palec i scagniety od doka - nie zahacza doka
+        float by = Math.max(dp(70), fingerY - dp(120));
         LayoutParams lp = (LayoutParams) letterBubble.getLayoutParams();
         lp.leftMargin = (int) bx;
         lp.topMargin = (int) by;
@@ -502,34 +505,10 @@ public class AppLibraryPage extends FrameLayout {
         return "#";
     }
 
-    /** ScrollView z miekkim zanikiem tresci pod paskiem szukania: maska alpha
-     *  (DST_IN) wygasza wiersze listy zanim dotra pod polprzezroczysta pigulke.
-     *  Dzieki temu pod pigulka widac wylacznie tapete, a sam pasek wyglada jak
-     *  wczesniej - bez zadnego dodatkowego pasma na tle tapety. */
-    private class FadeScrollView extends ScrollView {
-        private Paint mask;
-        FadeScrollView(Context c) { super(c); }
-        @Override public void draw(Canvas c) {
-            int w = getWidth();
-            int h = getHeight();
-            int sc = c.saveLayer(0f, 0f, w, h, null, Canvas.ALL_SAVE_FLAG);
-            super.draw(c);
-            if (mask == null) {
-                mask = new Paint(Paint.ANTI_ALIAS_FLAG);
-                // alpha 0 nad dolna krawedzia paska (74dp), pelna widocznosc 26dp nizej;
-                // shader z CLAMP wygasza tez caly obszar ukryty pod pigulka
-                mask.setShader(new LinearGradient(0f, dp(74), 0f, dp(74) + dp(26),
-                        0x00000000, 0xFFFFFFFF, Shader.TileMode.CLAMP));
-                mask.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
-            }
-            c.drawRect(0f, 0f, w, h, mask);
-            c.restoreToCount(sc);
-        }
-    }
-
     private int dp(float v) {
         return (int) (v * d + 0.5f);
     }
 }
+
 
 
