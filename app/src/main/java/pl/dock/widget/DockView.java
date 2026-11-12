@@ -420,15 +420,22 @@ public class DockView extends View {
         float cy = top + 24f * d;
         cv.drawText(clock, cx, cy - (clockPaint.descent() + clockPaint.ascent()) / 2f, clockPaint);
 
-        // WiFi, tethering, Bluetooth (telefon) - jak na referencji uzytkownika:
-        // kolejnosc Wi-Fi / hotspot / BT, rowne odstepy, rozmiar dopasowany do panelu
-        float sy = top + 50f * d;
-        float is = 19f * d;   // ikona
-        float igp = 3f * d;   // rowny odstep miedzy ikonami (razem 63 dp w panelu 65 dp)
-        float x0 = cx - (3f * is + 2f * igp) / 2f;
-        drawIcon(cv, bWifi, x0, sy - is / 2f, is, is, 255);
-        drawIcon(cv, bTether, x0 + is + igp, sy - is / 2f, is, is, 255);
-        drawIcon(cv, bBt, x0 + 2f * (is + igp), sy - is / 2f, is, is, 255);
+        // WiFi, tethering, Bluetooth (telefon) - TYLKO te 3 ikony sieciowe.
+        // Jeden rząd poziomo, wyśrodkowany w docku, space-between (równe odstępy między ikonami).
+        // Padding boków 12px (6dp) już w panelL()/panelR().
+        float netIconW = 22f * d;   // stała szerokość ikony (box-sizing border-box)
+        float netIconH = 22f * d;   // aspect-ratio 1:1
+        float netTotalW = 3f * netIconW;
+        float netAvailW = (panelR() - panelL()) - netTotalW;   // wolna przestrzeń do rozdzielenia
+        float netGap = netAvailW > 0 ? netAvailW / 2f : 0f;     // space-between między 3 ikonami
+        float netX = panelL();
+        float netY = panelT() + 16f * d;   // poniżej zegara (zegar ~24dp + padding)
+        for (int k = 0; k < 3; k++) {
+            Bitmap b = k == 0 ? bWifi : (k == 1 ? bTether : bBt);
+            if (b == null) continue;
+            drawIcon(cv, b, netX, netY, netIconW, netIconH, 255);
+            netX += netIconW + netGap;
+        }
 
         // kolejne wiersze: napięcie / ładowanie, bateria telefonu, status CarPlay
         float y = top + 76f * d;
