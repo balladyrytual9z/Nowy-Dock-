@@ -842,7 +842,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         drawWingArc(c, left = false)
         drawFooter(c)
         pFill.shader = glassShader
-        c.drawRect(0f, 0f, 1280f, 640f, pFill)
+        c.drawRect(0f, 0f, 1280f, 720f, pFill)
         pFill.shader = null
     }
 
@@ -1277,11 +1277,27 @@ class UfoClusterFullView(context: Context) : View(context) {
     private val gearShader = LinearGradient(0f, 10f, 0f, 48f, 0xFF5B616D.toInt(), 0xFF262A31.toInt(), Shader.TileMode.CLAMP)
     private val icoGloss = LinearGradient(0f, 0f, 0f, 31f, 0x4DFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP)
     private val cornerFx = CornerPathEffect(2.4f)
-    private val enginePts = floatArrayOf(
-        13f, 23f, 21f, 23f, 21f, 17f, 31f, 17f, 31f, 13f, 36f, 13f, 36f, 17f, 40f, 17f,
-        40f, 23f, 44f, 23f, 44f, 27f, 50f, 27f, 50f, 35f, 44f, 35f, 44f, 41f, 39f, 41f,
-        39f, 46f, 33f, 46f, 33f, 41f, 25f, 41f, 25f, 46f, 19f, 46f, 19f, 41f, 13f, 41f,
-        13f, 37f, 8f, 37f, 8f, 27f, 13f, 27f)
+    // Symbol check engine zwektoryzowany z dostarczonego obrazka (szerokość = 1, środek w 0,0)
+    private val engineData: Array<FloatArray> = arrayOf(
+        floatArrayOf(-0.4960f, -0.1547f, -0.5000f, -0.1320f, -0.5000f, -0.0373f, -0.4960f, -0.0167f, -0.4867f, -0.0040f, -0.4860f, 0.1767f, -0.4793f, 0.1947f, -0.4593f, 0.2127f, -0.4520f, 0.2153f, -0.4480f, 0.2100f, -0.4480f, 0.0360f, -0.4433f, 0.0320f, -0.3987f, 0.0320f, -0.3947f, 0.0367f, -0.3947f, 0.1947f, -0.3900f, 0.2053f, -0.3727f, 0.2167f, -0.2487f, 0.2180f, -0.1293f, 0.3353f, 0.2467f, 0.3347f, 0.2720f, 0.3220f, 0.2860f, 0.3027f, 0.2900f, 0.2800f, 0.2893f, 0.2380f, 0.2953f, 0.2293f, 0.3260f, 0.2293f, 0.3293f, 0.2327f, 0.3300f, 0.3067f, 0.3327f, 0.3087f, 0.4593f, 0.3087f, 0.4673f, 0.2967f, 0.4833f, 0.2467f, 0.4940f, 0.1893f, 0.4993f, 0.1333f, 0.5000f, 0.0407f, 0.4887f, -0.0647f, 0.4780f, -0.1093f, 0.4627f, -0.1480f, 0.4580f, -0.1513f, 0.3327f, -0.1513f, 0.3300f, -0.1480f, 0.3287f, -0.0747f, 0.2933f, -0.0733f, 0.2893f, -0.0793f, 0.2900f, -0.1233f, 0.2853f, -0.1400f, 0.2760f, -0.1487f, 0.2660f, -0.1513f, 0.1873f, -0.1520f, 0.1847f, -0.1560f, 0.1847f, -0.1947f, 0.1800f, -0.2127f, 0.1700f, -0.2273f, 0.1560f, -0.2380f, 0.1360f, -0.2440f, 0.0040f, -0.2440f, 0.0000f, -0.2473f, -0.0007f, -0.2793f, 0.0033f, -0.2833f, 0.1033f, -0.2833f, 0.1133f, -0.2867f, 0.1187f, -0.2987f, 0.1187f, -0.3207f, 0.1160f, -0.3300f, 0.1093f, -0.3353f, -0.2427f, -0.3347f, -0.2500f, -0.3240f, -0.2500f, -0.2960f, -0.2440f, -0.2860f, -0.2353f, -0.2833f, -0.1353f, -0.2833f, -0.1307f, -0.2787f, -0.1307f, -0.2493f, -0.1360f, -0.2440f, -0.2447f, -0.2433f, -0.2600f, -0.2387f, -0.2773f, -0.2247f, -0.2927f, -0.1913f, -0.3713f, -0.1913f, -0.3840f, -0.1860f, -0.3947f, -0.1693f, -0.3947f, -0.0120f, -0.4000f, -0.0060f, -0.4400f, -0.0060f, -0.4480f, -0.0107f, -0.4493f, -0.1893f, -0.4553f, -0.1907f, -0.4773f, -0.1807f),
+        floatArrayOf(-0.3420f, -0.1367f, -0.3387f, -0.1393f, -0.2533f, -0.1407f, -0.2433f, -0.1480f, -0.2380f, -0.1580f, -0.2367f, -0.1880f, -0.2327f, -0.1920f, 0.1287f, -0.1920f, 0.1327f, -0.1853f, 0.1327f, -0.1193f, 0.1373f, -0.1100f, 0.1453f, -0.1027f, 0.1573f, -0.0993f, 0.2353f, -0.0980f, 0.2400f, -0.0347f, 0.2513f, -0.0233f, 0.2620f, -0.0207f, 0.3793f, -0.0213f, 0.3820f, -0.0240f, 0.3833f, -0.0973f, 0.4193f, -0.0987f, 0.4253f, -0.0900f, 0.4360f, -0.0460f, 0.4480f, 0.0573f, 0.4473f, 0.1193f, 0.4413f, 0.1733f, 0.4227f, 0.2533f, 0.4173f, 0.2567f, 0.3827f, 0.2540f, 0.3820f, 0.1820f, 0.3793f, 0.1780f, 0.2620f, 0.1773f, 0.2480f, 0.1827f, 0.2393f, 0.1940f, 0.2380f, 0.2787f, 0.2340f, 0.2827f, -0.1200f, 0.2813f, -0.2360f, 0.1660f, -0.3413f, 0.1633f)
+    )
+    private val engineBase = Path()
+    private val engineMat = Matrix()
+    private val engineBuilt = buildEngine()
+
+    private fun buildEngine(): Boolean {
+        engineBase.fillType = Path.FillType.EVEN_ODD
+        for (contour in engineData) {
+            var i = 0
+            while (i < contour.size) {
+                if (i == 0) engineBase.moveTo(contour[i], contour[i + 1]) else engineBase.lineTo(contour[i], contour[i + 1])
+                i += 2
+            }
+            engineBase.close()
+        }
+        return true
+    }
 
     private var voltNum = "---"
 
@@ -1290,9 +1306,8 @@ class UfoClusterFullView(context: Context) : View(context) {
     private fun drawFooter(c: Canvas) {
         // ładne tło pod dockiem: miękka fioletowo-niebieska poświata jak za tarczą (zamiast czarnego paska)
         c.save()
-        c.clipRect(0f, 622f, 1280f, 720f)
-        c.translate(640f, 690f)
-        c.scale(1f, 0.30f)
+        c.translate(640f, 705f)
+        c.scale(1f, 0.22f)
         pFill.shader = dockBgGlow
         c.drawCircle(0f, 0f, 420f, pFill)
         pFill.shader = null
@@ -1402,28 +1417,19 @@ class UfoClusterFullView(context: Context) : View(context) {
         pFill.setShadowLayer(4f, 0f, 2f, 0x66000000)
     }
 
-    // klasyczny symbol "check engine": sylwetka silnika z wykrzyknikiem wyciętym w bloku
+    // symbol "check engine" z dostarczonego obrazka, jako biały szklany znak na ikonie
     private fun glyphEngine(c: Canvas, base: LinearGradient) {
+        engineMat.reset()
+        engineMat.postScale(42f, 42f)
+        engineMat.postTranslate(29f, 29.5f)
         needlePath.reset()
-        needlePath.moveTo(enginePts[0], enginePts[1])
-        var n = 2
-        while (n < enginePts.size) {
-            needlePath.lineTo(enginePts[n], enginePts[n + 1])
-            n += 2
-        }
-        needlePath.close()
+        engineBase.transform(engineMat, needlePath)
+        needlePath.fillType = Path.FillType.EVEN_ODD
         glassInk()
-        pFill.pathEffect = cornerFx
         c.drawPath(needlePath, pFill)
-        pFill.pathEffect = null
         pFill.clearShadowLayer()
-
-        // wykrzyknik "wycięty" kolorem tła ikony
-        pFill.shader = base
-        rectF.set(27.1f, 25.5f, 30.9f, 34.8f)
-        c.drawRoundRect(rectF, 1.9f, 1.9f, pFill)
-        c.drawCircle(29f, 38f, 2.1f, pFill)
         pFill.shader = null
+        needlePath.fillType = Path.FillType.WINDING
     }
 
     // zapis ostatnich 30 s telemetrii: przebieg sygnału i czerwony znacznik nagrywania
