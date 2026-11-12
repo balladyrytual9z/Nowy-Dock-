@@ -84,7 +84,7 @@ public class ConnectivityPanelIos extends LinearLayout {
     }
 
     private final Activity act;
-    private final boolean night;
+    private boolean night;   // nie-final: panel reaguje na zmiane trybu w otwartej nakladce
     private final Host host;
     private Tile tWifi, tBt, tHot;
     private RoundBtn bMode, bShift;
@@ -125,6 +125,23 @@ public class ConnectivityPanelIos extends LinearLayout {
         }
         setElevation(dp(12));
         build();
+    }
+
+    /** Zmiana trybu dzien/noc w OTWARTYM panelu (host wywoluje z modeChanged):
+     *  nowa ramka szkla + pelna przebudowa tresci w nowych kolorach, potem
+     *  odswiezenie stanow radii/przyciskow. Dzieki temu panel zmienia sie
+     *  razem z tlem i dokiem, a nie tylko tlo pod nim. */
+    public void setNight(boolean n) {
+        if (this.night == n) return;
+        this.night = n;
+        try {
+            setBackground(new PanelGlassFrame(act, night));
+        } catch (Throwable ignored) {}
+        removeAllViews();
+        warmthRow = null;
+        warmthBar = null;
+        build();
+        update();
     }
 
     private void build() {
@@ -564,7 +581,9 @@ public class ConnectivityPanelIos extends LinearLayout {
             p.setShader(null);
 
             float cd = 50f * d;
-            float cx = wide ? 20f * d + cd / 2f : 18f * d + cd / 2f;
+            // kolumna ikon w JEDNEJ LINII: kafelki (wasokie i szeroki Hotspot)
+            // maja srodek kola ikony na 18dp + 25dp = 43dp od lewej kolumny
+            float cx = wide ? 18f * d + cd / 2f : 18f * d + cd / 2f;
             float cy = wide ? hh / 2f : 18f * d + cd / 2f;
             p.setStyle(Paint.Style.FILL);
             p.setColor(active ? color : 0xFF7E8686);
@@ -580,7 +599,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             p.setTypeface(Typeface.DEFAULT_BOLD);
             p.setTextAlign(Paint.Align.LEFT);
             if (wide) {
-                float tx = 20f * d + cd + 14f * d;
+                float tx = 18f * d + cd + 14f * d;
                 p.setColor(tc);
                 p.setTextSize(19f * sd);
                 cv.drawText(title, tx, hh / 2f - 4f * d, p);
@@ -652,15 +671,20 @@ public class ConnectivityPanelIos extends LinearLayout {
         @Override
         protected void onDraw(Canvas cv) {
             float w = getWidth();
-            float cx = w / 2f;
+            // kind 4 ("Tryb ciemny"): kolo i podpis w KOLUMNIE IKON kafelkow
+            // (18dp + 25dp = 43dp od lewej kolumny) - ikony Wi-Fi / Hotspot /
+            // Tryb ciemny stoja wtedy w jednej pionowej linii (zyczenie uzytkownika).
+            // kind 3 (Night Shift) zostaje na srodku swojego waskiego kontenera.
+            float cx = (kind == 4) ? 43f * d : w / 2f;
             float cy = 34f * d;
             float rad = 28f * d;
-            // SZKŁO: nieaktywny = półprzezroczysty + światło Z GÓRY; aktywny = pełny kolor
             p.setStyle(Paint.Style.FILL);
             p.setShader(null);
+            // DZIEN (nieaktywny): szarawe szklo (0x3D787880, jak nieaktywne przyciski
+            // iOS w jasnym motywie) - biale kolo znikalo na jasnym tle panelu
             p.setColor(active ? (kind == 3 ? 0xFFFF9F0A
                             : (kind == 4 ? 0xFFFFFFFF : 0xFF1C94FF))
-                    : (night ? 0x9E4E4E53 : 0xCCFFFFFF));
+                    : (night ? 0x9E4E4E53 : 0x3D787880));
             cv.drawCircle(cx, cy, rad, p);
             if (!active) {
                 int saveG = cv.save();
@@ -683,8 +707,12 @@ public class ConnectivityPanelIos extends LinearLayout {
                 p.setShader(null);
                 p.setStyle(Paint.Style.FILL);
             }
-            int ink = kind == 4 ? (active ? 0xFF1C1C1E : 0xFFFFFFFF)
-                    : (active ? 0xFFFFFFFF : (night ? 0xFFFFFFFF : 0xFF3C3C43));
+            // NAPRAWA: w trybie dziennym ikona "kontrast" byla BIALA na bialym kole
+            // (niewidoczna - wygladalo to jak pusty bialy przelacznik). Nieaktywny
+            // kind 4 ma teraz ikone ciemna w dzien, biala w nocy - jak pozostale.
+            int ink = (kind == 4 && active) ? 0xFF1C1C1E
+                    : active ? 0xFFFFFFFF
+                    : (night ? 0xFFFFFFFF : 0xFF3C3C43);
             p.setColor(ink);
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeWidth(2.6f * d);

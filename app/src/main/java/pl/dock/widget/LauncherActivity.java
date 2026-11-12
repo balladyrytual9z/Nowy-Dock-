@@ -1196,7 +1196,15 @@ public class LauncherActivity extends BaseActivity {
         int target = Math.round(pager.position()) + direction;
         if (target < appsStart || target >= appsStart + appPages.size()) return;
         items.remove(idx);
-        int insert = Math.max(appsStart, Math.min(target, items.size()));
+        // POPRAWKA (przywrocona, zgubiona w poprzedniej sesji): ikona trafia na
+        // WLASCIWY sasiedni ekran. target to indeks STRONY w pagerze, a pozycja
+        // na liscie items liczy sie od pierwszej strony aplikacji:
+        // start strony = (target - appsStart) * PER_PAGE; ikona wchodzi na pierwsze
+        // wolne miejsce tej strony (pelna strona -> pierwsze miejsce nastepnej),
+        // zamiast byc wstawiana pod indeks strony (ikonka ladowala na zlym ekranie).
+        int base = (target - appsStart) * AppsGridPage.PER_PAGE;
+        int onTarget = Math.max(0, Math.min(AppsGridPage.PER_PAGE, items.size() - base));
+        int insert = base + onTarget;
         items.add(insert, it);
         // utrwal kolejnosc tak jak przy dragowaniu w obrebie strony
         try {
@@ -1475,6 +1483,8 @@ public class LauncherActivity extends BaseActivity {
             public void modeChanged() {
                 night = Look.night(LauncherActivity.this);
                 smoothThemeChange();
+                // panel CC tez zmienia kolory razem z motywem (tlo, kafelki, szklo)
+                if (panel != null) panel.setNight(night);
             }
         });
         boolean left = Ui.dockLeft(this);
@@ -1489,7 +1499,9 @@ public class LauncherActivity extends BaseActivity {
                 Gravity.TOP | (left ? Gravity.START : Gravity.END));
         lp.leftMargin = left ? dockPx + Ui.dp(this, 10) : 0;
         lp.rightMargin = left ? 0 : dockPx + Ui.dp(this, 10);
-        lp.topMargin = Ui.dp(this, 12) + Ui.statusBarHeight(this);   // pod paskiem systemowym
+        // COFNIETE (zyczenie uzytkownika): bez przesuniecia o pasek systemowy -
+        // panel wraca na wysokosc 12dp od gory (przesuniecie z 9c8c464c zle wygladalo)
+        lp.topMargin = Ui.dp(this, 12);
         overlay.addView(panel, lp);
         // defensive: dodajemy pod dok (nad resztą). indexOfChild może dać -1
         // w krótkim oknie po odbudowie UI - wtedy zwykły addView na wierzch.
@@ -1519,7 +1531,7 @@ public class LauncherActivity extends BaseActivity {
         boolean panelLeftSide = left;
         float panelLeft = panelLeftSide ? dockPx + Ui.dp(this, 10)
                 : root.getWidth() - (dockPx + Ui.dp(this, 10)) - panelW;
-        float panelTop = Ui.dp(this, 12) + Ui.statusBarHeight(this);
+        float panelTop = Ui.dp(this, 12);
         float px = Math.max(0f, Math.min(panelW, gestureX - panelLeft));
         float py = Math.max(0f, Math.min(Ui.dp(this, 600), gestureY - panelTop));
         overlay.setAlpha(0f);
