@@ -288,9 +288,9 @@ class UfoClusterFullView(context: Context) : View(context) {
     }
 
     // Niebieska poświata za prędkością (spłaszczona na osi Y), rysowana w początku układu i przesuwana
-    private val hudGlowShader = RadialGradient(0f, 0f, 150f,
-        intArrayOf(0xBB142BFF.toInt(), 0x330011AA, 0x00000000),
-        floatArrayOf(0f, 0.4f, 1f), Shader.TileMode.CLAMP)
+    private val hudGlowShader = RadialGradient(0f, 0f, 130f,
+        intArrayOf(0xCC1A33FF.toInt(), 0x881020D0.toInt(), 0x00000000),
+        floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP)
 
     // Cyfry prędkości jak na oryginalnym wyświetlaczu: białe segmenty z cienkimi przerwami na stykach
     private val segPath = Path()
@@ -802,10 +802,10 @@ class UfoClusterFullView(context: Context) : View(context) {
 
         // niebieska poświata za prędkością
         c.save()
-        c.translate(172f, rowY)
+        c.translate(190f, rowY)
         c.scale(1f, 0.5f)
         pFill.shader = hudGlowShader
-        c.drawCircle(0f, 0f, 150f, pFill)
+        c.drawCircle(0f, 0f, 130f, pFill)
         pFill.shader = null
         c.restore()
 
@@ -1174,95 +1174,233 @@ class UfoClusterFullView(context: Context) : View(context) {
         pText.clearShadowLayer()
     }
 
+    // ---------- DOCK (jak w iOS / CarPlay) ----------
+    private val DOCK_L = 389f
+    private val DOCK_R = 891f
+    private val DOCK_T = 645f
+    private val DOCK_B = 715f
+    private val DOCK_ICON = 54f
+    private val DOCK_ICON_T = 653f
+    private val DOCK_PITCH = 98f
+    private val DOCK_X0 = 417f          // lewa krawędź pierwszej ikony
+
+    private val dockFillShader = LinearGradient(0f, 645f, 0f, 715f,
+        0xCC232C52.toInt(), 0xCC0B0F20.toInt(), Shader.TileMode.CLAMP)
+    private val dockSheenShader = LinearGradient(0f, 645f, 0f, 685f,
+        0x2CFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP)
+    private val dockStrokeShader = LinearGradient(389f, 645f, 891f, 715f,
+        intArrayOf(0x88FFFFFF.toInt(), 0x18FFFFFF, 0x55B8A8FF),
+        floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
+
+    // Shadery ikon w lokalnym układzie 58x58 (rysujemy po translate + scale)
+    private fun vGrad(top: Int, bottom: Int) =
+        LinearGradient(0f, 0f, 0f, 58f, top, bottom, Shader.TileMode.CLAMP)
+    private val gGreen = vGrad(0xFF8BE98A.toInt(), 0xFF34B04B.toInt())
+    private val gAmber = vGrad(0xFFFFD060.toInt(), 0xFFF09A1A.toInt())
+    private val gRed = vGrad(0xFFFF7468.toInt(), 0xFFD2281E.toInt())
+    private val gGraphite = vGrad(0xFF5A6070.toInt(), 0xFF1E222C.toInt())
+    private val gBlue = vGrad(0xFF63B6FF.toInt(), 0xFF2D6BEA.toInt())
+    private val gSilver = vGrad(0xFFD9DDE4.toInt(), 0xFF8E94A0.toInt())
+    private val gGray = vGrad(0xFF7A808C.toInt(), 0xFF3C414B.toInt())
+    // światło z lewego górnego rogu: połysk, jasna krawędź i delikatny cień po przeciwnej stronie
+    private val icoHi = LinearGradient(0f, 0f, 46f, 46f, 0x5CFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP)
+    private val icoShade = LinearGradient(58f, 58f, 22f, 22f, 0x3A000000, 0x00000000, Shader.TileMode.CLAMP)
+    private val icoEdge = LinearGradient(0f, 0f, 58f, 58f, 0xCCFFFFFF.toInt(), 0x12FFFFFF, Shader.TileMode.CLAMP)
+
+    private var voltNum = "---"
+
+    private fun dockIconX(i: Int): Float = DOCK_X0 + i * DOCK_PITCH
+
     private fun drawFooter(c: Canvas) {
-        pFill.color = Color.parseColor("#06080D")
+        pFill.color = Color.parseColor("#05070B")
         c.drawRect(0f, 640f, 1280f, 720f, pFill)
-        
-        pStroke.strokeWidth = 2f
-        pStroke.color = Color.parseColor("#222833")
-        c.drawLine(0f, 640f, 1280f, 640f, pStroke)
+
+        // tło docka: półprzezroczysta szklana tafla z ramką jak w CarPlay
+        rectF.set(DOCK_L, DOCK_T, DOCK_R, DOCK_B)
+        pFill.shader = dockFillShader
+        c.drawRoundRect(rectF, 28f, 28f, pFill)
+        pFill.shader = dockSheenShader
+        c.drawRoundRect(rectF, 28f, 28f, pFill)
+        pFill.shader = null
+        pStroke.style = Paint.Style.STROKE
+        pStroke.strokeWidth = 1.8f
+        pStroke.shader = dockStrokeShader
+        rectF.inset(0.9f, 0.9f)
+        c.drawRoundRect(rectF, 27f, 27f, pStroke)
+        pStroke.shader = null
+        pStroke.style = Paint.Style.FILL
 
         val mil = milOn || dtcCount > 0
-        pText.textAlign = Paint.Align.CENTER
-        pText.textSize = 24f
-        pText.typeface = tfBold
-        pText.color = if (mil) TICK_RED else Color.parseColor("#666D7A")
-        c.drawText(if (milOn) "CHECK ENGINE" else if (dtcCount > 0) "DTC: " + dtcCount else "CHECK ENGINE OK", 128f, 686f, pText)
-        
-        pText.textSize = 16f
-        pText.color = Color.parseColor("#666D7A")
-        c.drawText("KODY BŁĘDÓW", 128f, 712f, pText)
-
-        pText.textSize = 24f
-        pText.color = TICK_OEM
-        c.drawText("ZAPISZ EVENT", 384f, 690f, pText)
-        
-        pText.textSize = 16f
-        pText.color = Color.parseColor("#666D7A")
-        c.drawText("30 S TELEMETRII", 384f, 712f, pText)
-
-        pText.textSize = 24f
-        pText.color = TICK_OEM
-        c.drawText("SWAP UI", 640f, 690f, pText)
-        
-        pText.textSize = 16f
-        pText.color = Color.parseColor("#666D7A")
-        c.drawText("UFO / CARPLAY", 640f, 712f, pText)
-
-        drawGearIcon(c, 896f, 664f, TICK_OEM)
-        
-        pText.textSize = 16f
-        pText.color = Color.parseColor("#666D7A")
-        c.drawText("USTAWIENIA", 896f, 712f, pText)
-
         val stale = connected && System.currentTimeMillis() - lastDataMs > 5000
-        pText.textSize = 26f
-        pText.typeface = tfBold
-        pText.color = when { 
-            !connected && !connecting -> Color.parseColor("#666D7A") 
-            connecting -> AMBER 
-            stale -> Color.parseColor("#666D7A") 
-            else -> GREEN 
-        }
-        
-        c.drawText(when { 
-            !connected && !connecting -> "OFFLINE"
-            connecting -> "CONNECTING"
-            else -> "OBD OK" 
-        }, 1152f, 690f, pText)
-        
-        pText.textSize = 18f
-        pText.color = TICK_OEM
-        
-        if (!voltage.equals(voltSrc)) { 
+        val voltBad = !voltage.isNaN() && (voltage < voltMin || voltage > voltMax)
+
+        if (!voltage.equals(voltSrc)) {
             voltSrc = voltage
-            voltText = if (voltage.isNaN()) {
-                "--- V" 
-            } else {
-                String.format("%.1f V", voltage)
-            }
+            voltText = if (voltage.isNaN()) "--- V" else String.format("%.1f V", voltage)
+            voltNum = if (voltage.isNaN()) "---" else String.format("%.1f", voltage)
         }
-        
-        c.drawText(voltText, 1152f, 712f, pText)
+
+        val base0 = if (milOn) gRed else if (dtcCount > 0) gAmber else gGreen
+        val base4 = when {
+            !connected && !connecting -> gGray
+            connecting -> gAmber
+            stale -> gGray
+            voltBad -> gRed
+            else -> gGreen
+        }
+
+        for (i in 0..4) {
+            val base = when (i) { 0 -> base0; 1 -> gGraphite; 2 -> gBlue; 3 -> gSilver; else -> base4 }
+            drawDockIcon(c, i, base, mil)
+        }
     }
 
-    private fun drawGearIcon(c: Canvas, cx: Float, cy: Float, ink: Int) {
-        pStroke.color = ink
-        pStroke.strokeWidth = 4f
+    private fun drawDockIcon(c: Canvas, i: Int, base: LinearGradient, mil: Boolean) {
+        val k = DOCK_ICON / 58f
+        c.save()
+        c.translate(dockIconX(i), DOCK_ICON_T)
+        c.scale(k, k)
+
+        // korpus ikony (squircle) + cień pod spodem
+        rectF.set(0f, 0f, 58f, 58f)
+        pFill.shader = base
+        pFill.setShadowLayer(8f, 0f, 4f, 0x66000000)
+        c.drawRoundRect(rectF, 13f, 13f, pFill)
+        pFill.clearShadowLayer()
+        pFill.shader = icoHi
+        c.drawRoundRect(rectF, 13f, 13f, pFill)
+        pFill.shader = icoShade
+        c.drawRoundRect(rectF, 13f, 13f, pFill)
+        pFill.shader = null
+
         pStroke.style = Paint.Style.STROKE
-        c.drawCircle(cx, cy + 12f, 10f, pStroke)
-        
+        pStroke.strokeWidth = 1.6f
+        pStroke.shader = icoEdge
+        rectF.set(0.8f, 0.8f, 57.2f, 57.2f)
+        c.drawRoundRect(rectF, 12.4f, 12.4f, pStroke)
+        pStroke.shader = null
+        pStroke.style = Paint.Style.FILL
+
+        when (i) {
+            0 -> glyphEngine(c)
+            1 -> glyphEvent(c)
+            2 -> glyphSwap(c)
+            3 -> glyphGear(c)
+            else -> glyphVolt(c)
+        }
+
+        // plakietka z liczbą kodów błędów, jak powiadomienia w iOS
+        if (i == 0 && dtcCount > 0) {
+            val txt = if (dtcCount > 99) "99+" else dtcCount.toString()
+            pText.typeface = tfBold
+            pText.textSize = 15f
+            pText.textAlign = Paint.Align.CENTER
+            val w = maxOf(22f, pText.measureText(txt) + 12f)
+            rectF.set(54f - w / 2f, -7f, 54f + w / 2f, 15f)
+            pFill.color = if (milOn) Color.WHITE else Color.parseColor("#FF3B30")
+            pFill.setShadowLayer(4f, 0f, 2f, 0x66000000)
+            c.drawRoundRect(rectF, 11f, 11f, pFill)
+            pFill.clearShadowLayer()
+            pText.color = if (milOn) Color.parseColor("#D2281E") else Color.WHITE
+            c.drawText(txt, 54f, 9f, pText)
+        }
+        c.restore()
+    }
+
+    private fun whiteInk() {
+        pFill.color = Color.WHITE
+        pFill.setShadowLayer(3f, 0f, 1.5f, 0x55000000)
+    }
+
+    // silnik (kody błędów / kontrolka check engine)
+    private fun glyphEngine(c: Canvas) {
+        whiteInk()
+        rectF.set(15f, 24f, 43f, 42f); c.drawRoundRect(rectF, 3f, 3f, pFill)
+        rectF.set(22f, 17f, 35f, 24f); c.drawRoundRect(rectF, 2f, 2f, pFill)
+        rectF.set(35f, 19f, 40f, 24f); c.drawRoundRect(rectF, 1.5f, 1.5f, pFill)
+        rectF.set(9f, 28f, 15f, 38f); c.drawRoundRect(rectF, 2f, 2f, pFill)
+        rectF.set(43f, 27f, 49f, 37f); c.drawRoundRect(rectF, 2f, 2f, pFill)
+        rectF.set(24f, 42f, 34f, 46f); c.drawRoundRect(rectF, 1.5f, 1.5f, pFill)
+        pFill.clearShadowLayer()
+        pFill.color = 0x40000000
+        c.drawCircle(29f, 33f, 5.2f, pFill)
+    }
+
+    // zapis ostatnich 30 s telemetrii: fala + czerwona kropka nagrywania
+    private fun glyphEvent(c: Canvas) {
+        whiteInk()
+        val hs = floatArrayOf(12f, 22f, 32f, 20f, 28f, 14f)
+        for (n in hs.indices) {
+            val x = 10.3f + n * 6.8f
+            rectF.set(x, 29f - hs[n] / 2f, x + 3.4f, 29f + hs[n] / 2f)
+            c.drawRoundRect(rectF, 1.7f, 1.7f, pFill)
+        }
+        pFill.clearShadowLayer()
+        pFill.color = Color.parseColor("#FF453A")
+        pFill.setShadowLayer(4f, 0f, 0f, Color.parseColor("#FF453A"))
+        c.drawCircle(46f, 12f, 4.6f, pFill)
+        pFill.clearShadowLayer()
+    }
+
+    // zmiana interfejsu UFO / CarPlay: dwie strzałki w przeciwne strony
+    private fun glyphSwap(c: Canvas) {
+        pStroke.style = Paint.Style.STROKE
+        pStroke.strokeWidth = 4.6f
+        pStroke.strokeCap = Paint.Cap.ROUND
+        pStroke.strokeJoin = Paint.Join.ROUND
+        pStroke.color = Color.WHITE
+        pStroke.setShadowLayer(3f, 0f, 1.5f, 0x55000000)
+        c.drawLine(13f, 22f, 44f, 22f, pStroke)
+        c.drawLine(37f, 15f, 44f, 22f, pStroke)
+        c.drawLine(37f, 29f, 44f, 22f, pStroke)
+        c.drawLine(45f, 37f, 14f, 37f, pStroke)
+        c.drawLine(21f, 30f, 14f, 37f, pStroke)
+        c.drawLine(21f, 44f, 14f, 37f, pStroke)
+        pStroke.clearShadowLayer()
+        pStroke.strokeCap = Paint.Cap.BUTT
+        pStroke.style = Paint.Style.FILL
+    }
+
+    // ustawienia: ciemne koło zębate na srebrnym tle
+    private fun glyphGear(c: Canvas) {
+        pStroke.style = Paint.Style.STROKE
+        pStroke.color = Color.parseColor("#3B4049")
+        pStroke.strokeWidth = 5f
+        c.drawCircle(29f, 29f, 9f, pStroke)
+        pStroke.strokeWidth = 5.6f
         for (k in 0 until 8) {
             val a = Math.toRadians((k * 45).toDouble())
             c.drawLine(
-                (cx + 10f * cos(a)).toFloat(), 
-                (cy + 12f + 10f * sin(a)).toFloat(), 
-                (cx + 15f * cos(a)).toFloat(), 
-                (cy + 12f + 15f * sin(a)).toFloat(), 
-                pStroke
+                (29f + 11f * cos(a)).toFloat(), (29f + 11f * sin(a)).toFloat(),
+                (29f + 16.5f * cos(a)).toFloat(), (29f + 16.5f * sin(a)).toFloat(), pStroke
             )
         }
         pStroke.style = Paint.Style.FILL
+    }
+
+    // napięcie na żywo: bateria nad liczbą i literą V
+    private fun glyphVolt(c: Canvas) {
+        pStroke.style = Paint.Style.STROKE
+        pStroke.color = Color.WHITE
+        pStroke.strokeWidth = 2.2f
+        rectF.set(17f, 8f, 39f, 19f)
+        c.drawRoundRect(rectF, 2.5f, 2.5f, pStroke)
+        pStroke.style = Paint.Style.FILL
+        whiteInk()
+        rectF.set(39.8f, 11.5f, 42.8f, 15.5f)
+        c.drawRoundRect(rectF, 1f, 1f, pFill)
+        pFill.clearShadowLayer()
+
+        pText.typeface = tfBold
+        pText.textAlign = Paint.Align.CENTER
+        pText.color = Color.WHITE
+        pText.setShadowLayer(3f, 0f, 1.5f, 0x55000000)
+        pText.textSize = if (voltNum.length > 4) 18f else 22f
+        c.drawText(voltNum, 29f, 40f, pText)
+        pText.textSize = 12f
+        pText.color = 0xE6FFFFFF.toInt()
+        c.drawText("V", 29f, 53f, pText)
+        pText.clearShadowLayer()
     }
 
     // ---------- LOGIKA WYKRESÓW ORAZ WBUDOWANY RING BUFFER ----------
@@ -1599,18 +1737,20 @@ class UfoClusterFullView(context: Context) : View(context) {
         
         val holdMs = e.eventTime - downMs
         
-        if (engineOff && x in 48f..268f && y in 56f..104f) { 
+        if (engineOff && x in 24f..244f && y in 134f..182f) { 
             onOpenEReport()
             return true 
         }
         
         if (y > 640f) { 
-            when { 
-                x < 256f -> onOpenDtc()
-                x < 512f -> onSaveEvent()
-                x < 768f -> onSwapUi()
-                x < 1024f -> onOpenSettings()
-                else -> Unit 
+            if (x in (DOCK_L - 30f)..(DOCK_R + 30f)) {
+                when (((x - (DOCK_X0 - 22f)) / DOCK_PITCH).toInt().coerceIn(0, 4)) { 
+                    0 -> onOpenDtc()
+                    1 -> onSaveEvent()
+                    2 -> onSwapUi()
+                    3 -> onOpenSettings()
+                    else -> Unit 
+                }
             }
             return true 
         }
@@ -1658,7 +1798,7 @@ class UfoClusterFullView(context: Context) : View(context) {
         }
         
         // Obszar HUD (Prędkościomierz)
-        if (y < 160f && x in 400f..680f) { 
+        if (y in 40f..130f && x in 90f..300f) { 
             onSpeedTap()
             return true 
         }
