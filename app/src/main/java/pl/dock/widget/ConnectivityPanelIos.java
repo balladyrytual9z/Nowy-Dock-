@@ -164,12 +164,11 @@ public class ConnectivityPanelIos extends LinearLayout {
         LayoutParams l3 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(76));
         l3.topMargin = dp(12);
         left.addView(tHot, l3);
-        // Lewa kolumna (kafelki) zajmuje reszta przestrzeni po suwakach.
-        // Stala 400dp byla wazne przy szerokich ekranach, ale na wazniejszych
-        // (lub gdy panelW ograniczony przez windowWidth-24dp) suwak jasnosci
-        // byl ucinany, bo left+bars > panelW. Weight = 1 daje left reszte
-        // miejsca, a bars (weight 0, WRAP_CONTENT) zawsze sie mieści.
-        LayoutParams lpLeft = new LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        // Lewa kolumna (kafelki) - stal szerokosc (troche wiecej niz 400dp,
+        // zeby suwak jasnosci zawsze sie miescidal). Barsy (suwaki) maja
+        // weight=0 + WRAP_CONTENT wiec zawsze sie mieszcza, a panel ma
+        // WRAP_CONTENT w ConnectivityActivity - nie rozciaga sie na caly ekran.
+        LayoutParams lpLeft = new LayoutParams(dp(440), ViewGroup.LayoutParams.WRAP_CONTENT, 0f);
         top.addView(left, lpLeft);
 
         if (Prefs.customBars(act)) {
