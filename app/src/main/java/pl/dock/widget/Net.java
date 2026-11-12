@@ -241,22 +241,27 @@ public class Net {
 
     // Otwiera bezpośrednio ekran ustawień z przełącznikiem hotspotu (bez ekranów nadrzędnych).
     // Kolejność: najpierw DOKŁADNIE ekran „Hotspot Wi-Fi" (alias AOSP + ukryty
-    // fragment), potem wyszukiwanie OEM, pozostałe aliasy, akcja systemowa, MTK.
+    // fragment WifiTetherSettings + alias WifiApSettings), dopiero POTEM ogólne
+    // wyszukiwanie OEM (znajduje ekran nadrzędny TetherSettings), akcja systemowa,
+    // fragment TetherSettings, MTK, fallback WIRELESS_SETTINGS.
     public static boolean openTetherSettings(Context c) {
         // Priorytet 1: alias aktywności ekranu „Hotspot Wi-Fi" (Android 9 AOSP)
         if (tryResolve(c, "com.android.settings",
                 "com.android.settings.Settings$WifiTetherSettingsActivity")) return true;
-        // Priorytet 2: wyszukaj aktywność ekranu hotspotu w ustawieniach systemu (OEM)
-        String cls = findTetherActivity(c, "com.android.settings");
-        if (cls != null && tryStart(c, "com.android.settings", cls)) return true;
-        // Priorytet 3: ukryty fragment WifiTetherSettings w SubSettings
+        // Priorytet 2: ukryty fragment WifiTetherSettings w SubSettings (dokładny ekran)
         if (tryFragment(c, "com.android.settings.wifi.tether.WifiTetherSettings")) return true;
-        // Priorytet 4: pozostałe znane aliasy ekranu hotspotu
-        if (tryResolve(c, "com.android.settings",
-                "com.android.settings.Settings$TetherSettingsActivity")) return true;
+        // Priorytet 3: alias WifiApSettings (starsze ROM-y)
         if (tryResolve(c, "com.android.settings",
                 "com.android.settings.Settings$WifiApSettingsActivity")) return true;
-        // Priorytet 5: systemowa akcja TETHER_SETTINGS
+        // Priorytet 4: ogólne wyszukiwanie aktywności ekranu hotspotu w ustawieniach
+        // systemu (OEM) — MOŻE zwrócić ekran nadrzędny TetherSettings, więc dopiero
+        // po dokładnych ścieżkach powyżej
+        String cls = findTetherActivity(c, "com.android.settings");
+        if (cls != null && tryStart(c, "com.android.settings", cls)) return true;
+        // Priorytet 5: pozostały znany alias ekranu tetheringu
+        if (tryResolve(c, "com.android.settings",
+                "com.android.settings.Settings$TetherSettingsActivity")) return true;
+        // Priorytet 6: systemowa akcja TETHER_SETTINGS
         try {
             Intent i = new Intent("android.settings.TETHER_SETTINGS");
             if (i.resolveActivity(c.getPackageManager()) != null) {
@@ -265,9 +270,9 @@ public class Net {
                 return true;
             }
         } catch (Throwable ignored) {}
-        // Priorytet 6: ukryty fragment TetherSettings w SubSettings
+        // Priorytet 7: ukryty fragment TetherSettings w SubSettings
         if (tryFragment(c, "com.android.settings.TetherSettings")) return true;
-        // Priorytet 7: ustawienia MediaTek (zwykle ekran nadrzędny — dopiero po AOSP)
+        // Priorytet 8: ustawienia MediaTek (zwykle ekran nadrzędny — dopiero po AOSP)
         String mtk = findTetherActivity(c, "com.mediatek.settings");
         if (mtk != null && tryStart(c, "com.mediatek.settings", mtk)) return true;
         if (tryStart(c, "com.mediatek.settings", "com.mediatek.settings.TetherSettings")) return true;
@@ -335,5 +340,3 @@ public class Net {
         }
     }
 }
-
-// retrigger CI 2026-11-11: run #495 utknal w kolejce (zmiana tylko komentarza)

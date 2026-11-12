@@ -177,9 +177,8 @@ public class AppLibraryPage extends FrameLayout {
         leftCol.addView(letterBar, lbLp);
         page.addView(leftCol, colLp);
 
-        // Pasek szukania plywa NAD lista jak w iOS: aplikacje miekko zanikaja
-        // (maska alpha) zanim dotra pod pigulke - pigulka wyglada jak wczesniej,
-        // bez zadnego widocznego pasma, a pod nia zostaje wylacznie tapeta.
+        // Pasek szukania plywa NAD lista jak w iOS: pigulka to polprzezroczyste
+        // szklo, lista przewija sie pod nia (bez zanikania - patrz komentarz nizej).
         android.widget.FrameLayout contentPane = new android.widget.FrameLayout(ctx);
         contentPane.setClipChildren(false);
         contentPane.setClipToPadding(false);
@@ -246,16 +245,12 @@ public class AppLibraryPage extends FrameLayout {
         scrollView.setFillViewport(true);
         scrollView.setVerticalScrollBarEnabled(false);
         scrollView.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        // zanikanie pod paskiem = wbudowane fading edges (lekki kod frameworkowy,
-        // bez offscreen layeru co klatke, ktory zabijal przewijanie na Mali-T720);
-        // wlacza sie dopiero gdy cos NAPRAWDE przewija sie pod pasek - przy
-        // spoczynku na gorze listy pierwsza ikona jest pelna; pasmo konczy sie
-        // na dolnej krawedzi pigulki (74dp)
-        scrollView.setVerticalFadingEdgeEnabled(true);
-        scrollView.setFadingEdgeLength(dp(74));
+        // BEZ zanikania (regresja v1.0.506): fading edge na API 28 / Mali-T720
+        // wygaszal CALA tresc - biblioteka wychodzila prawie pusta. Zero masek,
+        // zero fading edges: lista przewija sie pod polprzezroczysta pigulka
+        // jak w iOS (pigułka to po prostu szkło nad treścią).
         listCol = new LinearLayout(ctx);
         listCol.setOrientation(LinearLayout.VERTICAL);
-        // lista przewija sie pod paskiem; zanikanie robi fading edge ScrollView
         listCol.setPadding(dp(14), dp(70), dp(14) + extraR, dp(28));
         scrollView.addView(listCol, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         contentPane.addView(scrollView, new android.widget.FrameLayout.LayoutParams(
@@ -509,6 +504,3 @@ public class AppLibraryPage extends FrameLayout {
         return (int) (v * d + 0.5f);
     }
 }
-
-
-
