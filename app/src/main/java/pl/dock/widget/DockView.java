@@ -293,12 +293,18 @@ public class DockView extends View {
     }
 
     // ------------------------------------------------------------ geometria (dp -> px)
+    // Paddingi wewnetrzne Docka (wg specyfikacji: 16px gora/dol, 12px boki).
+    // W Androidzie uzywajemy dp (d = gęstość ekranu); 16px ~ 8dp, 12px ~ 6dp na 2x dpi.
+    private final float topPad = 8f * d;    // 16px -> zegar nie dotyka krawedzi gorniej
+    private final float bottomPad = 8f * d; // 16px -> ostatnia ikona nie dotyka krawedzi dolnej
+    private final float sidePad = 6f * d;   // 12px -> ikony nie dotykaja scian bocznych
+
     private float panelL() {
-        return 6f * d;
+        return sidePad;
     }
 
     private float panelT() {
-        return 6f * d;
+        return topPad;
     }
 
     private float panelR() {
@@ -306,19 +312,68 @@ public class DockView extends View {
     }
 
     private float panelB() {
-        return getHeight() - 6f * d;
+        return getHeight() - bottomPad;
     }
 
     private float cx() {
         return panelL() + 32.5f * d;
     }
 
-    private float iconTop(int i) {
-        return panelT() + (164f + 54f * i) * d;
+    /** Wysokosc dostepna na zawartosc (pomiedzy paddingami gora/dol). */
+    private float contentH() {
+        return panelB() - panelT();
     }
 
-    private float bottomCy() {
-        return panelB() - 32f * d;
+    /** Oblicza pionowe pozycje wszystkich sekcji Docka z uzyciem space-between.
+     *  Zwraca tablice y-srodkow kazdej sekcji w kolejnosci od gory. */
+    private float[] calcSectionYs() {
+        // Wysokosci poszczegolnych sekcji (w dp, przemnozone przez d):
+        // 1. Zegar
+        // 2. Wiersz sieci Wi-Fi/tether/BT (19dp)
+        // 3. Napiecie (opcjonalnie, 20dp)
+        // 4. Bateria telefonu (opcjonalnie, 12dp)
+        // 5. CarPlay (opcjonalnie, 20dp)
+        // 6-9. Cztery ikony aplikacji (po 42dp)
+        // 10. Przycisk dolny (20dp glif)
+        float clockH = 19f * d;
+        float netRowH = 19f * d;
+        float voltH = showVolt ? 20f * d : 0f;
+        float phoneH = showPhone ? 12f * d : 0f;
+        float cpH = showCp ? 20f * d : 0f;
+        float iconH = 42f * d;
+        float bottomH = 20f * d;
+
+        // Buduj liste sekcji
+        java.util.ArrayList<Float> heights = new java.util.ArrayList<>();
+        heights.add(clockH);           // zegar
+        heights.add(netRowH);          // Wi-Fi/tether/BT
+        if (showVolt) heights.add(voltH);
+        if (showPhone) heights.add(phoneH);
+        if (showCp) heights.add(cpH);
+        for (int i = 0; i < 4; i++) {
+            if (icons[i] != null && !(i == 3 && cpReconnecting)) heights.add(iconH);
+        }
+        heights.add(bottomH);          // przycisk dolny
+
+        int n = heights.size();
+        float totalH = 0f;
+        for (float h : heights) totalH += h;
+
+        float avail = contentH();
+        float gap = n > 1 ? Math.max(0f, (avail - totalH) / (n - 1)) : 0f;
+
+        float[] ys = new float[n];
+        float y = panelT();
+        for (int i = 0; i < n; i++) {
+            ys[i] = y + heights.get(i) / 2f;  // srodek sekcji
+            y += heights.get(i) + gap;
+        }
+        return ys;
+    }
+
+    /** Srodek sekcji o danym indeksie (z calcSectionYs). */
+    private float secY(float[] ys, int idx) {
+        return idx >= 0 && idx < ys.length ? ys[idx] : panelT();
     }
 
     private static int lerp(int a, int b, float t) {
@@ -414,68 +469,80 @@ public class DockView extends View {
         }
 
         float cx = cx();
-        float top = t;
+        float top = panelT();
 
-        // zegar
-        float cy = top + 24f * d;
+        // Oblicz pionowe pozycje sekcji z space-between (równe odstępy).
+        float[] ys = calcSectionYs();
+        int si = 0; // indeks sekcji
+
+        // zegar (sekcja 0)
+        float cy = secY(ys, si++);
         cv.drawText(clock, cx, cy - (clockPaint.descent() + clockPaint.ascent()) / 2f, clockPaint);
 
-        // WiFi, tethering, Bluetooth (telefon) - jak na referencji uzytkownika:
-        // kolejnosc Wi-Fi / hotspot / BT, rowne odstepy, rozmiar dopasowany do panelu
-        float sy = top + 50f * d;
+        // WiFi, tethering, Bluetooth (telefon) - sekcja 1
+        float sy = secY(ys, si++);
         float is = 19f * d;   // ikona
-        float igp = 3f * d;   // rowny odstep miedzy ikonami (razem 63 dp w panelu 65 dp)
+        float igp = 3f * d;   // rowny odstep miedzy ikonami
         float x0 = cx - (3f * is + 2f * igp) / 2f;
         drawIcon(cv, bWifi, x0, sy - is / 2f, is, is, 255);
         drawIcon(cv, bTether, x0 + is + igp, sy - is / 2f, is, is, 255);
         drawIcon(cv, bBt, x0 + 2f * (is + igp), sy - is / 2f, is, is, 255);
 
-        // kolejne wiersze: napięcie / ładowanie, bateria telefonu, status CarPlay
-        float y = top + 76f * d;
+        // Napięcie / ładowanie (sekcja 2, opcjonalnie)
         if (showVolt) {
+            float vy = secY(ys, si++);
             if (charging) {
-                drawIcon(cv, bCharge, cx - 12f * d, y - 10f * d, 24f * d, 20f * d, 255);
+                drawIcon(cv, bCharge, cx - 12f * d, vy - 10f * d, 24f * d, 20f * d, 255);
             } else {
                 float tw = voltPaint.measureText(volt);
                 float start = cx - (24f * d + 3f * d + tw) / 2f;
-                drawIcon(cv, bBattery, start + 2f * d, y - 10f * d, 20f * d, 20f * d, 255);
+                drawIcon(cv, bBattery, start + 2f * d, vy - 10f * d, 20f * d, 20f * d, 255);
                 cv.drawText(volt, start + 27f * d,
-                        y - (voltPaint.descent() + voltPaint.ascent()) / 2f, voltPaint);
+                        vy - (voltPaint.descent() + voltPaint.ascent()) / 2f, voltPaint);
             }
-            y += 26f * d;
         }
+        // Bateria telefonu (sekcja 3, opcjonalnie)
         if (showPhone && bPhone != null) {
+            float py = secY(ys, si++);
             String pct = phone + "%";
             float tw = voltPaint.measureText(pct);
             float start = cx - (24f * d + 3f * d + tw) / 2f;
-            drawIcon(cv, bPhone, start, y - 6f * d, 24f * d, 12f * d, 255);
-            cv.drawText(pct, start + 27f * d, y - (voltPaint.descent() + voltPaint.ascent()) / 2f,
+            drawIcon(cv, bPhone, start, py - 6f * d, 24f * d, 12f * d, 255);
+            cv.drawText(pct, start + 27f * d, py - (voltPaint.descent() + voltPaint.ascent()) / 2f,
                     voltPaint);
-            y += 26f * d;
         }
+        // CarPlay (sekcja 4, opcjonalnie)
         if (showCp) {
-            drawIcon(cv, bCp, cx - 10f * d, y - 10f * d, 20f * d, 20f * d, 255);
+            float cpY = secY(ys, si++);
+            drawIcon(cv, bCp, cx - 10f * d, cpY - 10f * d, 20f * d, 20f * d, 255);
         }
 
-        // ikony: 3 górne + CarPlay
+        // ikony: 3 górne + CarPlay (sekcje 5-8, opcjonalnie)
         float sz = 42f * d;
         for (int i = 0; i < 4; i++) {
             Bitmap b = icons[i];
             if (b == null) continue;
             if (i == 3 && cpReconnecting) continue;   // spinner zastępuje ikonę CP
-            drawIcon(cv, b, cx - sz / 2f, iconTop(i), sz, sz, pressed == i ? 150 : 255);
+            float iy = secY(ys, si++);
+            drawIcon(cv, b, cx - sz / 2f, iy - sz / 2f, sz, sz, pressed == i ? 150 : 255);
         }
         if (cpReconnecting) {
-            drawSpinnerRing(cv, cx, iconTop(3) + sz / 2f, sz * 0.35f);
+            // CP spinner - używamy ostatniej pozycji ikony (sekcja 8)
+            int lastIconIdx = 4; // index ikony CP w sekcjach (po zegar, sieć, opcjonalne...)
+            // liczymy ile ikon aplikacji przed CP
+            int appIconsBeforeCp = 0;
+            for (int j = 0; j < 3; j++) {
+                if (icons[j] != null) appIconsBeforeCp++;
+            }
+            // Pozycja CP to sekcja: 0 zegar, 1 sieć, 2 volt?, 3 phone?, 4 cp?, 5-8 ikony
+            // Prostszym rozwiązaniem: użyj ostatniej ikony (przed przyciskiem dolnym)
+            float cpSpinY = secY(ys, ys.length - 2);
+            drawSpinnerRing(cv, cx, cpSpinY + sz / 2f, sz * 0.35f);
             postInvalidateOnAnimation();   // wiruje ~1 obrót/s, dopóki PHONE
         }
 
-        // przycisk dolny - kontrakt (zgodny z LauncherActivity.onBottom()):
-        //   ekran glowny / strony widzetow -> siatka 9 kwadratow (3x3) = "lista aplikacji",
-        //   strony aplikacji i Biblioteka -> jeden kwadrat z zaokraglonymi rogami = "ekran glowny".
-        // Czyli glif pokazuje CEL dotkniecia, a nie miejsce, w ktorym jestesmy.
-        // Crossfade w czasie przejazdu miedzy stronami (bottomT 0..1).
-        float by = bottomCy();
+        // przycisk dolny - ostatnia sekcja
+        float by = secY(ys, ys.length - 1);
         int pa = pressed == BOTTOM ? 150 : 255;
         float g = 20f * d;
         // płynna animacja glifu CC (tickCc prosi o kolejne klatki w trakcie animacji)
@@ -657,14 +724,31 @@ public class DockView extends View {
     private int hit(float x, float y) {
         if (x < panelL() || x > panelR()) return -1;
         float top = panelT();
-        if (y >= top && y < top + 164f * d) return HEADER;
+
+        // Zegar - sekcja 0
+        float[] ys = calcSectionYs();
+        float cy = secY(ys, 0);
+        if (y >= cy - 12f * d && y <= cy + 12f * d) return HEADER;
+
+        // Ikony aplikacji - szukamy po pozycjach z calcSectionYs.
+        // Kolejnosc sekcji w calcSectionYs(): zegar(0), siec(1), volt?(2), phone?(3), cp?(4),
+        // potem tylko nie-null ikony aplikacji (pomijamy CP gdy cpReconnecting), na koncu przycisk dolny.
+        int si = 1; // sekcja po zegarze = siec
+        if (showVolt) si++;
+        if (showPhone) si++;
+        if (showCp && !cpReconnecting) si++;  // CP jest w sekcjach tylko gdy nie cpReconnecting
         float sz = 42f * d;
         float m = 6f * d;
+        int iconIdx = 0; // rzeczywisty indeks ikony (0..3)
         for (int i = 0; i < 4; i++) {
-            float t = iconTop(i);
-            if (y >= t - m && y <= t + sz + m) return i;
+            Bitmap b = icons[i];
+            if (b == null) continue;
+            if (i == 3 && cpReconnecting) continue;
+            float iy = secY(ys, si + iconIdx);
+            if (y >= iy - sz / 2f - m && y <= iy + sz / 2f + m) return i;
+            iconIdx++;
         }
-        float by = bottomCy();
+        float by = secY(ys, ys.length - 1);
         if (Math.abs(y - by) <= 28f * d) return BOTTOM;
         return -1;
     }
