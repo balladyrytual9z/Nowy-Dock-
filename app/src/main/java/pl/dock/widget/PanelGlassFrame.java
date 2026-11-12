@@ -41,10 +41,13 @@ public class PanelGlassFrame extends Drawable {
         float t = b.top;
         float rr = b.right;
         float bt = b.bottom;
-        // 0) korpus bazowy (kolor jak popupBg - pod swiatlami szkla)
+        // 0) korpus bazowy (kolor jak popupBg - pod swiatlami szkla).
+        // DZIEN: baza bardziej przykryta niz pelne szklo, ale lekko przepuszczalna
+        // (0xE0 ~ 88%), zeby lekko przyswituje tapeta - odcien zblizony do doka;
+        // kafelki wewnatrz sa teraz CIEMNIEJSZE od tla (odwrocone proporcje).
         p.setStyle(Paint.Style.FILL);
         p.setShader(null);
-        p.setColor(night ? 0xF20E0E0F : 0xF2F5F5F7);
+        p.setColor(night ? 0xF20E0E0F : 0xE0F2F2F5);
         rect.set(l, t, rr, bt);
         cv.drawRoundRect(rect, rad, rad, p);
         // 1) korpus szkla: rozblysk u gory, wyrazniejsi poblask na dole (glebia)
@@ -52,9 +55,11 @@ public class PanelGlassFrame extends Drawable {
                 new int[]{0x24FFFFFF, 0x08FFFFFF, 0x05FFFFFF, 0x1AFFFFFF},
                 new float[]{0f, 0.16f, 0.62f, 1f}, Shader.TileMode.CLAMP));
         cv.drawRoundRect(rect, rad, rad, p);
-        // 2) wewnetrzny cien na dole - szklo "unosi sie" nad tlem
+        // 2) wewnetrzny cien na dole - szklo "unosi sie" nad tlem.
+        // DZIEN: WYLACZONY - na jasnym tle wygladal jak szary PASEK na samym
+        // dole panelu (zyczenie uzytkownika); noc bez zmian.
         p.setShader(new LinearGradient(l, bt - 14f * d, l, bt,
-                new int[]{0x00000000, 0x30000000},
+                new int[]{0x00000000, night ? 0x30000000 : 0x00000000},
                 new float[]{0f, 1f}, Shader.TileMode.CLAMP));
         rect.set(l + 2f * d, bt - 14f * d, rr - 2f * d, bt - 2f * d);
         cv.drawRoundRect(rect, rad * 0.5f, rad * 0.5f, p);

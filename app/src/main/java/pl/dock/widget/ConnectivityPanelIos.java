@@ -552,7 +552,9 @@ public class ConnectivityPanelIos extends LinearLayout {
             // SZKŁO: półprzezroczysty korpus (tło prześwituje) + światło Z GÓRY
             p.setStyle(Paint.Style.FILL);
             p.setShader(null);
-            p.setColor(night ? 0x9E4E4E53 : 0xCCFFFFFF);
+            // DZIEN: kafelki CIEMNIEJSZE od tla (0xCCDCDCE1) - odwrotnie niz wczesniej
+            // (tlo jak dok, kafelki wyraznie ciemniejsze; zyczenie uzytkownika)
+            p.setColor(night ? 0x9E4E4E53 : 0xCCDCDCE1);
             r.set(0, 0, w, hh);
             cv.drawRoundRect(r, rad, rad, p);
             int saveG = cv.save();
