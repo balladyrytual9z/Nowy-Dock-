@@ -189,10 +189,12 @@ public class AppLibraryPage extends FrameLayout {
         searchHeader.setClipChildren(false);
         searchHeader.setClipToPadding(false);
         searchHeader.setPadding(dp(12), dp(10), dp(12) + extraR, dp(10));
-        // szklana pigulka paska szukania - polprzezroczysta, lista widoczna pod spodem
+        // Pasek szukania NIEprzezroczysty (pelny kolor, nie szklo) - ikony przed
+        // jego krawedzia zanikaja (gradient overlay na gorze listy).
+        int pillBg = night ? 0xFF1C1C1E : 0xFFF2F2F7;
         GradientDrawable glassPill = new GradientDrawable();
         glassPill.setCornerRadius(dp(26));
-        glassPill.setColor(night ? 0x30FFFFFF : 0x4DF2F2F7);
+        glassPill.setColor(pillBg);
         glassPill.setStroke(Math.max(1, (int) (0.9f * d)), night ? 0x3DFFFFFF : 0x2E808090);
         searchHeader.setBackground(glassPill);
         searchHeader.setElevation(0f);
@@ -255,6 +257,23 @@ public class AppLibraryPage extends FrameLayout {
         scrollView.addView(listCol, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         contentPane.addView(scrollView, new android.widget.FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // Gradient overlay na GORZE listy - ikony zanikaja przed krawedzia paska
+        // szukania (tylko na gorze, na dolnej krawedzi bez zanikania).
+        // topMargin = dp(70) pokrywa sie z paddingiem gora listCol i dolna krawedzia
+        // paska szukania, zeby ikony tuz pod paskiem stopniowo wychodzily z cienia.
+        View topFade = new View(ctx);
+        int fadeH = dp(56);
+        android.widget.FrameLayout.LayoutParams fadeLp = new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, fadeH, Gravity.TOP);
+        fadeLp.topMargin = dp(70);
+        topFade.setLayoutParams(fadeLp);
+        topFade.setBackground(new android.graphics.drawable.LinearGradient(
+                0, 0, 0, fadeH,
+                new int[]{night ? 0xFF1C1C1E : 0xFFF2F2F7, night ? 0x001C1C1E : 0x00F2F2F7},
+                null, android.graphics.drawable.Shader.TileMode.CLAMP));
+        contentPane.addView(topFade, fadeLp);
+
         // pasek szukania ZAWSZE nad lista (z-order): bringChildToFront po
         // dodaniu scrollView - w przeciwnym razie lista rysowala sie na pasku
         contentPane.bringChildToFront(searchHeader);
