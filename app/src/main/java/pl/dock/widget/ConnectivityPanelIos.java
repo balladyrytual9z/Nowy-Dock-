@@ -217,7 +217,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             if (showMode) {
                 bMode = new RoundBtn(act, 4, "Tryb ciemny");
                 LayoutParams mp = new LayoutParams(dp(TILE), dp(112));
-                if (showNs) mp.rightMargin = dp(6);
+                if (showNs) mp.rightMargin = dp(2);
                 row.addView(bMode, mp);
                 bMode.setOnClickListener(new OnClickListener() {
                     @Override
@@ -264,10 +264,11 @@ public class ConnectivityPanelIos extends LinearLayout {
             bars.setOrientation(HORIZONTAL);
             PillSlider vol = new PillSlider(act, false, volumeValue());
             PillSlider bri = new PillSlider(act, true, brightnessValue());
-            LayoutParams bp = new LayoutParams(dp(70), dp(238));
-            bp.leftMargin = dp(10);
-            bars.addView(vol, bp);
-            bars.addView(bri, bp);
+            LayoutParams vbp = new LayoutParams(dp(70), dp(238));
+            vbp.leftMargin = dp(10);
+            bars.addView(vol, vbp);
+            LayoutParams bbp = new LayoutParams(dp(70), dp(238));
+            bars.addView(bri, bbp);
             vol.setListener(new PillSlider.Listener() {
                 @Override
                 public void on(float v) {
@@ -622,10 +623,10 @@ public class ConnectivityPanelIos extends LinearLayout {
             cv.drawRoundRect(r, rad - d, rad - d, p);
             p.setShader(null);
 
-            // Ikona w STYLU iOS (TASK-1): mala (20dp) w lewym gornym rogu
-            // kafelka, pod spodem malutkie kolorkowe kolo. W iOS ikona lezy
-            // na tle kafelka, a kolor aktywny wypelnia caly kafelek.
-            float iconS = 20f * d;
+            // ikona W STYLU iOS (TASK-1): 26dp, w lewym gornym rogu. Rozmiar
+            // dopasowany do kwadratu kafelka (120dp): nie za mala (20dp), nie za
+            // duza (28dp). Koleczko pod spodem 2dp wieksze.
+            float iconS = 26f * d;
             float iconX = 14f * d;
             float iconY = wide ? hh / 2f : 14f * d;
             p.setStyle(Paint.Style.FILL);

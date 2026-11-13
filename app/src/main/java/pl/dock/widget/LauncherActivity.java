@@ -1489,10 +1489,10 @@ public class LauncherActivity extends BaseActivity {
         });
         boolean left = Ui.dockLeft(this);
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
-        // szerokość panelu = zawartość ConnectivityPanelIos (400+10+70+70+24 = 574dp),
-        // nigdy szersza niż ekran - 24dp (inaczej suwak jasności jest ucięty)
-        int panelW = Math.max(Ui.dp(this, 240),
-                Math.min(Ui.dp(this, 574), Ui.windowWidth(this) - Ui.dp(this, 24)));
+        // szerokośc panelu = JEGO ZAWARTOŚĆ (lewa kolumna + suwaki + padding),
+        // nigdy wiecej niz ekran - 24dp. Nie uzywamy stalej 574dp - panel ma
+        // byc dopasowany do tresci, nie narzucac szerokiej ramy (TASK-1).
+        int panelW = Math.min(Ui.dp(this, 574), Ui.windowWidth(this) - Ui.dp(this, 24));
         // Panel przy doku (po jego wewnętrznej stronie) - nie zasłania doka.
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 panelW, ViewGroup.LayoutParams.WRAP_CONTENT,
