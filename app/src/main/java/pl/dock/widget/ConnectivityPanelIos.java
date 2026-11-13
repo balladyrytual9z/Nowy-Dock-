@@ -153,22 +153,24 @@ public class ConnectivityPanelIos extends LinearLayout {
         LinearLayout row1 = new LinearLayout(act);
         tWifi = new Tile(act, false);
         tBt = new Tile(act, false);
-        LayoutParams l1 = new LayoutParams(0, dp(150), 1f);
+        // Wi-Fi i BT jako kwadraty 120x120dp - rowne wymiary, nie prostokaty.
+        LayoutParams l1 = new LayoutParams(dp(120), dp(120));
         l1.rightMargin = dp(6);
-        LayoutParams l2 = new LayoutParams(0, dp(150), 1f);
+        LayoutParams l2 = new LayoutParams(dp(120), dp(120));
         l2.leftMargin = dp(6);
         row1.addView(tWifi, l1);
         row1.addView(tBt, l2);
         left.addView(row1);
+        // Hotspot na dole: szerokosc taka jak oba kafelki razem (dopasowana do zawartosci),
+        // wysokosc 76dp, wyrownywanie srodek (gravity center horizontal w kolumnie).
         tHot = new Tile(act, true);
-        LayoutParams l3 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(76));
+        LayoutParams l3 = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(76));
         l3.topMargin = dp(12);
+        l3.gravity = Gravity.CENTER_HORIZONTAL;
         left.addView(tHot, l3);
-        // Lewa kolumna (kafelki) - stal szerokosc (troche wiecej niz 400dp,
-        // zeby suwak jasnosci zawsze sie miescidal). Barsy (suwaki) maja
-        // weight=0 + WRAP_CONTENT wiec zawsze sie mieszcza, a panel ma
-        // WRAP_CONTENT w ConnectivityActivity - nie rozciaga sie na caly ekran.
-        LayoutParams lpLeft = new LayoutParams(dp(440), ViewGroup.LayoutParams.WRAP_CONTENT, 0f);
+        // Lewa kolumna: WRAP_CONTENT szerokosci - dopasowuje sie do zawartosci
+        // (dwa kwadraty 120dp + marginesy), nie rozciaga sie na caly ekran.
+        LayoutParams lpLeft = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0f);
         top.addView(left, lpLeft);
 
         if (Prefs.customBars(act)) {
@@ -228,12 +230,12 @@ public class ConnectivityPanelIos extends LinearLayout {
             if (showNs) {
                 // Night Shift OBOK przycisku trybu (bez elasticznej przerwy)
                 // Night Shift PRZESUNIĘTY W LEWO, blisko przycisku trybu:
-                // przerwa między kołami ~26dp (było ~86dp). Ujemny margines
-                // jest bezpieczny - nachodzi tylko na pusty prawy obszar
-                // kontenera przycisku trybu (koło i tekst kończą się wcześniej)
+                // przerwa między kołami minimalna. Ujemny margines jest
+                // bezpieczny - nachodzi tylko na pusty prawy obszar kontenera
+                // przycisku trybu (koło i tekst kończą się wcześniej).
                 bShift = new RoundBtn(act, 3, "Night Shift");
                 LayoutParams sp = new LayoutParams(dp(90), dp(112));
-                sp.leftMargin = dp(-60);
+                sp.leftMargin = dp(-90);
                 row.addView(bShift, sp);
                 bShift.setOnClickListener(new OnClickListener() {
                     @Override
