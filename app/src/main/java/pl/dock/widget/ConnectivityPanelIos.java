@@ -427,6 +427,8 @@ public class ConnectivityPanelIos extends LinearLayout {
 
     private float brightnessValue() {
         try {
+            // Gdy Night Shift wlaczony - zawsze obniz jasnosc do minimum.
+            if (NightShift.isOn(act)) return 0.0f;
             return Settings.System.getInt(act.getContentResolver(), Settings.System.SCREEN_BRIGHTNESS) / 255f;
         } catch (Throwable t) {
             return 0.7f;
@@ -446,8 +448,9 @@ public class ConnectivityPanelIos extends LinearLayout {
             }
             Settings.System.putInt(act.getContentResolver(), Settings.System.SCREEN_BRIGHTNESS_MODE,
                     Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
-            Settings.System.putInt(act.getContentResolver(), Settings.System.SCREEN_BRIGHTNESS,
-                    Math.max(10, Math.round(v * 255)));
+            // Gdy Night Shift wlaczony - zawsze minimalna jasnosc (niezaleznie od suwaka).
+            int level = NightShift.isOn(act) ? 10 : Math.max(10, Math.round(v * 255));
+            Settings.System.putInt(act.getContentResolver(), Settings.System.SCREEN_BRIGHTNESS, level);
         } catch (Throwable ignored) {
         }
     }
