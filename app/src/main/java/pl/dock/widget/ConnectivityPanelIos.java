@@ -198,6 +198,63 @@ public class ConnectivityPanelIos extends LinearLayout {
         LayoutParams l3 = new LayoutParams(TILE * 2 + dp(6), dp(76));
         l3.topMargin = dp(12);
         left.addView(tHot, l3);
+
+        // TRZYMY PRZYCISKOW W KOLUMNIE LEWEJ (TASK-1): wiersz trybu ciemnego
+        // i Night Shift leci BEZPOSREDNIO pod Hotspotem, w tej samej kolumnie
+        // left - dzieki temu odstęp od Hotspota jest zawsze 12dp (taki sam jak
+        // miedzy Wi-Fi/BT a Hotspotem), niezaleznie od wysokosci suwakow prawej
+        // strony. Wczesniej wiersz byl dodawany do panelu OSOBNO, pod calym
+        // wierszem top (left + suwaki), co dawalo 30+dp przerwy gdy suwaki byly
+        // wyzsze niz lewa kolumna.
+        boolean showMode = Prefs.showModeButtons(act);
+        boolean showNs = Prefs.showNightShift(act);
+        if (showMode || showNs) {
+            LinearLayout row = new LinearLayout(act);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            LayoutParams rp = new LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            rp.topMargin = dp(12);
+            if (showMode) {
+                bMode = new RoundBtn(act, 4, "Tryb ciemny");
+                LayoutParams mp = new LayoutParams(dp(TILE), dp(112));
+                if (showNs) mp.rightMargin = dp(6);
+                row.addView(bMode, mp);
+                bMode.setOnClickListener(new OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        DarkMode.toggle(act);
+                        applyMode();
+                    }
+                });
+            }
+            if (showNs) {
+                bShift = new RoundBtn(act, 3, "Night Shift");
+                row.addView(bShift, new LayoutParams(dp(TILE), dp(112)));
+                bShift.setOnClickListener(new OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        boolean ok = NightShift.toggle(act);
+                        if (!ok) host.close();
+                        update();
+                    }
+                });
+                bShift.setOnLongClickListener(new OnLongClickListener() {
+                    @Override
+                    public boolean onLongClick(View v) {
+                        showWarmthSlider();
+                        return true;
+                    }
+                });
+            }
+            left.addView(row, rp);
+            note = new TextView(act);
+            note.setTextSize(13);
+            note.setTextColor(night ? 0xFF9A9AA0 : 0xFF6C6C70);
+            note.setPadding(dp(6), dp(2), 0, dp(4));
+            left.addView(note);
+        }
+
         // Lewa kolumna: WRAP_CONTENT szerokosci - dopasowuje sie do zawartosci
         // (dwa kwadraty 120dp + marginesy), nie rozciaga sie na caly ekran.
         LayoutParams lpLeft = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0f);
@@ -232,70 +289,6 @@ public class ConnectivityPanelIos extends LinearLayout {
             top.addView(bars, lpBars);
         }
         addView(top);
-
-        boolean showMode = Prefs.showModeButtons(act);
-        boolean showNs = Prefs.showNightShift(act);
-        if (showMode || showNs) {
-            // PRZYCISKI W TEJ SAMEJ SIATCE CO KAFELKI (TASK-1): rząd ma dokladnie
-            // taka szerokosc jak lewa kolumna (dwa kafelki 120dp + 6dp odstepu =
-            // 246dp), a kazdy przycisk w wierszu jest kwadratem 120x120dp.
-            // Wczesniej "Tryb ciemny" mial kontener 194dp, a Night Shift byl
-            // dociągnięty do sasiada MARGINESem -90dp - koło rysowane na stale
-            // cx = 43dp lądowało poza swoim prostokątem, a szerokosc rzędu
-            // rozjezdzala sie z kolumna kafelkow. Zero ujemnych marginesow.
-            LinearLayout row = new LinearLayout(act);
-            row.setGravity(Gravity.CENTER_VERTICAL);
-            LayoutParams rp = new LayoutParams(
-                    showMode && showNs ? (TILE * 2 + dp(6))
-                            : ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT);
-            rp.topMargin = dp(12);
-            if (showMode) {
-                // "Tryb ciemny" jak w iOS: klik = przełącz do najbliższego
-                // wschodu/zachodu słońca (potem znów rządzi słońce)
-                bMode = new RoundBtn(act, 4, "Tryb ciemny");
-                LayoutParams mp = new LayoutParams(dp(TILE), dp(112));
-                if (showNs) mp.rightMargin = dp(6);
-                row.addView(bMode, mp);
-                bMode.setOnClickListener(new OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        DarkMode.toggle(act);
-                        applyMode();
-                    }
-                });
-            }
-            if (showNs) {
-                // Night Shift OBNIŻONY do szerokosci kafelka (120dp) i w tej samej
-                // linii co "Tryb ciemny". Przytrzymanie = suwak temperatury.
-                bShift = new RoundBtn(act, 3, "Night Shift");
-                row.addView(bShift, new LayoutParams(dp(TILE), dp(112)));
-                bShift.setOnClickListener(new OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        // jak "Tryb ciemny": klik = przełącz do najbliższego
-                        // wschodu/zachodu słońca (potem znów rządzi słońce)
-                        boolean ok = NightShift.toggle(act);
-                        if (!ok) host.close();
-                        update();
-                    }
-                });
-                // PRZYTRZYMANIE Night Shift = suwak ciepła (jak w iOS)
-                bShift.setOnLongClickListener(new OnLongClickListener() {
-                    @Override
-                    public boolean onLongClick(View v) {
-                        showWarmthSlider();
-                        return true;
-                    }
-                });
-            }
-            addView(row, rp);
-            note = new TextView(act);
-            note.setTextSize(13);
-            note.setTextColor(night ? 0xFF9A9AA0 : 0xFF6C6C70);
-            note.setPadding(dp(6), dp(2), 0, dp(4));
-            addView(note);
-        }
 
         // akcje kafelków (przywrócone ze starego panelu): tap = przełącz / ekran systemowy
         tWifi.setOnClickListener(new OnClickListener() {
@@ -630,28 +623,28 @@ public class ConnectivityPanelIos extends LinearLayout {
             cv.drawRoundRect(r, rad - d, rad - d, p);
             p.setShader(null);
 
-            float cd = 50f * d;
-            // kolumna ikon w JEDNEJ LINII: kafelki (wasokie i szeroki Hotspot)
-            // maja srodek kola ikony na 18dp + 25dp = 43dp od lewej kolumny
-            float cx = wide ? 18f * d + cd / 2f : 18f * d + cd / 2f;
-            float cy = wide ? hh / 2f : 18f * d + cd / 2f;
+            // Ikona w STYLU iOS (TASK-1): mala (20dp) w lewym gornym rogu
+            // kafelka, pod spodem malutkie kolorkowe kolo. W iOS ikona lezy
+            // na tle kafelka, a kolor aktywny wypelnia caly kafelek.
+            float iconS = 20f * d;
+            float iconX = 14f * d;
+            float iconY = wide ? hh / 2f : 14f * d;
             p.setStyle(Paint.Style.FILL);
             p.setColor(active ? color : 0xFF7E8686);
-            cv.drawCircle(cx, cy, cd / 2f, p);
+            cv.drawCircle(iconX + iconS / 2f, iconY + iconS / 2f, iconS / 2f + 2f * d, p);
             if (icon != null) {
-                float is = 28f * d;
-                r.set(cx - is / 2f, cy - is / 2f, cx + is / 2f, cy + is / 2f);
+                r.set(iconX, iconY, iconX + iconS, iconY + iconS);
                 cv.drawBitmap(icon, null, r, p);
             }
-            float sd = getResources().getDisplayMetrics().scaledDensity;
             int tc = night ? 0xFFFFFFFF : 0xFF111114;
             int sc = night ? 0xFFC9CFCF : 0xFF6C6C70;
+            float sd = getResources().getDisplayMetrics().scaledDensity;
             p.setTypeface(Typeface.DEFAULT_BOLD);
             p.setTextAlign(Paint.Align.LEFT);
-            // KAFELKI 120dp: pole tekstu = szerokosc kafelka - lewy margines ikony
-            // (18dp + 50dp kolo + 14dp odstep). Tytuł 1 wiersz, podpis 1 wiersz -
+            // KAFELKI 120dp: pole tekstu zaczyna sie za ikona (14dp lewy + 20dp
+            // ikona + 10dp odstęp = 44dp). Tytuł 1 wiersz, podpis 1 wiersz -
             // obcinane do szerokosci, nigdy poza kafel (TASK-1).
-            float tx0 = wide ? (18f * d + cd + 14f * d) : 18f * d;
+            float tx0 = wide ? (iconX + iconS + 14f * d) : iconX;
             float tw = w - tx0 - 10f * d;
             if (wide) {
                 p.setColor(tc);
