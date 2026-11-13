@@ -85,7 +85,7 @@ public class AppLibraryPage extends FrameLayout {
         if (list != null) for (AppsGridPage.Item it : list) if (it != null) apps.add(it);
         Collections.sort(apps, new Comparator<AppsGridPage.Item>() {
             @Override public int compare(AppsGridPage.Item a, AppsGridPage.Item b) {
-                return norm(a.label).compareTo(norm(b.label));
+                return fold(a.label).compareTo(fold(b.label));
             }
         });
         rebuild();
@@ -220,7 +220,7 @@ public class AppLibraryPage extends FrameLayout {
             @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
             @Override public void onTextChanged(CharSequence s, int st, int b, int c) {
                 rawText = s == null ? "" : s.toString();
-                query = norm(rawText);
+                query = fold(rawText);
                 updateClear();
                 rebuild();
             }
@@ -351,7 +351,7 @@ public class AppLibraryPage extends FrameLayout {
                 String alias = "";
                 Overrides.O o = Overrides.match(label);
                 if (o != null && o.label != null) alias = o.label;
-                if (!norm(label).contains(query) && !norm(alias).contains(query)) continue;
+                if (!fold(label).contains(query) && !fold(alias).contains(query)) continue;
             }
             shown.add(it);
         }
@@ -504,6 +504,31 @@ public class AppLibraryPage extends FrameLayout {
         if (y == null || scrollView == null) return;
         if (smooth) scrollView.smoothScrollTo(0, y);
         else scrollView.scrollTo(0, y);
+    }
+
+    /** Porownanie bez polskich ogonkow i wielkosci liter (TASK-1): "Ładowanie"
+     *  znajdzie sie takze po "ladowanie". Wspoldzielone przez szuflade aplikacji
+     *  i ekran "Wszystkie aplikacje". */
+    static String fold(String s) {
+        if (s == null) return "";
+        StringBuilder b = new StringBuilder(s.length());
+        String lower = s.toLowerCase(Locale.ROOT);
+        for (int i = 0; i < lower.length(); i++) {
+            char c = lower.charAt(i);
+            switch (c) {
+                case 'ą': b.append('a'); break;
+                case 'ć': b.append('c'); break;
+                case 'ę': b.append('e'); break;
+                case 'ł': b.append('l'); break;
+                case 'ń': b.append('n'); break;
+                case 'ó': b.append('o'); break;
+                case 'ś': b.append('s'); break;
+                case 'ź':
+                case 'ż': b.append('z'); break;
+                default: b.append(c);
+            }
+        }
+        return b.toString().trim();
     }
 
     private static String norm(String s) {

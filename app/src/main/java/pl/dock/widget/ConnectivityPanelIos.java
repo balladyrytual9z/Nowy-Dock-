@@ -83,6 +83,35 @@ public class ConnectivityPanelIos extends LinearLayout {
         void modeChanged();
     }
 
+    /** Szerokosc jednego kafelka/przycisku w siatce panelu (TASK-1).
+     *  Kafelki Wi-Fi/BT sa kwadratami TILE x TILE, Hotspot i przyciski trybow
+     *  w tej samej kolumnie - dzieki temu wszystko lezy w jednej siatce. */
+    private static final int TILE = 120;
+    /** Jedno obcinanie tekstu do szerokosci kafelka/przycisku (TASK-1):
+     *  dlugi SSID, "Hotspot osobisty" czy "Night Shift" nie moga wychodzic
+     *  poza swoj prostokat w siatce 120dp. */
+    private static String fitText(Paint paint, String s, float maxW) {
+        if (s == null) return "";
+        if (maxW <= 0f) return "";
+        try {
+            if (paint.measureText(s) <= maxW) return s;
+        } catch (Throwable ignored) {
+            return s;
+        }
+        final String ell = "…";
+        int n = s.length();
+        while (n > 0) {
+            n--;
+            String cut = s.substring(0, n) + ell;
+            try {
+                if (paint.measureText(cut) <= maxW) return cut;
+            } catch (Throwable ignored) {
+                return s;
+            }
+        }
+        return "";
+    }
+
     private final Activity act;
     private boolean night;   // nie-final: panel reaguje na zmiane trybu w otwartej nakladce
     private final Host host;
@@ -154,19 +183,20 @@ public class ConnectivityPanelIos extends LinearLayout {
         tWifi = new Tile(act, false);
         tBt = new Tile(act, false);
         // Wi-Fi i BT jako kwadraty 120x120dp - rowne wymiary, nie prostokaty.
-        LayoutParams l1 = new LayoutParams(dp(120), dp(120));
+        LayoutParams l1 = new LayoutParams(dp(TILE), dp(TILE));
         l1.rightMargin = dp(6);
-        LayoutParams l2 = new LayoutParams(dp(120), dp(120));
+        LayoutParams l2 = new LayoutParams(dp(TILE), dp(TILE));
         l2.leftMargin = dp(6);
         row1.addView(tWifi, l1);
         row1.addView(tBt, l2);
         left.addView(row1);
-        // Hotspot na dole: szerokosc taka jak oba kafelki razem (dopasowana do zawartosci),
-        // wysokosc 76dp, wyrownywanie srodek (gravity center horizontal w kolumnie).
+        // Hotspot na dole: dokladnie szerokosc obu kafelkow razem (TILE + 6 + TILE),
+        // wysokosc 76dp. WRAP_CONTENT + CENTER_HORIZONTAL dawal szerokosc
+        // "najszerszego dziecka", wiec dlugi SSID/Wlaczony rozciagal Hotspot
+        // poza siatke - teraz szerokośc jest stala irowna z rzedem kafelkow.
         tHot = new Tile(act, true);
-        LayoutParams l3 = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(76));
+        LayoutParams l3 = new LayoutParams(TILE * 2 + dp(6), dp(76));
         l3.topMargin = dp(12);
-        l3.gravity = Gravity.CENTER_HORIZONTAL;
         left.addView(tHot, l3);
         // Lewa kolumna: WRAP_CONTENT szerokosci - dopasowuje sie do zawartosci
         // (dwa kwadraty 120dp + marginesy), nie rozciaga sie na caly ekran.
@@ -206,19 +236,27 @@ public class ConnectivityPanelIos extends LinearLayout {
         boolean showMode = Prefs.showModeButtons(act);
         boolean showNs = Prefs.showNightShift(act);
         if (showMode || showNs) {
+            // PRZYCISKI W TEJ SAMEJ SIATCE CO KAFELKI (TASK-1): rząd ma dokladnie
+            // taka szerokosc jak lewa kolumna (dwa kafelki 120dp + 6dp odstepu =
+            // 246dp), a kazdy przycisk w wierszu jest kwadratem 120x120dp.
+            // Wczesniej "Tryb ciemny" mial kontener 194dp, a Night Shift byl
+            // dociągnięty do sasiada MARGINESem -90dp - koło rysowane na stale
+            // cx = 43dp lądowało poza swoim prostokątem, a szerokosc rzędu
+            // rozjezdzala sie z kolumna kafelkow. Zero ujemnych marginesow.
             LinearLayout row = new LinearLayout(act);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            LayoutParams rp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+            LayoutParams rp = new LayoutParams(
+                    showMode && showNs ? (TILE * 2 + dp(6))
+                            : ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
             rp.topMargin = dp(12);
             if (showMode) {
                 // "Tryb ciemny" jak w iOS: klik = przełącz do najbliższego
                 // wschodu/zachodu słońca (potem znów rządzi słońce)
                 bMode = new RoundBtn(act, 4, "Tryb ciemny");
-                // szerokość = szerokość kafelka Wi-Fi (194dp = (400-12)/2):
-                // środek koła (rysowanego na cx = w/2) trafia DOKŁADNIE nad
-                // środek kafelka Wi-Fi
-                row.addView(bMode, new LayoutParams(dp(194), dp(112)));
+                LayoutParams mp = new LayoutParams(dp(TILE), dp(112));
+                if (showNs) mp.rightMargin = dp(6);
+                row.addView(bMode, mp);
                 bMode.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -228,15 +266,10 @@ public class ConnectivityPanelIos extends LinearLayout {
                 });
             }
             if (showNs) {
-                // Night Shift OBOK przycisku trybu (bez elasticznej przerwy)
-                // Night Shift PRZESUNIĘTY W LEWO, blisko przycisku trybu:
-                // przerwa między kołami minimalna. Ujemny margines jest
-                // bezpieczny - nachodzi tylko na pusty prawy obszar kontenera
-                // przycisku trybu (koło i tekst kończą się wcześniej).
+                // Night Shift OBNIŻONY do szerokosci kafelka (120dp) i w tej samej
+                // linii co "Tryb ciemny". Przytrzymanie = suwak temperatury.
                 bShift = new RoundBtn(act, 3, "Night Shift");
-                LayoutParams sp = new LayoutParams(dp(90), dp(112));
-                sp.leftMargin = dp(-90);
-                row.addView(bShift, sp);
+                row.addView(bShift, new LayoutParams(dp(TILE), dp(112)));
                 bShift.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -615,23 +648,27 @@ public class ConnectivityPanelIos extends LinearLayout {
             int sc = night ? 0xFFC9CFCF : 0xFF6C6C70;
             p.setTypeface(Typeface.DEFAULT_BOLD);
             p.setTextAlign(Paint.Align.LEFT);
+            // KAFELKI 120dp: pole tekstu = szerokosc kafelka - lewy margines ikony
+            // (18dp + 50dp kolo + 14dp odstep). Tytuł 1 wiersz, podpis 1 wiersz -
+            // obcinane do szerokosci, nigdy poza kafel (TASK-1).
+            float tx0 = wide ? (18f * d + cd + 14f * d) : 18f * d;
+            float tw = w - tx0 - 10f * d;
             if (wide) {
-                float tx = 18f * d + cd + 14f * d;
                 p.setColor(tc);
                 p.setTextSize(19f * sd);
-                cv.drawText(title, tx, hh / 2f - 4f * d, p);
+                cv.drawText(fitText(p, title, tw), tx0, hh / 2f - 4f * d, p);
                 p.setTypeface(Typeface.DEFAULT);
                 p.setColor(sc);
                 p.setTextSize(16f * sd);
-                cv.drawText(sub, tx, hh / 2f + 20f * d, p);
+                cv.drawText(fitText(p, sub, tw), tx0, hh / 2f + 20f * d, p);
             } else {
                 p.setColor(tc);
                 p.setTextSize(19f * sd);
-                cv.drawText(title, 18f * d, hh - 40f * d, p);
+                cv.drawText(fitText(p, title, w - 36f * d), 18f * d, hh - 40f * d, p);
                 p.setTypeface(Typeface.DEFAULT);
                 p.setColor(sc);
                 p.setTextSize(15f * sd);
-                cv.drawText(sub, 18f * d, hh - 16f * d, p);
+                cv.drawText(fitText(p, sub, w - 36f * d), 18f * d, hh - 16f * d, p);
             }
         }
 
@@ -688,11 +725,12 @@ public class ConnectivityPanelIos extends LinearLayout {
         @Override
         protected void onDraw(Canvas cv) {
             float w = getWidth();
-            // kind 4 ("Tryb ciemny"): kolo i podpis w KOLUMNIE IKON kafelkow
-            // (18dp + 25dp = 43dp od lewej kolumny) - ikony Wi-Fi / Hotspot /
-            // Tryb ciemny stoja wtedy w jednej pionowej linii (zyczenie uzytkownika).
-            // kind 3 (Night Shift) zostaje na srodku swojego waskiego kontenera.
-            float cx = (kind == 4) ? 43f * d : w / 2f;
+            // KOLUMNA IKON KAFELKOW: srodek kola = 18dp (margines) + 25dp (polowa
+            // kola) = 43dp od lewej krawedzi - uzyte tez przez "Tryb ciemny",
+            // dzieki czemu ikony Wi-Fi / Hotspot / Tryb ciemny stoja w jednej linii.
+            // UWAGA: to NIE zalezy od szerokosci kontenera (kiedyś cx = w/2 przy
+            // kontenerze 194dp dawal 97dp - koło bylo 54dp w prawo od sasiadow).
+            float cx = 43f * d;
             float cy = 34f * d;
             float rad = 28f * d;
             p.setStyle(Paint.Style.FILL);
@@ -834,28 +872,32 @@ public class ConnectivityPanelIos extends LinearLayout {
             p.setStyle(Paint.Style.FILL);
             p.setTextAlign(Paint.Align.CENTER);
             float sd = getResources().getDisplayMetrics().scaledDensity;
+            // Podpis w stalej szerokosci przycisku (120dp): nazwa i kazda linia
+            // stanu obcinane do szerokosci - dlugi "Night Shift" nie wychodzi
+            // poza sasiada (TASK-1).
+            float labW = Math.max(dp(20), w - 12f * d);
             if (sub != null) {
                 // trzy linie jak w iOS: nazwa (bold) + stan w dwóch wierszach;
                 // odstęp nazwy od koła WIĘKSZY - dokładnie jak na wzorcu
                 p.setTypeface(Typeface.DEFAULT_BOLD);
                 p.setTextSize(12f * sd);
                 p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
-                cv.drawText(label, cx, 78f * d, p);
+                cv.drawText(fitText(p, label, labW), cx, 78f * d, p);
                 p.setTypeface(Typeface.DEFAULT);
                 p.setTextSize(10.5f * sd);
                 p.setColor(night ? 0xFFC9CFCF : 0xFF6C6C70);
                 int di = sub.indexOf(" do ");
                 if (di > 0) {
-                    cv.drawText(sub.substring(0, di + 3), cx, 91f * d, p);
-                    cv.drawText(sub.substring(di + 4), cx, 104f * d, p);
+                    cv.drawText(fitText(p, sub.substring(0, di + 3), labW), cx, 91f * d, p);
+                    cv.drawText(fitText(p, sub.substring(di + 4), labW), cx, 104f * d, p);
                 } else {
-                    cv.drawText(sub, cx, 91f * d, p);
+                    cv.drawText(fitText(p, sub, labW), cx, 91f * d, p);
                 }
             } else {
                 p.setTypeface(Typeface.DEFAULT);
                 p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
                 p.setTextSize(13f * sd);
-                cv.drawText(label, cx, 84f * d, p);
+                cv.drawText(fitText(p, label, labW), cx, 84f * d, p);
             }
         }
     }
@@ -1023,7 +1065,7 @@ public class ConnectivityPanelIos extends LinearLayout {
         protected void onDraw(Canvas cv) {
             float w = getWidth();
             float h = getHeight();
-            float trackY = h * 0.40f;
+            float trackY = h * 0.42f;
             float trackH = 7f * d;
             float pad = 20f * d;   // miejsce na pigułkę na końcach toru
             float trackW = w - pad * 2f;
@@ -1033,12 +1075,14 @@ public class ConnectivityPanelIos extends LinearLayout {
             p.setColor(night ? 0x2EFFFFFF : 0x22000000);
             r.set(pad, trackY - trackH / 2f, pad + trackW, trackY + trackH / 2f);
             cv.drawRoundRect(r, trackH / 2f, trackH / 2f, p);
-            // wypełnienie niebieskie do uchwytu
+            // wypełnienie chłodne→ciepłe do uchwytu (jak w iOS: niebieski -> pomarańcz)
             float frac = value / 50f;
             if (frac > 0f) {
-                p.setColor(0xFF0A84FF);
+                p.setShader(new LinearGradient(pad, 0f, pad + trackW, 0f,
+                        0xFF64D2FF, 0xFFFF9F0A, Shader.TileMode.CLAMP));
                 r.set(pad, trackY - trackH / 2f, pad + trackW * frac, trackY + trackH / 2f);
                 cv.drawRoundRect(r, trackH / 2f, trackH / 2f, p);
+                p.setShader(null);
             }
             // dwa punkty-pozycjonery pod torem (jak w iOS)
             p.setColor(night ? 0x55FFFFFF : 0x44000000);
