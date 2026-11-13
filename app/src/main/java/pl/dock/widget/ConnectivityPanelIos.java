@@ -641,27 +641,26 @@ public class ConnectivityPanelIos extends LinearLayout {
             float sd = getResources().getDisplayMetrics().scaledDensity;
             p.setTypeface(Typeface.DEFAULT_BOLD);
             p.setTextAlign(Paint.Align.LEFT);
-            // KAFELKI 120dp: pole tekstu zaczyna sie za ikona (14dp lewy + 20dp
-            // ikona + 10dp odstęp = 44dp). Tytuł 1 wiersz, podpis 1 wiersz -
-            // obcinane do szerokosci, nigdy poza kafel (TASK-1).
+            // KAFELKI 120dp: pole tekstu zaczyna sie za ikona (14dp margines +
+            // 20dp ikona = 34dp). Tytul 1 wiersz, podpis 1 wiersz - obcinane do szerokosci, nigdy poza kafel (TASK-1).
             float tx0 = wide ? (iconX + iconS + 14f * d) : iconX;
             float tw = w - tx0 - 10f * d;
             if (wide) {
                 p.setColor(tc);
-                p.setTextSize(19f * sd);
+                p.setTextSize(17f * sd);
                 cv.drawText(fitText(p, title, tw), tx0, hh / 2f - 4f * d, p);
                 p.setTypeface(Typeface.DEFAULT);
                 p.setColor(sc);
-                p.setTextSize(16f * sd);
-                cv.drawText(fitText(p, sub, tw), tx0, hh / 2f + 20f * d, p);
+                p.setTextSize(14f * sd);
+                cv.drawText(fitText(p, sub, tw), tx0, hh / 2f + 18f * d, p);
             } else {
                 p.setColor(tc);
-                p.setTextSize(19f * sd);
-                cv.drawText(fitText(p, title, w - 36f * d), 18f * d, hh - 40f * d, p);
+                p.setTextSize(16f * sd);
+                cv.drawText(fitText(p, title, w - 36f * d), 18f * d, hh - 36f * d, p);
                 p.setTypeface(Typeface.DEFAULT);
                 p.setColor(sc);
-                p.setTextSize(15f * sd);
-                cv.drawText(fitText(p, sub, w - 36f * d), 18f * d, hh - 16f * d, p);
+                p.setTextSize(13f * sd);
+                cv.drawText(fitText(p, sub, w - 36f * d), 18f * d, hh - 14f * d, p);
             }
         }
 

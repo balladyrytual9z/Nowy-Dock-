@@ -45,9 +45,12 @@ public class PanelGlassFrame extends Drawable {
         // DZIEN: baza bardziej przykryta niz pelne szklo, ale lekko przepuszczalna
         // (0xE0 ~ 88%), zeby lekko przyswituje tapeta - odcien zblizony do doka;
         // kafelki wewnatrz sa teraz CIEMNIEJSZE od tla (odwrocone proporcje).
+        // kolor bazowy (korpus szkla): TROCHĘ CIEMNIEJSZY (TASK-1),
+        // żeby panel nie zlewał się z tłem doka. Dzień: alpha 0xE8 zamiast
+        // 0xE0, noc: alpha 0xF7 zamiast 0xF2.
         p.setStyle(Paint.Style.FILL);
         p.setShader(null);
-        p.setColor(night ? 0xF20E0E0F : 0xE0F2F2F5);
+        p.setColor(night ? 0xF70E0E0F : 0xE8F0F0F4);
         rect.set(l, t, rr, bt);
         cv.drawRoundRect(rect, rad, rad, p);
         // 1) korpus szkla: rozblysk u gory, wyrazniejsi poblask na dole (glebia)
