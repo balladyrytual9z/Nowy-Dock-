@@ -250,6 +250,22 @@ dlatego:
   ```
   (po pushu przywrócić URL bez tokena, żeby nie leżał w konfiguracji)
 
+## Sesja 2026-11-12 — TASK-1: ConnectivityPanelIos + wyszukiwarka (commit 67eef85)
+
+- **ConnectivityPanelIos:** Wprowadzono stałą `TILE = 120dp`, wszystkie kafelki
+  i przyciski mają stałe wymiary w siatce. `fitText()` obcina podpisy (SSID,
+  "Night Shift", "Hotspot osobisty") do szerokości kafelka/przycisku — nie
+  wychodzą poza siatkę. Hotspot: stała szerokość `TILE * 2 + dp(6)` zamiast
+  WRAP_CONTENT. RoundBtn: bez ujemnych marginesów, podpisy obcinane do szerokości
+  120dp. Suwak ciepła: gradient niebieski→pomarańcz zamiast stałego niebieskiego.
+- **AppLibraryPage:** Dodano `fold()` — wyszukiwanie bez polskich ogonków.
+  Sortowanie i filtr używają `fold()`, więc "Łącze" znajdzie się po "lacze".
+- **AllAppsActivity:** Nowa pigułkowa wyszukiwarka pod nagłówkiem. Filtruje na
+  żywo przez `fold()`. Licznik pokazuje "X z Y aplikacji". Stan pusty: "Brak
+  wyników". Klawiatura znika po Search/Enter.
+- **PENDING:** commit 67eef85 pushnięty, CI auto-started. Czekamy na build
+  (build-release.yml) i zrzuty (screens.yml). Jeśli build czerwony — naprawić.
+- **PO TYM:** TASK-2 (MapDownloadActivity), TASK-3 (GPS offset).
 - Do sprawdzania CI: `gh run watch` lub curl z `Authorization: token $GITHUB_PERSONAL_ACCESS_TOKEN`
 
 ## 2026-11-05 (sesja: panel, ikony iOS, ładowanie mapy, ekran play)
