@@ -190,11 +190,13 @@ public class ConnectivityPanelIos extends LinearLayout {
         row1.addView(tWifi, l1);
         row1.addView(tBt, l2);
         left.addView(row1);
-        // Hotspot na dole: dokladnie szerokosc obu kafelkow razem (120dp + 6dp
-        // margines + 6dp margines + 120dp = 252dp), wysokosc 76dp.
-        // Wczesniej mial 246dp (TILE*2+6) - brakowało jednego marginesu.
+        // Hotspot: szerokosc = pelna szerokosc kolumny left (MATCH_PARENT),
+        // czyli dokladnie tyle co Wi-Fi + BT razem. Wysokosc 76dp.
+        // Wczesniej mial recznie liczone 246/252dp - z MATCH_PARENT
+        // zawsze rowna sie z rzedem kafelkow nad soba.
         tHot = new Tile(act, true);
-        LayoutParams l3 = new LayoutParams(TILE * 2 + dp(12), dp(76));
+        LayoutParams l3 = new LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(76));
         l3.topMargin = dp(12);
         left.addView(tHot, l3);
 
