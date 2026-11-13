@@ -189,7 +189,12 @@ public class ConnectivityPanelIos extends LinearLayout {
         l2.leftMargin = dp(6);
         row1.addView(tWifi, l1);
         row1.addView(tBt, l2);
-        left.addView(row1);
+        // row1 z WRAP_CONTENT zamiast domyslnego MATCH_PARENT – dzieki temu
+        // kolumna left ma szerokosc DOKLADNIE rowna zawartosci Wi-Fi+BT
+        // (120+6+6+120=252dp), nie rozciaga sie do 550dp. BT nie jest ucinane.
+        left.addView(row1, new LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
         // Hotspot: szerokosc = pelna szerokosc kolumny left (MATCH_PARENT),
         // czyli dokladnie tyle co Wi-Fi + BT razem. Wysokosc 76dp.
         // Wczesniej mial recznie liczone 246/252dp - z MATCH_PARENT
@@ -211,9 +216,9 @@ public class ConnectivityPanelIos extends LinearLayout {
         boolean showNs = Prefs.showNightShift(act);
         if (showMode || showNs) {
             LinearLayout row = new LinearLayout(act);
-            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setGravity(Gravity.CENTER);
             LayoutParams rp = new LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
             rp.topMargin = dp(12);
             if (showMode) {
@@ -270,6 +275,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             vbp.leftMargin = dp(10);
             bars.addView(vol, vbp);
             LayoutParams bbp = new LayoutParams(dp(70), dp(238));
+            bbp.leftMargin = dp(10);
             bars.addView(bri, bbp);
             vol.setListener(new PillSlider.Listener() {
                 @Override
