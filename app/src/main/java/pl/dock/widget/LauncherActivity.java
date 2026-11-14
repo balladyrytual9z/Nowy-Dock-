@@ -11,6 +11,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.Configuration;
@@ -165,6 +166,7 @@ public class LauncherActivity extends BaseActivity {
             if (caller != null) Prefs.setExternalCaller(this, caller);
             final String pageF = page;
             h.postDelayed(new Runnable() {
+                @Override
                 public void run() {
                     if (pager == null) return;
                     navigateToPage(pageF);
@@ -189,7 +191,9 @@ public class LauncherActivity extends BaseActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQ_LOC) {
+        if (requestCode == REQ_LOC && grantResults != null && grantResults.length > 0
+                && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            // Po nadaniu zgody uruchamiamy nasluch GPS (kafelek mapy).
             try {
                 pl.dock.widget.maps.MapState.get(this).onPermissionGranted();
             } catch (Throwable ignored) {
@@ -230,7 +234,7 @@ public class LauncherActivity extends BaseActivity {
         unregisterReceivers();
         AppListWatcher.get().removeListener(appsListener);
         unregisterNav();
-        MediaHub.get().detach(this, mediaListener);
+        MediaHub.get().detach(mediaListener);
         StatusCenter.setOnChange(null);
         h.removeCallbacks(minuteTick);
         h.removeCallbacks(statusTick);
@@ -290,7 +294,7 @@ public class LauncherActivity extends BaseActivity {
     // Przycisk Home radia (hierarchia jak w CarPlay):
     // - na ekranie glownym: akcja Home (domyslnie otwiera DiPlay/CarPlay);
     // - na stronie widzetow, siatce aplikacji lub Bibliotece: najpierw wraca na
-    //   ekran glowny (kolejne Home dzialaja juz jak na glownym);
+    //   ekran glowny (kolejne Home dziala juz jak na glownym);
     // - z DiPlay: ZAWSZE na ekran glowny (nie na strone, z ktorej ja otwarto);
     // - z innych aplikacji: wraca na strone, z ktorej je otwarto (origin page).
     @Override
@@ -559,7 +563,7 @@ public class LauncherActivity extends BaseActivity {
 
             @Override
             public void onSwipeUp(float x) {
-                // gest ze strefy dolnej ekranu - centrum lacznosci
+                // gest ze strefy dolnej ekranu - centrum łączności
                 if (overlay == null) showOverlayAt(x, root != null ? root.getHeight() : 0f);
             }
         });
@@ -686,7 +690,7 @@ public class LauncherActivity extends BaseActivity {
         for (int i = pager.getChildCount() - 1; i >= 0; i--) {
             if (!order.contains(pager.getChildAt(i))) pager.removeViewAt(i);
         }
-        // 2) brakujace dodaj, przenies na wlasciwe miejsce
+        // 2) brakujace dodaj, istniejace przenies na wlasciwe miejsce
         for (int i = 0; i < order.size(); i++) {
             View v = order.get(i);
             if (v.getParent() == pager) {
@@ -724,7 +728,9 @@ public class LauncherActivity extends BaseActivity {
 
             @Override
             public void showAppInfo(String pkg) {
-                setAppOnGrid(pkg, false);
+                if (pkg == null || pkg.length() == 0) return;
+                startSystemSmooth(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:" + pkg)));
             }
 
             @Override
@@ -738,6 +744,7 @@ public class LauncherActivity extends BaseActivity {
     // Pusta lista wybranych znaczy "wszystkie widoczne", wiec przy usuwaniu trzeba ja
     // najpierw zmaterializowac - inaczej odznaczenie jednej apki ukryloby cala reszte.
     private void setAppOnGrid(String pkg, boolean onGrid) {
+        if (pkg == null || pkg.length() == 0) return;
         List<String> sel = Prefs.selectedPkgs(this);
         if (onGrid) {
             if (sel.isEmpty()) return;               // wszystko juz jest na siatce
@@ -967,7 +974,7 @@ public class LauncherActivity extends BaseActivity {
         try {
             unregisterReceiver(pkgReceiver);
         } catch (Throwable t) {
-            android.util.Log.w("Dock", "uninstallApp", t);
+            android.util.Log.w("Dock", "unregister pkgReceiver", t);
         }
     }
 
@@ -1257,6 +1264,7 @@ public class LauncherActivity extends BaseActivity {
                 try {
                     startActivity(new Intent(this, pl.dock.widget.ObdDiscoveryActivity.class));
                 } catch (Throwable ignored) {
+                    android.util.Log.w("Dock", "OBD open", ignored);
                 }
             } else {
                 Launch.carplay(this);
@@ -1378,6 +1386,7 @@ public class LauncherActivity extends BaseActivity {
             startActivity(i);
             overridePendingTransition(R.anim.cp_slide_in, R.anim.cp_fade_out);
         } catch (Throwable t) {
+            android.util.Log.w("Dock", "openSettings", t);
             Toast.makeText(this, "Nie można otworzyć ustawień", Toast.LENGTH_SHORT).show();
         }
     }
