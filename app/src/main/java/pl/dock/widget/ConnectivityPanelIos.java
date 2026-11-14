@@ -78,6 +78,10 @@ import android.widget.Toast;
 //    animowanej overlay tresc panelu potrafi sie nie wyrenderowac
 //    (lekcja z ConnectivityPanel, PR #14). Warstwa TYLKO na panelu -
 //    NIGDY na overlayu (dwie zagniezdzone warstwy = pusty panel, PR #46).
+// 12. UKŁAD (14.11.2026): kolejność pasków Wi-Fi -> Hotspot -> Bluetooth;
+//    suwaki głośności/jasności PO PRAWEJ od przycisków trybów (spreżyna
+//    weight 1); teksty kafelków za bąbelkiem ikony (leftMargin 64dp);
+//    kolka ikon wycentrowane w pionie paska (bez topMargin).
 public class ConnectivityPanelIos extends LinearLayout {
 
     public interface Host {
@@ -181,6 +185,7 @@ public class ConnectivityPanelIos extends LinearLayout {
         // Kazdy pasek: MATCH_PARENT x 56dp, odstep 10dp miedzy paskami.
         // Jednolity układ wewnetrzny: babel ikony 40dp po lewej,
         // tytul bold 15sp bialy i podtytul 12sp #8E8E93 po prawej.
+        // KOLEJNOSC (na zyczenie usera): Wi-Fi, Hotspot (tethering), Bluetooth.
         LinearLayout top = new LinearLayout(act);
         top.setOrientation(VERTICAL);
 
@@ -189,23 +194,25 @@ public class ConnectivityPanelIos extends LinearLayout {
         l1.bottomMargin = dp(10);
         top.addView(tWifi, l1);
 
-        tBt = new Tile(act);
+        tHot = new Tile(act);
         LayoutParams l2 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
         l2.bottomMargin = dp(10);
-        top.addView(tBt, l2);
+        top.addView(tHot, l2);
 
-        tHot = new Tile(act);
+        tBt = new Tile(act);
         LayoutParams l3 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
         l3.bottomMargin = dp(10);
-        top.addView(tHot, l3);
+        top.addView(tBt, l3);
 
-        // Wiersz trybu ciemnego i Night Shift pod ostatnim paskiem lacznosci:
-        // 12dp przerwy (tak samo jak miedzy paskami).
+        // Wiersz sterowania pod paskami lacznosci (12dp przerwy, jak miedzy
+        // paskami): po LEWEJ przyciski trybow (Tryb ciemny / Night Shift),
+        // po PRAWEJ (na zyczenie usera) pionowe suwaki glosnosci i jasnosci -
+        // sprezyna (weight 1) odsuwa suwaki do prawej krawedzi panelu.
         boolean showMode = Prefs.showModeButtons(act);
         boolean showNs = Prefs.showNightShift(act);
-        if (showMode || showNs) {
-            LinearLayout row = new LinearLayout(act);
-            row.setGravity(Gravity.CENTER_VERTICAL);
+        boolean showBars = Prefs.customBars(act);
+        if (showMode || showNs || showBars) {
+            LinearLayout controls = new LinearLayout(act);
             LayoutParams rp = new LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -214,7 +221,7 @@ public class ConnectivityPanelIos extends LinearLayout {
                 bMode = new RoundBtn(act, 4, "Tryb ciemny");
                 LayoutParams mp = new LayoutParams(dp(88), dp(96));
                 if (showNs) mp.rightMargin = dp(12);
-                row.addView(bMode, mp);
+                controls.addView(bMode, mp);
                 bMode.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -225,7 +232,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             }
             if (showNs) {
                 bShift = new RoundBtn(act, 3, "Night Shift");
-                row.addView(bShift, new LayoutParams(dp(88), dp(96)));
+                controls.addView(bShift, new LayoutParams(dp(88), dp(96)));
                 bShift.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -242,38 +249,36 @@ public class ConnectivityPanelIos extends LinearLayout {
                     }
                 });
             }
-            top.addView(row, rp);
-        }
-
-        if (Prefs.customBars(act)) {
-            LinearLayout bars = new LinearLayout(act);
-            bars.setOrientation(HORIZONTAL);
-            PillSlider vol = new PillSlider(act, false, volumeValue());
-            PillSlider bri = new PillSlider(act, true, brightnessValue());
-            LayoutParams vbp = new LayoutParams(dp(70), dp(238));
-            vbp.leftMargin = dp(10);
-            bars.addView(vol, vbp);
-            LayoutParams bbp = new LayoutParams(dp(70), dp(238));
-            bbp.leftMargin = dp(10);
-            bars.addView(bri, bbp);
-            vol.setListener(new PillSlider.Listener() {
-                @Override
-                public void on(float v) {
-                    setVolume(v);
-                }
-            });
-            bri.setListener(new PillSlider.Listener() {
-                @Override
-                public void on(float v) {
-                    setBrightness(v);
-                }
-            });
-            // bars ma wage 0 i szerokosc WRAP_CONTENT - zawsze sie mieści,
-            // left (waga 1) dostaje reszte miejsca.
-            LayoutParams lpBars = new LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT, 0f);
-            top.addView(bars, lpBars);
+            if (showBars) {
+                View spring = new View(act);
+                controls.addView(spring, new LayoutParams(0, 1, 1f));
+                LinearLayout bars = new LinearLayout(act);
+                bars.setOrientation(HORIZONTAL);
+                PillSlider vol = new PillSlider(act, false, volumeValue());
+                PillSlider bri = new PillSlider(act, true, brightnessValue());
+                LayoutParams vbp = new LayoutParams(dp(70), dp(238));
+                vbp.leftMargin = dp(10);
+                bars.addView(vol, vbp);
+                LayoutParams bbp = new LayoutParams(dp(70), dp(238));
+                bbp.leftMargin = dp(10);
+                bars.addView(bri, bbp);
+                vol.setListener(new PillSlider.Listener() {
+                    @Override
+                    public void on(float v) {
+                        setVolume(v);
+                    }
+                });
+                bri.setListener(new PillSlider.Listener() {
+                    @Override
+                    public void on(float v) {
+                        setBrightness(v);
+                    }
+                });
+                controls.addView(bars, new LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT));
+            }
+            top.addView(controls, rp);
         }
         addView(top, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -575,7 +580,6 @@ public class ConnectivityPanelIos extends LinearLayout {
             LayoutParams clp = new LayoutParams(dp(40), dp(40));
             clp.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
             clp.leftMargin = dp(12);
-            clp.topMargin = dp(8);
             addView(circ, clp);
 
             LinearLayout texts = new LinearLayout(c);
@@ -592,7 +596,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             LayoutParams tlp = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
             tlp.gravity = Gravity.CENTER_VERTICAL;
-            tlp.leftMargin = dp(16);
+            tlp.leftMargin = dp(64);   // babel ikony: 12 + 40 + 12 - tekst nie nachodzi na kolo
             addView(texts, tlp);
         }
 
@@ -1038,6 +1042,3 @@ public class ConnectivityPanelIos extends LinearLayout {
         }
     }
 }
-
-
-
