@@ -20,9 +20,12 @@ import java.util.List;
 // NAPRAWA ZA WASKIEGO PANELU: WRAP_CONTENT zawazalo caly lancuch MATCH_PARENT
 // (paski lacznosci -> kolumna top -> kafelki) do szerokosci tresci - okno
 // zapadalo sie do ~174 dp (wiersz suwakow + padding), ikony nachodzily na
-// teksty, a podpisy ("Night Shift", "Wyłączony") byly obciete. Panel ma teraz
-// MATCH_PARENT szerokosc - DOKLADNIE tak samo jak overlay w LauncherActivity
-// (commit 0838be52). Paski rozciagaja sie na pelna szerokosc karty.
+// teksty, a podpisy ("Night Shift", "Wyłączony") byly obciete. Panel mial
+// MATCH_PARENT szerokosc (commit 5c03c92a, jak 0838be52 w LauncherActivity).
+// POWROT DO WRAP_CONTENT (a1f4458, zyczenie usera "bez nadmiaru miejsca po
+// prawej i na dole"): lancuch MATCH_PARENT juz NIE istnieje - kafelki maja
+// stala szerokosc 196dp, suwaki 56dp, wiersz content WRAP_CONTENT - wiec
+// okno WRAP_CONTENT obednie dokladnie tresc i nie zapada sie.
 // UJEDNOLICENIE Z LAUNCHEREM (jeden panel wszedzie, ten sam wyglad):
 // 1. BLUR W TLE: migawka tapety 1/4 rozmiaru ekranu + rozmycie (Blur.blur) +
 //    delikatna zaslona - dokladnie ta sama sciezka co w overlayu LauncherActivity,
@@ -91,14 +94,12 @@ public class ConnectivityActivity extends BaseActivity {
         });
         boolean dockLeft = Ui.dockLeft(this);
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
-        // szerokosc MATCH_PARENT (jak w LauncherActivity, commit 0838be52):
-        // WRAP_CONTENT zapadalo caly lancuch MATCH_PARENT w panelu do szerokosci
-        // tresci i okno kurczylo sie do wiersza suwakow (~174 dp).
-        // panel przy doku (po jego wewnętrznej stronie) - nie zasłania doka;
-        // gora = margines + PASEK SYSTEMOWY (panel pod paskiem statusu)
+        // szerokosc WRAP_CONTENT (a1f4458): kafelki 196dp + suwaki 56dp to juz
+        // stale szerokosci, lancuch MATCH_PARENT nie istnieje - okno obednie
+        // dokladnie tresc panelu (bez pustego szkla po prawej).
         int topInset = Ui.dp(this, 12) + Ui.statusBarHeight(this);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.TOP | (dockLeft ? Gravity.START : Gravity.END));
         lp.setMargins(dockLeft ? dockPx + Ui.dp(this, 8) : Ui.dp(this, 8), topInset,
