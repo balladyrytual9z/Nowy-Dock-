@@ -174,57 +174,43 @@ public class ConnectivityPanelIos extends LinearLayout {
     }
 
     private void build() {
+        // 3 rowne paski lacznosci w pionowym stercie (pills).
+        // Kazdy pasek: MATCH_PARENT x 56dp, odstep 10dp miedzy paskami.
+        // Jednolity układ wewnetrzny: babel ikony 40dp po lewej,
+        // tytul bold 15sp bialy i podtytul 12sp #8E8E93 po prawej.
         LinearLayout top = new LinearLayout(act);
-        top.setOrientation(HORIZONTAL);
+        top.setOrientation(VERTICAL);
 
-        LinearLayout left = new LinearLayout(act);
-        left.setOrientation(VERTICAL);
-        LinearLayout row1 = new LinearLayout(act);
-        tWifi = new Tile(act, false);
-        tBt = new Tile(act, false);
-        // Wi-Fi i BT jako kwadraty 120x120dp - rowne wymiary, nie prostokaty.
-        LayoutParams l1 = new LayoutParams(dp(TILE), dp(TILE));
-        l1.rightMargin = dp(6);
-        LayoutParams l2 = new LayoutParams(dp(TILE), dp(TILE));
-        l2.leftMargin = dp(6);
-        row1.addView(tWifi, l1);
-        row1.addView(tBt, l2);
-        // row1 z WRAP_CONTENT zamiast domyslnego MATCH_PARENT – dzieki temu
-        // kolumna left ma szerokosc DOKLADNIE rowna zawartosci Wi-Fi+BT
-        // (120+6+6+120=252dp), nie rozciaga sie do 550dp. BT nie jest ucinane.
-        left.addView(row1, new LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
-        // Hotspot: szerokosc = pelna szerokosc kolumny left (MATCH_PARENT),
-        // czyli dokladnie tyle co Wi-Fi + BT razem. Wysokosc 76dp.
-        // Wczesniej mial recznie liczone 246/252dp - z MATCH_PARENT
-        // zawsze rowna sie z rzedem kafelkow nad soba.
-        tHot = new Tile(act, true);
-        LayoutParams l3 = new LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(76));
-        l3.topMargin = dp(12);
-        left.addView(tHot, l3);
+        tWifi = new Tile(act);
+        LayoutParams l1 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
+        l1.bottomMargin = dp(10);
+        top.addView(tWifi, l1);
 
-        // TRZYMY PRZYCISKOW W KOLUMNIE LEWEJ (TASK-1): wiersz trybu ciemnego
-        // i Night Shift leci BEZPOSREDNIO pod Hotspotem, w tej samej kolumnie
-        // left - dzieki temu odstęp od Hotspota jest zawsze 12dp (taki sam jak
-        // miedzy Wi-Fi/BT a Hotspotem), niezaleznie od wysokosci suwakow prawej
-        // strony. Wczesniej wiersz byl dodawany do panelu OSOBNO, pod calym
-        // wierszem top (left + suwaki), co dawalo 30+dp przerwy gdy suwaki byly
-        // wyzsze niz lewa kolumna.
+        tBt = new Tile(act);
+        LayoutParams l2 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
+        l2.bottomMargin = dp(10);
+        top.addView(tBt, l2);
+
+        tHot = new Tile(act);
+        LayoutParams l3 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
+        l3.bottomMargin = dp(10);
+        top.addView(tHot, l3);
+
+        // Wiersz trybu ciemnego i Night Shift pod ostatnim paskiem lacznosci:
+        // 12dp przerwy (tak samo jak miedzy paskami).
         boolean showMode = Prefs.showModeButtons(act);
         boolean showNs = Prefs.showNightShift(act);
         if (showMode || showNs) {
             LinearLayout row = new LinearLayout(act);
-            row.setGravity(Gravity.CENTER);
+            row.setGravity(Gravity.CENTER_VERTICAL);
             LayoutParams rp = new LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
             rp.topMargin = dp(12);
             if (showMode) {
                 bMode = new RoundBtn(act, 4, "Tryb ciemny");
-                LayoutParams mp = new LayoutParams(dp(TILE), dp(112));
-                if (showNs) mp.rightMargin = dp(2);
+                LayoutParams mp = new LayoutParams(dp(88), dp(96));
+                if (showNs) mp.rightMargin = dp(12);
                 row.addView(bMode, mp);
                 bMode.setOnClickListener(new OnClickListener() {
                     @Override
@@ -236,7 +222,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             }
             if (showNs) {
                 bShift = new RoundBtn(act, 3, "Night Shift");
-                row.addView(bShift, new LayoutParams(dp(TILE), dp(112)));
+                row.addView(bShift, new LayoutParams(dp(88), dp(96)));
                 bShift.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -253,18 +239,8 @@ public class ConnectivityPanelIos extends LinearLayout {
                     }
                 });
             }
-            left.addView(row, rp);
-            note = new TextView(act);
-            note.setTextSize(13);
-            note.setTextColor(night ? 0xFF9A9AA0 : 0xFF6C6C70);
-            note.setPadding(dp(6), dp(2), 0, dp(4));
-            left.addView(note);
+            top.addView(row, rp);
         }
-
-        // Lewa kolumna: WRAP_CONTENT szerokosci - dopasowuje sie do zawartosci
-        // (dwa kwadraty 120dp + marginesy), nie rozciaga sie na caly ekran.
-        LayoutParams lpLeft = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0f);
-        top.addView(left, lpLeft);
 
         if (Prefs.customBars(act)) {
             LinearLayout bars = new LinearLayout(act);
@@ -497,9 +473,9 @@ public class ConnectivityPanelIos extends LinearLayout {
         boolean th = Net.tethering(act);
         int white = 0xFFFFFFFF;
         // ikony 1:1 jak w oryginale (wektory ic_wifi / ic_wifi_off / ic_bt)
-        // podpis Wi-Fi: sama nazwa sieci (SSID); gdy system jej nie da - "Połączono"
+        // Kolor aktywnego stanu: iOS #007AFF dla wszystkich 3 paskow.
         String ssid = Net.wifiSsid(act);
-        tWifi.set(wEn, 0xFF1C94FF, Icons.vector(act, wEn ? R.drawable.ic_wifi : R.drawable.ic_wifi_off,
+        tWifi.set(wEn, 0xFF007AFF, Icons.vector(act, wEn ? R.drawable.ic_wifi : R.drawable.ic_wifi_off,
                 128, white), "Wi-Fi",
                 (ws == 3 || ws == 2) ? (ssid.length() > 0 ? ssid : "Połączono")
                         : (ws == 1 ? "Włączone" : "Wyłączone"));
@@ -509,9 +485,9 @@ public class ConnectivityPanelIos extends LinearLayout {
             if (btSub.length() > 0) btSub.append(", ");
             btSub.append(n);
         }
-        tBt.set(bt, 0xFF1C94FF, Icons.vector(act, R.drawable.ic_bt, 128, white), "Bluetooth",
+        tBt.set(bt, 0xFF007AFF, Icons.vector(act, R.drawable.ic_bt, 128, white), "Bluetooth",
                 btSub.length() > 0 ? btSub.toString() : (bt ? "Włączony" : "Wyłączony"));
-        tHot.set(th, 0xFF30D158, Icons.tether(128, white, false), "Hotspot osobisty",
+        tHot.set(th, 0xFF007AFF, Icons.tether(128, white, false), "Hotspot osobisty",
                 th ? "Włączony" : "Wyłączony");
         if (bMode != null) {
             // "Tryb ciemny" jak w iOS: stan + podpis "do wsch./zach. słońca"
@@ -565,124 +541,63 @@ public class ConnectivityPanelIos extends LinearLayout {
         removeCallbacks(hideWarmth);
     }
 
-    // ---------------------------------------------------------------- kafelek
-    private class Tile extends View {
-        private final boolean wide;
-        private boolean active;
-        private int color = 0xFF1C94FF;
-        private Bitmap icon;
-        private String title = "";
-        private String sub = "";
-        private boolean pressed;
-        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final RectF r = new RectF();
-        private final float d = getResources().getDisplayMetrics().density;
+    // ---------------------------------------------------------------- pasek lacznosci (framework-only)
+    // Jednolity poziomy wiersz (pill) dla Wi-Fi, Bluetooth i Hotspotu:
+    // babel ikony 40dp po lewej, tytul (bold 15sp, bialy) i podtytul (12sp,
+    // #8E8E93) w kolonii po prawej. Wszystkie 3 paski maja identyczna wysokosc
+    // (56dp) i pelna szerokosc kontenera. Zero onDraw: GradientDrawable +
+    // ImageView + TextView.
+    private class Tile extends FrameLayout {
+        private final View circle;
+        private final ImageView icon;
+        private final TextView title;
+        private final TextView sub;
 
-        Tile(Context c, boolean wide) {
+        Tile(Context c) {
             super(c);
-            this.wide = wide;
+            GradientDrawable bg = new GradientDrawable();
+            bg.setColor(night ? 0x3346464B : 0x33CACACF);
+            bg.setCornerRadius(dp(12));
+            bg.setStroke(Math.max(1, dp(1)), 0x55FFFFFF);
+            setBackground(bg);
+
+            FrameLayout circ = new FrameLayout(c);
+            circle = new View(c);
+            circle.setBackground(Ui.round(0xFF7E8686, 999, act));
+            circ.addView(circle, new FrameLayout.LayoutParams(dp(40), dp(40), Gravity.CENTER));
+            icon = new ImageView(c);
+            icon.setLayoutParams(new FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER));
+            circ.addView(icon);
+            LayoutParams clp = new LayoutParams(dp(40), dp(40));
+            clp.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
+            clp.leftMargin = dp(12);
+            clp.topMargin = dp(8);
+            addView(circ, clp);
+
+            LinearLayout texts = new LinearLayout(c);
+            texts.setOrientation(VERTICAL);
+            title = new TextView(c);
+            title.setTextSize(15);
+            title.setTypeface(null, Typeface.BOLD);
+            title.setTextColor(night ? 0xFFFFFFFF : 0xFF111114);
+            texts.addView(title);
+            sub = new TextView(c);
+            sub.setTextSize(12);
+            sub.setTextColor(night ? 0xFFC9CFCF : 0xFF8E8E93);
+            texts.addView(sub);
+            LayoutParams tlp = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            tlp.gravity = Gravity.CENTER_VERTICAL;
+            tlp.leftMargin = dp(16);
+            addView(texts, tlp);
         }
 
         void set(boolean active, int color, Bitmap icon, String title, String sub) {
-            this.active = active;
-            this.color = color;
-            this.icon = icon;
-            this.title = title;
-            this.sub = sub;
+            circle.setBackground(Ui.round(active ? color : 0xFF7E8686, 999, act));
+            this.icon.setImageBitmap(icon);
+            this.title.setText(title);
+            this.sub.setText(sub);
             setContentDescription(title + ", " + sub);
-            invalidate();
-        }
-
-        @Override
-        protected void onDraw(Canvas cv) {
-            float w = getWidth();
-            float hh = getHeight();
-            float rad = wide ? hh / 2f : 34f * d;
-            // SZKŁO: półprzezroczysty korpus (tło prześwituje) + światło Z GÓRY
-            p.setStyle(Paint.Style.FILL);
-            p.setShader(null);
-            // DZIEN: kafelki CIEMNIEJSZE od tla (0xCCDCDCE1) - odwrotnie niz wczesniej
-            // (tlo jak dok, kafelki wyraznie ciemniejsze; zyczenie uzytkownika)
-            p.setColor(night ? 0x9E4E4E53 : 0xCCDCDCE1);
-            r.set(0, 0, w, hh);
-            cv.drawRoundRect(r, rad, rad, p);
-            int saveG = cv.save();
-            Path clipG = new Path();
-            clipG.addRoundRect(r, rad, rad, Path.Direction.CW);
-            cv.clipPath(clipG);
-            p.setShader(new LinearGradient(0, 0, 0, hh * 0.45f,
-                    new int[]{0x3DFFFFFF, 0x00FFFFFF},
-                    new float[]{0f, 1f}, Shader.TileMode.CLAMP));
-            cv.drawRect(r, p);
-            cv.restoreToCount(saveG);
-            p.setShader(null);
-            if (pressed) {
-                p.setColor(0x22FFFFFF);
-                cv.drawRoundRect(r, rad, rad, p);
-            }
-            // rant: pionowy gradient (jasny u gory, wygaszony u dolu)
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(1.6f * d);
-            p.setShader(new LinearGradient(0, 0, 0, hh,
-                    night ? new int[]{0x99FFFFFF, 0x26FFFFFF}
-                          : new int[]{0x66808090, 0x1A808090},
-                    new float[]{0f, 1f}, Shader.TileMode.CLAMP));
-            r.set(d, d, w - d, hh - d);
-            cv.drawRoundRect(r, rad - d, rad - d, p);
-            p.setShader(null);
-
-            // ikona W STYLU iOS (TASK-1): 26dp, w lewym gornym rogu. Rozmiar
-            // dopasowany do kwadratu kafelka (120dp): nie za mala (20dp), nie za
-            // duza (28dp). Koleczko pod spodem 2dp wieksze.
-            float iconS = 26f * d;
-            float iconX = 14f * d;
-            float iconY = wide ? hh / 2f : 14f * d;
-            p.setStyle(Paint.Style.FILL);
-            p.setColor(active ? color : 0xFF7E8686);
-            cv.drawCircle(iconX + iconS / 2f, iconY + iconS / 2f, iconS / 2f + 2f * d, p);
-            if (icon != null) {
-                r.set(iconX, iconY, iconX + iconS, iconY + iconS);
-                cv.drawBitmap(icon, null, r, p);
-            }
-            int tc = night ? 0xFFFFFFFF : 0xFF111114;
-            int sc = night ? 0xFFC9CFCF : 0xFF6C6C70;
-            float sd = getResources().getDisplayMetrics().scaledDensity;
-            p.setTypeface(Typeface.DEFAULT_BOLD);
-            p.setTextAlign(Paint.Align.LEFT);
-            // KAFELKI 120dp: pole tekstu zaczyna sie za ikona (14dp margines +
-            // 20dp ikona = 34dp). Tytul 1 wiersz, podpis 1 wiersz - obcinane do szerokosci, nigdy poza kafel (TASK-1).
-            float tx0 = wide ? (iconX + iconS + 14f * d) : iconX;
-            float tw = w - tx0 - 10f * d;
-            if (wide) {
-                p.setColor(tc);
-                p.setTextSize(17f * sd);
-                cv.drawText(fitText(p, title, tw), tx0, hh / 2f - 4f * d, p);
-                p.setTypeface(Typeface.DEFAULT);
-                p.setColor(sc);
-                p.setTextSize(14f * sd);
-                cv.drawText(fitText(p, sub, tw), tx0, hh / 2f + 18f * d, p);
-            } else {
-                p.setColor(tc);
-                p.setTextSize(16f * sd);
-                cv.drawText(fitText(p, title, w - 36f * d), 18f * d, hh - 36f * d, p);
-                p.setTypeface(Typeface.DEFAULT);
-                p.setColor(sc);
-                p.setTextSize(13f * sd);
-                cv.drawText(fitText(p, sub, w - 36f * d), 18f * d, hh - 14f * d, p);
-            }
-        }
-
-        @Override
-        public boolean onTouchEvent(MotionEvent e) {
-            int a = e.getActionMasked();
-            if (a == MotionEvent.ACTION_DOWN) {
-                pressed = true;
-                invalidate();
-            } else if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
-                pressed = false;
-                invalidate();
-            }
-            return super.onTouchEvent(e);
         }
     }
 
