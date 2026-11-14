@@ -11,7 +11,6 @@ import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.Configuration;
@@ -166,7 +165,6 @@ public class LauncherActivity extends BaseActivity {
             if (caller != null) Prefs.setExternalCaller(this, caller);
             final String pageF = page;
             h.postDelayed(new Runnable() {
-                @Override
                 public void run() {
                     if (pager == null) return;
                     navigateToPage(pageF);
@@ -191,9 +189,7 @@ public class LauncherActivity extends BaseActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQ_LOC && grantResults != null && grantResults.length > 0
-                && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            // Po nadaniu zgody uruchamiamy nasluch GPS (kafelek mapy).
+        if (requestCode == REQ_LOC) {
             try {
                 pl.dock.widget.maps.MapState.get(this).onPermissionGranted();
             } catch (Throwable ignored) {
@@ -234,7 +230,7 @@ public class LauncherActivity extends BaseActivity {
         unregisterReceivers();
         AppListWatcher.get().removeListener(appsListener);
         unregisterNav();
-        MediaHub.get().detach(mediaListener);
+        MediaHub.get().detach(this, mediaListener);
         StatusCenter.setOnChange(null);
         h.removeCallbacks(minuteTick);
         h.removeCallbacks(statusTick);
@@ -294,9 +290,9 @@ public class LauncherActivity extends BaseActivity {
     // Przycisk Home radia (hierarchia jak w CarPlay):
     // - na ekranie glownym: akcja Home (domyslnie otwiera DiPlay/CarPlay);
     // - na stronie widzetow, siatce aplikacji lub Bibliotece: najpierw wraca na
-    //   ekran glowny (kolejne Home dziala juz jak na glownym);
+    //   ekran glowny (kolejne Home dzialaja juz jak na glownym);
     // - z DiPlay: ZAWSZE na ekran glowny (nie na strone, z ktorej ja otwarto);
-    // - z innych aplikacji: wraca na strone, z ktorej ja otwarto (origin page).
+    // - z innych aplikacji: wraca na strone, z ktorej je otwarto (origin page).
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
@@ -328,7 +324,7 @@ public class LauncherActivity extends BaseActivity {
         }
         if (!visible) {
             // Home nacisniety w aplikacji: z DiPlay (CarPlay) zawsze wracamy na
-            // EKRAN GLOWNY; inne aplikacje wracaja na strone, z ktorej je otwarto.
+            // EKRAN GLOWNY; inne aplikacje wracaja na strone, z ktorej ja otwarto.
             boolean fromDiplay = Prefs.diplayReturn(this);
             Prefs.setDiplayReturn(this, false);
             int target = fromDiplay ? homeIdx
@@ -690,7 +686,7 @@ public class LauncherActivity extends BaseActivity {
         for (int i = pager.getChildCount() - 1; i >= 0; i--) {
             if (!order.contains(pager.getChildAt(i))) pager.removeViewAt(i);
         }
-        // 2) brakujace dodaj, istniejace przenies na wlasciwe miejsce
+        // 2) brakujace dodaj, przenies na wlasciwe miejsce
         for (int i = 0; i < order.size(); i++) {
             View v = order.get(i);
             if (v.getParent() == pager) {
@@ -728,9 +724,7 @@ public class LauncherActivity extends BaseActivity {
 
             @Override
             public void showAppInfo(String pkg) {
-                if (pkg == null || pkg.length() == 0) return;
-                startSystemSmooth(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        Uri.parse("package:" + pkg)));
+                setAppOnGrid(pkg, false);
             }
 
             @Override
@@ -744,7 +738,6 @@ public class LauncherActivity extends BaseActivity {
     // Pusta lista wybranych znaczy "wszystkie widoczne", wiec przy usuwaniu trzeba ja
     // najpierw zmaterializowac - inaczej odznaczenie jednej apki ukryloby cala reszte.
     private void setAppOnGrid(String pkg, boolean onGrid) {
-        if (pkg == null || pkg.length() == 0) return;
         List<String> sel = Prefs.selectedPkgs(this);
         if (onGrid) {
             if (sel.isEmpty()) return;               // wszystko juz jest na siatce
@@ -974,7 +967,7 @@ public class LauncherActivity extends BaseActivity {
         try {
             unregisterReceiver(pkgReceiver);
         } catch (Throwable t) {
-            android.util.Log.w("Dock", "unregister pkgReceiver", t);
+            android.util.Log.w("Dock", "uninstallApp", t);
         }
     }
 
@@ -1101,7 +1094,7 @@ public class LauncherActivity extends BaseActivity {
             if (Prefs.isHiddenInLibrary(c, pkg)) continue;
             AppsGridPage.Item it = new AppsGridPage.Item();
             it.pkg = pkg;
-            it.label = ri.loadLabel(pm).toString();   // oryginalna nazwa (bez Overrides)
+            it.label = ri.loadLabel(pm).toString();   // oryginalna nazwa aplikacji (bez Overrides)
             out.add(it);
         }
         // narzedzia launchera wchodza do tej samej listy i sortuja sie alfabetycznie
@@ -1263,9 +1256,7 @@ public class LauncherActivity extends BaseActivity {
                 Prefs.recordPkg(this, pkg);   // liczy sie do 4 ikon doka
                 try {
                     startActivity(new Intent(this, pl.dock.widget.ObdDiscoveryActivity.class));
-                    overridePendingTransition(R.anim.cp_fade_in, R.anim.cp_fade_out);
-                } catch (Throwable t) {
-                    Toast.makeText(this, "Nie można otworzyć OBD", Toast.LENGTH_SHORT).show();
+                } catch (Throwable ignored) {
                 }
             } else {
                 Launch.carplay(this);
@@ -1362,7 +1353,6 @@ public class LauncherActivity extends BaseActivity {
 
     /** Odinstalowanie aplikacji: systemowy deinstalator + zapasowa intencja ACTION_DELETE. */
     private void uninstallApp(String pkg) {
-        if (pkg == null || pkg.length() == 0) return;
         try {
             Intent i = new Intent(Intent.ACTION_UNINSTALL_PACKAGE);
             i.setData(Uri.parse("package:" + pkg));
@@ -1388,8 +1378,7 @@ public class LauncherActivity extends BaseActivity {
             startActivity(i);
             overridePendingTransition(R.anim.cp_slide_in, R.anim.cp_fade_out);
         } catch (Throwable t) {
-            android.util.Log.w("Dock", "openSettings", t);
-            Toast.makeText(this, "Nie można otworzyć ustawień", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Nie można otworzyć ustawień", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -1489,12 +1478,15 @@ public class LauncherActivity extends BaseActivity {
         });
         boolean left = Ui.dockLeft(this);
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
-        // Panel rozciaga sie na pelna szerokosc overlayu (MATCH_PARENT),
-        // dzieki czemu paski lacznosci (top wewnatrz ConnectivityPanelIos)
-        // zajmuja cala szerokosc karty, nie tylko zawartosc.
-        int panelW = Math.min(Ui.dp(this, 574), Ui.windowWidth(this) - Ui.dp(this, 24));
+        // Panel WRAP_CONTENT (a1f4458, zyczenie usera "bez nadmiaru miejsca po
+        // prawej i na dole"): kafelki maja stala szerokosc 196dp, suwaki 56dp,
+        // wiec okno obednie dokladnie tresc. Wczesniejszy MATCH_PARENT
+        // (0838be52) rozciagal szklo na caly overlay - puste pole na prawo
+        // od suwakow. WRAP_CONTENT jest teraz bezpieczny, bo w panelu nie ma
+        // juz lancucha MATCH_PARENT (kafelki stale 196dp).
+        int panelW = Math.min(Ui.dp(this, 352), Ui.windowWidth(this) - Ui.dp(this, 24));
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.TOP | (left ? Gravity.START : Gravity.END));
         lp.leftMargin = left ? dockPx + Ui.dp(this, 10) : 0;
         lp.rightMargin = left ? 0 : dockPx + Ui.dp(this, 10);
@@ -2093,13 +2085,3 @@ public class LauncherActivity extends BaseActivity {
         if (currentRef != null && currentRef.get() == this) currentRef = null;
     }
 }
-
-
-
-
-
-
-
-
-
-
