@@ -61,9 +61,11 @@ import android.widget.Toast;
 //    animowanej overlay tresc panelu potrafi sie nie wyrenderowac
 //    (lekcja z ConnectivityPanel, PR #14). Warstwa TYLKO na panelu -
 //    NIGDY na overlayu (dwie zagniezdzone warstwy = pusty panel, PR #46).
-// 12. UKŁAD (14.11.2026, commity c5da85a + nastepny): kolejność pasków
-//    Wi-Fi -> Hotspot -> Bluetooth; kafelki szerokości 400dp (lewa kolumna,
-//    jak w iOS - nie rozciagaja sie na caly panel); suwaki głośności/jasności
+// 12. UKŁAD (14.11.2026, commity c5da85a..): kolejność pasków
+//    Wi-Fi -> Hotspot -> Bluetooth; kafelki NIE rozciagaja sie na caly panel:
+//    lewa kolumna (paski + przyciski trybow) ma wage 1, potem sprezyna o wage 3,
+//    potem kolumna suwakow - kafelki zajmuja ~25% szerokosci panelu (zyczenie
+//    usera: "ok 25 procent tego co teraz"); suwaki głośności/jasności
 //    w PRAWEJ kolumnie, na prawo od pasków, wysokość = od górnej krawędzi
 //    Wi-Fi do dolnej krawędzi Bluetooth (3x56 + 2x10 = 188dp); przyciski trybów
 //    pod paskami po lewej; teksty kafelków za bąbelkiem ikony (leftMargin 64dp);
@@ -76,13 +78,6 @@ public class ConnectivityPanelIos extends LinearLayout {
         void modeChanged();
     }
 
-    /** Szerokosc jednego kafelka/przycisku w siatce panelu (TASK-1).
-     *  Kafelki Wi-Fi/BT sa kwadratami TILE x TILE, Hotspot i przyciski trybow
-     *  w tej samej kolumnie - dzieki temu wszystko lezy w jednej siatce. */
-    private static final int TILE = 120;
-    /** Szerokosc LEWEJ kolumny (paski lacznosci + przyciski trybow) - jak w iOS:
-     *  paski nie rozciagaja sie na caly panel, prawa kolumna to suwaki. */
-    private static final int COL_W = 400;
     /** Jedno obcinanie tekstu do szerokosci kafelka/przycisku (TASK-1):
      *  dlugi SSID, "Hotspot osobisty" czy "Night Shift" nie moga wychodzic
      *  poza swoj prostokat w siatce 120dp. */
@@ -172,23 +167,27 @@ public class ConnectivityPanelIos extends LinearLayout {
     private void build() {
         // LEWA kolumna: 3 paski lacznosci + wiersz przyciskow trybow.
         // PRAWA kolumna: pionowe suwaki glosnosci i jasnosci.
-        // Kazdy pasek: COL_W x 56dp, odstep 10dp miedzy paskami.
+        // Kazdy pasek: MATCH_PARENT (szerokosc lewej kolumny) x 56dp,
+        // odstep 10dp miedzy paskami.
         // KOLEJNOSC (na zyczenie usera): Wi-Fi, Hotspot (tethering), Bluetooth.
         LinearLayout top = new LinearLayout(act);
         top.setOrientation(VERTICAL);
 
         tWifi = new Tile(act);
-        LayoutParams l1 = new LayoutParams(dp(COL_W), dp(56));
+        LayoutParams l1 = new LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
         l1.bottomMargin = dp(10);
         top.addView(tWifi, l1);
 
         tHot = new Tile(act);
-        LayoutParams l2 = new LayoutParams(dp(COL_W), dp(56));
+        LayoutParams l2 = new LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
         l2.bottomMargin = dp(10);
         top.addView(tHot, l2);
 
         tBt = new Tile(act);
-        LayoutParams l3 = new LayoutParams(dp(COL_W), dp(56));
+        LayoutParams l3 = new LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
         l3.bottomMargin = dp(10);
         top.addView(tBt, l3);
 
@@ -236,7 +235,10 @@ public class ConnectivityPanelIos extends LinearLayout {
             top.addView(controls, rp);
         }
 
-        // Zewnetrzny wiersz: LEWA kolumna (waga 1) + PRAWA kolumna suwakow.
+        // Zewnetrzny wiersz: LEWA kolumna (waga 1) + SPREZYNA (waga 3) +
+        // PRAWA kolumna suwakow. Kafelki nie rozciagaja sie na caly panel:
+        // lewa kolumna dostaje ~25% szerokosci (wagi 1:3), reszta to pusty
+        // odstep przed suwakami.
         // Suwaki na prawo od paskow; wysokosc suwakow = od gornej krawedzi
         // Wi-Fi do dolnej krawedzi Bluetooth: 3x56 + 2x10 = 188dp.
         LinearLayout content = new LinearLayout(act);
@@ -244,6 +246,10 @@ public class ConnectivityPanelIos extends LinearLayout {
         LinearLayout.LayoutParams lpTop = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         content.addView(top, lpTop);
+        // sprezyna: waga 3 - pusty odstep miedzy kafelkami a suwakami
+        View spacer = new View(act);
+        content.addView(spacer, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 3f));
         if (Prefs.customBars(act)) {
             LinearLayout bars = new LinearLayout(act);
             bars.setOrientation(HORIZONTAL);
@@ -269,7 +275,6 @@ public class ConnectivityPanelIos extends LinearLayout {
             LinearLayout.LayoutParams lpBars = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-            lpBars.leftMargin = dp(10);
             content.addView(bars, lpBars);
         }
         addView(content, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
