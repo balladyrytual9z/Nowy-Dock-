@@ -147,32 +147,27 @@ public class ConnectivityPanel extends LinearLayout {
     }
 
     private void build() {
-        // ===== modul bazowy 1:1 jak w Liquid-Glass =====
-        // lewa kolumna 400dp: kafelki Wi-Fi/Bluetooth (150dp) + szeroki Hotspot (76dp);
-        // prawa kolumna: dwa pionowe suwaki 70x238dp. BEZ naglowka, BEZ "Edytuj"
-        // (edycja = przytrzymanie tla panelu), BEZ podpisow dodatkowych.
+        // ===== modul bazowy: 3 rowne paski lacznosci w pionowym stercie =====
+        // Każdy pasek to jednostajny poziomy wiersz (pill): 40dp babel ikony
+        // po lewej + tytul (bold 15sp, bialy) i podtytul (12sp, #8E8E93) po prawej.
+        // Wszystkie 3 paski maja identyczna wysokosc i pelna szerokosc kontenera.
         LinearLayout top = new LinearLayout(act);
-        top.setOrientation(HORIZONTAL);
+        top.setOrientation(VERTICAL);
 
-        LinearLayout left = new LinearLayout(act);
-        left.setOrientation(VERTICAL);
-        LinearLayout row1 = new LinearLayout(act);
-        tWifi = new Tile(act, false);
-        tBt = new Tile(act, false);
-        // kafelki prostokatne jak w iOS (szersze niz wyzsze)
-        LayoutParams l1 = new LayoutParams(dp(170), dp(128));
-        l1.rightMargin = dp(6);
-        LayoutParams l2 = new LayoutParams(dp(170), dp(128));
-        l2.leftMargin = dp(6);
-        row1.addView(tWifi, l1);
-        row1.addView(tBt, l2);
-        left.addView(row1);
-        tHot = new Tile(act, true);
-        LayoutParams l3 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(76));
-        l3.topMargin = dp(12);
-        left.addView(tHot, l3);
-        top.addView(left, new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
+        tWifi = new Tile(act);
+        LayoutParams l1 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
+        l1.bottomMargin = dp(10);
+        top.addView(tWifi, l1);
+
+        tBt = new Tile(act);
+        LayoutParams l2 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
+        l2.bottomMargin = dp(10);
+        top.addView(tBt, l2);
+
+        tHot = new Tile(act);
+        LayoutParams l3 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
+        l3.bottomMargin = dp(10);
+        top.addView(tHot, l3);
 
         if (Prefs.customBars(act)) {
             LinearLayout bars = new LinearLayout(act);
@@ -220,13 +215,9 @@ public class ConnectivityPanel extends LinearLayout {
             row.setGravity(Gravity.CENTER_VERTICAL);
             LayoutParams rp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-            // Odstęp wizualny kół od kafelka Hotspot = 12dp, czyli TYLE SAMA co
-            // przerwa między kafelkami Wi-Fi/Bluetooth a Hotspotem (topMargin 12dp).
-            // Gdy suwaki są włączone, ich kolumna (238dp) jest o 22dp wyższa od
-            // kolumny kafelków (128 + 12 + 76 = 216dp) i to ona wyznacza dolną
-            // krawędź kontenera - stąd korekta -16dp: 22 nadmiaru - 16 = 6 tu,
-            // + 6 wewnętrznego marginesu górnego koła w RoundBtn = 12dp przerwy.
-            rp.topMargin = dp(Prefs.customBars(act) ? -16 : 6);
+            // Pasek trybu/Night Shift pod ostanim paskiem lacznosci: 12dp przerwy
+            // (tak samo jak miedzy paskami).
+            rp.topMargin = dp(12);
             if (showMode) {
                 bMode = new RoundBtn(act);
                 bMode.setKind(0, "Jasny");
@@ -816,13 +807,14 @@ public class ConnectivityPanel extends LinearLayout {
         boolean bt = Net.bluetoothOn();
         boolean th = Net.tethering(act);
         // ikony 1:1 z Liquid-Glass (te same drawables i tether co w oryginale)
-        tWifi.set(wEn, 0xFF1C94FF, Icons.vector(act, wEn ? R.drawable.ic_wifi : R.drawable.ic_wifi_off,
+        // Kolor aktywnego stanu: iOS #007AFF dla wszystkich 3 paskow (spojny wyglad).
+        tWifi.set(wEn, 0xFF007AFF, Icons.vector(act, wEn ? R.drawable.ic_wifi : R.drawable.ic_wifi_off,
                 128, white), "Wi-Fi", ws == 3 ? "Połączono" : (ws == 2 ? "Brak internetu"
                 : (ws == 1 ? "Włączone" : "Wyłączone")));
-        tBt.set(bt, 0xFF1C94FF, Icons.vector(act, R.drawable.ic_bt, 128, white), "Bluetooth",
+        tBt.set(bt, 0xFF007AFF, Icons.vector(act, R.drawable.ic_bt, 128, white), "Bluetooth",
                 BtDevice.isConnected(act) && Prefs.btDevice(act).length() > 0
                         ? "Telefon połączony" : (bt ? "Włączony" : "Wyłączony"));
-        tHot.set(th, 0xFF30D158, Icons.tether(128, white, false), "Hotspot osobisty",
+        tHot.set(th, 0xFF007AFF, Icons.tether(128, white, false), "Hotspot osobisty",
                 th ? "Włączony" : "Wyłączony");
         if (bMode != null) {
             boolean follow = Prefs.followSystem(act);
@@ -891,68 +883,54 @@ public class ConnectivityPanel extends LinearLayout {
         rc = null;
     }
 
-    // ---------------------------------------------------------------- kafelek (framework-only)
-    // Wyglad 1:1 z Liquid-Glass: zaokraglony prostokat (34dp / polowa wysokosci
-    // dla szerokiego), kolo 50dp z ikona, bold tytul + podpis. Zero onDraw:
-    // GradientDrawable + ImageView + TextView.
+    // ---------------------------------------------------------------- pasek lacznosci (framework-only)
+    // Jednolity poziomy wiersz (pill) dla Wi-Fi, Bluetooth i Hotspotu:
+    // babel ikony 40dp po lewej, tytul (bold 15sp, bialy) i podtytul (12sp,
+    // #8E8E93) w kolonii po prawej. Wszystkie 3 paski maja identyczna wysokosc
+    // (56dp) i pelna szerokosc kontenera. Zero onDraw: GradientDrawable +
+    // ImageView + TextView.
     private class Tile extends FrameLayout {
-        private final boolean wide;
         private final View circle;
         private final ImageView icon;
         private final TextView title;
         private final TextView sub;
 
-        Tile(Context c, boolean wide) {
+        Tile(Context c) {
             super(c);
-            this.wide = wide;
             GradientDrawable bg = new GradientDrawable();
-            bg.setColor(night ? 0xF046464B : 0xFFCACACF);
-            bg.setCornerRadius(wide ? dp(38) : dp(34));
+            bg.setColor(night ? 0x3346464B : 0x33CACACF);
+            bg.setCornerRadius(dp(12));
             bg.setStroke(Math.max(1, dp(1)), 0x55FFFFFF);
             setBackground(bg);
 
             FrameLayout circ = new FrameLayout(c);
             circle = new View(c);
             circle.setBackground(Ui.round(0xFF7E8686, 999, act));
-            circ.addView(circle, new FrameLayout.LayoutParams(dp(50), dp(50), Gravity.CENTER));
+            circ.addView(circle, new FrameLayout.LayoutParams(dp(40), dp(40), Gravity.CENTER));
             icon = new ImageView(c);
-            icon.setLayoutParams(new FrameLayout.LayoutParams(dp(28), dp(28), Gravity.CENTER));
+            icon.setLayoutParams(new FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER));
             circ.addView(icon);
-            LayoutParams clp = new LayoutParams(dp(50), dp(50));
-            if (wide) {
-                clp.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
-                // leftMargin 16dp = IDENTYCZNIE jak w kafelkach Wi-Fi/Bluetooth:
-                // srodki kol (16 + 25 = 41dp od lewej) leza w jednej pionowej linii
-                clp.leftMargin = dp(16);
-            } else {
-                // ikona w LEWYM GÓRNYM rogu kafelka (jak w iOS Control Center)
-                clp.gravity = Gravity.TOP | Gravity.START;
-                clp.leftMargin = dp(16);
-                clp.topMargin = dp(14);
-            }
+            LayoutParams clp = new LayoutParams(dp(40), dp(40));
+            clp.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
+            clp.leftMargin = dp(12);
+            clp.topMargin = dp(8);
             addView(circ, clp);
 
             LinearLayout texts = new LinearLayout(c);
             texts.setOrientation(VERTICAL);
             title = new TextView(c);
-            title.setTextSize(19);
+            title.setTextSize(15);
             title.setTypeface(null, Typeface.BOLD);
             title.setTextColor(night ? 0xFFFFFFFF : 0xFF111114);
             texts.addView(title);
             sub = new TextView(c);
-            sub.setTextSize(wide ? 16 : 15);
-            sub.setTextColor(night ? 0xFFC9CFCF : 0xFF6C6C70);
+            sub.setTextSize(12);
+            sub.setTextColor(night ? 0xFFC9CFCF : 0xFF8E8E93);
             texts.addView(sub);
             LayoutParams tlp = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-            if (wide) {
-                tlp.gravity = Gravity.CENTER_VERTICAL;
-                tlp.leftMargin = dp(84);
-            } else {
-                tlp.gravity = Gravity.BOTTOM;
-                tlp.leftMargin = dp(18);
-                tlp.bottomMargin = dp(12);
-            }
+            tlp.gravity = Gravity.CENTER_VERTICAL;
+            tlp.leftMargin = dp(16);
             addView(texts, tlp);
         }
 
