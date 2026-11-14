@@ -877,17 +877,19 @@ zamrazalo zegary. Dwa niezalezne bugi (commit adf7df6d):
 
 ## 2026-11-14 (sesja: panel lacznosci — 3 jednostajne paski poziome)
 
-- **ConnectivityPanel.java (przebudowa ukladu lacznosci):** zastapione mieszane
-  uklad 2+1 (Wi-Fi+BT obok siebie na gorze, Hotspot rozciagniety na dole) przez
-  pionowy stos 3 rownych paskow poziomych (pills), kazdy MATCH_PARENT x 56dp,
-  odstep 10dp miedzy paskami. Wszystkie 3 paski maja identyczny jezyk wizualny:
-  babel ikony 40dp po lewej (lewy margines 12dp), tytul bold 15sp bialy i
-  podtytul 12sp #8E8E93 po prawej (lewy margines 16dp), promien rogow 12dp.
-  Kolor aktywnego stanu: iOS #007AFF dla wszystkich trzech paskow (Wi-Fi, BT,
-  Hotspot osobisty). Kolor nieaktywnego: szary 0xFF7E8686 w babelku.
-  Usunieto hack ujemnego marginesu w rzedzie trybu/Night Shift (topMargin =
-  dp(12), tak samo jak miedzy paskami).
-- **Tile:** konstruktor przyjmuje tylko Context (bez flagi 'wide'); wszystkie
-  kafelki partage ten sam układ wewnetrzny (ikona w babelku u gory/po lewej z
-  identycznymi paddingami i wielkosciami czcionki).
-- **AGENTS.md:** sesja dopisana na koncu (ponizej).
+- **ConnectivityPanelIos.java (przebudowa ukladu lacznosci w nakladce):** 
+  zastapione mieszane uklad 2+1 (Wi-Fi+BT obok siebie na gorze, Hotspot 
+  rozciagniety na dole) pionowym stosem 3 rownych paskow poziomych (pills), 
+  kazdy MATCH_PARENT x 56dp, odstep 10dp miedzy paskami. Wszystkie 3 paski 
+  maja identyczny jezyk wizualny: babel ikony 40dp po lewej (lewy margines 12dp), 
+  tytul bold 15sp bialy i podtytul 12sp #8E8E93 po prawej (lewy margines 16dp), 
+  promien rogow 12dp. Kolor aktywnego stanu: iOS #007AFF dla wszystkich trzech 
+  paskow (Wi-Fi, BT, Hotspot osobisty). Usunieto hack ujemnego marginesu w 
+  rzedzie trybu/Night Shift (topMargin = dp(12)).
+- **Tile:** przebudowane z View (wlasny onDraw) na FrameLayout (framework-only, 
+  bez onDraw) — wymagane na Mali-T720 w nakladce launchera (potwierdzone w 
+  ConnectivityPanel.java v1.0.257). Konstruktor przyjmuje tylko Context.
+- **RoundBtn:** wymiary 88x96dp zamiast TILE x 112dp.
+- **UWAGA:** Panel wyświetlany w nakladce launchera to ConnectivityPanelIos 
+  (LauncherActivity linia ~1476), NIE ConnectivityPanel. ConnectivityPanel 
+  jest nieuzywany w nakladce (zostawiony jako kopia zapasowa).
