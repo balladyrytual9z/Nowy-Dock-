@@ -275,7 +275,8 @@ public class ConnectivityPanelIos extends LinearLayout {
                     ViewGroup.LayoutParams.WRAP_CONTENT, 0f);
             top.addView(bars, lpBars);
         }
-        addView(top);
+        addView(top, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
 
         // akcje kafelków (przywrócone ze starego panelu): tap = przełącz / ekran systemowy
         tWifi.setOnClickListener(new OnClickListener() {
