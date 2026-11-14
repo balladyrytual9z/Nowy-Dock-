@@ -39,49 +39,35 @@ import android.widget.Toast;
 // 1. Jasny/Ciemny/Auto w JEDNYM przycisku (klik = cykl trybów).
 // 2. Night Shift: klik = wl/wyl, PRZYTRZYMANIE = suwak ciepła (jak w iOS).
 // 3. Tło panelu = PanelGlassFrame (ramka szkła doka 1:1, jak w nakładce).
-// 4. NAPRAWA UCIĘCIA: zawartość panelu ma 574dp (400+10+70+70+24), a okno
-//    było 560dp - prawy suwak (jasność) wystawał poza tło. Panel ma teraz
-//    szerokość WRAP_CONTENT, więc tło obejmuje całą zawartość.
+// 4. NAPRAWA UCIĘCIA: szerokość okna MATCH_PARENT (launcher 0838be52,
+//    ConnectivityActivity 5c03c92a) - WRAP_CONTENT zawala łańcuch MATCH_PARENT.
 // 5. SZKŁO (jak w iOS): kafelki, przyciski i suwaki półprzezroczyste,
-//    światło TYLKO Z GÓRY (pionowe gradienty) - bez ukośnego światła z lewej,
-//    które jest w dokku/ramce okna.
+//    światło TYLKO Z GÓRY (pionowe gradienty).
 // 6. IKONY SUWAKÓW 1:1 ze zdjęcia iOS: słońce #FFD700 (koło + 8 cienkich
 //    promieni), głośnik #1EA1FF (korpus z "uszami" + 2 łuki fal konturem).
 // 7. "TRYB CIEMNY" JAK W iOS: przełącznik wł/wył zamiast cyklu Jasny/Ciemny/Auto.
 //    Klik = zmiana do najbliższego wschodu/zachodu słońca (DarkMode + SolarTimes).
-//    Ikona "kontrast" 1:1 z iOS: koło podzielone pionowo - jedna połowa pełna,
-//    druga tylko gruby obrys, oczko na środku z odwróconymi połówkami
-//    (wycinane na przezroczysto). Wł = białe koło/ciemna ikona,
-//    wył = ciemne szkło/biała ikona. Podpis 3-liniowy: nazwa + stan w 2 wierszach.
+//    Ikona "kontrast" 1:1 z iOS. Podpis 3-liniowy: nazwa + stan w 2 wierszach.
 // 8. IKONA WIĘKSZA + ODSTĘPY TEKSTU: wewnętrzny element kontrastu ~1/2 średnicy
-//    białego koła (jak na zdjęciach źródłowych), przycisk wyższy (112dp),
-//    linie podpisu rozsunięte - żadna nie wchodzi na drugą ani na koło.
+//    białego koła, przycisk wyższy (112dp), linie podpisu rozsunięte.
 // 9. NIGHT SHIFT JAK W iOS: ta sama logika co "Tryb ciemny" (harmonogram
 //    zachód -> wschód słońca, klik = zmiana do najbliższego wydarzenia,
-//    NightShift.effectiveOn/toggle). AUTO-przejścia trwają 30 s: filtr
-//    narasta/wygasa, a podświetlenie płynnie spada do minimum (włączanie)
-//    albo wraca do zapamiętanej wartości (wyłączanie) - NightShiftService.
-//    Suwak ciepła (przytrzymanie) jak na zdjęciu iOS: wycentrowany podpis
-//    "Temperatura kolorów", niebieski tor, biały pigułkowy uchwyt,
-//    punkty-pozycjonery, ZAKRES 0-50 (max = połowa obecnego maksimum ciepła).
-// 10. IKONA NIGHT SHIFT = STYL SF SYMBOLS (wzorzec IMG_9097): pełne koło z
-//    CIENKIM obrysem dookoła (lewa strona pusta), po PRAWEJ stronie GRUBY,
-//    całkowicie wypełniony biały sierp księżyca - rogi przy godzinach 12 i 6,
-//    wewnętrzna krawędź sierpa = gładkie, okrągłe wycięcie (rysowany jako
-//    precyzyjna ścieżka z dwóch łuków, bez wycinania). Promienie: 8 szt.
-//    co 45 stopni, CIEŃKIE (grubość = grubość obrysu koła), dłuższe,
-//    smukle, z zaokrąglonymi końcami i większym marginesem od koła.
-//    Odstęp podpisu od koła jak na wzorcu - baseline 78/91/104.
-// 11. JEDEN PANEL WSZĘDZIE: ta klasa jest teraz JEDYNYM panelem łączności -
+//    NightShift.effectiveOn/toggle). AUTO-przejścia trwają 30 s - NightShiftService.
+//    Suwak ciepła (przytrzymanie) jak na zdjęciu iOS, ZAKRES 0-50.
+// 10. IKONA NIGHT SHIFT = STYL SF SYMBOLS (wzorzec IMG_9097).
+// 11. JEDEN PANEL WSZĘDZIE: ta klasa jest JEDYNYM panelem łączności -
 //    LauncherActivity też jej używa (zamiast starego ConnectivityPanel).
 //    Warstwa SOFTWARE na API < 30 (Mali-T720 / Android 9): bez niej w
 //    animowanej overlay tresc panelu potrafi sie nie wyrenderowac
 //    (lekcja z ConnectivityPanel, PR #14). Warstwa TYLKO na panelu -
 //    NIGDY na overlayu (dwie zagniezdzone warstwy = pusty panel, PR #46).
-// 12. UKŁAD (14.11.2026): kolejność pasków Wi-Fi -> Hotspot -> Bluetooth;
-//    suwaki głośności/jasności PO PRAWEJ od przycisków trybów (spreżyna
-//    weight 1); teksty kafelków za bąbelkiem ikony (leftMargin 64dp);
-//    kolka ikon wycentrowane w pionie paska (bez topMargin).
+// 12. UKŁAD (14.11.2026, commity c5da85a + nastepny): kolejność pasków
+//    Wi-Fi -> Hotspot -> Bluetooth; kafelki szerokości 400dp (lewa kolumna,
+//    jak w iOS - nie rozciagaja sie na caly panel); suwaki głośności/jasności
+//    w PRAWEJ kolumnie, na prawo od pasków, wysokość = od górnej krawędzi
+//    Wi-Fi do dolnej krawędzi Bluetooth (3x56 + 2x10 = 188dp); przyciski trybów
+//    pod paskami po lewej; teksty kafelków za bąbelkiem ikony (leftMargin 64dp);
+//    koła ikon wycentrowane w pionie paska (bez topMargin).
 public class ConnectivityPanelIos extends LinearLayout {
 
     public interface Host {
@@ -94,6 +80,9 @@ public class ConnectivityPanelIos extends LinearLayout {
      *  Kafelki Wi-Fi/BT sa kwadratami TILE x TILE, Hotspot i przyciski trybow
      *  w tej samej kolumnie - dzieki temu wszystko lezy w jednej siatce. */
     private static final int TILE = 120;
+    /** Szerokosc LEWEJ kolumny (paski lacznosci + przyciski trybow) - jak w iOS:
+     *  paski nie rozciagaja sie na caly panel, prawa kolumna to suwaki. */
+    private static final int COL_W = 400;
     /** Jedno obcinanie tekstu do szerokosci kafelka/przycisku (TASK-1):
      *  dlugi SSID, "Hotspot osobisty" czy "Night Shift" nie moga wychodzic
      *  poza swoj prostokat w siatce 120dp. */
@@ -181,40 +170,35 @@ public class ConnectivityPanelIos extends LinearLayout {
     }
 
     private void build() {
-        // 3 rowne paski lacznosci w pionowym stercie (pills).
-        // Kazdy pasek: MATCH_PARENT x 56dp, odstep 10dp miedzy paskami.
-        // Jednolity układ wewnetrzny: babel ikony 40dp po lewej,
-        // tytul bold 15sp bialy i podtytul 12sp #8E8E93 po prawej.
+        // LEWA kolumna: 3 paski lacznosci + wiersz przyciskow trybow.
+        // PRAWA kolumna: pionowe suwaki glosnosci i jasnosci.
+        // Kazdy pasek: COL_W x 56dp, odstep 10dp miedzy paskami.
         // KOLEJNOSC (na zyczenie usera): Wi-Fi, Hotspot (tethering), Bluetooth.
         LinearLayout top = new LinearLayout(act);
         top.setOrientation(VERTICAL);
 
         tWifi = new Tile(act);
-        LayoutParams l1 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
+        LayoutParams l1 = new LayoutParams(dp(COL_W), dp(56));
         l1.bottomMargin = dp(10);
         top.addView(tWifi, l1);
 
         tHot = new Tile(act);
-        LayoutParams l2 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
+        LayoutParams l2 = new LayoutParams(dp(COL_W), dp(56));
         l2.bottomMargin = dp(10);
         top.addView(tHot, l2);
 
         tBt = new Tile(act);
-        LayoutParams l3 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
+        LayoutParams l3 = new LayoutParams(dp(COL_W), dp(56));
         l3.bottomMargin = dp(10);
         top.addView(tBt, l3);
 
-        // Wiersz sterowania pod paskami lacznosci (12dp przerwy, jak miedzy
-        // paskami): po LEWEJ przyciski trybow (Tryb ciemny / Night Shift),
-        // po PRAWEJ (na zyczenie usera) pionowe suwaki glosnosci i jasnosci -
-        // sprezyna (weight 1) odsuwa suwaki do prawej krawedzi panelu.
+        // Wiersz przyciskow trybow pod paskami (12dp przerwy, jak miedzy paskami).
         boolean showMode = Prefs.showModeButtons(act);
         boolean showNs = Prefs.showNightShift(act);
-        boolean showBars = Prefs.customBars(act);
-        if (showMode || showNs || showBars) {
+        if (showMode || showNs) {
             LinearLayout controls = new LinearLayout(act);
             LayoutParams rp = new LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
             rp.topMargin = dp(12);
             if (showMode) {
@@ -249,38 +233,46 @@ public class ConnectivityPanelIos extends LinearLayout {
                     }
                 });
             }
-            if (showBars) {
-                View spring = new View(act);
-                controls.addView(spring, new LayoutParams(0, 1, 1f));
-                LinearLayout bars = new LinearLayout(act);
-                bars.setOrientation(HORIZONTAL);
-                PillSlider vol = new PillSlider(act, false, volumeValue());
-                PillSlider bri = new PillSlider(act, true, brightnessValue());
-                LayoutParams vbp = new LayoutParams(dp(70), dp(238));
-                vbp.leftMargin = dp(10);
-                bars.addView(vol, vbp);
-                LayoutParams bbp = new LayoutParams(dp(70), dp(238));
-                bbp.leftMargin = dp(10);
-                bars.addView(bri, bbp);
-                vol.setListener(new PillSlider.Listener() {
-                    @Override
-                    public void on(float v) {
-                        setVolume(v);
-                    }
-                });
-                bri.setListener(new PillSlider.Listener() {
-                    @Override
-                    public void on(float v) {
-                        setBrightness(v);
-                    }
-                });
-                controls.addView(bars, new LayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT));
-            }
             top.addView(controls, rp);
         }
-        addView(top, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+
+        // Zewnetrzny wiersz: LEWA kolumna (waga 1) + PRAWA kolumna suwakow.
+        // Suwaki na prawo od paskow; wysokosc suwakow = od gornej krawedzi
+        // Wi-Fi do dolnej krawedzi Bluetooth: 3x56 + 2x10 = 188dp.
+        LinearLayout content = new LinearLayout(act);
+        content.setOrientation(HORIZONTAL);
+        LinearLayout.LayoutParams lpTop = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        content.addView(top, lpTop);
+        if (Prefs.customBars(act)) {
+            LinearLayout bars = new LinearLayout(act);
+            bars.setOrientation(HORIZONTAL);
+            PillSlider vol = new PillSlider(act, false, volumeValue());
+            PillSlider bri = new PillSlider(act, true, brightnessValue());
+            LinearLayout.LayoutParams vbp = new LinearLayout.LayoutParams(dp(70), dp(188));
+            bars.addView(vol, vbp);
+            LinearLayout.LayoutParams bbp = new LinearLayout.LayoutParams(dp(70), dp(188));
+            bbp.leftMargin = dp(10);
+            bars.addView(bri, bbp);
+            vol.setListener(new PillSlider.Listener() {
+                @Override
+                public void on(float v) {
+                    setVolume(v);
+                }
+            });
+            bri.setListener(new PillSlider.Listener() {
+                @Override
+                public void on(float v) {
+                    setBrightness(v);
+                }
+            });
+            LinearLayout.LayoutParams lpBars = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            lpBars.leftMargin = dp(10);
+            content.addView(bars, lpBars);
+        }
+        addView(content, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
         // akcje kafelków (przywrócone ze starego panelu): tap = przełącz / ekran systemowy
@@ -554,7 +546,7 @@ public class ConnectivityPanelIos extends LinearLayout {
     // Jednolity poziomy wiersz (pill) dla Wi-Fi, Bluetooth i Hotspotu:
     // babel ikony 40dp po lewej, tytul (bold 15sp, bialy) i podtytul (12sp,
     // #8E8E93) w kolonii po prawej. Wszystkie 3 paski maja identyczna wysokosc
-    // (56dp) i pelna szerokosc kontenera. Zero onDraw: GradientDrawable +
+    // (56dp) i szerokosc lewej kolumny. Zero onDraw: GradientDrawable +
     // ImageView + TextView.
     private class Tile extends FrameLayout {
         private final View circle;
