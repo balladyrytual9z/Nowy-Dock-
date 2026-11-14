@@ -17,6 +17,12 @@ import java.util.List;
 // NAPRAWA UCIĘCIA: zawartosc panelu (400+10+70+70+24 = 574 dp) byla szersza niz
 // okno 560 dp - suwak jasności wystawal poza tlo. Panel ma teraz szerokosc
 // WRAP_CONTENT, dzieki czemu tlo obejmuje cala zawartosc.
+// NAPRAWA ZA WASKIEGO PANELU: WRAP_CONTENT zawazalo caly lancuch MATCH_PARENT
+// (paski lacznosci -> kolumna top -> kafelki) do szerokosci tresci - okno
+// zapadalo sie do ~174 dp (wiersz suwakow + padding), ikony nachodzily na
+// teksty, a podpisy ("Night Shift", "Wyłączony") byly obciete. Panel ma teraz
+// MATCH_PARENT szerokosc - DOKLADNIE tak samo jak overlay w LauncherActivity
+// (commit 0838be52). Paski rozciagaja sie na pelna szerokosc karty.
 // UJEDNOLICENIE Z LAUNCHEREM (jeden panel wszedzie, ten sam wyglad):
 // 1. BLUR W TLE: migawka tapety 1/4 rozmiaru ekranu + rozmycie (Blur.blur) +
 //    delikatna zaslona - dokladnie ta sama sciezka co w overlayu LauncherActivity,
@@ -85,12 +91,14 @@ public class ConnectivityActivity extends BaseActivity {
         });
         boolean dockLeft = Ui.dockLeft(this);
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
-        // szerokosc dopasowana do zawartosci panelu (naprawa uciętego suwaka jasności)
+        // szerokosc MATCH_PARENT (jak w LauncherActivity, commit 0838be52):
+        // WRAP_CONTENT zapadalo caly lancuch MATCH_PARENT w panelu do szerokosci
+        // tresci i okno kurczylo sie do wiersza suwakow (~174 dp).
         // panel przy doku (po jego wewnętrznej stronie) - nie zasłania doka;
         // gora = margines + PASEK SYSTEMOWY (panel pod paskiem statusu)
         int topInset = Ui.dp(this, 12) + Ui.statusBarHeight(this);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.TOP | (dockLeft ? Gravity.START : Gravity.END));
         lp.setMargins(dockLeft ? dockPx + Ui.dp(this, 8) : Ui.dp(this, 8), topInset,
