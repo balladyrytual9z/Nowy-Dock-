@@ -1489,13 +1489,12 @@ public class LauncherActivity extends BaseActivity {
         });
         boolean left = Ui.dockLeft(this);
         int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
-        // szerokośc panelu = JEGO ZAWARTOŚĆ (lewa kolumna + suwaki + padding),
-        // nigdy wiecej niz ekran - 24dp. Nie uzywamy stalej 574dp - panel ma
-        // byc dopasowany do tresci, nie narzucac szerokiej ramy (TASK-1).
+        // Panel rozciaga sie na pelna szerokosc overlayu (MATCH_PARENT),
+        // dzieki czemu paski lacznosci (top wewnatrz ConnectivityPanelIos)
+        // zajmuja cala szerokosc karty, nie tylko zawartosc.
         int panelW = Math.min(Ui.dp(this, 574), Ui.windowWidth(this) - Ui.dp(this, 24));
-        // Panel przy doku (po jego wewnętrznej stronie) - nie zasłania doka.
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                panelW, ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.TOP | (left ? Gravity.START : Gravity.END));
         lp.leftMargin = left ? dockPx + Ui.dp(this, 10) : 0;
         lp.rightMargin = left ? 0 : dockPx + Ui.dp(this, 10);
