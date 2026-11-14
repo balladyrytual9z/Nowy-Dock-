@@ -61,15 +61,14 @@ import android.widget.Toast;
 //    animowanej overlay tresc panelu potrafi sie nie wyrenderowac
 //    (lekcja z ConnectivityPanel, PR #14). Warstwa TYLKO na panelu -
 //    NIGDY na overlayu (dwie zagniezdzone warstwy = pusty panel, PR #46).
-// 12. UKŁAD (14.11.2026, commity c5da85a..): kolejność pasków
-//    Wi-Fi -> Hotspot -> Bluetooth; kafelki NIE rozciagaja sie na caly panel:
-//    lewa kolumna (paski + przyciski trybow) ma wage 1, potem sprezyna o wage 3,
-//    potem kolumna suwakow - kafelki zajmuja ~25% szerokosci panelu (zyczenie
-//    usera: "ok 25 procent tego co teraz"); suwaki głośności/jasności
-//    w PRAWEJ kolumnie, na prawo od pasków, wysokość = od górnej krawędzi
-//    Wi-Fi do dolnej krawędzi Bluetooth (3x56 + 2x10 = 188dp); przyciski trybów
-//    pod paskami po lewej; teksty kafelków za bąbelkiem ikony (leftMargin 64dp);
-//    koła ikon wycentrowane w pionie paska (bez topMargin).
+// 12. UKŁAD (14.11.2026, commity c5da85a..b44e3ef): kolejność pasków
+//    Wi-Fi -> Hotspot -> Bluetooth; kafelki NIE rozciagaja sie na caly panel.
+//    Zyczenie usera 14.11: kafelki o ~30% SZERSZE niz przy wadze 1:3, rogi
+//    16dp (jak karty launchera, Ui.cardBg), suwaki BEZPRZERWENIOWO zaraz za
+//    kafelkami (pusty odstep przeniesiony na prawo od suwakow), wysokosc
+//    paskow = 56dp = srednica kola przyciskow trybow. Realizacja: wiersz
+//    content = lewa kolumna (waga 1.3) + kolumna suwakow (wrap, margines
+//    10dp) + sprezyna (waga 2.7); kafelki ~32.5% szerokosci panelu.
 public class ConnectivityPanelIos extends LinearLayout {
 
     public interface Host {
@@ -167,9 +166,11 @@ public class ConnectivityPanelIos extends LinearLayout {
     private void build() {
         // LEWA kolumna: 3 paski lacznosci + wiersz przyciskow trybow.
         // PRAWA kolumna: pionowe suwaki glosnosci i jasnosci.
-        // Kazdy pasek: MATCH_PARENT (szerokosc lewej kolumny) x 56dp,
-        // odstep 10dp miedzy paskami.
-        // KOLEJNOSC (na zyczenie usera): Wi-Fi, Hotspot (tethering), Bluetooth.
+        // Kazdy pasek: MATCH_PARENT (szerokosc lewej kolumny) x 56dp.
+        // WYSOKOSC 56dp = srednica kola przyciskow trybow (RoundBtn: promien
+        // 28dp) - zyczenie usera: paski i przyciski tej samej wysokosci.
+        // Odstep miedzy paskami 10dp.
+        // KOLEJNOSC: Wi-Fi, Hotspot (tethering), Bluetooth.
         LinearLayout top = new LinearLayout(act);
         top.setOrientation(VERTICAL);
 
@@ -235,21 +236,17 @@ public class ConnectivityPanelIos extends LinearLayout {
             top.addView(controls, rp);
         }
 
-        // Zewnetrzny wiersz: LEWA kolumna (waga 1) + SPREZYNA (waga 3) +
-        // PRAWA kolumna suwakow. Kafelki nie rozciagaja sie na caly panel:
-        // lewa kolumna dostaje ~25% szerokosci (wagi 1:3), reszta to pusty
-        // odstep przed suwakami.
-        // Suwaki na prawo od paskow; wysokosc suwakow = od gornej krawedzi
-        // Wi-Fi do dolnej krawedzi Bluetooth: 3x56 + 2x10 = 188dp.
+        // Zewnetrzny wiersz: LEWA kolumna (waga 1.3) + SUWAKI (wrap, zaraz za
+        // kafelkami - BEZ przerwy, tylko 10dp margines jak miedzy paskami) +
+        // SPREZYNA (waga 2.7) na prawo od suwakow. Kafelki ~32.5% szerokosci
+        // panelu (~30% szersze niz przy wadze 1:3).
+        // Suwaki: wysokosc = od gornej krawedzi Wi-Fi do dolnej krawedzi
+        // Bluetooth: 3x56 + 2x10 = 188dp.
         LinearLayout content = new LinearLayout(act);
         content.setOrientation(HORIZONTAL);
         LinearLayout.LayoutParams lpTop = new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.3f);
         content.addView(top, lpTop);
-        // sprezyna: waga 3 - pusty odstep miedzy kafelkami a suwakami
-        View spacer = new View(act);
-        content.addView(spacer, new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 3f));
         if (Prefs.customBars(act)) {
             LinearLayout bars = new LinearLayout(act);
             bars.setOrientation(HORIZONTAL);
@@ -275,8 +272,13 @@ public class ConnectivityPanelIos extends LinearLayout {
             LinearLayout.LayoutParams lpBars = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
+            lpBars.leftMargin = dp(10);   // 10dp jak miedzy paskami - suwaki zaraz za kafelkami
             content.addView(bars, lpBars);
         }
+        // sprezyna: waga 2.7 - pusty odstop przeniesiony na PRAWO od suwakow
+        View spacer = new View(act);
+        content.addView(spacer, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 2.7f));
         addView(content, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -551,8 +553,9 @@ public class ConnectivityPanelIos extends LinearLayout {
     // Jednolity poziomy wiersz (pill) dla Wi-Fi, Bluetooth i Hotspotu:
     // babel ikony 40dp po lewej, tytul (bold 15sp, bialy) i podtytul (12sp,
     // #8E8E93) w kolonii po prawej. Wszystkie 3 paski maja identyczna wysokosc
-    // (56dp) i szerokosc lewej kolumny. Zero onDraw: GradientDrawable +
-    // ImageView + TextView.
+    // (56dp = srednica kola przyciskow trybow) i szerokosc lewej kolumny.
+    // ROGI 16dp - jak karty w launcherze (Ui.cardBg). Zero onDraw:
+    // GradientDrawable + ImageView + TextView.
     private class Tile extends FrameLayout {
         private final View circle;
         private final ImageView icon;
@@ -563,7 +566,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             super(c);
             GradientDrawable bg = new GradientDrawable();
             bg.setColor(night ? 0x3346464B : 0x33CACACF);
-            bg.setCornerRadius(dp(12));
+            bg.setCornerRadius(dp(16));   // jak karty launchera (Ui.cardBg)
             bg.setStroke(Math.max(1, dp(1)), 0x55FFFFFF);
             setBackground(bg);
 
@@ -662,7 +665,7 @@ public class ConnectivityPanelIos extends LinearLayout {
                     : (night ? 0x9E4E4E53 : 0x3D787880));
             cv.drawCircle(cx, cy, rad, p);
             if (!active) {
-                int saveG = cv.save();
+                int saveG = cv.saveLayer(cx - rad - d, cy - rad - d, cx + rad + d, cy + rad + d, null);
                 Path clipG = new Path();
                 clipG.addCircle(cx, cy, rad, Path.Direction.CW);
                 cv.clipPath(clipG);
