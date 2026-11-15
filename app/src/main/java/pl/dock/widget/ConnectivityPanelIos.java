@@ -237,12 +237,15 @@ public class ConnectivityPanelIos extends LinearLayout {
             }
         }
 
-        // Zewnetrzny wiersz: SUWAKI po lewej, KAFELKI+PRZYCISKI po prawej
-        // (10dp między suwakami a kafelkami, tak samo jak między paskami).
+        // Zewnetrzny wiersz: SUWAKI+PRZYCISKI po lewej (gora/dol), KAFELKI po prawej
+        // (10dp między kolumnami, tak samo jak między paskami).
         LinearLayout content = new LinearLayout(act);
         content.setOrientation(HORIZONTAL);
 
-        // Lewa strona: suwaki głośności i jasności
+        // Lewa kolumna: suwaki na gorze, przyciski na dole
+        LinearLayout leftColumn = new LinearLayout(act);
+        leftColumn.setOrientation(VERTICAL);
+
         if (Prefs.customBars(act)) {
             LinearLayout bars = new LinearLayout(act);
             bars.setOrientation(HORIZONTAL);
@@ -268,20 +271,19 @@ public class ConnectivityPanelIos extends LinearLayout {
             LinearLayout.LayoutParams lpBars = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-            lpBars.rightMargin = dp(10);   // 10dp między suwakami a kafelkami
-            content.addView(bars, lpBars);
+            lpBars.bottomMargin = dp(10);   // 10dp miedzy suwakami a przyciskami
+            leftColumn.addView(bars, lpBars);
         }
 
-        // Prawa strona: kafelki (pionowo) + przyciski pod nimi
-        LinearLayout rightColumn = new LinearLayout(act);
-        rightColumn.setOrientation(VERTICAL);
-        rightColumn.addView(top, new LayoutParams(
+        if (controls != null && rp != null) {
+            leftColumn.addView(controls, rp);
+        }
+        content.addView(leftColumn, new LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
-        if (controls != null && rp != null) {
-            rightColumn.addView(controls, rp);
-        }
-        content.addView(rightColumn, new LayoutParams(
+
+        // Prawa kolumna: kafelki lacznosci (pionowo)
+        content.addView(top, new LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -911,7 +913,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             cv.drawRect(r, p);
             p.setShader(null);
             p.setColor(0xE6FAFAFC);
-            cv.drawRoundRect(0, h * (1f - value), w, h, rad, rad, p);
+            cv.drawRect(0, h * (1f - value), w, h, p);
             cv.restoreToCount(save);
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeWidth(1.4f * d);
