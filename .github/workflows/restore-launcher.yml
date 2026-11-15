@@ -1,0 +1,60 @@
+name: Restore LauncherActivity and fix gap
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/restore-launcher.yml'
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Restore and fix
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Restore good version
+          git checkout f8d7056 -- app/src/main/java/pl/dock/widget/LauncherActivity.java
+          # Apply the exact-width fix
+          python3 - << 'PY'
+import re
+with open("app/src/main/java/pl/dock/widget/LauncherActivity.java") as f:
+    c = f.read()
+old = r'''        boolean left = Ui\.dockLeft\(this\);
+        int dockPx = Ui\.dp\(this, Ui\.DOCK_OFFSET_DP\);
+        // Panel WRAP_CONTENT.*?overlay\.addView\(panel, lp\);'''
+new = '''        boolean left = Ui.dockLeft(this);
+        int dockPx = Ui.dp(this, Ui.DOCK_OFFSET_DP);
+        // NAPRAWA DUŻEJ PUSTEJ PRZERWY PO PRAWEJ (15.11.2026):
+        // WRAP_CONTENT w praktyce na MT8163/API28 w animowanej overlay
+        // dawał nadal zbyt szerokie szkło (puste pole na prawo od kafelków).
+        // Wymuszamy EXACT szerokość = padding 24 + lewa kolumna (max 188dp
+        // przyciski trybu / 122dp suwaki) + 10dp przerwa + 196dp kafelki.
+        int leftCol = 0;
+        if (Prefs.customBars(this)) leftCol = Ui.dp(this, 122); // 56+10+56
+        if (Prefs.showModeButtons(this) || Prefs.showNightShift(this)) {
+            leftCol = Math.max(leftCol, Ui.dp(this, 188)); // 88+12+88
+        }
+        int panelW = Ui.dp(this, 24) + leftCol + Ui.dp(this, 10) + Ui.dp(this, 196);
+        panelW = Math.min(panelW, Ui.windowWidth(this) - Ui.dp(this, 24));
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                panelW, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP | (left ? Gravity.START : Gravity.END));
+        lp.leftMargin = left ? dockPx + Ui.dp(this, 10) : 0;
+        lp.rightMargin = left ? 0 : dockPx + Ui.dp(this, 10);
+        lp.topMargin = Ui.dp(this, 12);
+        overlay.addView(panel, lp);'''
+c2, n = re.subn(old, new, c, count=1, flags=re.DOTALL)
+if n != 1:
+    raise SystemExit(f"replace failed, n={n}")
+with open("app/src/main/java/pl/dock/widget/LauncherActivity.java", "w") as f:
+    f.write(c2)
+print("LauncherActivity restored and fixed")
+PY
+          git add app/src/main/java/pl/dock/widget/LauncherActivity.java
+          git commit -m "fix(CC): restore LauncherActivity + force exact content width (remove large empty gap)" || echo "no change"
+          git push origin HEAD:main
