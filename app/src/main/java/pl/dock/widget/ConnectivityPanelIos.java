@@ -195,9 +195,11 @@ public class ConnectivityPanelIos extends LinearLayout {
         // Wiersz przyciskow trybow pod paskami (12dp przerwy, jak miedzy paskami).
         boolean showMode = Prefs.showModeButtons(act);
         boolean showNs = Prefs.showNightShift(act);
+        LinearLayout controls = null;
+        LayoutParams rp = null;
         if (showMode || showNs) {
-            LinearLayout controls = new LinearLayout(act);
-            LayoutParams rp = new LayoutParams(
+            controls = new LinearLayout(act);
+            rp = new LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
             rp.topMargin = dp(10);
@@ -276,7 +278,7 @@ public class ConnectivityPanelIos extends LinearLayout {
         rightColumn.addView(top, new LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
-        if (showMode || showNs) {
+        if (controls != null && rp != null) {
             rightColumn.addView(controls, rp);
         }
         content.addView(rightColumn, new LayoutParams(
