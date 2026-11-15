@@ -200,7 +200,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             LayoutParams rp = new LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-            rp.topMargin = dp(12);
+            rp.topMargin = dp(10);
             if (showMode) {
                 bMode = new RoundBtn(act, 4, "Tryb ciemny");
                 LayoutParams mp = new LayoutParams(dp(88), dp(96));
