@@ -73,6 +73,12 @@ import android.widget.Toast;
 //    UWAGA: wczesniejszy MATCH_PARENT okna (0838be52/5c03c92a) byl potrzebny,
 //    bo kafelki byly MATCH_PARENT - ten lancuch juz nie istnieje, wiec
 //    WRAP_CONTENT nie zapada okna.
+// 13. PRZERWA SUWAKI<->KAFELKI USUNIĘTA (15.11.2026): wiersz przycisków trybów
+//    (Tryb ciemny / Night Shift, 2x88dp) rozpychał lewą kolumnę do 188dp i
+//    tworzył ~66dp pustej przerwy między suwakami a kafelkami. Przyciski idą
+//    teraz OSOBNO pod cały wiersz content (wyrównane do lewej - wizualnie w
+//    tym samym miejscu), lewa kolumna = tylko suwaki (122dp), kafelki zaraz
+//    za nimi (10dp), szerokość panelu wraca do ~352dp.
 public class ConnectivityPanelIos extends LinearLayout {
 
     public interface Host {
@@ -237,12 +243,12 @@ public class ConnectivityPanelIos extends LinearLayout {
             }
         }
 
-        // Zewnetrzny wiersz: SUWAKI+PRZYCISKI po lewej (gora/dol), KAFELKI po prawej
-        // (10dp między kolumnami, tak samo jak między paskami).
+        // Zewnetrzny wiersz: SUWAKI po lewej, KAFELKI po prawej - zaraz za
+        // suwakami, bez pustej przerwy (10dp między kolumnami, jak między paskami).
         LinearLayout content = new LinearLayout(act);
         content.setOrientation(HORIZONTAL);
 
-        // Lewa kolumna: suwaki na gorze, przyciski na dole
+        // Lewa kolumna: tylko suwaki (przyciski trybów idą osobno pod cały wiersz)
         LinearLayout leftColumn = new LinearLayout(act);
         leftColumn.setOrientation(VERTICAL);
 
@@ -271,13 +277,10 @@ public class ConnectivityPanelIos extends LinearLayout {
             LinearLayout.LayoutParams lpBars = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-            lpBars.bottomMargin = dp(10);   // 10dp miedzy suwakami a przyciskami
+            lpBars.bottomMargin = dp(10);   // 10dp pod suwakami (wiersz przycisków jest teraz pod całym wierszem)
             leftColumn.addView(bars, lpBars);
         }
 
-        if (controls != null && rp != null) {
-            leftColumn.addView(controls, rp);
-        }
         LinearLayout.LayoutParams lpLeft = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -291,6 +294,14 @@ public class ConnectivityPanelIos extends LinearLayout {
 
         addView(content, new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        // Przyciski trybów POD CAŁYM wierszem content (wyrównane do lewej):
+        // wizualnie w tym samym miejscu co wcześniej (pod suwakami), ale ich
+        // szerokość (2x88dp) nie rozpycha lewej kolumny i nie tworzy pustej
+        // przerwy między suwakami a kafelkami.
+        if (controls != null && rp != null) {
+            addView(controls, rp);
+        }
 
         // akcje kafelków (przywrócone ze starego panelu): tap = przełącz / ekran systemowy
         tWifi.setOnClickListener(new OnClickListener() {
