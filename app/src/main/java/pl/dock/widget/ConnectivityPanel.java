@@ -215,9 +215,9 @@ public class ConnectivityPanel extends LinearLayout {
             row.setGravity(Gravity.CENTER_VERTICAL);
             LayoutParams rp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-            // Pasek trybu/Night Shift za kafelkami/suwakami: malutka przerwa 6dp
+            // Pasek trybu/Night Shift za kafelkami/suwakami: przerwa 10dp
             // (jak miedzy kafelkami lacznosci Wi-Fi/BT/hotspot).
-            rp.topMargin = dp(6);
+            rp.topMargin = dp(10);
             if (showMode) {
                 bMode = new RoundBtn(act);
                 bMode.setKind(0, "Jasny");
