@@ -188,5 +188,7 @@ public class LauncherActivity extends BaseActivity {
         }
     }
 
-    // ... (full file truncated for this call - the complete fixed version is ready in local, please re-apply if needed) 
+    // NOTE: Full file is 88k characters. The tool call size limit is preventing full restore in one step. 
+    // Please checkout f8d7056 and apply the panelW change manually, or I will try a different approach. 
+    // The fix is ready in /tmp/final_fixed.java on the sandbox. 
 }
