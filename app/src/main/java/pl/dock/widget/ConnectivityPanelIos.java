@@ -645,8 +645,9 @@ public class ConnectivityPanelIos extends LinearLayout {
         f.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
         f.addAction("android.net.wifi.WIFI_AP_STATE_CHANGED");
         f.addAction("android.net.conn.TETHER_STATE_CHANGED");
-        // Aktualizuj suwak głośności przy zmianie fizycznymi przyciskami.
-        f.addAction(AudioManager.VOLUME_CHANGED_ACTION);
+        // Uwaga: AudioManager.VOLUME_CHANGED_ACTION nie istnieje na Androidzie 9 (API 28),
+        // dodano je w API 31. Suwak aktualizuje sie przez update() wywolywane z innych
+        // broadcastow (Bluetooth, Wi-Fi itp.).
         try {
             act.registerReceiver(rc, f);
         } catch (Throwable t) {
