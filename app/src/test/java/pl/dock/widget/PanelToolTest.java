@@ -53,7 +53,7 @@ public class PanelToolTest {
         assertEquals(Arrays.asList("rotate", "mute", "loc"), d);
         // domyslne narzedzia nigdy nie pokrywaja sie z modulem bazowym
         for (String id : d) {
-            for (String base : ConnectivityPanel.BASE_IDS) {
+            for (String base : PanelTool.BASE_IDS) {
                 assertTrue("domyslne narzedzie nie moze byc z module bazowego: " + id,
                         !id.equals(base));
             }
@@ -65,21 +65,21 @@ public class PanelToolTest {
         List<String> mixed = new ArrayList<String>(
                 Arrays.asList("rotate", "wifi", "mute", "bri", "flash", "conn"));
         assertEquals(Arrays.asList("rotate", "mute", "flash"),
-                ConnectivityPanel.withoutBaseTools(mixed));
+                PanelTool.withoutBaseTools(mixed));
         // lista wejsciowa niezmieniona (czysta funkcja)
         assertEquals(6, mixed.size());
     }
 
     @Test
     public void withoutBaseTools_nullAndEmpty() {
-        assertTrue(ConnectivityPanel.withoutBaseTools(null).isEmpty());
-        assertTrue(ConnectivityPanel.withoutBaseTools(new ArrayList<String>()).isEmpty());
+        assertTrue(PanelTool.withoutBaseTools(null).isEmpty());
+        assertTrue(PanelTool.withoutBaseTools(new ArrayList<String>()).isEmpty());
     }
 
     @Test
     public void defaultsAreConsistentWithWithoutBaseTools() {
         // to samo, co robi ConnectivityPanel.build(): domyslne -> siatka bez bazowych
-        List<String> grid = ConnectivityPanel.withoutBaseTools(PanelTool.defaults(null));
+        List<String> grid = PanelTool.withoutBaseTools(PanelTool.defaults(null));
         assertEquals(PanelTool.defaults(null).size(), grid.size());
     }
 }
