@@ -125,13 +125,13 @@ public class ConnectivityPanelIos extends LinearLayout {
     private TextView note;
     private BroadcastReceiver rc;
     private LinearLayout warmthRow;
-    private WarmthSlider warmthBar;
+    private WarmthSlider sb;
     private boolean buttonsVisible = false;   // przyciski ukryte domyslnie, pojawiaja sie po long-press na suwaku jasnosci
     private LinearLayout controls;            // wiersz przyciskow trybow (dostepny z toggleButtons)
     private final Runnable hideWarmth = new Runnable() {
         @Override
         public void run() {
-            if (warmthRow != null && warmthBar != null && !warmthBar.isPressed()) {
+            if (warmthRow != null && sb != null && !sb.isPressed()) {
                 warmthRow.setVisibility(GONE);
             } else {
                 scheduleWarmthHide();
@@ -188,7 +188,7 @@ public class ConnectivityPanelIos extends LinearLayout {
         } catch (Throwable ignored) {}
         removeAllViews();
         warmthRow = null;
-        warmthBar = null;
+        sb = null;
         build();
         update();
     }
@@ -433,7 +433,7 @@ public class ConnectivityPanelIos extends LinearLayout {
     private void showWarmthSlider() {
         if (warmthRow != null) {
             warmthRow.setVisibility(VISIBLE);
-            warmthBar.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
+            sb.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
             scheduleWarmthHide();
             return;
         }
@@ -467,12 +467,12 @@ public class ConnectivityPanelIos extends LinearLayout {
         row.addView(cool, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        warmthBar = new WarmthSlider(act);
-        warmthBar.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
+        sb = new WarmthSlider(act);
+        sb.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
         LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(150), dp(46));
         bp.leftMargin = dp(10);
         bp.rightMargin = dp(10);
-        row.addView(warmthBar, bp);
+        row.addView(sb, bp);
 
         TextView warm = new TextView(act);
         warm.setText("Cieplejsze");
@@ -483,7 +483,7 @@ public class ConnectivityPanelIos extends LinearLayout {
 
         wrap.addView(row, rp);
         warmthRow = wrap;
-        warmthBar.setListener(new WarmthSlider.Listener() {
+        sb.setListener(new WarmthSlider.Listener() {
             @Override
             public void on(int strength) {
                 Prefs.setNightShiftStrength(act, strength);
@@ -1174,9 +1174,9 @@ public class ConnectivityPanelIos extends LinearLayout {
             int a = e.getActionMasked();
             if (a == MotionEvent.ACTION_DOWN) {
                 getParent().requestDisallowInterceptTouchEvent(true);
+                return true;
             }
-            if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_MOVE
-                    || a == MotionEvent.ACTION_UP) {
+            if (a == MotionEvent.ACTION_MOVE || a == MotionEvent.ACTION_UP) {
                 float pad = 20f * d;
                 float trackW = getWidth() - pad * 2f;
                 float frac = trackW <= 0 ? 0f : (e.getX() - pad) / trackW;
@@ -1185,7 +1185,7 @@ public class ConnectivityPanelIos extends LinearLayout {
                     value = v;
                     invalidate();
                 }
-                if (l != null && (a == MotionEvent.ACTION_MOVE || a == MotionEvent.ACTION_UP)) {
+                if (l != null) {
                     l.on(value);
                 }
             }
