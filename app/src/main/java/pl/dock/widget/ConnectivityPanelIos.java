@@ -236,17 +236,12 @@ public class ConnectivityPanelIos extends LinearLayout {
             top.addView(controls, rp);
         }
 
-        // Zewnetrzny wiersz: LEWA kolumna (kafelki, 196dp) + SUWAKI zaraz za
-        // kafelkami (BEZ przerwy, margines 10dp jak miedzy paskami). WRAP_CONTENT
-        // - zadnego rozciagania, zadnej sprezyny: okno panelu (WRAP_CONTENT w
-        // obu hostach) obednie dokladnie te tresc, bez pustego pola z prawej.
-        // Suwaki: 56dp szerokie (= srednica kola przyciskow trybow) x 188dp
-        // (od gornej krawedzi Wi-Fi do dolnej krawedzi Bluetooth: 3x56 + 2x10).
+        // Zewnetrzny wiersz: SUWAKI po lewej, KAFELKI+PRZYCISKI po prawej
+        // (10dp między suwakami a kafelkami, tak samo jak między paskami).
         LinearLayout content = new LinearLayout(act);
         content.setOrientation(HORIZONTAL);
-        content.addView(top, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        // Lewa strona: suwaki głośności i jasności
         if (Prefs.customBars(act)) {
             LinearLayout bars = new LinearLayout(act);
             bars.setOrientation(HORIZONTAL);
@@ -272,9 +267,23 @@ public class ConnectivityPanelIos extends LinearLayout {
             LinearLayout.LayoutParams lpBars = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-            lpBars.leftMargin = dp(10);   // 10dp jak miedzy paskami - suwaki zaraz za kafelkami
+            lpBars.rightMargin = dp(10);   // 10dp między suwakami a kafelkami
             content.addView(bars, lpBars);
         }
+
+        // Prawa strona: kafelki (pionowo) + przyciski pod nimi
+        LinearLayout rightColumn = new LinearLayout(act);
+        rightColumn.setOrientation(VERTICAL);
+        rightColumn.addView(top, new LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        if (showMode || showNs) {
+            rightColumn.addView(controls, rp);
+        }
+        content.addView(rightColumn, new LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
         addView(content, new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -901,7 +910,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             cv.drawRect(r, p);
             p.setShader(null);
             p.setColor(0xE6FAFAFC);
-            cv.drawRect(0, h * (1f - value), w, h, p);
+            cv.drawRoundRect(0, h * (1f - value), w, h, rad, rad, p);
             cv.restoreToCount(save);
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeWidth(1.4f * d);
