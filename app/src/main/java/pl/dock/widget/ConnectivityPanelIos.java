@@ -433,7 +433,7 @@ public class ConnectivityPanelIos extends LinearLayout {
     private void showWarmthSlider() {
         if (warmthRow != null) {
             warmthRow.setVisibility(VISIBLE);
-            warmthBar.setValue(Math.max(0, Math.min(50, Prefs.nightShiftStrength(act))));
+            warmthBar.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
             scheduleWarmthHide();
             return;
         }
@@ -468,7 +468,7 @@ public class ConnectivityPanelIos extends LinearLayout {
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         warmthBar = new WarmthSlider(act);
-        warmthBar.setValue(Math.max(0, Math.min(50, Prefs.nightShiftStrength(act))));
+        warmthBar.setProgress(Math.max(5, Math.min(80, Prefs.nightShiftStrength(act))));
         LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(150), dp(46));
         bp.leftMargin = dp(10);
         bp.rightMargin = dp(10);
@@ -485,8 +485,8 @@ public class ConnectivityPanelIos extends LinearLayout {
         warmthRow = wrap;
         warmthBar.setListener(new WarmthSlider.Listener() {
             @Override
-            public void on(int v) {
-                Prefs.setNightShiftStrength(act, Math.max(0, Math.min(50, v)));
+            public void on(int strength) {
+                Prefs.setNightShiftStrength(act, strength);
                 NightShift.refresh(act);
             }
         });
@@ -1080,21 +1080,21 @@ public class ConnectivityPanelIos extends LinearLayout {
             int a = e.getActionMasked();
             if (a == MotionEvent.ACTION_DOWN) {
                 getParent().requestDisallowInterceptTouchEvent(true);
+                return true;
             }
-            if (a == MotionEvent.ACTION_DOWN || a == MotionEvent.ACTION_MOVE
-                    || a == MotionEvent.ACTION_UP) {
-                // WPUST NA KOŃCACH: palec fizycznie nie wejdzie na samą krawędź
-                // widoku, więc wcześniej zakres 0..1 liczono 1:1 z całej wysokości
-                // i końców (0% / 100%) nie dało się osiągnąć. Teraz zakres dotyku
-                // jest zwężony o wpust - dotknięcie BLISKO krawędzi daje od razu
-                // wartość skrajną.
+            // WPUST NA KOŃCACH: palec fizycznie nie wejdzie na samą krawędź
+            // widoku, więc wcześniej zakres 0..1 liczono 1:1 z całej wysokości
+            // i końców (0% / 100%) nie dało się osiągnąć. Teraz zakres dotyku
+            // jest zwężony o wpust - dotknięcie BLISKO krawędzi daje od razu
+            // wartość skrajną.
+            if (a == MotionEvent.ACTION_MOVE || a == MotionEvent.ACTION_UP) {
                 float inset = 30f * d;
                 float usable = getHeight() - inset * 2f;
                 float frac = usable <= 0 ? 0.5f
                         : (getHeight() - inset - e.getY()) / usable;
                 value = Math.max(0f, Math.min(1f, frac));
                 invalidate();
-                if (l != null && (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_MOVE)) {
+                if (l != null) {
                     l.on(value);
                 }
             }
@@ -1126,7 +1126,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             setContentDescription("Temperatura kolorów");
         }
 
-        void setValue(int v) {
+        void setProgress(int v) {
             value = Math.max(0, Math.min(50, v));
             invalidate();
         }
