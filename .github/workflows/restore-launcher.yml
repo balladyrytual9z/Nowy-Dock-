@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - '.github/workflows/restore-launcher.yml'
+permissions:
+  contents: write
 jobs:
   restore:
     runs-on: ubuntu-latest
@@ -17,9 +19,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Restore good version
           git checkout f8d7056 -- app/src/main/java/pl/dock/widget/LauncherActivity.java
-          # Apply the exact-width fix
           python3 - << 'PY'
 import re
 with open("app/src/main/java/pl/dock/widget/LauncherActivity.java") as f:
@@ -53,8 +53,9 @@ if n != 1:
     raise SystemExit(f"replace failed, n={n}")
 with open("app/src/main/java/pl/dock/widget/LauncherActivity.java", "w") as f:
     f.write(c2)
-print("LauncherActivity restored and fixed")
+print("LauncherActivity restored and fixed, len=", len(c2))
 PY
           git add app/src/main/java/pl/dock/widget/LauncherActivity.java
-          git commit -m "fix(CC): restore LauncherActivity + force exact content width (remove large empty gap)" || echo "no change"
+          git status
+          git commit -m "fix(CC): restore LauncherActivity + force exact content width (remove large empty gap)" || true
           git push origin HEAD:main
