@@ -545,62 +545,96 @@ public class ConnectivityPanelIos extends LinearLayout {
         removeCallbacks(hideWarmth);
     }
 
-    // ---------------------------------------------------------------- pasek lacznosci (framework-only)
+    // ---------------------------------------------------------------- pasek lacznosci (szklana pigułka iOS 26)
     // Jednolity poziomy wiersz (pill) dla Wi-Fi, Bluetooth i Hotspotu:
-    // babel ikony 40dp po lewej, tytul (bold 15sp, bialy) i podtytul (12sp,
-    // #8E8E93) w kolonii po prawej. Wszystkie 3 paski: 196x56dp (56dp = srednica
-    // kola przyciskow trybow). ROGI 16dp - jak karty w launcherze (Ui.cardBg).
-    // Zero onDraw: GradientDrawable + ImageView + TextView.
-    private class Tile extends FrameLayout {
-        private final View circle;
-        private final ImageView icon;
-        private final TextView title;
-        private final TextView sub;
+    // szklane tło jak suwaki PillSlider, światło z góry, gradientowa obwódka,
+    // pełne zaokrąglenie (pigułka, cornerRadius = h/2). Ikona 40dp po lewej,
+    // tytuł bold 15sp i podtytuł 12sp po prawej. Wszystkie 3 paski mają
+    // identyczną wysokość (56dp) i pełną szerokość kontenera.
+    private class Tile extends View {
+        private boolean active;
+        private int color;
+        private Bitmap icon;
+        private String title;
+        private String sub;
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF r = new RectF();
+        private final float d = getResources().getDisplayMetrics().density;
 
         Tile(Context c) {
             super(c);
-            GradientDrawable bg = new GradientDrawable();
-            bg.setColor(night ? 0x3346464B : 0x33CACACF);
-            bg.setCornerRadius(dp(16));   // jak karty launchera (Ui.cardBg)
-            bg.setStroke(Math.max(1, dp(1)), 0x55FFFFFF);
-            setBackground(bg);
-
-            FrameLayout circ = new FrameLayout(c);
-            circle = new View(c);
-            circle.setBackground(Ui.round(0xFF7E8686, 999, act));
-            circ.addView(circle, new FrameLayout.LayoutParams(dp(40), dp(40), Gravity.CENTER));
-            icon = new ImageView(c);
-            icon.setLayoutParams(new FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER));
-            circ.addView(icon);
-            LayoutParams clp = new LayoutParams(dp(40), dp(40));
-            clp.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
-            clp.leftMargin = dp(12);
-            addView(circ, clp);
-
-            LinearLayout texts = new LinearLayout(c);
-            texts.setOrientation(VERTICAL);
-            title = new TextView(c);
-            title.setTextSize(15);
-            title.setTypeface(null, Typeface.BOLD);
-            title.setTextColor(night ? 0xFFFFFFFF : 0xFF111114);
-            texts.addView(title);
-            sub = new TextView(c);
-            sub.setTextSize(12);
-            sub.setTextColor(night ? 0xFFC9CFCF : 0xFF8E8E93);
-            texts.addView(sub);
-            LayoutParams tlp = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT);
-            tlp.gravity = Gravity.CENTER_VERTICAL;
-            tlp.leftMargin = dp(64);   // babel ikony: 12 + 40 + 12 - tekst nie nachodzi na kolo
-            addView(texts, tlp);
+            this.active = false;
+            this.color = 0xFF007AFF;
         }
 
-        void set(boolean active, int color, Bitmap icon, String title, String sub) {
-            circle.setBackground(Ui.round(active ? color : 0xFF7E8686, 999, act));
-            this.icon.setImageBitmap(icon);
-            this.title.setText(title);
-            this.sub.setText(sub);
-            setContentDescription(title + ", " + sub);
+        void set(boolean a, int col, Bitmap ic, String t, String s) {
+            active = a;
+            color = col;
+            icon = ic;
+            title = t;
+            sub = s;
+            invalidate();
+        }
+
+        @Override
+        protected void onDraw(Canvas cv) {
+            float w = getWidth();
+            float h = getHeight();
+            float rad = h / 2f;  // pełna pigułka
+
+            // SZKŁO: półprzezroczysty tor + pas światła Z GÓRY (jak PillSlider)
+            p.setStyle(Paint.Style.FILL);
+            p.setShader(null);
+            p.setColor(night ? 0x9E4E4E53 : 0xCCD1D1D6);
+            r.set(0, 0, w, h);
+            cv.drawRoundRect(r, rad, rad, p);
+
+            int save = cv.save();
+            Path clip = new Path();
+            clip.addRoundRect(r, rad, rad, Path.Direction.CW);
+            cv.clipPath(clip);
+            p.setShader(new LinearGradient(0, 0, 0, h * 0.35f,
+                    new int[]{0x3DFFFFFF, 0x00FFFFFF},
+                    new float[]{0f, 1f}, Shader.TileMode.CLAMP));
+            cv.drawRect(r, p);
+            cv.restoreToCount(save);
+
+            // obwódka gradientowa (jak PillSlider)
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(1.4f * d);
+            p.setShader(new LinearGradient(0, 0, 0, h,
+                    night ? new int[]{0x99FFFFFF, 0x26FFFFFF}
+                          : new int[]{0x66808090, 0x1A808090},
+                    new float[]{0f, 1f}, Shader.TileMode.CLAMP));
+            r.set(d * 0.7f, d * 0.7f, w - d * 0.7f, h - d * 0.7f);
+            cv.drawRoundRect(r, rad - d * 0.7f, rad - d * 0.7f, p);
+            p.setShader(null);
+
+            // bąbel ikony (40dp) po lewej
+            float cx = dp(12) + dp(20);  // 12dp margin + 20dp (pół z 40dp)
+            float cy = h / 2f;
+            p.setColor(active ? color : 0xFF7E8686);
+            p.setStyle(Paint.Style.FILL);
+            cv.drawCircle(cx, cy, dp(20), p);  // bąbel 40dp = promień 20dp
+
+            // ikona wewnątrz bąbla (24dp)
+            if (icon != null) {
+                cv.drawBitmap(icon, null,
+                        new android.graphics.RectF(cx - dp(12), cy - dp(12), cx + dp(12), cy + dp(12)), p);
+            }
+
+            // tekst po prawej (margin 16dp od bąbla)
+            float textX = cx + dp(20) + dp(16);
+            p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
+            p.setTypeface(Typeface.DEFAULT_BOLD);
+            p.setTextSize(15f * getResources().getDisplayMetrics().scaledDensity);
+            p.setTextAlign(Paint.Align.LEFT);
+            cv.drawText(fitText(p, title, w - textX - dp(8)), textX, cy - dp(4), p);
+
+            p.setColor(night ? 0xFFC9CFCF : 0xFF8E8E93);
+            p.setTypeface(Typeface.DEFAULT);
+            p.setTextSize(12f * getResources().getDisplayMetrics().scaledDensity);
+            cv.drawText(fitText(p, sub, w - textX - dp(8)), textX, cy + dp(10), p);
         }
     }
 
