@@ -281,7 +281,7 @@ public class ConnectivityPanelIos extends LinearLayout {
         LinearLayout.LayoutParams lpLeft = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
-        lpLeft.rightMargin = dp(0);   // bez przerwy miedzy suwakami a kafelkami lacznosci (zwarty układ iOS)
+        lpLeft.rightMargin = dp(10);   // przerwa miedzy suwakami a kafelkami lacznosci (jak miedzy kafelkami Wi-Fi/hotspot)
         content.addView(leftColumn, lpLeft);
 
         // Prawa kolumna: kafelki lacznosci (pionowo)
