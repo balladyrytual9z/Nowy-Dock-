@@ -215,9 +215,9 @@ public class ConnectivityPanel extends LinearLayout {
             row.setGravity(Gravity.CENTER_VERTICAL);
             LayoutParams rp = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-            // Pasek trybu/Night Shift pod ostanim paskiem lacznosci: 12dp przerwy
-            // (tak samo jak miedzy paskami).
-            rp.topMargin = dp(12);
+            // Pasek trybu/Night Shift za kafelkami/suwakami: 10dp przerwy
+            // (tak samo jak miedzy paskami lacznosci).
+            rp.topMargin = dp(10);
             if (showMode) {
                 bMode = new RoundBtn(act);
                 bMode.setKind(0, "Jasny");
