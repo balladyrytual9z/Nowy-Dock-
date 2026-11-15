@@ -649,7 +649,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             // UWAGA: to NIE zalezy od szerokosci kontenera (kiedyś cx = w/2 przy
             // kontenerze 194dp dawal 97dp - koło bylo 54dp w prawo od sasiadow).
             float cx = 43f * d;
-            float cy = 34f * d;
+            float cy = 28f * d;
             float rad = 28f * d;
             p.setStyle(Paint.Style.FILL);
             p.setShader(null);
