@@ -35,6 +35,28 @@ public final class PanelTool {
     public static final String CAT_SETTINGS = "Skróty do ustawień";
     public static final String CAT_APPS = "Aplikacje";
 
+    // Stały moduł bazowy panelu łączności (suwaki, Night Shift, tryb wyglądu,
+    // Wi-Fi/BT/hotspot, tryb samolotowy) — nie są usuwane z siatki dodatkowych narzędzi.
+    public static final String[] BASE_IDS = {
+            "air", "hot", "wifi", "bt",
+            "bri", "vol", "mode", "conn", "nightshift"
+    };
+
+    // Usuwa z listy narzędzia należące do modułu bazowego (BASE_IDS).
+    // Czysta funkcja — nie modyfikuje listy wejściowej.
+    public static List<String> withoutBaseTools(List<String> ids) {
+        if (ids == null) return Collections.emptyList();
+        List<String> out = new ArrayList<String>();
+        for (String id : ids) {
+            boolean base = false;
+            for (String b : BASE_IDS) {
+                if (b.equals(id)) { base = true; break; }
+            }
+            if (!base) out.add(id);
+        }
+        return out;
+    }
+
     public static final class Def {
         public final String id;
         public final String label;
