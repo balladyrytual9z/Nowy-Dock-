@@ -278,9 +278,11 @@ public class ConnectivityPanelIos extends LinearLayout {
         if (controls != null && rp != null) {
             leftColumn.addView(controls, rp);
         }
-        content.addView(leftColumn, new LayoutParams(
+        LinearLayout.LayoutParams lpLeft = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        lpLeft.rightMargin = dp(8);   // mniejsza przerwa miedzy kolumnami
+        content.addView(leftColumn, lpLeft);
 
         // Prawa kolumna: kafelki lacznosci (pionowo)
         content.addView(top, new LayoutParams(
