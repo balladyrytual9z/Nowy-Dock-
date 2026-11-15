@@ -1,103 +1,96 @@
 package pl.dock.widget;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 
 import java.util.Calendar;
 
 // Tryb ciemny jak w iOS (przycisk w panelu łączności):
 // - przełącznik wł/wył,
 // - automat: ciemny od zachodu do wschodu słońca (SolarTimes/NOAA, offline;
-//   współrzędne jak w Night Shift - z modułu OBD, fallback Warszawa),
+//   współrzędne z SolarCalculator - te same co Night Shift),
 // - ręczny klik zmienia stan "do najbliższego wydarzenia słońca" - dokładnie
 //   jak podpis w iOS: "Włączony do wsch. słońca" / "Wyłączony do zach. słońca".
+//
+// NOWY MODEL STANÓW:
+//   AUTO_DAY   – automatycznie wyłączony (dzień)
+//   AUTO_NIGHT – automatycznie włączony (noc)
+//   MANUAL_ON  – ręcznie włączony do najbliższego wydarzenia
+//   MANUAL_OFF – ręcznie wyłączony do najbliższego wydarzenia
 public class DarkMode {
 
-    // Czy teraz tryb ciemny: najpierw ręczna zmiana (do najbliższego wydarzenia),
-    // po jej wygaśnięciu - harmonogram słońca.
+    // Czy teraz tryb ciemny (efektywny stan wykonawczy).
     public static boolean isNight(Context c) {
-        int o = Prefs.darkOverride(c);
-        if (o != 0) {
-            if (System.currentTimeMillis() < Prefs.darkOverrideUntil(c)) return o == 1;
-            Prefs.clearDarkOverride(c);   // ręczna zmiana wygasła - przejmuje słońce
+        return state(c) == SolarCalculator.DarkState.AUTO_NIGHT || state(c) == SolarCalculator.DarkState.MANUAL_ON;
+    }
+
+    // Zwraca aktualny stan wynikowy (AUTO_DAY / AUTO_NIGHT / MANUAL_ON / MANUAL_OFF).
+    public static SolarCalculator.DarkState state(Context c) {
+        long now = System.currentTimeMillis();
+        int ovr = Prefs.darkOverride(c);
+        long ovrUntil = Prefs.darkOverrideUntil(c);
+
+        // Ręczne nadpisanie ma pierwszeństwo, ale tylko do czasu wygaśnięcia.
+        if (ovr != 0 && ovrUntil > 0) {
+            if (now < ovrUntil) {
+                return ovr == 1 ? SolarCalculator.DarkState.MANUAL_ON : SolarCalculator.DarkState.MANUAL_OFF;
+            } else {
+                // Nadpisanie wygasło – przejmuje automatyka słoneczna.
+                Prefs.clearDarkOverride(c);
+                LogDiagnostics.stateChange("DarkMode", "MANUAL_" + (ovr == 1 ? "ON" : "OFF"), "AUTO", "nadpisanie wygasło");
+            }
         }
-        return nightBySun(c);
+
+        // Jeśli użytkownik nie użył jeszcze nowego przełącznika, zachowaj stare zachowanie.
+        if (!Prefs.darkUsed(c)) {
+            return nightBySun(c) ? SolarCalculator.DarkState.AUTO_NIGHT : SolarCalculator.DarkState.AUTO_DAY;
+        }
+
+        // Automatyka słoneczna.
+        return nightBySun(c) ? SolarCalculator.DarkState.AUTO_NIGHT : SolarCalculator.DarkState.AUTO_DAY;
     }
 
     // Klik: przełącz i utrzymaj do najbliższego wschodu/zachodu słońca.
     public static void toggle(Context c) {
         boolean now = isNight(c);
         Prefs.setDarkUsed(c, true);
-        Prefs.setDarkOverride(c, now ? 2 : 1, nextEvent(c, now));
+        long until = SolarCalculator.nextSunEvent(c, now);
+        if (until < 0L) {
+            // Nie da się obliczyć wydarzenia – zachowaj ostatni bezpieczny stan.
+            LogDiagnostics.e("DarkMode", "toggle: nie można obliczyć następnego wydarzenia słonecznego");
+            return;
+        }
+        Prefs.setDarkOverride(c, now ? 2 : 1, until);
+        SolarCalculator.DarkState from = state(c);
+        SolarCalculator.DarkState to = now ? SolarCalculator.DarkState.MANUAL_OFF : SolarCalculator.DarkState.MANUAL_ON;
+        LogDiagnostics.stateChange("DarkMode", from.name(), to.name(), "ręczne kliknięcie");
+
+        // Natychmiastowa aktualizacja interfejsu.
+        Look.refreshTheme(c);
+
+        // Uruchom usługę Night Shift jeśli potrzebna (niezależny mechanizm).
+        NightShift.syncService(c);
     }
 
     // Podpis pod przyciskiem (jak w iOS).
     public static String label(Context c) {
-        return isNight(c) ? "Włączony do wsch. słońca" : "Wyłączony do zach. słońca";
+        SolarCalculator.DarkState st = state(c);
+        switch (st) {
+            case MANUAL_ON:
+            case AUTO_NIGHT:
+                return "Włączony do wsch. słońca";
+            case MANUAL_OFF:
+            case AUTO_DAY:
+                return "Wyłączony do zach. słońca";
+        }
+        return "Wyłączony do zach. słońca";
     }
 
     private static boolean nightBySun(Context c) {
         try {
-            double[] ll = coords(c);
-            return pl.dock.widget.util.SolarTimes.INSTANCE.isNight(
-                    ll[0], ll[1], Calendar.getInstance());
+            return SolarCalculator.isNight(c);
         } catch (Throwable t) {
+            LogDiagnostics.e("DarkMode", "nightBySun failed: " + t.getMessage(), t);
             return false;
         }
-    }
-
-    // Następne wydarzenie: gdy teraz noc -> wschód, gdy dzień -> zachód.
-    private static long nextEvent(Context c, boolean nowNight) {
-        try {
-            double[] ll = coords(c);
-            Calendar cal = Calendar.getInstance();
-            double[] ss = pl.dock.widget.util.SolarTimes.INSTANCE.sunriseSunset(ll[0], ll[1], cal);
-            if (ss != null) {
-                double target = nowNight ? ss[0] : ss[1];   // noc -> wschód; dzień -> zachód
-                long t = midnight(cal) + (long) (target * 60000.0);
-                if (t <= System.currentTimeMillis()) t += 24L * 3600L * 1000L;   // już było - jutro
-                return t;
-            }
-        } catch (Throwable ignored) {
-        }
-        return System.currentTimeMillis() + 6L * 3600L * 1000L;   // bezpiecznik: 6 h
-    }
-
-    private static long midnight(Calendar cal) {
-        Calendar m = (Calendar) cal.clone();
-        m.set(Calendar.HOUR_OF_DAY, 0);
-        m.set(Calendar.MINUTE, 0);
-        m.set(Calendar.SECOND, 0);
-        m.set(Calendar.MILLISECOND, 0);
-        return m.getTimeInMillis();
-    }
-
-    // współrzędne jak w Night Shift (moduł OBD zapisuje lat/lon w "obd_settings")
-    private static double[] coords(Context c) {
-        return new double[]{readCoord(c, "lat", 52.23), readCoord(c, "lon", 21.01)};
-    }
-
-    private static double readCoord(Context c, String key, double def) {
-        try {
-            SharedPreferences s = c.getApplicationContext()
-                    .getSharedPreferences("obd_settings", Context.MODE_PRIVATE);
-            if (s.contains(key)) {
-                try {
-                    Object v = s.getAll().get(key);
-                    if (v instanceof Float) return (Float) v;
-                    if (v instanceof Double) return (Double) v;
-                } catch (Throwable ignored) {
-                }
-                String str = s.getString(key, null);
-                if (str != null) {
-                    try {
-                        return Double.parseDouble(str);
-                    } catch (Throwable ignored) {
-                    }
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-        return def;
     }
 }

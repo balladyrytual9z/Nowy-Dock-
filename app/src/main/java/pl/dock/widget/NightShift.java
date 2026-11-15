@@ -6,17 +6,17 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.provider.Settings;
 
-import java.util.Calendar;
-
 // Night Shift: ciepły filtr barwy ekranu (nakładka). Wymaga zgody "Wyświetlaj nad innymi aplikacjami".
-// Tryby: "off" | "on" | "sunset" (od zachodu do wschodu słońca wg SolarTimes).
 //
-// NOWE (jak w iOS, na wzór Trybu ciemnego): po pierwszym kliknięciu nowego
-// przycisku (nsUsed) Night Shift działa na harmonogramie słońca
-// zachód -> wschód, a klik zmienia stan "do najbliższego wydarzenia":
-// wł. do wsch. słońca / wył. do zach. słońca. Po tym wydarzeniu znów
-// rządzi słońce. Własne klucze w osobnym pliku prefs "dock_ns" (nie ruszamy
-// Prefs.java - te same wzorce co DarkMode w Prefs).
+// NOWY MODEL STANÓW (jak w iOS, na wzór Trybu ciemnego):
+//   AUTO_OFF   – automatycznie wyłączony (dzień)
+//   AUTO_ON    – automatycznie włączony (noc, zachód → wschód)
+//   MANUAL_ON  – ręcznie włączony do najbliższego wydarzenia
+//   MANUAL_OFF – ręcznie wyłączony do najbliższego wydarzenia
+//
+// Po pierwszym kliknięciu nowego przycisku (nsUsed) Night Shift działa na
+// harmonogramie słońca, a klik zmienia stan "do najbliższego wydarzenia".
+// Własne klucze w osobnym pliku prefs "dock_ns" (nie ruszamy Prefs.java).
 public class NightShift {
 
     private static SharedPreferences sp(Context c) {
@@ -41,15 +41,15 @@ public class NightShift {
         }
     }
 
+    // ---------- stare API (kompatybilność wsteczna) ----------
+
     public static boolean isOn(Context c) {
-        return Prefs.nightShiftOn(c);
+        return state(c) == SolarCalculator.NsState.AUTO_ON || state(c) == SolarCalculator.NsState.MANUAL_ON;
     }
 
     public static String mode(Context c) {
         return Prefs.nightShiftMode(c);
     }
-
-    // ---------- nowy model (jak Tryb ciemny) ----------
 
     // Flaga: user użył nowego przycisku - od tego momentu harmonogram słońca
     // przejmuje sterowanie (przed tym: stary model off/on/sunset).
@@ -96,16 +96,38 @@ public class NightShift {
         sp(c).edit().putBoolean("ns_bright_saved", v).apply();
     }
 
-    // Czy filtr MA teraz działać: najpierw ręczna zmiana (do najbliższego
-    // wydarzenia), po jej wygaśnięciu - harmonogram słońca (zachód -> wschód).
+    // Czy filtr MA teraz działać (efektywny stan wykonawczy).
     public static boolean effectiveOn(Context c) {
-        if (!nsUsed(c)) return Prefs.nightShiftOn(c);
-        int o = nsOverride(c);
-        if (o != 0) {
-            if (System.currentTimeMillis() < nsOverrideUntil(c)) return o == 1;
-            clearNsOverride(c);   // ręczna zmiana wygasła - przejmuje słońce
+        return state(c) == SolarCalculator.NsState.AUTO_ON || state(c) == SolarCalculator.NsState.MANUAL_ON;
+    }
+
+    // Zwraca aktualny stan wynikowy (AUTO_OFF / AUTO_ON / MANUAL_ON / MANUAL_OFF).
+    public static SolarCalculator.NsState state(Context c) {
+        long now = System.currentTimeMillis();
+        int ovr = nsOverride(c);
+        long ovrUntil = nsOverrideUntil(c);
+
+        // Ręczne nadpisanie ma pierwszeństwo, ale tylko do czasu wygaśnięcia.
+        if (ovr != 0 && ovrUntil > 0) {
+            if (now < ovrUntil) {
+                return ovr == 1 ? SolarCalculator.NsState.MANUAL_ON : SolarCalculator.NsState.MANUAL_OFF;
+            } else {
+                // Nadpisanie wygasło – przejmuje automatyka słoneczna.
+                clearNsOverride(c);
+                LogDiagnostics.stateChange("NightShift", "MANUAL_" + (ovr == 1 ? "ON" : "OFF"), "AUTO", "nadpisanie wygasło");
+            }
         }
-        return isNightBySun(c);
+
+        // Jeśli użytkownik nie użył jeszcze nowego przełącznika, zachowaj stare zachowanie.
+        if (!nsUsed(c)) {
+            boolean on = Prefs.nightShiftOn(c);
+            boolean auto = Prefs.nightShiftAuto(c);
+            return (on && auto) ? SolarCalculator.NsState.AUTO_ON :
+                   (on) ? SolarCalculator.NsState.AUTO_ON : SolarCalculator.NsState.AUTO_OFF;
+        }
+
+        // Automatyka słoneczna (zachód → wschód).
+        return isNightBySun(c) ? SolarCalculator.NsState.AUTO_ON : SolarCalculator.NsState.AUTO_OFF;
     }
 
     // Klik: przełącz i utrzymaj do najbliższego wschodu/zachodu słońca.
@@ -118,10 +140,20 @@ public class NightShift {
         boolean now = effectiveOn(c);
         setNsUsed(c, true);
         Prefs.setNightShiftMode(c, "sunset");   // baza = harmonogram słońca
-        setNsOverride(c, now ? 2 : 1, nextEvent(c, now));
+        long until = SolarCalculator.nextSunEvent(c, now);
+        if (until < 0L) {
+            LogDiagnostics.e("NightShift", "toggle: nie można obliczyć następnego wydarzenia słonecznego");
+            return false;
+        }
+        setNsOverride(c, now ? 2 : 1, until);
+        SolarCalculator.NsState from = state(c);
+        SolarCalculator.NsState to = now ? SolarCalculator.NsState.MANUAL_OFF : SolarCalculator.NsState.MANUAL_ON;
+        LogDiagnostics.stateChange("NightShift", from.name(), to.name(), "ręczne kliknięcie");
+
+        // Uruchom usługę z natychmiastowym przejściem.
         try {
             Intent i = new Intent(c, NightShiftService.class);
-            i.putExtra("manual", true);   // krótkie przejście (bez 30 s i bez jasności)
+            i.putExtra("manual", true);
             if (android.os.Build.VERSION.SDK_INT >= 26) {
                 c.startForegroundService(i);
             } else {
@@ -134,78 +166,26 @@ public class NightShift {
 
     // Podpis pod przyciskiem (jak w iOS / Trybie ciemnym).
     public static String label(Context c) {
-        return effectiveOn(c) ? "Włączony do wsch. słońca" : "Wyłączony do zach. słońca";
-    }
-
-    // Następne wydarzenie: gdy teraz działa -> wschód, gdy nie działa -> zachód.
-    private static long nextEvent(Context c, boolean nowOn) {
-        try {
-            Calendar cal = Calendar.getInstance();
-            double[] ss = pl.dock.widget.util.SolarTimes.INSTANCE.sunriseSunset(
-                    readCoord(c, "lat", 52.23), readCoord(c, "lon", 21.01), cal);
-            if (ss != null) {
-                double target = nowOn ? ss[0] : ss[1];   // działa -> wschód; nie -> zachód
-                long t = midnight(cal) + (long) (target * 60000.0);
-                if (t <= System.currentTimeMillis()) t += 24L * 3600L * 1000L;   // już było - jutro
-                return t;
-            }
-        } catch (Throwable ignored) {
+        SolarCalculator.NsState st = state(c);
+        switch (st) {
+            case MANUAL_ON:
+            case AUTO_ON:
+                return "Włączony do wsch. słońca";
+            case MANUAL_OFF:
+            case AUTO_OFF:
+                return "Wyłączony do zach. słońca";
         }
-        return System.currentTimeMillis() + 6L * 3600L * 1000L;   // bezpiecznik: 6 h
+        return "Wyłączony do zach. słońca";
     }
 
-    private static long midnight(Calendar cal) {
-        Calendar m = (Calendar) cal.clone();
-        m.set(Calendar.HOUR_OF_DAY, 0);
-        m.set(Calendar.MINUTE, 0);
-        m.set(Calendar.SECOND, 0);
-        m.set(Calendar.MILLISECOND, 0);
-        return m.getTimeInMillis();
-    }
-
-    // Czy wg słońca jest teraz noc (lat/lon z ustawień OBD)
+    // Czy wg słońca jest teraz noc (lat/lon z SolarCalculator)
     public static boolean isNightBySun(Context c) {
-        double lat = readCoord(c, "lat", 52.23);
-        double lon = readCoord(c, "lon", 21.01);
         try {
-            return pl.dock.widget.util.SolarTimes.INSTANCE.isNight(
-                    lat, lon, java.util.Calendar.getInstance());
+            return SolarCalculator.isNight(c);
         } catch (Throwable t) {
+            LogDiagnostics.e("NightShift", "isNightBySun failed: " + t.getMessage(), t);
             return false;
         }
-    }
-
-    // modul OBD moze zapisywac wspolrzedne jako float, string albo raw long bits
-    private static double readCoord(Context c, String key, double def) {
-        try {
-            SharedPreferences s = c.getApplicationContext()
-                    .getSharedPreferences("obd_settings", Context.MODE_PRIVATE);
-            if (s.contains(key)) {
-                try {
-                    Object v = s.getAll().get(key);
-                    if (v instanceof Float) return (Float) v;
-                    if (v instanceof Double) return (Double) v;
-                } catch (Throwable ignored) {
-                }
-                String str = s.getString(key, null);
-                if (str != null) {
-                    try {
-                        return Double.parseDouble(str);
-                    } catch (Throwable ignored) {
-                    }
-                }
-                try {
-                    return Double.longBitsToDouble(s.getLong(key, 0L));
-                } catch (Throwable ignored) {
-                }
-                try {
-                    return (double) s.getFloat(key, (float) def);
-                } catch (Throwable ignored) {
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-        return def;
     }
 
     // Ustawia tryb: "off" | "on" | "sunset".
@@ -235,7 +215,7 @@ public class NightShift {
 
     // natychmiastowe odświeżenie koloru nakładki (np. po zmianie ciepła suwakiem)
     public static void refresh(Context c) {
-        if (!Prefs.nightShiftOn(c) || !canDraw(c)) return;
+        if (!effectiveOn(c) || !canDraw(c)) return;
         try {
             Intent i = new Intent(c, NightShiftService.class);
             i.putExtra("refresh", true);
@@ -249,14 +229,14 @@ public class NightShift {
     }
 
     /**
-     * Pauza nakladki na czas systemowego okna instalacji APK (patrz Updater.install).
+     * Pauza nakładki na czas systemowego okna instalacji APK (patrz Updater.install).
      * Okno instalatora / Play Protect ("Zainstaluj bez skanowania") odcina dotyk,
-     * gdy jakiekolwiek okno jest nad nim - nawet przezroczysta nakladka
-     * nie-lapiaca dotyku (ochrona przed tapjackingiem). Filtr wraca po
+     * gdy cokolwiek rysuje się nad nim - nawet przezroczysta nakładka
+     * nie-łapiąca dotyku (ochrona przed tapjackingiem). Filtr wraca po
      * powrocie do launchera (BaseActivity.onResume -> resume).
      */
     public static void pause(Context c) {
-        if (!Prefs.nightShiftOn(c)) return;
+        if (!effectiveOn(c)) return;
         try {
             Intent i = new Intent(c, NightShiftService.class);
             i.putExtra("pause", true);
@@ -269,9 +249,9 @@ public class NightShift {
         }
     }
 
-    /** Powrot nakladki po pauzie (wolane z BaseActivity.onResume). */
+    /** Powrót nakładki po pauzie (wolane z BaseActivity.onResume). */
     public static void resume(Context c) {
-        if (!Prefs.nightShiftOn(c) || !canDraw(c)) return;
+        if (!effectiveOn(c) || !canDraw(c)) return;
         try {
             Intent i = new Intent(c, NightShiftService.class);
             i.putExtra("resume", true);
@@ -281,6 +261,25 @@ public class NightShift {
                 c.startService(i);
             }
         } catch (Throwable ignored) {
+        }
+    }
+
+    /** Synchronizuj usługę z aktualnym stanem (wywoływane po zmianach). */
+    public static void syncService(Context c) {
+        if (!effectiveOn(c) || !canDraw(c)) {
+            // Filtr powinien być wyłączony.
+            try {
+                Intent i = new Intent(c, NightShiftService.class);
+                if (android.os.Build.VERSION.SDK_INT >= 26) {
+                    c.startForegroundService(i);
+                } else {
+                    c.startService(i);
+                }
+                i.putExtra("refresh", true);
+                // Usługa sama określi czy filtr ma być aktywny.
+            } catch (Throwable ignored) {}
+        } else {
+            refresh(c);
         }
     }
 

@@ -2,12 +2,16 @@
 package pl.dock.widget;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.os.Handler;
+import android.os.Looper;
 
 public class Look {
 
     public static volatile Boolean wasNight;
+    private static final Handler ui = new Handler(Looper.getMainLooper());
 
     // Czy teraz jest tryb nocny (ręcznie, wg godzin albo wg systemu)
     public static boolean night(Context c) {
@@ -35,6 +39,31 @@ public class Look {
         }
         wasNight = result;
         return result;
+    }
+
+    // Odśwież cały motyw launchera po zmianie stanu trybu ciemnego / Night Shift.
+    // Wywoływane z UI thread; odświeża tapetę, ikony, widżety, panel łączności
+    // oraz ekrany NightAware.
+    public static void refreshTheme(Context c) {
+        boolean night = night(c);
+        wasNight = night;
+
+        // Powiadom wszystkie otwarte aktywności przez broadcast (jeden kierunek,
+        // bez pętli - Circadian nie odsyła z powrotem do Docka).
+        Intent i = new Intent("pl.dock.action.THEME_CHANGED");
+        i.putExtra("night", night);
+        i.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+        c.sendBroadcast(i);
+
+        // Odśwież StatusService.
+        try {
+            Intent s = new Intent(c, StatusService.class);
+            s.setAction("pl.dock.action.THEME_CHANGED");
+            s.putExtra("night", night);
+            c.startService(s);
+        } catch (Throwable ignored) {}
+
+        LogDiagnostics.d("Look", "refreshTheme: night=" + night);
     }
 
     public static int bg(boolean glass, boolean night) {

@@ -73,45 +73,48 @@ public class NightShiftService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         boolean refresh = intent != null && intent.getBooleanExtra("refresh", false);
         boolean manual = intent != null && intent.getBooleanExtra("manual", false);
-        String mode = Prefs.nightShiftMode(this);
+        boolean pause = intent != null && intent.getBooleanExtra("pause", false);
+        boolean resume = intent != null && intent.getBooleanExtra("resume", false);
+
         // nowy model (nsUsed): baza = harmonogram slonca, nawet gdy pref mowi "off"
-        sunsetMode = "sunset".equals(mode) || NightShift.nsUsed(this);
+        sunsetMode = NightShift.nsUsed(this);
 
         // PAUZA: okno instalatora APK (potwierdzenie instalacji / Play Protect
         // "Zainstaluj bez skanowania") odcina dotyk, gdy cokolwiek rysuje sie
         // nad nim - nawet przezroczysta nakladka nie-lapiaca dotyku (ochrona
         // przed tapjackingiem). Na czas tego okna nakladka schodzi z ekranu
         // CALA (usuwamy okno), a wraca po powrocie do launchera (resume).
-        if (intent != null && intent.getBooleanExtra("pause", false)) {
+        if (pause) {
             paused = true;
             if (anim != null) anim.cancel();
             if (bAnim != null) bAnim.cancel();
             removeOverlayNow();
             h.removeCallbacksAndMessages(null);   // petla sloncka milczy podczas pauzy
+            LogDiagnostics.service("pause", "nakladka zdjeta na czas instalatora");
             return START_NOT_STICKY;
         }
-        if (intent != null && intent.getBooleanExtra("resume", false)) {
+        if (resume) {
             boolean wasPaused = paused;
             paused = false;
             wPaused = false;   // resume z BaseActivity anulowal tez pauze czujki
-            if ("off".equals(mode) && !NightShift.nsUsed(this)) {
+            if (!NightShift.effectiveOn(this) || !NightShift.canDraw(this)) {
                 stopSelf();
                 return START_NOT_STICKY;
             }
             showOverlay();
-            boolean night = currentNight(mode);
+            boolean night = NightShift.effectiveOn(this);
             float target = night ? targetStrengthFraction() : 0f;
-            // po powrocie z instalatora plynny powrot filtra; bez pauzy nic
-            // nierestartujemy (np. rampa zachodu ma prawo trwac dalej)
+            // po powrocie z instalatora plynny powrot filtra
             if (wasPaused || Math.abs(target - currentAlpha) > 0.001f) {
                 animateTo(target, FADE_MS);
             }
             scheduleSunCheck();
+            LogDiagnostics.service("resume", "powrot filtra po pauzie, effectiveOn=" + night);
             return START_NOT_STICKY;
         }
 
         paused = false;
-        if ("off".equals(mode) && !NightShift.nsUsed(this)) {
+        if (!NightShift.effectiveOn(this) || !NightShift.canDraw(this)) {
             hideOverlayAnimated();
             stopSelf();
             return START_NOT_STICKY;
@@ -119,18 +122,20 @@ public class NightShiftService extends Service {
         if (refresh) {
             // zmiana ciepla suwakiem: plytka korekta do nowej sily
             showOverlay();
-            animateTo(currentNight(mode) ? targetStrengthFraction() : 0f, 250L);
+            animateTo(NightShift.effectiveOn(this) ? targetStrengthFraction() : 0f, 250L);
             scheduleSunCheck();
+            LogDiagnostics.service("refresh", "aktualizacja filtra po zmianie suwaka");
             return START_NOT_STICKY;
         }
         showOverlay();
-        boolean night = currentNight(mode);
+        boolean night = NightShift.effectiveOn(this);
         // reczny klik = krotkie przejscie; auto = 30 s (bez rampy jasnosci przy
         // starcie uslugi - ta odpala sie tylko z petli slonckiej, na realnym
         // przejsciu dzien/noc)
         animateTo(night ? targetStrengthFraction() : 0f, manual ? FADE_MS : RAMP_MS);
         if (manual && bAnim != null) bAnim.cancel();
         scheduleSunCheck();
+        LogDiagnostics.service("start", "usługa uruchomiona, effectiveOn=" + night);
         return START_NOT_STICKY;
     }
 
@@ -164,13 +169,12 @@ public class NightShiftService extends Service {
             // powrot do launchera po oknie Google -> przywroc filtr
             wPaused = false;
             paused = false;
-            String mode = Prefs.nightShiftMode(this);
-            if ("off".equals(mode) && !NightShift.nsUsed(this)) {
+            if (!NightShift.effectiveOn(this) || !NightShift.canDraw(this)) {
                 stopSelf();
                 return;
             }
             showOverlay();
-            float target = currentNight(mode) ? targetStrengthFraction() : 0f;
+            float target = NightShift.effectiveOn(this) ? targetStrengthFraction() : 0f;
             animateTo(target, FADE_MS);
             scheduleSunCheck();
         }
@@ -219,13 +223,7 @@ public class NightShiftService extends Service {
                 || "com.android.vending".equals(pkg);                 // okna instalacji Sklepu Play
     }
 
-    /** Czy filtr ma teraz dzialac (nowy model: reczna zmiana -> potem slonce). */
-    private boolean currentNight(String mode) {
-        if (NightShift.nsUsed(this)) return NightShift.effectiveOn(this);
-        if ("on".equals(mode)) return true;
-        if ("sunset".equals(mode)) return NightShift.isNightBySun(this);
-        return false;
-    }
+    // currentNight zastąpione przez NightShift.effectiveOn(this) - używamy bezpośrednio nowego modelu.
 
     /**
      * Wartosc 0-50 z suwaka ciepla (max = POLOWA obecnego maksimum - decyzja
@@ -342,12 +340,12 @@ public class NightShiftService extends Service {
 
     private void scheduleSunCheck() {
         h.removeCallbacksAndMessages(null);
-        if (!sunsetMode) return;
+        if (!NightShift.nsUsed(this)) return;
         h.postDelayed(new Runnable() {
             @Override
             public void run() {
-                if (!sunsetMode || paused) return;
-                boolean night = currentNight(Prefs.nightShiftMode(NightShiftService.this));
+                if (!NightShift.nsUsed(NightShiftService.this) || paused) return;
+                boolean night = NightShift.effectiveOn(NightShiftService.this);
                 float target = night ? targetStrengthFraction() : 0f;
                 if (Math.abs(target - currentAlpha) > 0.001f) {
                     // AUTO: filtr 30 s + podswietlenie plynnie do minimum / powrot
