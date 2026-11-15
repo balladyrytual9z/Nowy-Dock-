@@ -233,7 +233,6 @@ public class ConnectivityPanelIos extends LinearLayout {
                     }
                 });
             }
-            top.addView(controls, rp);
         }
 
         // Zewnetrzny wiersz: SUWAKI po lewej, KAFELKI+PRZYCISKI po prawej
