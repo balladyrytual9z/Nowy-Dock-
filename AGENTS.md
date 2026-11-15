@@ -906,7 +906,7 @@ zamrazalo zegary. Dwa niezalezne bugi (commit adf7df6d):
   (płaska linia, nie okrągłe rogi).
 - **Układ panelu:** SUWAKI + PRZYCISKI po lewej (suwaki na górze, przyciski
   Tryb ciemny/Night Shift na dole pod suwakami), KAFELKI łączności po prawej.
-  Przerwa między kolumnami: 8dp. Między suwakami a przyciskami: 10dp.
+  Przerwa między kolumnami: 4dp. Między suwakami a przyciskami: 10dp.
 - **RoundBtn:** podpisy przesunięte w górę (nazwa 72dp, podtytuł 84/94dp, jedna
   linia 80dp w przycisku 96dp) — nie wychodzą poza dolną krawędź. Ikona przycisku
   przesunięta z cy=34dp na cy=28dp (większy odstęp od podpisu).
