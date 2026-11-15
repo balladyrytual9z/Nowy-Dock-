@@ -800,22 +800,22 @@ public class ConnectivityPanelIos extends LinearLayout {
                 p.setTypeface(Typeface.DEFAULT_BOLD);
                 p.setTextSize(12f * sd);
                 p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
-                cv.drawText(fitText(p, label, labW), cx, 78f * d, p);
+                cv.drawText(fitText(p, label, labW), cx, 72f * d, p);
                 p.setTypeface(Typeface.DEFAULT);
                 p.setTextSize(10.5f * sd);
                 p.setColor(night ? 0xFFC9CFCF : 0xFF6C6C70);
                 int di = sub.indexOf(" do ");
                 if (di > 0) {
-                    cv.drawText(fitText(p, sub.substring(0, di + 3), labW), cx, 91f * d, p);
-                    cv.drawText(fitText(p, sub.substring(di + 4), labW), cx, 104f * d, p);
+                    cv.drawText(fitText(p, sub.substring(0, di + 3), labW), cx, 84f * d, p);
+                    cv.drawText(fitText(p, sub.substring(di + 4), labW), cx, 94f * d, p);
                 } else {
-                    cv.drawText(fitText(p, sub, labW), cx, 91f * d, p);
+                    cv.drawText(fitText(p, sub, labW), cx, 84f * d, p);
                 }
             } else {
                 p.setTypeface(Typeface.DEFAULT);
                 p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
                 p.setTextSize(13f * sd);
-                cv.drawText(fitText(p, label, labW), cx, 84f * d, p);
+                cv.drawText(fitText(p, label, labW), cx, 80f * d, p);
             }
         }
     }
