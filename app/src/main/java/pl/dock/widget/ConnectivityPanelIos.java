@@ -21,14 +21,19 @@ import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
 import android.provider.Settings;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ObjectAnimator;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.util.Log;
 import android.widget.Toast;
 
 // Centrum łacznosci w stylu iOS - port 1:1 z Liquid-Glass-Diplay---Launcher-Switcher-.
@@ -121,6 +126,8 @@ public class ConnectivityPanelIos extends LinearLayout {
     private BroadcastReceiver rc;
     private LinearLayout warmthRow;
     private WarmthSlider warmthBar;
+    private boolean buttonsVisible = false;   // przyciski ukryte domyslnie, pojawiaja sie po long-press na suwaku jasnosci
+    private LinearLayout controls;            // wiersz przyciskow trybow (dostepny z toggleButtons)
     private final Runnable hideWarmth = new Runnable() {
         @Override
         public void run() {
@@ -153,6 +160,19 @@ public class ConnectivityPanelIos extends LinearLayout {
             setLayerType(View.LAYER_TYPE_SOFTWARE, null);
         }
         setElevation(dp(12));
+        // Klik w puste miejsce panelu: zamyka regulację Night Shift (warmth slider).
+        setOnTouchListener(new OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN && warmthRow != null
+                        && warmthRow.getVisibility() == VISIBLE) {
+                    warmthRow.setVisibility(GONE);
+                    removeCallbacks(hideWarmth);
+                    return true;
+                }
+                return false;
+            }
+        });
         build();
     }
 
@@ -198,22 +218,25 @@ public class ConnectivityPanelIos extends LinearLayout {
         l3.bottomMargin = dp(10);
         top.addView(tBt, l3);
 
-        // Wiersz przyciskow trybow pod paskami (12dp przerwy, jak miedzy paskami).
+        // Wiersz przyciskow trybow na dole panelu (wycentrowane wzgledem calej szerokosci).
+        // Przyciski sa UKRYTE domyslnie - pojawiaja sie dopiero po long-press na suwaku jasnosci.
         boolean showMode = Prefs.showModeButtons(act);
         boolean showNs = Prefs.showNightShift(act);
         LinearLayout controls = null;
         LayoutParams rp = null;
         if (showMode || showNs) {
-            controls = new LinearLayout(act);
+            this.controls = new LinearLayout(act);
+            this.controls.setGravity(Gravity.CENTER);
+            this.controls.setVisibility(GONE);
             rp = new LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
             rp.topMargin = dp(10);
             if (showMode) {
                 bMode = new RoundBtn(act, 4, "Tryb ciemny");
                 LayoutParams mp = new LayoutParams(dp(88), dp(96));
                 if (showNs) mp.rightMargin = dp(12);
-                controls.addView(bMode, mp);
+                this.controls.addView(bMode, mp);
                 bMode.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -224,7 +247,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             }
             if (showNs) {
                 bShift = new RoundBtn(act, 3, "Night Shift");
-                controls.addView(bShift, new LayoutParams(dp(88), dp(96)));
+                this.controls.addView(bShift, new LayoutParams(dp(88), dp(96)));
                 bShift.setOnClickListener(new OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -274,10 +297,48 @@ public class ConnectivityPanelIos extends LinearLayout {
                     setBrightness(v);
                 }
             });
+            // Long-press na suwaku jasnosci: otwiera/zamyka przyciski trybow z animacja,
+            // plus animacja iOS26 na przytrzymanym elemencie (lift + powiększenie + podświetlenie).
+            bri.setOnTouchListener(new OnTouchListener() {
+                private boolean pressed = false;
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    switch (event.getAction()) {
+                        case MotionEvent.ACTION_DOWN:
+                            pressed = true;
+                            // iOS26 style: element "wyskakuje" w górę, się powiększa i jaśnieje
+                            v.animate().cancel();
+                            v.animate()
+                                .translationY(-dp(8))
+                                .scaleX(1.06f)
+                                .scaleY(1.06f)
+                                .setDuration(120)
+                                .setInterpolator(new AccelerateDecelerateInterpolator())
+                                .start();
+                            return false;
+                        case MotionEvent.ACTION_UP:
+                        case MotionEvent.ACTION_CANCEL:
+                            if (pressed) {
+                                pressed = false;
+                                v.animate().cancel();
+                                v.animate()
+                                    .translationY(0f)
+                                    .scaleX(1f)
+                                    .scaleY(1f)
+                                    .setDuration(120)
+                                    .setInterpolator(new AccelerateDecelerateInterpolator())
+                                    .start();
+                                toggleButtons();
+                            }
+                            return true;
+                    }
+                    return false;
+                }
+            });
             LinearLayout.LayoutParams lpBars = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-            lpBars.bottomMargin = dp(10);   // 10dp pod suwakami (wiersz przycisków jest teraz pod całym wierszem)
+            lpBars.bottomMargin = dp(10);
             leftColumn.addView(bars, lpBars);
         }
 
@@ -332,6 +393,37 @@ public class ConnectivityPanelIos extends LinearLayout {
                 if (Net.openTetherSettings(act)) host.close();
                 else Toast.makeText(act, "Ta funkcja jest niedostepna na tym radiu",
                         Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    /** Pokazuje/ukrywa przyciski trybow (Tryb ciemny / Night Shift) na dole panelu
+     *  z płynną animacją alfa i skali. Wywoływane po long-press na suwaku jasności. */
+    private void toggleButtons() {
+        if (controls == null) return;
+        buttonsVisible = !buttonsVisible;
+        controls.setVisibility(VISIBLE);
+        float startAlpha = buttonsVisible ? 0f : 1f;
+        float endAlpha = buttonsVisible ? 1f : 0f;
+        controls.setAlpha(startAlpha);
+        controls.setScaleX(0.85f);
+        controls.setScaleY(0.85f);
+        ObjectAnimator alpha = ObjectAnimator.ofFloat(controls, View.ALPHA, startAlpha, endAlpha);
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(controls, View.SCALE_X, 0.85f, buttonsVisible ? 1f : 0.85f);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(controls, View.SCALE_Y, 0.85f, buttonsVisible ? 1f : 0.85f);
+        alpha.setDuration(220);
+        scaleX.setDuration(220);
+        scaleY.setDuration(220);
+        alpha.setInterpolator(new AccelerateDecelerateInterpolator());
+        scaleX.setInterpolator(new AccelerateDecelerateInterpolator());
+        scaleY.setInterpolator(new AccelerateDecelerateInterpolator());
+        alpha.start();
+        scaleX.start();
+        scaleY.start();
+        alpha.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (!buttonsVisible) controls.setVisibility(GONE);
             }
         });
     }
@@ -460,7 +552,8 @@ public class ConnectivityPanelIos extends LinearLayout {
             AudioManager am = (AudioManager) act.getSystemService(Context.AUDIO_SERVICE);
             int max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
             am.setStreamVolume(AudioManager.STREAM_MUSIC, Math.round(v * max), 0);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            Log.e("ConnectivityPanelIos", "setVolume failed: " + t, t);
         }
     }
 
@@ -552,9 +645,12 @@ public class ConnectivityPanelIos extends LinearLayout {
         f.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
         f.addAction("android.net.wifi.WIFI_AP_STATE_CHANGED");
         f.addAction("android.net.conn.TETHER_STATE_CHANGED");
+        // Aktualizuj suwak głośności przy zmianie fizycznymi przyciskami.
+        f.addAction(AudioManager.VOLUME_CHANGED_ACTION);
         try {
             act.registerReceiver(rc, f);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            Log.e("ConnectivityPanelIos", "registerReceiver failed: " + t, t);
         }
         update();
     }
