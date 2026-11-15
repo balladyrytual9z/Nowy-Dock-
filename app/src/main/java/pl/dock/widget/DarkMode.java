@@ -20,7 +20,7 @@ public class DarkMode {
 
     // Czy teraz tryb ciemny (efektywny stan wykonawczy).
     public static boolean isNight(Context c) {
-        return state(c) == DarkState.AUTO_NIGHT || state(c) == DarkState.MANUAL_ON;
+        return state(c) == SolarCalculator.DarkState.AUTO_NIGHT || state(c) == SolarCalculator.DarkState.MANUAL_ON;
     }
 
     // Zwraca aktualny stan wynikowy (AUTO_DAY / AUTO_NIGHT / MANUAL_ON / MANUAL_OFF).
