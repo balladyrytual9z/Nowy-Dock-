@@ -81,12 +81,6 @@ public class ConnectivityPanelIos extends LinearLayout {
         void modeChanged();
     }
 
-    /** Szerokosc jednego kafelka/przycisku w siatce panelu (TASK-1).
-     *  Kafelki Wi-Fi/BT sa kwadratami TILE x TILE, Hotspot i przyciski trybow
-     *  w tej samej kolumnie - dzieki temu wszystko lezy w jednej siatce. */
-    private static final int TILE = 120;
-    /** Wspolny odstęp między elementami panelu (kafelki, przyciski, krawedzie). */
-    private static final int GAP = 14;
     /** Jedno obcinanie tekstu do szerokosci kafelka/przycisku (TASK-1):
      *  dlugi SSID, "Hotspot osobisty" czy "Night Shift" nie moga wychodzic
      *  poza swoj prostokat w siatce 120dp. */
@@ -184,22 +178,21 @@ public class ConnectivityPanelIos extends LinearLayout {
         top.setOrientation(VERTICAL);
 
         tWifi = new Tile(act);
-        LayoutParams l1 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
-        l1.bottomMargin = dp(GAP);
+        LayoutParams l1 = new LayoutParams(dp(196), dp(56));
+        l1.bottomMargin = dp(10);
         top.addView(tWifi, l1);
 
-        tBt = new Tile(act);
-        LayoutParams l2 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
-        l2.bottomMargin = dp(GAP);
-        top.addView(tBt, l2);
-
         tHot = new Tile(act);
-        LayoutParams l3 = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56));
-        l3.bottomMargin = dp(GAP);
-        top.addView(tHot, l3);
+        LayoutParams l2 = new LayoutParams(dp(196), dp(56));
+        l2.bottomMargin = dp(10);
+        top.addView(tHot, l2);
 
-        // Wiersz trybu ciemnego i Night Shift pod ostatnim paskiem lacznosci:
-        // GAP przerwy (tak samo jak miedzy paskami).
+        tBt = new Tile(act);
+        LayoutParams l3 = new LayoutParams(dp(196), dp(56));
+        l3.bottomMargin = dp(10);
+        top.addView(tBt, l3);
+
+        // Wiersz przyciskow trybow pod paskami (12dp przerwy, jak miedzy paskami).
         boolean showMode = Prefs.showModeButtons(act);
         boolean showNs = Prefs.showNightShift(act);
         if (showMode || showNs) {
@@ -207,11 +200,11 @@ public class ConnectivityPanelIos extends LinearLayout {
             LayoutParams rp = new LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-            rp.topMargin = dp(GAP);
+            rp.topMargin = dp(12);
             if (showMode) {
                 bMode = new RoundBtn(act, 4, "Tryb ciemny");
                 LayoutParams mp = new LayoutParams(dp(88), dp(96));
-                if (showNs) mp.rightMargin = dp(GAP);
+                if (showNs) mp.rightMargin = dp(12);
                 controls.addView(bMode, mp);
                 bMode.setOnClickListener(new OnClickListener() {
                     @Override
@@ -800,7 +793,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             // Podpis w stalej szerokosci przycisku (120dp): nazwa i kazda linia
             // stanu obcinane do szerokosci - dlugi "Night Shift" nie wychodzi
             // poza sasiada (TASK-1).
-            float labW = Math.max(dp(20), w - 6f * d);
+            float labW = Math.max(dp(20), w - 12f * d);
             if (sub != null) {
                 // trzy linie jak w iOS: nazwa (bold) + stan w dwóch wierszach;
                 // odstęp nazwy od koła WIĘKSZY - dokładnie jak na wzorcu
