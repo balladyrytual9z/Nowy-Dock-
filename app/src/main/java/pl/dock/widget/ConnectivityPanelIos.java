@@ -623,8 +623,8 @@ public class ConnectivityPanelIos extends LinearLayout {
                         new android.graphics.RectF(cx - dp(12), cy - dp(12), cx + dp(12), cy + dp(12)), p);
             }
 
-            // tekst po prawej (margin 16dp od bąbla)
-            float textX = cx + dp(20) + dp(16);
+            // tekst po prawej (margin 8dp od bąbla)
+            float textX = cx + dp(20) + dp(8);
             p.setColor(night ? 0xFFFFFFFF : 0xFF111114);
             p.setTypeface(Typeface.DEFAULT_BOLD);
             p.setTextSize(15f * getResources().getDisplayMetrics().scaledDensity);
