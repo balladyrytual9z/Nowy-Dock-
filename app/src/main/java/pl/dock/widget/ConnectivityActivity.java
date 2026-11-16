@@ -39,6 +39,7 @@ import java.util.List;
 public class ConnectivityActivity extends BaseActivity {
 
     private ConnectivityPanelIos panel;
+    private boolean closing = false;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -78,13 +79,13 @@ public class ConnectivityActivity extends BaseActivity {
         root.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                finish();
+                closePanel();
             }
         });
         panel = new ConnectivityPanelIos(this, night, new ConnectivityPanelIos.Host() {
             @Override
             public void close() {
-                finish();
+                closePanel();
             }
 
             @Override
@@ -241,5 +242,32 @@ public class ConnectivityActivity extends BaseActivity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) applyImmersive();
+    }
+
+    /** Zamknięcie panelu lustrzane do otwarcia: panel kurczy się z powrotem do punktu
+     *  przy doku (0.9 skali) i znika (alpha 0), potem finish(). To samo co otwarcie,
+     *  tylko w odwrotną stronę. */
+    private void closePanel() {
+        if (closing) return;
+        closing = true;
+        boolean dockLeft = Ui.dockLeft(this);
+        float pivotX = dockLeft ? 0f : panel.getWidth();
+        panel.animate().cancel();
+        panel.setPivotX(pivotX);
+        panel.setPivotY(0f);
+        panel.animate().scaleX(0.9f).scaleY(0.9f)
+                .setDuration(Prefs.reduceMotion(this) ? 0 : 220)
+                .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator())
+                .start();
+        root.animate().alpha(0f)
+                .setDuration(Prefs.reduceMotion(this) ? 0 : 220)
+                .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator())
+                .withEndAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        finish();
+                    }
+                })
+                .start();
     }
 }
