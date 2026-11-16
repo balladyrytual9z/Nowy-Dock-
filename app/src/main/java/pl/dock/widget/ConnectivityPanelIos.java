@@ -988,6 +988,9 @@ public class ConnectivityPanelIos extends LinearLayout {
         private Listener l;
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final RectF r = new RectF();
+        private final Path pillPath = new Path();
+        private final Path levelPath = new Path();
+        private final Path speakerPath = new Path();
         private final float d = getResources().getDisplayMetrics().density;
 
         public PillSlider(Context c, boolean sun, float v) {
@@ -1007,27 +1010,34 @@ public class ConnectivityPanelIos extends LinearLayout {
             float w = getWidth();
             float h = getHeight();
             float rad = w / 2f;
+
             // SZKŁO: półprzezroczysty tor + pas światła Z GÓRY + pionowy rant
             p.setStyle(Paint.Style.FILL);
             p.setShader(null);
             p.setColor(night ? 0x9E4E4E53 : 0xCCD1D1D6);
-            r.set(0, 0, w, h);
+            r.set(0f, 0f, w, h);
             cv.drawRoundRect(r, rad, rad, p);
-            int save = cv.save();
-            Path clip = new Path();
-            clip.addRoundRect(r, rad, rad, Path.Direction.CW);
-            cv.clipPath(clip);
-            p.setShader(new LinearGradient(0, 0, 0, h * 0.35f,
+
+            // Wypełnienie poziomu przycięte matematycznie przez Path.op (API 19+),
+            // rysowane drawPath z ANTI_ALIAS_FLAG — gładkie łuki też w LAYER_TYPE_SOFTWARE.
+            float fillTop = h * (1f - value);
+            pillPath.reset();
+            pillPath.addRoundRect(r, rad, rad, Path.Direction.CW);
+            if (fillTop < h) {
+                levelPath.reset();
+                levelPath.addRect(0f, fillTop, w, h, Path.Direction.CW);
+                pillPath.op(levelPath, Path.Op.INTERSECT);
+            }
+            p.setShader(new LinearGradient(0f, 0f, 0f, h * 0.35f,
                     new int[]{0x3DFFFFFF, 0x00FFFFFF},
                     new float[]{0f, 1f}, Shader.TileMode.CLAMP));
-            cv.drawRect(r, p);
+            cv.drawPath(pillPath, p);
             p.setShader(null);
-            p.setColor(0xE6FAFAFC);
-            cv.drawRect(0, h * (1f - value), w, h, p);
-            cv.restoreToCount(save);
+
+            // Obrys (ramka) pigułki
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeWidth(1.4f * d);
-            p.setShader(new LinearGradient(0, 0, 0, h,
+            p.setShader(new LinearGradient(0f, 0f, 0f, h,
                     night ? new int[]{0x99FFFFFF, 0x26FFFFFF}
                           : new int[]{0x66808090, 0x1A808090},
                     new float[]{0f, 1f}, Shader.TileMode.CLAMP));
@@ -1035,9 +1045,10 @@ public class ConnectivityPanelIos extends LinearLayout {
             cv.drawRoundRect(r, rad - d * 0.7f, rad - d * 0.7f, p);
             p.setShader(null);
             p.setStyle(Paint.Style.FILL);
+
+            // IKONY 1:1 z iOS (zdjęcie usera): słońce #FFD700, głośnik #1EA1FF
             float cx = w / 2f;
             float cy = h - 34f * d;
-            // IKONY 1:1 z iOS (zdjęcie usera): słońce #FFD700, głośnik #1EA1FF
             p.setStrokeCap(Paint.Cap.ROUND);
             p.setStrokeJoin(Paint.Join.ROUND);
             if (sun) {
@@ -1057,15 +1068,15 @@ public class ConnectivityPanelIos extends LinearLayout {
                 p.setColor(0xFF1EA1FF);
                 p.setStyle(Paint.Style.FILL_AND_STROKE);
                 p.setStrokeWidth(2f * d);
-                Path sp = new Path();
-                sp.moveTo(cx - 11f * d, cy - 4.5f * d);
-                sp.lineTo(cx - 4f * d, cy - 4.5f * d);
-                sp.lineTo(cx + 3f * d, cy - 10.5f * d);
-                sp.lineTo(cx + 3f * d, cy + 10.5f * d);
-                sp.lineTo(cx - 4f * d, cy + 4.5f * d);
-                sp.lineTo(cx - 11f * d, cy + 4.5f * d);
-                sp.close();
-                cv.drawPath(sp, p);
+                speakerPath.reset();
+                speakerPath.moveTo(cx - 11f * d, cy - 4.5f * d);
+                speakerPath.lineTo(cx - 4f * d, cy - 4.5f * d);
+                speakerPath.lineTo(cx + 3f * d, cy - 10.5f * d);
+                speakerPath.lineTo(cx + 3f * d, cy + 10.5f * d);
+                speakerPath.lineTo(cx - 4f * d, cy + 4.5f * d);
+                speakerPath.lineTo(cx - 11f * d, cy + 4.5f * d);
+                speakerPath.close();
+                cv.drawPath(speakerPath, p);
                 p.setStyle(Paint.Style.STROKE);
                 p.setStrokeWidth(2.2f * d);
                 cv.drawArc(new RectF(cx - 1f * d, cy - 5f * d, cx + 9f * d, cy + 5f * d), -48, 96,
