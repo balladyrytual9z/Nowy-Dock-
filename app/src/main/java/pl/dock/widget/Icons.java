@@ -460,6 +460,37 @@ public class Icons {
         }
     }
 
+    // Przycina bitmapę do rzeczywistego obszaru widocznych pikseli (+1 px na antyaliasing),
+    // aby ikony o różnych proporcjach można było skalować do identycznej wysokości wizualnej.
+    public static Bitmap trim(Bitmap b) {
+        if (b == null) return null;
+        try {
+            int w = b.getWidth();
+            int h = b.getHeight();
+            int[] px = new int[w * h];
+            b.getPixels(px, 0, w, 0, 0, w, h);
+            int minX = w, minY = h, maxX = -1, maxY = -1;
+            for (int y = 0; y < h; y++) {
+                for (int x = 0; x < w; x++) {
+                    if ((px[y * w + x] >>> 24) > 16) {
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+            if (maxX < 0) return b;
+            minX = Math.max(0, minX - 1);
+            minY = Math.max(0, minY - 1);
+            maxX = Math.min(w - 1, maxX + 1);
+            maxY = Math.min(h - 1, maxY + 1);
+            return Bitmap.createBitmap(b, minX, minY, maxX - minX + 1, maxY - minY + 1);
+        } catch (Throwable t) {
+            return b;
+        }
+    }
+
     // ---------------------------------------------------------------- własny obraz z pliku
 
     public static boolean saveFromStream(Context c, AppEntry e, java.io.InputStream in1,

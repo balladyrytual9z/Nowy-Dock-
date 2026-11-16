@@ -188,9 +188,9 @@ public class DockView extends View {
         // które użytkownik zatwierdził na tablecie). Wcześniejsze glify z Glyphs
         // miały inne kształty; pełne wektory z opaque fill renderują się na
         // MT8163 poprawnie (zawodne były tylko wektory obrysowe z pustym fill).
-        bWifi = Icons.wifi(c, s.wifi, fg);
-        bTether = Icons.tether(96, s.tether ? fg : dimmer, false);
-        bBt = Icons.vector(c, R.drawable.ic_bt, 96, s.bt ? fg : dimmer);
+        bWifi = Icons.trim(Icons.wifi(c, s.wifi, fg));
+        bTether = Icons.trim(Icons.tether(96, s.tether ? fg : dimmer, false));
+        bBt = Icons.trim(Icons.vector(c, R.drawable.ic_bt, 96, s.bt ? fg : dimmer));
         bBattery = Icons.vector(c, R.drawable.ic_battery, 96, fg);
         bCharge = Icons.batteryCharging(c, 96, fg);
         bCp = Icons.carplayMark(96, CarplayState.color(s.cp, fg));
@@ -420,15 +420,33 @@ public class DockView extends View {
         float cy = top + 24f * d;
         cv.drawText(clock, cx, cy - (clockPaint.descent() + clockPaint.ascent()) / 2f, clockPaint);
 
-        // WiFi, tethering, Bluetooth (telefon) - jak na referencji uzytkownika:
-        // kolejnosc Wi-Fi / hotspot / BT, rowne odstepy, rozmiar dopasowany do panelu
+        // WiFi, tethering, Bluetooth: identyczna wysokość wizualna (13 dp)
+        // i równe wizualne odstępy między krawędziami glifów.
         float sy = top + 50f * d;
-        float is = 19f * d;   // ikona
-        float igp = 3f * d;   // rowny odstep miedzy ikonami (razem 63 dp w panelu 65 dp)
-        float x0 = cx - (3f * is + 2f * igp) / 2f;
-        drawIcon(cv, bWifi, x0, sy - is / 2f, is, is, 255);
-        drawIcon(cv, bTether, x0 + is + igp, sy - is / 2f, is, is, 255);
-        drawIcon(cv, bBt, x0 + 2f * (is + igp), sy - is / 2f, is, is, 255);
+        float ih = 13f * d;
+        float wWifi = bWifi != null && bWifi.getHeight() > 0
+                ? ih * bWifi.getWidth() / (float) bWifi.getHeight() : ih;
+        float wTether = bTether != null && bTether.getHeight() > 0
+                ? ih * bTether.getWidth() / (float) bTether.getHeight() : ih;
+        float wBt = bBt != null && bBt.getHeight() > 0
+                ? ih * bBt.getWidth() / (float) bBt.getHeight() : ih;
+        float igp = 5f * d;
+        float totalW = wWifi + wTether + wBt + 2f * igp;
+        float maxW = 57f * d; // min. 4 dp marginesu po obu stronach panelu 65 dp
+        if (totalW > maxW) {
+            float k = maxW / totalW;
+            ih *= k;
+            wWifi *= k;
+            wTether *= k;
+            wBt *= k;
+            igp *= k;
+            totalW = maxW;
+        }
+        float x0 = cx - totalW / 2f;
+        float yTop = sy - ih / 2f;
+        drawIcon(cv, bWifi, x0, yTop - 0.35f * d, wWifi, ih, 255);
+        drawIcon(cv, bTether, x0 + wWifi + igp, yTop, wTether, ih, 255);
+        drawIcon(cv, bBt, x0 + wWifi + igp + wTether + igp, yTop, wBt, ih, 255);
 
         // kolejne wiersze: napięcie / ładowanie, bateria telefonu, status CarPlay
         float y = top + 76f * d;
