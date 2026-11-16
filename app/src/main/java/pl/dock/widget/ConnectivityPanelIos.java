@@ -1011,30 +1011,34 @@ public class ConnectivityPanelIos extends LinearLayout {
             float h = getHeight();
             float rad = w / 2f;
 
-            // SZKŁO: półprzezroczysty tor + pas światła Z GÓRY + pionowy rant
+            // 1. SZKŁO: półprzezroczysty tor + pionowy rant
             p.setStyle(Paint.Style.FILL);
             p.setShader(null);
             p.setColor(night ? 0x9E4E4E53 : 0xCCD1D1D6);
             r.set(0f, 0f, w, h);
             cv.drawRoundRect(r, rad, rad, p);
 
-            // Wypełnienie poziomu przycięte matematycznie przez Path.op (API 19+),
-            // rysowane drawPath z ANTI_ALIAS_FLAG — gładkie łuki też w LAYER_TYPE_SOFTWARE.
+            // 2. WYPEŁNIENIE POZIOMU: biały prostokład przycięty do kształtu pigułki
+            //    przez Path.op(INTERSECT) — gładkie łuki w LAYER_TYPE_SOFTWARE,
+            //    górna krawędź idealnie płaska na wysokości value.
             float fillTop = h * (1f - value);
             pillPath.reset();
             pillPath.addRoundRect(r, rad, rad, Path.Direction.CW);
-            if (fillTop < h) {
-                levelPath.reset();
-                levelPath.addRect(0f, fillTop, w, h, Path.Direction.CW);
-                pillPath.op(levelPath, Path.Op.INTERSECT);
-            }
+            levelPath.reset();
+            levelPath.addRect(0f, fillTop, w, h, Path.Direction.CW);
+            pillPath.op(levelPath, Path.Op.INTERSECT);
+            p.setShader(null);
+            p.setColor(0xE6FAFAFC);
+            cv.drawPath(pillPath, p);
+
+            // 3. PAS ŚWIATŁA Z GÓRY na wierzchu wypełnienia (delikatny gradient)
             p.setShader(new LinearGradient(0f, 0f, 0f, h * 0.35f,
                     new int[]{0x3DFFFFFF, 0x00FFFFFF},
                     new float[]{0f, 1f}, Shader.TileMode.CLAMP));
             cv.drawPath(pillPath, p);
             p.setShader(null);
 
-            // Obrys (ramka) pigułki
+            // 4. Obrys (ramka) pigułki
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeWidth(1.4f * d);
             p.setShader(new LinearGradient(0f, 0f, 0f, h,
