@@ -130,14 +130,14 @@ public class ConnectivityActivity extends BaseActivity {
                 // punkt, od ktorego panel rosnie: gorny naroznik od strony doka
                 panel.setPivotX(dockLeft2 ? 0f : panel.getWidth());
                 panel.setPivotY(0f);
-                // ANIMACJA OTWARCIA (jak w LauncherActivity): start 0.6 z
-                // OvershootInterpolator, na koncu wymuszony re-layout +
-                // invalidate (mechanizm naprawczy "pustego panelu", PR #14).
-                panel.setScaleX(sc * 0.6f);
-                panel.setScaleY(sc * 0.6f);
+                // ANIMACJA OTWARCIA (jak w iOS): subtelny start 0.9 z
+                // AccelerateDecelerateInterpolator - gładkie, bez przelotu
+                // (overshoot wygląda sztucznie, zamknięcie jest natychmiastowe i czyste).
+                panel.setScaleX(sc * 0.9f);
+                panel.setScaleY(sc * 0.9f);
                 panel.animate().scaleX(sc).scaleY(sc)
-                        .setDuration(Prefs.reduceMotion(ConnectivityActivity.this) ? 0 : 300)
-                        .setInterpolator(new android.view.animation.OvershootInterpolator(0.9f))
+                        .setDuration(Prefs.reduceMotion(ConnectivityActivity.this) ? 0 : 220)
+                        .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator())
                         .withEndAction(new Runnable() {
                             @Override
                             public void run() {
