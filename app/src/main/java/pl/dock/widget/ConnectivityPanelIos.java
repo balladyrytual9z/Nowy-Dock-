@@ -297,44 +297,6 @@ public class ConnectivityPanelIos extends LinearLayout {
                     setBrightness(v);
                 }
             });
-            // Long-press na suwaku jasnosci: otwiera/zamyka przyciski trybow z animacja,
-            // plus animacja iOS26 na przytrzymanym elemencie (lift + powiększenie + podświetlenie).
-            bri.setOnTouchListener(new OnTouchListener() {
-                private boolean pressed = false;
-                @Override
-                public boolean onTouch(View v, MotionEvent event) {
-                    switch (event.getAction()) {
-                        case MotionEvent.ACTION_DOWN:
-                            pressed = true;
-                            // iOS26 style: element "wyskakuje" w górę, się powiększa i jaśnieje
-                            v.animate().cancel();
-                            v.animate()
-                                .translationY(-dp(8))
-                                .scaleX(1.06f)
-                                .scaleY(1.06f)
-                                .setDuration(120)
-                                .setInterpolator(new AccelerateDecelerateInterpolator())
-                                .start();
-                            return false;
-                        case MotionEvent.ACTION_UP:
-                        case MotionEvent.ACTION_CANCEL:
-                            if (pressed) {
-                                pressed = false;
-                                v.animate().cancel();
-                                v.animate()
-                                    .translationY(0f)
-                                    .scaleX(1f)
-                                    .scaleY(1f)
-                                    .setDuration(120)
-                                    .setInterpolator(new AccelerateDecelerateInterpolator())
-                                    .start();
-                                toggleButtons();
-                            }
-                            return true;
-                    }
-                    return false;
-                }
-            });
             LinearLayout.LayoutParams lpBars = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
