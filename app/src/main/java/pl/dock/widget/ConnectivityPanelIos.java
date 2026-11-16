@@ -140,7 +140,8 @@ public class ConnectivityPanelIos extends LinearLayout {
     };
 
     private int dp(float v) {
-        return Ui.dp(act, v);
+        // Cały panel powiększony o 30% (1.3x) na życzenie użytkownika.
+        return Ui.dp(act, v * 1.3f);
     }
 
     public ConnectivityPanelIos(Activity a, boolean night, Host host) {
