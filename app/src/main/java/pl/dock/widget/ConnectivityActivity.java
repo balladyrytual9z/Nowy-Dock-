@@ -242,7 +242,10 @@ public class ConnectivityActivity extends BaseActivity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) applyImmersive();
+        if (hasFocus) {
+            applyImmersive();
+            closing = false;   // reset po powrocie fokusu - kolejne zamkniecie musi dzialac
+        }
     }
 
     /** Zamknięcie panelu lustrzane do otwarcia: panel kurczy się z powrotem do punktu
