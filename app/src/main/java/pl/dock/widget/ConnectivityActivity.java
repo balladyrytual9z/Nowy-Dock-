@@ -185,7 +185,7 @@ public class ConnectivityActivity extends BaseActivity {
                 }
             }
             @Override public void onBottom() {
-                finish();
+                closePanel();
             }
             @Override public void onBottomLong() {
             }
