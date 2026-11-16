@@ -1,14 +1,16 @@
 package pl.dock.widget;
 
 import android.app.Activity;
-import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.LinearGradient;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.PorterDuffXfermode;
+import android.graphics.RectF;
 import android.graphics.Shader;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.view.View;
@@ -18,26 +20,27 @@ import android.view.WindowManager;
 /**
  * Honda Premium Startup - elegancka animacja powitalna przy wlaczeniu ekranu
  * radia ESSGOO (po przekreceniu kluczyka). NIE jest to animacja bootowania
- * Androida ani startu silnika - dziala jako niezalezna animacja powitalna
- * nad launcherem, uruchamiana z ScreenOnReceiver (DockApp).
+ * Androida ani startu silnika - dziala jako niezalezna animacja powitalna,
+ * uruchamiana z ScreenOnReceiver (rejestracja w DockApp), i plynnie
+ * odsłania launcher.
  *
  * Storyboard 2 s (1280x720, poziomo):
- *   0.00-0.35  blackout (czarne tlo, nic wiecej)
- *   0.35-0.85  reveal - logo plynnie sie pojawia
+ *   0.00-0.35  blackout (tlo, bez elementow UI)
+ *   0.35-0.85  reveal - logo plynnie sie pojawia (decelerate)
  *   0.85-1.40  light sweep - jeden chromowany refleks przechodzi przez logo
  *   1.40-1.75  hold - logo stabilizuje sie
- *   1.75-2.00  fade out - logo znika i okno plynnie odsłania launcher
+ *   1.75-2.00  fade out - logo znika, okno zanika i odsłania launcher
  *
  * Dwa warianty kolorystyczne zwiazane z trybem dnia/nocy launchera (DarkMode):
  *   NIGHT - grafitowe tlo, srebrny metal (logo 1:1)
- *   DAY   - jasne tlo, sciemnione aluminium (logo przyciemniane ~2.4x)
+ *   DAY   - jasne tlo, przyciemnione aluminium (tint na wektorze)
  *
- * Logo wczytywane z zasobu drawable "honda_welcome_logo" (dokladnie obraz
- * dostarczony przez uzytkownika). Brak zasobu = brak animacji (ciche
- * zakonczenie), build nigdy nie zalezy od tej grafiki.
+ * Logo: zasob wektorowy drawable/honda_welcome_logo.xml (pelny lockup
+ * H + HONDA + CIVIC HATCHBACK, dokladnie wg grafiki uzytkownika).
+ * Brak zasobu = ciche zakonczenie (build nie zalezy od grafiki).
  *
- * Czego celowo NIE ma: obrotow, zoomu kamery, czasteczek, sci-fi, agresywnych
- * blyskow (ustalenia projektowe).
+ * Czego celowo NIE ma: obrotow, zoomu kamery, czasteczek, sci-fi,
+ * agresywnych blyskow (ustalenia projektowe).
  */
 public class HondaWelcomeActivity extends Activity {
 
@@ -48,24 +51,26 @@ public class HondaWelcomeActivity extends Activity {
     static final long T_HOLD     = 1750L;
     static final long T_END      = 2000L;
 
-    // Logo zajmuje ~62% szerokosci ekranu (bylo: 25-35% dla samego napisu;
-    // pelny lockup H+HONDA+CIVIC HATCHBACK jest szerszy, wiec 62% daje
-    // napis HONDA w okolicy dawnych 30-35%).
+    // Logo zajmuje ~62% szerokosci ekranu (pelny lockup jest szeroki;
+    // napis HONDA wypada wtedy ok. 30-35% szerokosci - jak w ustaleniach).
     private static final float LOGO_WIDTH_FRAC = 0.62f;
+
+    // DAY: przyciemniony metal (aluminium/chlodny chrom na jasnym tle).
+    private static final int DAY_TINT = 0xFF6E6E73;
 
     private WelcomeView view;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Wejscie bez animacji - ekran ma byc czarny od razu (blackout).
+        // Wejscie bez animacji - ekran ma byc "czarny" od razu (blackout).
         overridePendingTransition(0, 0);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
-        Bitmap src = loadLogoBitmap();
-        if (src == null) {
+        Drawable logo = loadLogoDrawable();
+        if (logo == null) {
             // Brak grafiki w repo - nie blokujemy launchera.
             finish();
             overridePendingTransition(0, 0);
@@ -73,11 +78,6 @@ public class HondaWelcomeActivity extends Activity {
         }
 
         boolean night = DarkMode.isNight(this);
-        // DAY: aluminium/chlodny chrom na jasnym tle - przyciemniamy metal,
-        // NIGHT: oryginalne srebrne chromy na graficie.
-        Bitmap logo = keyed(src, night ? 1.0f : 0.42f);
-        if (src != logo) src.recycle();
-
         view = new WelcomeView(this, logo, night);
         setContentView(view, new android.view.ViewGroup.LayoutParams(
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
@@ -109,74 +109,50 @@ public class HondaWelcomeActivity extends Activity {
         finishWithFade();
     }
 
-    private void finishWithFade() {
+    /** Zakonczenie z plynnym zanikiem okna - pod spodem zostaje launcher. */
+    void finishWithFade() {
         finish();
-        // Wyjscie plynnym zanikiem calego okna - pod spodem zostaje launcher.
         try {
             overridePendingTransition(0, android.R.anim.fade_out);
         } catch (Throwable ignored) { }
     }
 
-    /** Wczytuje logo z drawable "honda_welcome_logo" (plik dodany do repo). */
-    private Bitmap loadLogoBitmap() {
+    /** Wczytuje logo z drawable "honda_welcome_logo" (wektor w repo). */
+    private Drawable loadLogoDrawable() {
         try {
             int id = getResources().getIdentifier("honda_welcome_logo", "drawable", getPackageName());
             if (id == 0) return null;
-            Bitmap b = android.graphics.BitmapFactory.decodeResource(getResources(), id);
-            return (b == null || b.isRecycled() || b.getWidth() == 0) ? null : b;
+            return getDrawable(id);
         } catch (Throwable t) {
-            LogDiagnostics.e("HondaWelcome", "loadLogoBitmap: " + t.getMessage(), t);
+            LogDiagnostics.e("HondaWelcome", "loadLogoDrawable: " + t.getMessage(), t);
             return null;
-        }
-    }
-
-    /**
-     * Usuwa czarne tlo obrazu (kluczowanie po luminancji) i opcjonalnie
-     * przyciemnia metal. Dzieki temu logo stoi na tle animacji, a nie
-     * w czarnym prostokacie (wazne dla wariantu dziennego).
-     */
-    static Bitmap keyed(Bitmap src, float darken) {
-        try {
-            int w = src.getWidth(), h = src.getHeight();
-            int[] px = new int[w * h];
-            src.getPixels(px, 0, w, 0, 0, w, h);
-            for (int i = 0; i < px.length; i++) {
-                int p = px[i];
-                int r = (p >> 16) & 0xFF, g = (p >> 8) & 0xFF, b = p & 0xFF;
-                int lum = Math.max(r, Math.max(g, b));
-                int a;
-                if (lum <= 14) a = 0;
-                else if (lum >= 235) a = 255;
-                else a = (int) ((lum - 14) * 255f / (235 - 14));
-                r = (int) (r * darken); g = (int) (g * darken); b = (int) (b * darken);
-                px[i] = (a << 24) | (Math.min(255, r) << 16) | (Math.min(255, g) << 8) | Math.min(255, b);
-            }
-            return Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888);
-        } catch (Throwable t) {
-            LogDiagnostics.e("HondaWelcome", "keyed: " + t.getMessage(), t);
-            return src;
         }
     }
 
     /** Widok rysujacy caly storyboard na Canvas - bez XML i bez AndroidX. */
     static class WelcomeView extends View {
-        private final Bitmap logo;
+        private final Drawable logo;
         private final boolean night;
-        private final Paint logoPaint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
         private final Paint bgPaint = new Paint();
+        private final Paint sweepPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
         private long start = -1L;
         private boolean finished = false;
         private LinearGradient sweepShader;
         private float bandWidth;
 
-        WelcomeView(android.content.Context c, Bitmap logo, boolean night) {
+        WelcomeView(android.content.Context c, Drawable logo, boolean night) {
             super(c);
             this.logo = logo;
             this.night = night;
-            // NIGHT: grafit (lekko jasniejszy niz czyste czarne tlo logo,
-            // zeby nie bylo widocznej krawedzi obrazu); DAY: jasne, chlodne.
+            // NIGHT: grafit (odrobine jasniejszy niz czern, elegancko);
+            // DAY: jasne, chlodne tlo.
             bgPaint.setColor(night ? 0xFF0B0B0D : 0xFFF2F2F5);
+            if (!night) {
+                // Aluminium zamiast srebra na jasnym tle.
+                logo.setColorFilter(new PorterDuffColorFilter(DAY_TINT, PorterDuff.Mode.SRC_ATOP));
+            }
+            sweepPaint.setStyle(Paint.Style.FILL);
         }
 
         @Override
@@ -186,7 +162,7 @@ public class HondaWelcomeActivity extends Activity {
             long t = now - start;
             final int w = getWidth(), h = getHeight();
 
-            // 1) Tlo (blackout w nocy = prawie czarne; w dzien jasne).
+            // 1) Tlo.
             canvas.drawRect(0, 0, w, h, bgPaint);
 
             // Globalny fade-out calosci (1.75-2.00 s).
@@ -196,7 +172,7 @@ public class HondaWelcomeActivity extends Activity {
                 global = 1f - accel(f);
             }
 
-            // 2) Reveal (0.35-0.85 s): decelerate alpha + subtelne 0.985->1.0.
+            // 2) Reveal (0.35-0.85 s).
             float reveal = 0f;
             if (t >= T_BLACKOUT) {
                 float f = (t - T_BLACKOUT) / (float) (T_REVEAL - T_BLACKOUT);
@@ -204,11 +180,16 @@ public class HondaWelcomeActivity extends Activity {
             }
 
             if (reveal > 0f && global > 0f) {
-                // Skalowanie: logo dopasowane do LOGO_WIDTH_FRAC szerokosci,
-                // wyśrodkowane w poziomie i pionie.
-                float scale = Math.min((w * LOGO_WIDTH_FRAC) / logo.getWidth(),
-                        (h * 0.80f) / logo.getHeight());
-                float dw = logo.getWidth() * scale, dh = logo.getHeight() * scale;
+                // Proporcje z intrinsicRatio wektora (2528x1696).
+                float ratio = logo.getIntrinsicWidth() > 0 && logo.getIntrinsicHeight() > 0
+                        ? logo.getIntrinsicWidth() / (float) logo.getIntrinsicHeight()
+                        : 2528f / 1696f;
+                float dw = w * LOGO_WIDTH_FRAC;
+                float dh = dw / ratio;
+                if (dh > h * 0.80f) {          // bezpiecznik na inne ekranie
+                    dh = h * 0.80f;
+                    dw = dh * ratio;
+                }
                 float left = (w - dw) / 2f, top = (h - dh) / 2f;
 
                 // Subtelne "osadzenie" 0.985 -> 1.0 (nie zoom kamery).
@@ -216,12 +197,14 @@ public class HondaWelcomeActivity extends Activity {
                 canvas.save();
                 canvas.scale(settle, settle, w / 2f, h / 2f);
 
-                logoPaint.setAlpha((int) (255 * reveal * global));
-                android.graphics.RectF dst = new android.graphics.RectF(left, top, left + dw, top + dh);
-                canvas.drawBitmap(logo, null, dst, logoPaint);
+                RectF bounds = new RectF(left, top, left + dw, top + dh);
+                logo.setBounds((int) left, (int) top, (int) (left + dw), (int) (top + dh));
+                logo.setAlpha((int) (255 * reveal * global));
+                logo.draw(canvas);
 
-                // 3) Light sweep (0.85-1.40 s): jeden refleks, bez przesadnego
-                //    blysku - delikatny pas swiatla klipowany do pikseli logo.
+                // 3) Light sweep (0.85-1.40 s): jeden delikatny refleks,
+                //    klipowany do pikseli logo (SRC_ATOP), bez agresywnego
+                //    blysku.
                 if (t >= T_REVEAL && t < T_SWEEP + 120L) {
                     float p = (t - T_REVEAL) / (float) (T_SWEEP - T_REVEAL);
                     if (p > 0f && p < 1f) {
@@ -230,26 +213,25 @@ public class HondaWelcomeActivity extends Activity {
                             sweepShader = new LinearGradient(0, 0, bandWidth, bandWidth * 0.25f,
                                     new int[]{0x00000000, 0x59FFFFFF, 0x00000000},
                                     new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP);
+                            sweepPaint.setShader(sweepShader);
+                            sweepPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
                         }
-                        float pad = bandWidth;
-                        Paint sweep = new Paint(Paint.ANTI_ALIAS_FLAG);
-                        sweep.setShader(sweepShader);
-                        sweep.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP));
-                        sweep.setAlpha((int) (255 * 0.9f * global));
-                        int sc = canvas.saveLayer(left - pad, top - pad, left + dw + pad, top + dh + pad, null);
-                        canvas.drawBitmap(logo, null, dst, logoPaint);
+                        int sc = canvas.saveLayer(bounds.left, bounds.top,
+                                bounds.right, bounds.bottom, null);
+                        logo.draw(canvas);
                         Matrix m = new Matrix();
-                        float tx = left - bandWidth + p * (dw + 2f * bandWidth);
+                        float tx = bounds.left - bandWidth + p * (dw + 2f * bandWidth);
                         m.setTranslate(tx, 0f);
                         sweepShader.setLocalMatrix(m);
-                        canvas.drawRect(left - pad, top - pad, left + dw + pad, top + dh + pad, sweep);
+                        sweepPaint.setAlpha((int) (255 * 0.9f * global));
+                        canvas.drawRect(bounds, sweepPaint);
                         canvas.restoreToCount(sc);
                     }
                 }
                 canvas.restore();
             }
 
-            // 4) Koniec - plynnie odsłaniamy launcher (fade out okna).
+            // 4) Koniec - plynnie odsłaniamy launcher.
             if (t >= T_END) {
                 if (!finished) {
                     finished = true;

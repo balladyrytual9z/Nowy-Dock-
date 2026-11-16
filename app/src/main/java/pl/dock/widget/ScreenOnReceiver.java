@@ -7,8 +7,8 @@ import android.os.SystemClock;
 
 /**
  * Wyzwalacz animacji powitalnej Honda: ACTION_SCREEN_ON (wlaczenie ekranu
- * po przekreceniu kluczyka). Odbiorem rejestrowanym dynamicznie w DockApp -
- * manifestowy receiver nie dostaje SCREEN_ON na Androidzie 9.
+ * po przekreceniu kluczyka). Rejestrowany dynamicznie w DockApp - manifestowy
+ * receiver nie dostaje SCREEN_ON na Androidzie 9.
  *
  * Zabezpieczenie przed wielokrotnym wyswietleniem (np. szybkie gaszenie/
  * zapalanie ekranu): MIN_GAP miedzy pokazaniami.
