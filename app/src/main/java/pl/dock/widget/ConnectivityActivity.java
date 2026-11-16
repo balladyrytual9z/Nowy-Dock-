@@ -39,6 +39,7 @@ import java.util.List;
 public class ConnectivityActivity extends BaseActivity {
 
     private ConnectivityPanelIos panel;
+    private FrameLayout root;
     private boolean closing = false;
 
     @Override
@@ -52,7 +53,7 @@ public class ConnectivityActivity extends BaseActivity {
             getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
         } catch (Throwable ignored) {}
         applyImmersive();
-        FrameLayout root = new FrameLayout(this);
+        root = new FrameLayout(this);
         // BLUR W TLE (jak w launcherze): rozmyta tapeta + zaslona zamiast czerni
         try {
             int sw = getResources().getDisplayMetrics().widthPixels;
