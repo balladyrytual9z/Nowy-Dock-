@@ -119,6 +119,7 @@ public class ConnectivityPanelIos extends LinearLayout {
 
     private final Activity act;
     private boolean night;   // nie-final: panel reaguje na zmiane trybu w otwartej nakladce
+    private PillSlider briSlider; // suwak jasnosci - do wymuszenia minimum przy Night Shift
     private final Host host;
     private Tile tWifi, tBt, tHot;
     private RoundBtn bMode, bShift;
@@ -162,6 +163,8 @@ public class ConnectivityPanelIos extends LinearLayout {
         }
         setElevation(dp(12));
         // Klik w puste miejsce panelu: zamyka regulację Night Shift (warmth slider).
+        // DOTYK SUWAKÓW NIE JEST BLOKOWANY - PillSlider ma wlasny onTouchEvent z
+        // requestDisallowInterceptTouchEvent, wiec zdarzenia docieraja do dzieci.
         setOnTouchListener(new OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -281,6 +284,7 @@ public class ConnectivityPanelIos extends LinearLayout {
             bars.setOrientation(HORIZONTAL);
             PillSlider vol = new PillSlider(act, false, volumeValue());
             PillSlider bri = new PillSlider(act, true, brightnessValue());
+            briSlider = bri; // zapisz ref. do wymuszenia minimum przy Night Shift
             LinearLayout.LayoutParams vbp = new LinearLayout.LayoutParams(dp(56), dp(188));
             bars.addView(vol, vbp);
             LinearLayout.LayoutParams bbp = new LinearLayout.LayoutParams(dp(56), dp(188));
@@ -585,6 +589,12 @@ public class ConnectivityPanelIos extends LinearLayout {
             // Night Shift jak w iOS: stan + podpis "do wsch./zach. słońca"
             bShift.setActive(NightShift.effectiveOn(act));
             bShift.setSub(NightShift.label(act));
+        }
+        // Gdy Night Shift wlaczony - suwak jasnosci zawsze na minimum (0.0).
+        // Jasnosc systemowa jest obnizana przez NightShiftService, suwak tylko
+        // odzwierciedla ten stan wizualnie.
+        if (briSlider != null && NightShift.isOn(act)) {
+            briSlider.setValue(0.0f);
         }
         if (note != null) {
             // stan trybu jest teraz w podpisie przycisku "Tryb ciemny"
@@ -962,6 +972,12 @@ public class ConnectivityPanelIos extends LinearLayout {
             this.value = Math.max(0f, Math.min(1f, v));
             this.night = Look.night(c);
             setContentDescription(sun ? "Jasność ekranu" : "Głośność");
+        }
+
+        /** Ustaw wartość suwaka z zewnątrz (np. wymuś minimum przy Night Shift). */
+        public void setValue(float v) {
+            this.value = Math.max(0f, Math.min(1f, v));
+            invalidate();
         }
 
         public void setListener(Listener l) {
