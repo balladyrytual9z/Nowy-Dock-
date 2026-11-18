@@ -1156,11 +1156,14 @@ public class ConnectivityPanelIos extends LinearLayout {
             p.setColor(night ? 0x55FFFFFF : 0x44000000);
             cv.drawCircle(pad + trackW * 0.10f, trackY + 9f * d, 1.6f * d, p);
             cv.drawCircle(pad + trackW * 0.50f, trackY + 9f * d, 1.6f * d, p);
-            // biały pigułkowy uchwyt
+            // biały pigułkowy uchwyt — obniżony o połowę wysokości (12 dp w dół),
+            // żeby górna krawędź była na poziomie palca/toru, a nie wyżej.
+            // Usunięto zaokrąglenie (drawRect zamiast drawRoundRect) — bez efektu
+            // „rozmycia” pod paskiem.
             float tx = pad + trackW * frac;
             p.setColor(0xFFFFFFFF);
-            r.set(tx - 17f * d, trackY - 12f * d, tx + 17f * d, trackY + 12f * d);
-            cv.drawRoundRect(r, 12f * d, 12f * d, p);
+            r.set(tx - 17f * d, trackY, tx + 17f * d, trackY + 24f * d);
+            cv.drawRect(r, p);
         }
 
         @Override
