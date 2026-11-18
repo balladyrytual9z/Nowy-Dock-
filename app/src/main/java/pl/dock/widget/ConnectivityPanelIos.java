@@ -256,7 +256,12 @@ public class ConnectivityPanelIos extends LinearLayout {
                     @Override
                     public void onClick(View v) {
                         boolean ok = NightShift.toggle(act);
-                        if (!ok) host.close();
+                        // Nie zamykamy panelu gdy brak zgody na overlay -
+                        // uzytkownik bedzie mial jak ponownie sprobowac.
+                        // host.close() tylko gdy zgoda juz jest (ok == true).
+                        if (ok) {
+                            host.close();
+                        }
                         update();
                     }
                 });
