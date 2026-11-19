@@ -307,6 +307,16 @@ public class ConnectivityPanelIos extends LinearLayout {
                     setBrightness(v);
                 }
             });
+            // LONG-PRESS suwaka jasnosci = pokazanie/ukrycie przyciskow trybow
+            // (menu "Tryb ciemny" / "Night Shift" pod spodem panelu).
+            // REGRESJA: listener zgubil sie w 2c96e3c/027a203 - menu nie rozwijalo sie.
+            bri.setOnLongClickListener(new OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View v) {
+                    toggleButtons();
+                    return true;
+                }
+            });
             LinearLayout.LayoutParams lpBars = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -531,8 +541,9 @@ public class ConnectivityPanelIos extends LinearLayout {
 
     private float brightnessValue() {
         try {
-            // Gdy Night Shift wlaczony - zawsze obniz jasnosc do minimum.
-            if (NightShift.isOn(act)) return 0.0f;
+            // Suwak zawsze pokazuje REALNA jasnosc systemowa. Wymuszanie 0.0
+            // przy Night Shift cofalo pozycje suwaka i blokowalo przejazd
+            // (regresja 2c96e3c - suwak "siecial" sie do zera).
             return Settings.System.getInt(act.getContentResolver(), Settings.System.SCREEN_BRIGHTNESS) / 255f;
         } catch (Throwable t) {
             return 0.7f;
@@ -552,8 +563,11 @@ public class ConnectivityPanelIos extends LinearLayout {
             }
             Settings.System.putInt(act.getContentResolver(), Settings.System.SCREEN_BRIGHTNESS_MODE,
                     Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
-            // Gdy Night Shift wlaczony - zawsze minimalna jasnosc (niezaleznie od suwaka).
-            int level = NightShift.isOn(act) ? 10 : Math.max(10, Math.round(v * 255));
+            // Podloga 10 (czern zamiast czysciutkiego czarnego ekranu).
+            // Wcześniejsze wymuszenie 10 przy Night Shift sprawialo, ze suwak
+            // "nie sterowal" jasnoscia - przepisane na normalne sterowanie.
+            // Wyciszenie przy Night Shift robi NightShiftService, nie suwak.
+            int level = Math.max(10, Math.round(v * 255));
             Settings.System.putInt(act.getContentResolver(), Settings.System.SCREEN_BRIGHTNESS, level);
         } catch (Throwable ignored) {
         }
@@ -595,11 +609,10 @@ public class ConnectivityPanelIos extends LinearLayout {
             bShift.setActive(NightShift.effectiveOn(act));
             bShift.setSub(NightShift.label(act));
         }
-        // Gdy Night Shift wlaczony - suwak jasnosci zawsze na minimum (0.0).
-        // Jasnosc systemowa jest obnizana przez NightShiftService, suwak tylko
-        // odzwierciedla ten stan wizualnie.
-        if (briSlider != null && NightShift.isOn(act)) {
-            briSlider.setValue(0.0f);
+        // Synchronizacja z jasnoscia systemowa, ALE nie podczas przeciagania
+        // (wczesniejsze wymuszanie 0.0 przy Night Shift "siecialo" suwak).
+        if (briSlider != null && !briSlider.isPressed()) {
+            briSlider.setValue(brightnessValue());
         }
         if (note != null) {
             // stan trybu jest teraz w podpisie przycisku "Tryb ciemny"
@@ -961,6 +974,7 @@ public class ConnectivityPanelIos extends LinearLayout {
         }
 
         private float value;
+        private float lastNotified = -1f;   // ostatnia wartosc podana listenerowi (throttle)
         private final boolean sun;
         private final boolean night;
         private Listener l;
@@ -1079,25 +1093,38 @@ public class ConnectivityPanelIos extends LinearLayout {
             int a = e.getActionMasked();
             if (a == MotionEvent.ACTION_DOWN) {
                 getParent().requestDisallowInterceptTouchEvent(true);
+                applyFromTouch(e);   // tap = od razu ustaw poziom
                 return true;
             }
-            // WPUST NA KOŃCACH: palec fizycznie nie wejdzie na samą krawędź
-            // widoku, więc wcześniej zakres 0..1 liczono 1:1 z całej wysokości
-            // i końców (0% / 100%) nie dało się osiągnąć. Teraz zakres dotyku
-            // jest zwężony o wpust - dotknięcie BLISKO krawędzi daje od razu
-            // wartość skrajną.
             if (a == MotionEvent.ACTION_MOVE || a == MotionEvent.ACTION_UP) {
-                float inset = 30f * d;
-                float usable = getHeight() - inset * 2f;
-                float frac = usable <= 0 ? 0.5f
-                        : (getHeight() - inset - e.getY()) / usable;
-                value = Math.max(0f, Math.min(1f, frac));
-                invalidate();
-                if (l != null) {
-                    l.on(value);
-                }
+                applyFromTouch(e);
             }
             return true;
+        }
+
+        // WPUST NA KOŃCACH: palec fizycznie nie wejdzie na samą krawędź
+        // widoku, więc wcześniej zakres 0..1 liczono 1:1 z całej wysokości
+        // i końców (0% / 100%) nie dało się osiągnąć. Teraz zakres dotyku
+        // jest zwężony o wpust - dotknięcie BLISKO krawędzi daje od razu
+        // wartość skrajną.
+        // OGRANICZENIE CZESTOTLIWOSCI: listener zapisuje jasnosc w systemie
+        // (Settings.System.putInt); wolanie go na KAŻDE zdarzenie MOVE
+        // jankowalo suwak (Mali-T720). Teraz max 1% zmiany na klatkę.
+        private void applyFromTouch(MotionEvent e) {
+            float inset = 30f * d;
+            float usable = getHeight() - inset * 2f;
+            float frac = usable <= 0 ? 0.5f
+                    : (getHeight() - inset - e.getY()) / usable;
+            float v = Math.max(0f, Math.min(1f, frac));
+            boolean up = e.getActionMasked() == MotionEvent.ACTION_UP;
+            if (up || Math.abs(v - lastNotified) >= 0.01f) {
+                lastNotified = v;
+                if (l != null) l.on(v);
+            }
+            if (v != value) {
+                value = v;
+                invalidate();
+            }
         }
     }
 
