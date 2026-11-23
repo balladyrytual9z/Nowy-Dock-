@@ -42,7 +42,11 @@ public final class MapConfig {
             cfg.setOsmdroidBasePath(base);
             cfg.setOsmdroidTileCache(tiles);
             // Lekki cache pod ograniczony RAM tabletu (MT8163 / 128 MB heap).
-            cfg.setCacheMapTileCount((short) 9);
+            // 2026-11-23 (naprawa "nie widac mapy w jezdzie"): 9 kafli w RAM to za malo
+            // dla heading-up + follow: obrocony widok wymaga za jednym razem ~15+ kafli,
+            // wiec przy 9 nieustannie byly wywtywane i dosylane - mapa w ruchu wygladala
+            // jak pusta/niewidoczna. 32 kafle = ok. 1.5 MB RAM, bezpieczne dla MT8163.
+            cfg.setCacheMapTileCount((short) 32);
             cfg.setTileDownloadThreads((short) 2);
             cfg.setTileFileSystemThreads((short) 4);
             cfg.setTileFileSystemCacheMaxBytes(350L * 1024 * 1024);
