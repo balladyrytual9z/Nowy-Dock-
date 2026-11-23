@@ -1532,17 +1532,33 @@ public class LauncherActivity extends BaseActivity {
         float panelLeft = panelLeftSide ? dockPx + Ui.dp(this, 10)
                 : root.getWidth() - (dockPx + Ui.dp(this, 10)) - panelW;
         float panelTop = Ui.dp(this, 12);
-        float px = Math.max(0f, Math.min(panelW, gestureX - panelLeft));
-        float py = Math.max(0f, Math.min(Ui.dp(this, 600), gestureY - panelTop));
         overlay.setAlpha(0f);
         overlay.animate().alpha(1f).setDuration(Prefs.reduceMotion(this) ? 0 : 220).start();
+        // 2026-11-23 (naprawa "zawieszenia" przy otwieraniu): PIERWSZY pomiar
+        // panelu (budowa kafelkow + pierwszy rysunek PanelGlassFrame z gradientami)
+        // wykonywal sie ZA PIERWSZYM RAZEM w klatce startu animacji - na MT8163
+        // dawalo to widoczne zaciecie otwarcia (zamkniecie bylo plynnie, bo panel
+        // byl juz wymierzony i narysowany). Panel wymierzamy PRZED startem animacji,
+        // a sama animacja to subtelny wzrost 0.9 -> 1.0 z
+        // AccelerateDecelerateInterpolator - DOKLADNIE ta sama sciezka, ktora
+        // od bd25c74 dziala gladko w ConnectivityActivity.
+        try {
+            panel.measure(
+                    View.MeasureSpec.makeMeasureSpec(Ui.windowWidth(this), View.MeasureSpec.AT_MOST),
+                    View.MeasureSpec.makeMeasureSpec(Ui.windowWidth(this), View.MeasureSpec.AT_MOST));
+        } catch (Throwable ignored) {
+        }
+        float pw = panel.getMeasuredWidth() > 0 ? panel.getMeasuredWidth() : panelW;
+        float ph = panel.getMeasuredHeight() > 0 ? panel.getMeasuredHeight() : Ui.dp(this, 420);
+        float px = Math.max(0f, Math.min(pw, gestureX - panelLeft));
+        float py = Math.max(0f, Math.min(ph, gestureY - panelTop));
         panel.setPivotX(px);
         panel.setPivotY(py);
-        panel.setScaleX(0.6f);
-        panel.setScaleY(0.6f);
+        panel.setScaleX(0.9f);
+        panel.setScaleY(0.9f);
         panel.animate().scaleX(1f).scaleY(1f)
-                .setDuration(Prefs.reduceMotion(this) ? 0 : 300)
-                .setInterpolator(new android.view.animation.OvershootInterpolator(0.9f))
+                .setDuration(Prefs.reduceMotion(this) ? 0 : 220)
+                .setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator())
                 .withEndAction(new Runnable() {
                     @Override
                     public void run() {
@@ -1587,7 +1603,7 @@ public class LauncherActivity extends BaseActivity {
             float py = Math.max(0f, Math.min(pv.getHeight(), ccOriginY - pv.getTop()));
             pv.setPivotX(px);
             pv.setPivotY(py);
-            pv.animate().scaleX(0.6f).scaleY(0.6f)
+            pv.animate().scaleX(0.9f).scaleY(0.9f)
                     .setDuration(220).start();
         }
         // fade overlay - potwierdzona sciezka zamykania (PR #14)
